@@ -201,6 +201,24 @@ small model on the surviving QA pairs with LoRA, conditioning on questions
 only, the same supervised objective as the paper. Survival curates the
 dataset, MeMo's recipe compresses it into weights.
 
+## Benchmarks
+
+The claim is benchmarked against four baselines across 10 seeds, with
+ablations and a scaling probe, all reproducible offline from `bench/`.
+The sharpest comparison is against `random_matched`: identical per-cycle
+eviction counts, random victims.
+
+| arm | kill rate | kill cycle (med) | damage before kill | tail delta | cum delta |
+|---|---|---|---|---|---|
+| survival | 1.00 | 0 | -751k | +435k | +12.0M |
+| random_matched | 0.80 | 19 | -8.97M | -75k | -5.25M |
+| keep_everything | 0.00 | never | -10.6M | -287k | -7.29M |
+
+Same pruning rate, 12x the damage, negative steady state: outcome
+direction is the active ingredient, not eviction itself. Full tables,
+every baseline's best metric stated plainly, ablations over every knob,
+and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
+
 ## Design notes
 
 - **Energy ledger**: entries spawn at 1.0 energy, pay 0.05 upkeep per
