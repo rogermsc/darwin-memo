@@ -1,9 +1,16 @@
 # darwin-memo
 
+[![CI](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml/badge.svg)](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/darwin-memo)](https://pypi.org/project/darwin-memo/)
+[![Python](https://img.shields.io/pypi/pyversions/darwin-memo)](https://pypi.org/project/darwin-memo/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Self-curating memory for LLM agents. Knowledge lives outside the frozen
 model, and it stays alive only while it keeps earning real, measurable
 outcomes. Wrong, stale, and useless entries go extinct on their own: no
 reward model, no LLM judge, no human curation.
+
+![Survival loop demo: a poisoned memory entry going extinct](docs/assets/demo.gif)
 
 This is a practical mix of two papers:
 
@@ -43,6 +50,12 @@ memory and shows it working end to end on a real filesystem.
 
 Requires Python 3.10+. The core has zero dependencies and every example
 runs offline with no API keys.
+
+```bash
+pip install darwin-memo
+```
+
+To run the examples, clone the repo:
 
 ```bash
 git clone https://github.com/rogermsc/darwin-memo

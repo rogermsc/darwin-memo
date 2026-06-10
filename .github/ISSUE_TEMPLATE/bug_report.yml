@@ -1,0 +1,33 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest snippet or commands that show the problem.
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: darwin-memo version
+      placeholder: python -c "import darwin_memo; print(darwin_memo.__version__)"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python version and OS
+      placeholder: "3.12.4 on macOS 15"
+    validations:
+      required: true

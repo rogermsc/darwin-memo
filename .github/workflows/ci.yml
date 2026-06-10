@@ -5,21 +5,44 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - name: Build and validate the package
+        run: |
+          pipx run build
+          pipx run twine check --strict dist/*
+
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.12", "3.13"]
+        python-version: ["3.10", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
-      - run: pytest -q
-      - name: Smoke-test the offline demo
+      - run: pytest -q --cov --cov-fail-under=80
+      - name: Smoke-test the offline examples
         run: |
           cd examples
-          python 01_encode_memory.py
-          python 03_survival_loop.py
+          for ex in 0*.py; do python "$ex" > /dev/null; done
+      - name: Benchmark smoke suite
+        run: |
+          python -m bench.run --suite smoke --out bench/results/smoke.json
+          python -m bench.report bench/results/smoke.json --check
