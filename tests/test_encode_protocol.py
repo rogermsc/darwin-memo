@@ -11,7 +11,8 @@ DOC_A = Document(
     text=(
         "Old log files under logs/ may be deleted after seven days. "
         "Cache files are disposable and safe to remove. "
-        "Database files under data/ are protected by the Platform Team and must be retained."
+        "Database files under data/ are protected by the Platform Team "
+        "and must be retained."
     ),
 )
 DOC_B = Document(
@@ -37,7 +38,9 @@ def test_local_encoder_produces_self_contained_entries():
 def test_local_encoder_finds_cross_document_entities():
     entries = LocalEncoder().encode([DOC_A, DOC_B])
     cross = [e for e in entries if e.kind.value == "cross_doc"]
-    assert cross, "Platform Team appears in both docs, so a cross_doc entry should exist"
+    assert cross, (
+        "Platform Team appears in both docs, so a cross_doc entry should exist"
+    )
     assert any(len(e.sources) >= 2 for e in cross)
 
 
@@ -55,7 +58,9 @@ def test_protocol_local_mode_reports_provenance():
 
 def test_decision_polarity():
     assert decision_polarity("Old logs may be deleted after seven days.") is True
-    assert decision_polarity("Database files are protected and must be retained.") is False
+    assert (
+        decision_polarity("Database files are protected and must be retained.") is False
+    )
     assert decision_polarity("These are redundant and safe to remove.") is True
     assert decision_polarity("") is None
     assert decision_polarity("The weather is nice.") is None

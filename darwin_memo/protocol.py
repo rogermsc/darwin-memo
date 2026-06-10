@@ -88,7 +88,9 @@ class QueryProtocol:
         # Stage 2: entity identification. Narrow which retrieved facts
         # actually bear on the query.
         # Stage 3: answer seeking, conditioned on the surviving facts.
-        memory_block = "\n\n".join(dict.fromkeys(grounding)) or "(memory returned nothing)"
+        memory_block = (
+            "\n\n".join(dict.fromkeys(grounding)) or "(memory returned nothing)"
+        )
         final = self.client.complete(
             "Answer the query using ONLY the memory snippets below. First "
             "identify which entities or facts are actually relevant, then "

@@ -56,7 +56,7 @@ class MemoryEntry:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "MemoryEntry":
+    def from_dict(cls, d: dict[str, Any]) -> MemoryEntry:
         d = dict(d)
         d["kind"] = EntryKind(d["kind"])
         return cls(**d)

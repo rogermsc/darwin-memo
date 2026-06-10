@@ -25,6 +25,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations
+from typing import Any
 
 from .llm import LLMClient, parse_json_array
 from .types import EntryKind, MemoryEntry
@@ -78,11 +79,7 @@ class LocalEncoder:
         # Sentence-initial single words are usually capitalization artifacts
         # ("Old log files..."), so an entity must be multi-word or show up
         # mid-sentence at least once across the corpus to count.
-        valid = {
-            e
-            for e in entity_sentences
-            if " " in e or e in entity_mid_sentence
-        }
+        valid = {e for e in entity_sentences if " " in e or e in entity_mid_sentence}
         entity_docs = {e: d for e, d in entity_docs.items() if e in valid}
         entity_sentences = {e: s for e, s in entity_sentences.items() if e in valid}
 
@@ -100,11 +97,14 @@ class LocalEncoder:
         # Step 5: converging clues, entities mentioned in several documents.
         for entity, docs in entity_docs.items():
             if len(docs) >= 2:
-                sentences = dict.fromkeys(entity_sentences[entity])
+                deduped = list(dict.fromkeys(entity_sentences[entity]))
                 entries.append(
                     MemoryEntry(
-                        question=f"Combining all sources, what is the full picture on {entity}?",
-                        answer=" ".join(list(sentences)[:3]),
+                        question=(
+                            "Combining all sources, what is the full "
+                            f"picture on {entity}?"
+                        ),
+                        answer=" ".join(deduped[:3]),
                         kind=EntryKind.CROSS_DOC,
                         sources=sorted(docs),
                     )
@@ -155,7 +155,8 @@ Produce QA pairs that satisfy ALL of these rules:
 - For each named entity, add attribute and relationship QAs in BOTH
   directions (entity to attribute, attribute to entity).
 
-Return a JSON array of objects: {{"question": str, "answer": str, "kind": "explicit"|"inferred"|"entity"}}
+Return a JSON array of objects:
+{{"question": str, "answer": str, "kind": "explicit"|"inferred"|"entity"}}
 """
 
 _CROSS_DOC_PROMPT = """\
@@ -200,7 +201,9 @@ class ReflectionEncoder:
             )
             raw = self.client.complete(_CROSS_DOC_PROMPT.format(documents=block))
             return [
-                _entry_from_item(item, sources=[doc_a.doc_id, doc_b.doc_id], kind=EntryKind.CROSS_DOC)
+                _entry_from_item(
+                    item, sources=[doc_a.doc_id, doc_b.doc_id], kind=EntryKind.CROSS_DOC
+                )
                 for item in parse_json_array(raw)
             ]
 
@@ -215,7 +218,7 @@ class ReflectionEncoder:
 
 
 def _entry_from_item(
-    item: dict, sources: list[str], kind: EntryKind | None = None
+    item: dict[str, Any], sources: list[str], kind: EntryKind | None = None
 ) -> MemoryEntry:
     """Coerce one parsed JSON object from the model into a MemoryEntry."""
     if kind is None:

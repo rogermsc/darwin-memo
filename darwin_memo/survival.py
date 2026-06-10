@@ -194,7 +194,9 @@ class SurvivalLoop:
             return 0
         candidate = MemoryEntry(
             question=parent.question,
-            answer=f"{parent.answer} Confirmed by outcome: {trajectory.outcome.detail}.",
+            answer=(
+                f"{parent.answer} Confirmed by outcome: {trajectory.outcome.detail}."
+            ),
             kind=EntryKind.EXPERIENCE,
             sources=[f"cycle-{cycle}"],
             born_cycle=cycle,

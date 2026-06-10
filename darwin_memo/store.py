@@ -23,12 +23,13 @@ from .types import MemoryEntry
 
 _TOKEN_RE = re.compile(r"[a-z0-9.*]+")
 
-_STOPWORDS = frozenset(
+_STOPWORD_TEXT = (
     "a an and are as at be by for from has have in is it of on or that the "
     "this these those to was were will with what which who how when where "
     "why does do under over after before during between within against "
-    "but if then than so may might must should could would".split()
+    "but if then than so may might must should could would"
 )
+_STOPWORDS = frozenset(_STOPWORD_TEXT.split())
 
 
 def _stem(token: str) -> str:
@@ -39,9 +40,7 @@ def _stem(token: str) -> str:
 
 
 def tokenize(text: str) -> list[str]:
-    return [
-        _stem(t) for t in _TOKEN_RE.findall(text.lower()) if t not in _STOPWORDS
-    ]
+    return [_stem(t) for t in _TOKEN_RE.findall(text.lower()) if t not in _STOPWORDS]
 
 
 class MemoryStore:
@@ -116,9 +115,7 @@ class MemoryStore:
             doc_freq.update(self._entry_tokens(entry))
 
         n_docs = len(self._entries)
-        query_idf = {
-            t: math.log(1 + n_docs / (1 + doc_freq[t])) for t in query_tokens
-        }
+        query_idf = {t: math.log(1 + n_docs / (1 + doc_freq[t])) for t in query_tokens}
         query_mass = sum(query_idf.values())
         if query_mass <= 0:
             return []
@@ -200,9 +197,13 @@ class MemoryStore:
         Path(path).write_text(json.dumps(payload, indent=2))
 
     @classmethod
-    def load(cls, path: str | Path) -> "MemoryStore":
+    def load(cls, path: str | Path) -> MemoryStore:
         payload = json.loads(Path(path).read_text())
-        store = cls(**payload["config"])
+        # Filter to known keys so files saved by other versions still load.
+        config = {
+            k: v for k, v in payload["config"].items() if k in ("max_energy", "upkeep")
+        }
+        store = cls(**config)
         for d in payload["entries"]:
             store._entries[d["id"]] = MemoryEntry.from_dict(d)
         for d in payload["graveyard"]:

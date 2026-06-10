@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class LLMClient(Protocol):
@@ -26,7 +26,7 @@ _DEFAULT_SYSTEM = "You are a precise knowledge-engineering assistant."
 
 
 class AnthropicClient:
-    """Claude over the Anthropic API. Requires ``pip install darwin-memo[anthropic]``."""
+    """Claude over the Anthropic API (``pip install darwin-memo[anthropic]``)."""
 
     def __init__(self, model: str | None = None, max_tokens: int = 1024) -> None:
         import anthropic
@@ -69,10 +69,10 @@ class OpenAICompatClient:
                 {"role": "user", "content": prompt},
             ],
         )
-        return response.choices[0].message.content or ""
+        return str(response.choices[0].message.content or "")
 
 
-def parse_json_array(text: str) -> list:
+def parse_json_array(text: str) -> list[Any]:
     """Pull the first JSON array out of a model response, tolerating fences."""
     text = re.sub(r"```(?:json)?", "", text)
     match = re.search(r"\[.*\]", text, re.DOTALL)

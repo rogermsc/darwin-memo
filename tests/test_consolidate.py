@@ -39,8 +39,14 @@ def test_similar_entries_merge_and_energy_pools():
 
 def test_dissimilar_entries_do_not_merge():
     store = MemoryStore()
-    store.add(MemoryEntry(question="What about caches?", answer="Caches are disposable."))
-    store.add(MemoryEntry(question="Who runs payroll?", answer="Finance runs payroll monthly."))
+    store.add(
+        MemoryEntry(question="What about caches?", answer="Caches are disposable.")
+    )
+    store.add(
+        MemoryEntry(
+            question="Who runs payroll?", answer="Finance runs payroll monthly."
+        )
+    )
     assert consolidate(store, cycle=1, threshold=0.5) == 0
     assert len(store) == 2
 

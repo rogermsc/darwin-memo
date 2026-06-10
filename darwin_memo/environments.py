@@ -23,7 +23,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from .types import Outcome
 
@@ -33,7 +33,7 @@ class Task:
     """A question the agent must act on, plus opaque environment context."""
 
     prompt: str
-    context: dict
+    context: dict[str, Any]
 
 
 class Environment(Protocol):
@@ -134,7 +134,9 @@ class StorageEnv:
         files_per_cycle: int = 12,
         seed: int = 7,
     ) -> None:
-        self.root = Path(root) if root else Path(tempfile.mkdtemp(prefix="darwin-memo-"))
+        self.root = (
+            Path(root) if root else Path(tempfile.mkdtemp(prefix="darwin-memo-"))
+        )
         self.files_per_cycle = files_per_cycle
         self.seed = seed
         self._sandbox: Path | None = None
@@ -156,9 +158,15 @@ class StorageEnv:
                 Task(
                     prompt=(
                         f"Is it safe to delete the file {path.name} "
-                        f"(a {category.replace('_', ' ')} file under {path.parent.name}/)?"
+                        f"(a {category.replace('_', ' ')} file "
+                        f"under {path.parent.name}/)?"
                     ),
-                    context={"path": path, "safe": safe, "size": size, "category": category},
+                    context={
+                        "path": path,
+                        "safe": safe,
+                        "size": size,
+                        "category": category,
+                    },
                 )
             )
         return tasks
@@ -175,7 +183,10 @@ class StorageEnv:
         # Restore from backup: the file comes back and the restore
         # process consumes three times its size in scratch space.
         path.write_bytes(b"\0" * size)
-        return Outcome(delta=-3.0 * size, detail=f"destroyed protected data, restore cost {3 * size} bytes")
+        return Outcome(
+            delta=-3.0 * size,
+            detail=f"destroyed protected data, restore cost {3 * size} bytes",
+        )
 
     def cleanup(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
@@ -197,7 +208,9 @@ class VerifiableQAEnv:
 
     resource_scale = 1.0
 
-    def __init__(self, qa_pairs: list[tuple[str, str]], per_cycle: int = 5, seed: int = 7) -> None:
+    def __init__(
+        self, qa_pairs: list[tuple[str, str]], per_cycle: int = 5, seed: int = 7
+    ) -> None:
         self.qa_pairs = qa_pairs
         self.per_cycle = per_cycle
         self.seed = seed

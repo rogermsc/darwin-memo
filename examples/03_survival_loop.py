@@ -20,8 +20,10 @@ from darwin_memo import StorageEnv, SurvivalConfig, SurvivalLoop
 
 store = build_store()
 poisoned_ids = {e.id for e in store.alive() if "forum-post" in e.sources}
-print(f"\nStarting population: {len(store)} entries "
-      f"({len(poisoned_ids)} from the poisoned forum post)\n")
+print(
+    f"\nStarting population: {len(store)} entries "
+    f"({len(poisoned_ids)} from the poisoned forum post)\n"
+)
 
 env = StorageEnv(files_per_cycle=12, seed=11)
 loop = SurvivalLoop(store, env, config=SurvivalConfig(cycles=30))
@@ -42,7 +44,7 @@ print("\nGraveyard:")
 for entry in store.graveyard():
     if entry.id in merged_away:
         cause = "merged"
-    elif entry.id in poisoned_ids or entry.uses > 0 and entry.energy < -0.1:
+    elif entry.id in poisoned_ids or (entry.uses > 0 and entry.energy < -0.1):
         cause = "executed"
     else:
         cause = "starved"
@@ -50,6 +52,7 @@ for entry in store.graveyard():
 
 poisoned_alive = [e for e in store.alive() if "forum-post" in e.sources]
 print(f"\nPoisoned entries still alive: {len(poisoned_alive)}")
-print("Energy share by kind:", {
-    k: round(v, 2) for k, v in store.energy_share_by_kind().items()
-})
+print(
+    "Energy share by kind:",
+    {k: round(v, 2) for k, v in store.energy_share_by_kind().items()},
+)
