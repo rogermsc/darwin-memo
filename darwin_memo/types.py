@@ -100,4 +100,3 @@ class CycleStats:
     merges: int
     total_energy: float
     resource_delta: float
-    dead_ids: list[str] = field(default_factory=list)

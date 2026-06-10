@@ -48,14 +48,8 @@ def consolidate(store: MemoryStore, cycle: int, threshold: float = 0.55) -> int:
 def _merge(cluster: list[MemoryEntry], cycle: int, max_energy: float) -> MemoryEntry:
     """The cluster's energy pools into one entry; nothing is created or lost."""
     anchor = cluster[0]
-    answers: list[str] = []
-    sources: list[str] = []
-    for member in cluster:
-        if member.answer not in answers:
-            answers.append(member.answer)
-        for source in member.sources:
-            if source not in sources:
-                sources.append(source)
+    answers = list(dict.fromkeys(m.answer for m in cluster))
+    sources = list(dict.fromkeys(s for m in cluster for s in m.sources))
     return MemoryEntry(
         question=anchor.question,
         answer=" ".join(answers[:3]),

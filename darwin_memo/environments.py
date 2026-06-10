@@ -9,13 +9,16 @@ regenerates the sandbox every cycle exactly as the paper regenerates its
 containers, so nothing can overfit to one filesystem instance.
 
 Implement the :class:`Environment` protocol to plug in your own pressure:
-tests passing, requests served under budget, rows deduplicated. The one
-rule is that ``verify`` must measure, never grade.
+tests passing, requests served under budget, rows deduplicated. The
+environment owns the whole contract: it phrases the task, it reads the
+answer (including what to do when memory is silent), it acts, and it
+measures. The one rule is that ``verify`` must measure, never grade.
 """
 
 from __future__ import annotations
 
 import random
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -38,7 +41,60 @@ class Environment(Protocol):
 
     def tasks(self, cycle: int) -> list[Task]: ...
 
-    def verify(self, task: Task, act: bool, answer_text: str = "") -> Outcome: ...
+    def verify(self, task: Task, answer_text: str) -> Outcome: ...
+
+
+# ---------------------------------------------------------------------------
+# Reading an action out of a memory answer
+# ---------------------------------------------------------------------------
+
+_NEGATIVE_MARKERS = (
+    "must be retained",
+    "must not be deleted",
+    "never delete",
+    "do not delete",
+    "not safe to delete",
+    "must be kept",
+    "should be kept",
+    "protected",
+    "required for",
+    "retained indefinitely",
+)
+_POSITIVE_MARKERS = (
+    "safe to delete",
+    "may be deleted",
+    "can be deleted",
+    "safe to remove",
+    "may be removed",
+    "can be removed",
+    "redundant",
+    "disposable",
+)
+
+
+def decision_polarity(answer_text: str) -> bool | None:
+    """Read a yes/no action decision out of a memory answer.
+
+    This lives in the environment layer because the vocabulary is the
+    environment's own: the env phrased the task, so the env knows how to
+    read an answer to it. Negative markers win over positive ones: when
+    memory is ambiguous about something irreversible, the safe reading
+    is no. Returns True (act), False (do not act), or None (memory is
+    silent). Reuse or replace it when building your own binary-action
+    environment.
+    """
+    text = answer_text.lower()
+    if not text.strip():
+        return None
+    if any(marker in text for marker in _NEGATIVE_MARKERS):
+        return False
+    if any(marker in text for marker in _POSITIVE_MARKERS):
+        return True
+    if re.search(r"\byes\b", text):
+        return True
+    if re.search(r"\bno\b", text):
+        return False
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -64,8 +120,10 @@ class StorageEnv:
     Each cycle procedurally generates a fresh directory tree, then asks
     the agent file by file: is this safe to delete? Acting on a
     disposable file frees its real size. Acting on a protected file
-    triggers a restore that costs three times the size. Declining to act
-    is always delta zero. No judge anywhere in the loop.
+    triggers a restore that costs three times the size. When memory is
+    silent or ambiguous the file is kept, the conservative reading of
+    an irreversible action, and the delta is zero. No judge anywhere in
+    the loop.
     """
 
     resource_scale = 100_000.0  # bytes, normalization hint for credit
@@ -105,11 +163,12 @@ class StorageEnv:
             )
         return tasks
 
-    def verify(self, task: Task, act: bool, answer_text: str = "") -> Outcome:
-        path: Path = task.context["path"]
-        size: int = task.context["size"]
+    def verify(self, task: Task, answer_text: str) -> Outcome:
+        act = decision_polarity(answer_text)
         if not act:
             return Outcome(delta=0.0, detail="kept")
+        path: Path = task.context["path"]
+        size: int = task.context["size"]
         path.unlink(missing_ok=True)
         if task.context["safe"]:
             return Outcome(delta=float(size), detail=f"freed {size} bytes")
@@ -148,7 +207,7 @@ class VerifiableQAEnv:
         sample = rng.sample(self.qa_pairs, k=min(self.per_cycle, len(self.qa_pairs)))
         return [Task(prompt=q, context={"expected": a}) for q, a in sample]
 
-    def verify(self, task: Task, act: bool, answer_text: str = "") -> Outcome:
+    def verify(self, task: Task, answer_text: str) -> Outcome:
         expected: str = task.context["expected"]
         if expected.lower() in answer_text.lower():
             return Outcome(delta=1.0, detail="verified")

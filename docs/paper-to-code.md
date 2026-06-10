@@ -30,7 +30,7 @@ implementation deviates and why.
 | Upkeep: existing costs something | `MemoryStore.charge_upkeep` | The paper's agents pay compute and storage to act at all. Entries pay energy per cycle. |
 | Negative-Space Learning: consolidation and pruning over invention | `consolidate.py` | Similar survivors merge, energy pools, dead entries are buried. Improvement shows up as reallocation of energy mass, observable via `MemoryStore.energy_share_by_kind`. |
 | Reward hacking is evolutionarily unstable | `survival.py` docstring, demo | There is nothing to hack. An entry only earns by producing outcomes that persist, at which point it is simply useful. |
-| Credit assignment along provenance | `SurvivalLoop._assign_credit` | The deciding entry takes full credit, supporting entries a configurable share, scaled by tanh of the normalized delta. |
+| Credit assignment along provenance | `SurvivalLoop._assign_credit` | In local mode the deciding entry takes full credit and supporters a configurable share. In LLM mode no single entry decides a synthesized answer, so credit spreads evenly across the consulted entries. Both scale by tanh of the normalized delta. |
 
 ## Honest deviations
 
@@ -43,7 +43,8 @@ implementation deviates and why.
    floor (`MemoryStore.retrieve`). Good enough to demonstrate the
    mechanics offline. Swap in embeddings if you need semantic recall.
 3. **The paper's agents propose executable code.** Here the proposal is an
-   answer plus a binary action read from it (`decision_polarity`). Same
-   selection geometry, far smaller attack surface.
+   answer, and the environment reads an action out of it
+   (`environments.decision_polarity` for binary actions). Same selection
+   geometry, far smaller attack surface.
 4. **VerifiableQAEnv verifies by exact containment.** Weaker grounding than
    bytes on disk, but still a measurement, never a model's judgment.

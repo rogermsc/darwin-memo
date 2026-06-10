@@ -22,6 +22,9 @@ class LLMClient(Protocol):
     def complete(self, prompt: str, system: str = "") -> str: ...
 
 
+_DEFAULT_SYSTEM = "You are a precise knowledge-engineering assistant."
+
+
 class AnthropicClient:
     """Claude over the Anthropic API. Requires ``pip install darwin-memo[anthropic]``."""
 
@@ -36,7 +39,7 @@ class AnthropicClient:
         message = self._client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=system or "You are a precise knowledge-engineering assistant.",
+            system=system or _DEFAULT_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
         return "".join(block.text for block in message.content if block.type == "text")
@@ -62,7 +65,7 @@ class OpenAICompatClient:
             model=self.model,
             max_tokens=self.max_tokens,
             messages=[
-                {"role": "system", "content": system or "You are a precise knowledge-engineering assistant."},
+                {"role": "system", "content": system or _DEFAULT_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
         )

@@ -9,8 +9,14 @@ models, no judges, no human curation.
 
 from .consolidate import consolidate
 from .encode import Document, LocalEncoder, ReflectionEncoder
-from .environments import Environment, StorageEnv, Task, VerifiableQAEnv
-from .protocol import ProtocolAnswer, QueryProtocol, decision_polarity
+from .environments import (
+    Environment,
+    StorageEnv,
+    Task,
+    VerifiableQAEnv,
+    decision_polarity,
+)
+from .protocol import ProtocolAnswer, QueryProtocol
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, SurvivalReport
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory

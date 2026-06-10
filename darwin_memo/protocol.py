@@ -9,40 +9,21 @@ the constant-time inference property the paper cares about.
 
 The local mode answers from retrieval alone so that environments can
 exercise the survival loop offline. The answer also reports which
-entries decided it: that provenance is what survival credit assignment
-attaches to.
+entries produced it: that provenance is what survival credit assignment
+attaches to. Provenance fidelity differs by mode. In local mode the
+answer IS the top entry's text, so ``deciding_entry`` is real. In LLM
+mode the model synthesizes across everything it consulted and no single
+entry decided the answer, so ``deciding_entry`` stays None and all
+consulted entries are reported as supporting; the survival loop then
+spreads credit evenly instead of inventing a winner.
 """
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from .llm import LLMClient
 from .store import MemoryStore
-
-_NEGATIVE_MARKERS = (
-    "must be retained",
-    "must not be deleted",
-    "never delete",
-    "do not delete",
-    "not safe to delete",
-    "must be kept",
-    "should be kept",
-    "protected",
-    "required for",
-    "retained indefinitely",
-)
-_POSITIVE_MARKERS = (
-    "safe to delete",
-    "may be deleted",
-    "can be deleted",
-    "safe to remove",
-    "may be removed",
-    "can be removed",
-    "redundant",
-    "disposable",
-)
 
 
 @dataclass
@@ -50,7 +31,6 @@ class ProtocolAnswer:
     text: str
     deciding_entry: str | None = None
     supporting_entries: list[str] = field(default_factory=list)
-    stages: dict[str, str] = field(default_factory=dict)
 
 
 class QueryProtocol:
@@ -72,14 +52,12 @@ class QueryProtocol:
     def _answer_local(self, query: str, k: int) -> ProtocolAnswer:
         hits = self.store.retrieve(query, k=k)
         if not hits:
-            return ProtocolAnswer(text="", stages={"grounding": "no memory hit"})
+            return ProtocolAnswer(text="")
         deciding, _ = hits[0]
-        supporting = [e.id for e, _ in hits[1:]]
         return ProtocolAnswer(
             text=deciding.answer,
             deciding_entry=deciding.id,
-            supporting_entries=supporting,
-            stages={"grounding": query, "seek": deciding.question},
+            supporting_entries=[e.id for e, _ in hits[1:]],
         )
 
     # ------------------------------------------------------------------
@@ -118,33 +96,8 @@ class QueryProtocol:
             "rather than guessing.\n\n"
             f"Memory:\n{memory_block}\n\nQuery: {query}"
         )
-        deduped = list(dict.fromkeys(used))
         return ProtocolAnswer(
             text=final.strip(),
-            deciding_entry=deduped[0] if deduped else None,
-            supporting_entries=deduped[1:],
-            stages={"grounding": decomposition, "seek": final.strip()},
+            deciding_entry=None,
+            supporting_entries=list(dict.fromkeys(used)),
         )
-
-
-def decision_polarity(answer_text: str) -> bool | None:
-    """Read a yes/no action decision out of a memory answer.
-
-    Environments that take a binary action (delete or keep, run or skip)
-    need a decision, and in local mode there is no model to make one.
-    Negative markers win over positive ones: when memory is ambiguous
-    about something irreversible, the safe reading is no.
-    Returns True (act), False (do not act), or None (memory is silent).
-    """
-    text = answer_text.lower()
-    if not text.strip():
-        return None
-    if any(marker in text for marker in _NEGATIVE_MARKERS):
-        return False
-    if any(marker in text for marker in _POSITIVE_MARKERS):
-        return True
-    if re.search(r"\byes\b", text):
-        return True
-    if re.search(r"\bno\b", text):
-        return False
-    return None

@@ -47,25 +47,20 @@ def tokenize(text: str) -> list[str]:
 class MemoryStore:
     """Holds entries, scores retrieval lexically, and runs the energy ledger."""
 
-    def __init__(
-        self,
-        initial_energy: float = 1.0,
-        max_energy: float = 5.0,
-        upkeep: float = 0.05,
-    ) -> None:
-        self.initial_energy = initial_energy
+    def __init__(self, max_energy: float = 5.0, upkeep: float = 0.05) -> None:
         self.max_energy = max_energy
         self.upkeep = upkeep
         self._entries: dict[str, MemoryEntry] = {}
         self._graveyard: dict[str, MemoryEntry] = {}
+        # QA text never mutates after add (only energy and usage counters
+        # do), so token sets are cached per entry id and dropped on bury.
+        self._token_cache: dict[str, frozenset[str]] = {}
 
     # ------------------------------------------------------------------
     # Population access
     # ------------------------------------------------------------------
 
     def add(self, entry: MemoryEntry) -> MemoryEntry:
-        if entry.energy <= 0:
-            entry.energy = self.initial_energy
         self._entries[entry.id] = entry
         return entry
 
@@ -84,6 +79,16 @@ class MemoryStore:
     # ------------------------------------------------------------------
     # Retrieval
     # ------------------------------------------------------------------
+
+    def _entry_tokens(self, entry: MemoryEntry) -> frozenset[str]:
+        """The matchable text of an entry is its question plus answer."""
+        cached = self._token_cache.get(entry.id)
+        if cached is not None:
+            return cached
+        tokens = frozenset(tokenize(entry.question + " " + entry.answer))
+        if entry.id in self._entries:
+            self._token_cache[entry.id] = tokens
+        return tokens
 
     def retrieve(
         self, query: str, k: int = 3, min_coverage: float = 0.25
@@ -107,25 +112,21 @@ class MemoryStore:
             return []
 
         doc_freq: Counter[str] = Counter()
-        entry_tokens: dict[str, set[str]] = {}
         for entry in self._entries.values():
-            tokens = set(tokenize(entry.question + " " + entry.answer))
-            entry_tokens[entry.id] = tokens
-            doc_freq.update(tokens)
+            doc_freq.update(self._entry_tokens(entry))
 
         n_docs = len(self._entries)
-
-        def idf(token: str) -> float:
-            return math.log(1 + n_docs / (1 + doc_freq[token]))
-
-        query_mass = sum(idf(t) for t in query_tokens)
+        query_idf = {
+            t: math.log(1 + n_docs / (1 + doc_freq[t])) for t in query_tokens
+        }
+        query_mass = sum(query_idf.values())
         if query_mass <= 0:
             return []
 
         scored: list[tuple[MemoryEntry, float]] = []
         for entry in self._entries.values():
-            tokens = entry_tokens[entry.id]
-            score = sum(idf(t) for t in query_tokens if t in tokens)
+            tokens = self._entry_tokens(entry)
+            score = sum(idf for t, idf in query_idf.items() if t in tokens)
             if score / query_mass >= min_coverage:
                 scored.append((entry, score))
 
@@ -134,8 +135,8 @@ class MemoryStore:
 
     def similarity(self, a: MemoryEntry, b: MemoryEntry) -> float:
         """Jaccard similarity over QA tokens, used by consolidation."""
-        ta = set(tokenize(a.question + " " + a.answer))
-        tb = set(tokenize(b.question + " " + b.answer))
+        ta = self._entry_tokens(a)
+        tb = self._entry_tokens(b)
         if not ta or not tb:
             return 0.0
         return len(ta & tb) / len(ta | tb)
@@ -157,7 +158,7 @@ class MemoryStore:
         dead: list[MemoryEntry] = []
         for entry in list(self._entries.values()):
             entry.energy -= self.upkeep
-            if entry.energy <= 1e-9:
+            if not entry.alive:
                 dead.append(entry)
         for entry in dead:
             self.bury(entry.id)
@@ -165,6 +166,7 @@ class MemoryStore:
 
     def bury(self, entry_id: str) -> None:
         entry = self._entries.pop(entry_id, None)
+        self._token_cache.pop(entry_id, None)
         if entry is not None:
             entry.energy = min(entry.energy, 0.0)
             self._graveyard[entry.id] = entry
@@ -189,7 +191,6 @@ class MemoryStore:
     def save(self, path: str | Path) -> None:
         payload = {
             "config": {
-                "initial_energy": self.initial_energy,
                 "max_energy": self.max_energy,
                 "upkeep": self.upkeep,
             },

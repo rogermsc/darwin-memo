@@ -22,6 +22,7 @@ whole package runs offline.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations
 
@@ -121,11 +122,12 @@ class LocalEncoder:
     @staticmethod
     def _subject_of(sentence: str) -> str:
         words = sentence.rstrip(".!?").split()
-        return " ".join(words[: min(6, len(words))]).lower()
+        return " ".join(words[:6]).lower()
 
     @staticmethod
     def _entities(sentence: str) -> list[tuple[str, bool]]:
-        first_word = sentence.split()[0] if sentence.split() else ""
+        words = sentence.split()
+        first_word = words[0] if words else ""
         results: list[tuple[str, bool]] = []
         for candidate in _ENTITY_RE.findall(sentence):
             mid_sentence = not candidate.startswith(first_word)
@@ -170,44 +172,60 @@ Every question must be self-contained. Return [] if nothing converges.
 
 
 class ReflectionEncoder:
-    """Model-driven reflection encoding, steps 1 through 5 of MeMo."""
+    """Model-driven reflection encoding, steps 1 through 5 of MeMo.
 
-    def __init__(self, client: LLMClient) -> None:
+    Calls are independent per document and per document pair, so they run
+    on a thread pool. The output order is deterministic regardless.
+    """
+
+    def __init__(self, client: LLMClient, max_workers: int = 4) -> None:
         self.client = client
+        self.max_workers = max_workers
 
     def encode(self, documents: list[Document]) -> list[MemoryEntry]:
-        entries: list[MemoryEntry] = []
-        for doc in documents:
+        def encode_document(doc: Document) -> list[MemoryEntry]:
             raw = self.client.complete(
                 _EXTRACTION_PROMPT.format(doc_id=doc.doc_id, text=doc.text)
             )
-            for item in parse_json_array(raw):
-                kind = item.get("kind", "explicit")
-                if kind not in {k.value for k in EntryKind}:
-                    kind = "explicit"
-                entries.append(
-                    MemoryEntry(
-                        question=str(item.get("question", "")).strip(),
-                        answer=str(item.get("answer", "")).strip(),
-                        kind=EntryKind(kind),
-                        sources=[doc.doc_id],
-                    )
-                )
+            return [
+                _entry_from_item(item, sources=[doc.doc_id])
+                for item in parse_json_array(raw)
+            ]
 
-        for doc_a, doc_b in combinations(documents, 2):
+        def encode_pair(pair: tuple[Document, Document]) -> list[MemoryEntry]:
+            doc_a, doc_b = pair
             block = (
                 f"Document {doc_a.doc_id}:\n{doc_a.text}\n\n"
                 f"Document {doc_b.doc_id}:\n{doc_b.text}"
             )
             raw = self.client.complete(_CROSS_DOC_PROMPT.format(documents=block))
-            for item in parse_json_array(raw):
-                entries.append(
-                    MemoryEntry(
-                        question=str(item.get("question", "")).strip(),
-                        answer=str(item.get("answer", "")).strip(),
-                        kind=EntryKind.CROSS_DOC,
-                        sources=[doc_a.doc_id, doc_b.doc_id],
-                    )
-                )
+            return [
+                _entry_from_item(item, sources=[doc_a.doc_id, doc_b.doc_id], kind=EntryKind.CROSS_DOC)
+                for item in parse_json_array(raw)
+            ]
+
+        entries: list[MemoryEntry] = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+            for batch in pool.map(encode_document, documents):
+                entries.extend(batch)
+            for batch in pool.map(encode_pair, combinations(documents, 2)):
+                entries.extend(batch)
 
         return [e for e in entries if e.question and e.answer]
+
+
+def _entry_from_item(
+    item: dict, sources: list[str], kind: EntryKind | None = None
+) -> MemoryEntry:
+    """Coerce one parsed JSON object from the model into a MemoryEntry."""
+    if kind is None:
+        try:
+            kind = EntryKind(item.get("kind", "explicit"))
+        except ValueError:
+            kind = EntryKind.EXPLICIT
+    return MemoryEntry(
+        question=str(item.get("question", "")).strip(),
+        answer=str(item.get("answer", "")).strip(),
+        kind=kind,
+        sources=sources,
+    )

@@ -57,14 +57,14 @@ def test_poisoned_entry_dies_and_good_entry_survives(tmp_path):
     alive_ids = {e.id for e in store.alive()}
     assert poisoned.id in dead_ids, "poisoned advice should be selected out"
     assert good.id in alive_ids, "useful advice should persist"
-    assert good.energy > store.initial_energy
+    assert good.energy > 1.0, "useful advice should earn beyond its spawn energy"
 
     # Once the poison is gone, cycles stop destroying protected data.
     last_cycles = report.stats[-5:]
     assert all(s.resource_delta >= 0 for s in last_cycles)
 
 
-def test_default_act_is_conservative(tmp_path):
+def test_memory_silence_is_conservative(tmp_path):
     """With empty memory nothing is deleted, so the resource delta is zero."""
     store = MemoryStore()
     env = StorageEnv(root=tmp_path, files_per_cycle=6, seed=5)

@@ -137,9 +137,13 @@ class TestSuiteEnv:
     def tasks(self, cycle):
         ...  # questions the agent must act on this cycle
 
-    def verify(self, task, act, answer_text=""):
-        ...  # run the suite, return Outcome(delta=tests_passed_delta)
+    def verify(self, task, answer_text):
+        ...  # read the answer, act, return Outcome(delta=tests_passed_delta)
 ```
+
+The environment owns the whole contract: it phrases the task, it reads
+the answer (reuse `decision_polarity` for binary actions, or write your
+own reading), it decides what silence means, it acts, and it measures.
 
 Good conserved resources: tests passing, bytes freed, requests served
 under budget, rows deduplicated, dollars of spend avoided. Bad ones:
@@ -161,18 +165,21 @@ dataset, MeMo's recipe compresses it into weights.
   zero. All tunable via `MemoryStore` and `SurvivalConfig`.
 - **Credit flows along provenance.** The query protocol reports which
   entries decided and supported each answer, and only those entries are
-  touched by the outcome. tanh keeps one disaster from executing an entry
-  that was right ninety-nine times, and one jackpot from making an entry
-  immortal.
+  touched by the outcome. In LLM mode no single entry decides a
+  synthesized answer, so credit spreads evenly across everything
+  consulted instead of inventing a winner. tanh keeps one disaster from
+  executing an entry that was right ninety-nine times, and one jackpot
+  from making an entry immortal.
 - **Memory silence is a feature.** Retrieval has a relevance floor, and an
   earlier version of this repo demonstrated why: entries matching only
   structural tokens ("safe", "file") were deciding questions they knew
   nothing about, getting executed for it, and being reborn. Better for
   memory to say nothing than to guess.
-- **Conservative default.** When memory is silent the agent does not act.
-  A side effect worth knowing: protective knowledge ("never delete X")
-  eventually starves because it is redundant with the default. The
-  population converges to exactly the knowledge that changes behavior.
+- **Silence is conservative.** When memory is silent, `StorageEnv` keeps
+  the file: the safe reading of an irreversible action. A side effect
+  worth knowing: protective knowledge ("never delete X") eventually
+  starves because it is redundant with that default. The population
+  converges to exactly the knowledge that changes behavior.
 
 The full concept-to-code mapping, including honest deviations from both
 papers, is in [docs/paper-to-code.md](docs/paper-to-code.md).

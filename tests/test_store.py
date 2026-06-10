@@ -1,13 +1,9 @@
 from darwin_memo import EntryKind, MemoryEntry, MemoryStore
 
 
-def make_entry(question: str, answer: str, **kwargs) -> MemoryEntry:
-    return MemoryEntry(question=question, answer=answer, **kwargs)
-
-
 def test_upkeep_kills_unused_entries():
-    store = MemoryStore(initial_energy=0.1, upkeep=0.05)
-    entry = store.add(make_entry("What is X?", "X is a thing.", energy=0.1))
+    store = MemoryStore(upkeep=0.05)
+    entry = store.add(MemoryEntry(question="What is X?", answer="X is a thing.", energy=0.1))
     assert len(store) == 1
 
     dead_first = store.charge_upkeep()
@@ -21,7 +17,7 @@ def test_upkeep_kills_unused_entries():
 
 def test_credit_caps_at_max_energy():
     store = MemoryStore(max_energy=2.0)
-    entry = store.add(make_entry("Q?", "A."))
+    entry = store.add(MemoryEntry(question="Q?", answer="A."))
     store.credit(entry.id, 10.0, cycle=3)
     assert entry.energy == 2.0
     assert entry.uses == 1
@@ -31,9 +27,17 @@ def test_credit_caps_at_max_energy():
 def test_retrieve_ranks_by_lexical_match():
     store = MemoryStore()
     relevant = store.add(
-        make_entry("What about database files?", "Database files must be retained.")
+        MemoryEntry(
+            question="What about database files?",
+            answer="Database files must be retained.",
+        )
     )
-    store.add(make_entry("What about log files?", "Old log files may be deleted."))
+    store.add(
+        MemoryEntry(
+            question="What about log files?",
+            answer="Old log files may be deleted.",
+        )
+    )
 
     hits = store.retrieve("Is it safe to delete the database file?", k=2)
     assert hits
@@ -42,15 +46,19 @@ def test_retrieve_ranks_by_lexical_match():
 
 def test_retrieve_ignores_dead_entries():
     store = MemoryStore()
-    entry = store.add(make_entry("What about caches?", "Cache files are disposable."))
+    entry = store.add(
+        MemoryEntry(question="What about caches?", answer="Cache files are disposable.")
+    )
     store.bury(entry.id)
     assert store.retrieve("caches") == []
 
 
 def test_save_and_load_roundtrip(tmp_path):
     store = MemoryStore(upkeep=0.07)
-    store.add(make_entry("Q1?", "A1.", kind=EntryKind.ENTITY, sources=["doc-1"]))
-    dead = store.add(make_entry("Q2?", "A2."))
+    store.add(
+        MemoryEntry(question="Q1?", answer="A1.", kind=EntryKind.ENTITY, sources=["doc-1"])
+    )
+    dead = store.add(MemoryEntry(question="Q2?", answer="A2."))
     store.bury(dead.id)
 
     path = tmp_path / "memory.json"
@@ -65,8 +73,8 @@ def test_save_and_load_roundtrip(tmp_path):
 
 def test_energy_share_by_kind():
     store = MemoryStore()
-    store.add(make_entry("Q1?", "A1.", kind=EntryKind.EXPLICIT, energy=3.0))
-    store.add(make_entry("Q2?", "A2.", kind=EntryKind.EXPERIENCE, energy=1.0))
+    store.add(MemoryEntry(question="Q1?", answer="A1.", kind=EntryKind.EXPLICIT, energy=3.0))
+    store.add(MemoryEntry(question="Q2?", answer="A2.", kind=EntryKind.EXPERIENCE, energy=1.0))
     shares = store.energy_share_by_kind()
     assert abs(shares["explicit"] - 0.75) < 1e-9
     assert abs(shares["experience"] - 0.25) < 1e-9
