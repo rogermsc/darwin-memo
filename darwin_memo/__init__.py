@@ -17,8 +17,16 @@ from .environments import (
     decision_polarity,
 )
 from .protocol import ProtocolAnswer, QueryProtocol
+from .retrieval import (
+    EmbeddingFn,
+    EmbeddingRetriever,
+    HashingEmbedder,
+    LexicalRetriever,
+    Retriever,
+)
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, SurvivalReport
+from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
 __version__ = "0.1.0"
@@ -26,8 +34,12 @@ __version__ = "0.1.0"
 __all__ = [
     "CycleStats",
     "Document",
+    "EmbeddingFn",
+    "EmbeddingRetriever",
     "EntryKind",
     "Environment",
+    "HashingEmbedder",
+    "LexicalRetriever",
     "LocalEncoder",
     "MemoryEntry",
     "MemoryStore",
@@ -35,11 +47,13 @@ __all__ = [
     "ProtocolAnswer",
     "QueryProtocol",
     "ReflectionEncoder",
+    "Retriever",
     "StorageEnv",
     "SurvivalConfig",
     "SurvivalLoop",
     "SurvivalReport",
     "Task",
+    "TestSuiteEnv",
     "Trajectory",
     "VerifiableQAEnv",
     "__version__",

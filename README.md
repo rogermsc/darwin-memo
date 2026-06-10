@@ -52,6 +52,8 @@ pip install -e .
 python examples/01_encode_memory.py   # corpus -> reflection-QA memory
 python examples/02_query_protocol.py  # interrogate it, with provenance
 python examples/03_survival_loop.py   # the headline demo
+python examples/04_agent_loop.py      # memory as a tool in an agent loop
+python examples/05_testsuite_env.py   # selection pressure from a test suite
 ```
 
 ## The headline demo
@@ -124,21 +126,33 @@ encoder = ReflectionEncoder(client)         # 5-step reflection QA synthesis
 protocol = QueryProtocol(store, client)     # grounding -> entities -> answer seeking
 ```
 
+### Three environments ship
+
+- `StorageEnv`: bytes freed on a real disk (the headline demo).
+- `TestSuiteEnv`: passing tests in a generated micro-project. Each cycle
+  plants seeded defects and offers patches: real fixes, cosmetic no-ops,
+  and destructive edits dressed as cleanup. The delta is the change in
+  passing-test count, measured by running the suite.
+  `examples/05_testsuite_env.py` shows poisoned "this helper is dead
+  code" advice going extinct the moment the tests execute it.
+- `VerifiableQAEnv`: exact containment of known answers, the weakest
+  grounding but still a measurement.
+
 ### Bring your own selection pressure
 
 The environment is the whole trick, and yours is probably better than the
-demo. Implement two methods, and keep the one rule: `verify` must measure,
-never grade.
+demos. Implement two methods, and keep the one rule: `verify` must
+measure, never grade.
 
 ```python
-class TestSuiteEnv:
-    resource_scale = 1.0
+class BudgetEnv:
+    resource_scale = 100.0
 
     def tasks(self, cycle):
         ...  # questions the agent must act on this cycle
 
     def verify(self, task, answer_text):
-        ...  # read the answer, act, return Outcome(delta=tests_passed_delta)
+        ...  # read the answer, act, return Outcome(delta=dollars_saved)
 ```
 
 The environment owns the whole contract: it phrases the task, it reads
@@ -148,6 +162,36 @@ own reading), it decides what silence means, it acts, and it measures.
 Good conserved resources: tests passing, bytes freed, requests served
 under budget, rows deduplicated, dollars of spend avoided. Bad ones:
 anything a model scored.
+
+### Retrieval modes
+
+Retrieval is pluggable through the `Retriever` protocol; the store stays
+the single owner of the energy ledger, and no retriever may read energy
+when scoring (selection pressure comes from outcomes, never from
+retrieval preferring incumbents).
+
+```python
+from darwin_memo import EmbeddingRetriever, HashingEmbedder, MemoryStore
+
+store = MemoryStore()                                  # lexical IDF, the default
+store = MemoryStore(retriever=EmbeddingRetriever(HashingEmbedder()))
+store = MemoryStore(retriever=EmbeddingRetriever(my_model.encode))
+```
+
+- **Lexical (default)**: smoothed IDF overlap with a relevance floor.
+  Zero dependencies, deterministic, fine for runbook-scale corpora.
+- **HashingEmbedder**: zero-dependency character n-gram hashing. Buys
+  typo and morphology robustness ("databse" still finds database
+  entries), not synonym recall.
+- **Any real embedding**: pass any `text -> list[float]` function
+  (sentence-transformers, an API endpoint). Vectors persist inside
+  `memory.json` so paid embeddings are never recomputed on load.
+
+Honest scaling note: ranking is pure-Python O(population x dims), fine
+to a few thousand entries. Past that you want numpy or an ANN index,
+which is out of scope for the zero-dependency core. With cosine
+retrievers, raise `merge_threshold` to roughly 0.85 or unrelated
+entries will consolidate.
 
 ### Distill survivors into a parametric memory (optional)
 

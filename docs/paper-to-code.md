@@ -39,9 +39,12 @@ implementation deviates and why.
    core dependency-free and lets selection operate on individual entries,
    which is what the survival mechanics need. The distillation script in
    `training/` closes the loop for anyone who wants the parametric form.
-2. **Local retrieval is lexical.** Smoothed IDF overlap with a relevance
-   floor (`MemoryStore.retrieve`). Good enough to demonstrate the
-   mechanics offline. Swap in embeddings if you need semantic recall.
+2. **Retrieval is lexical by default, pluggable by design.** Smoothed IDF
+   overlap with a relevance floor ships as the zero-dependency default,
+   and the `Retriever` protocol in `darwin_memo/retrieval.py` accepts
+   embedding-based retrieval through any `text -> list[float]` function
+   (a zero-dependency hashing embedder is included). Every retriever
+   obeys the same invariant: relevance scores never read entry energy.
 3. **The paper's agents propose executable code.** Here the proposal is an
    answer, and the environment reads an action out of it
    (`environments.decision_polarity` for binary actions). Same selection

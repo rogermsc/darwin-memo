@@ -59,6 +59,10 @@ _NEGATIVE_MARKERS = (
     "protected",
     "required for",
     "retained indefinitely",
+    "must not be applied",
+    "should not be applied",
+    "do not apply",
+    "load-bearing",
 )
 _POSITIVE_MARKERS = (
     "safe to delete",
@@ -69,6 +73,9 @@ _POSITIVE_MARKERS = (
     "can be removed",
     "redundant",
     "disposable",
+    "should be applied",
+    "safe to apply",
+    "may be applied",
 )
 
 
