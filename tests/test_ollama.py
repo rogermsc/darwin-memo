@@ -81,6 +81,9 @@ def test_client_complete_sends_chat_shape(fake_ollama):
     assert payload["model"] == "llama3.2"
     assert payload["stream"] is False
     assert payload["options"]["temperature"] == 0.0
+    # The generation cap is load-bearing: without it a looping model
+    # generates until the context fills and presents as a timeout.
+    assert payload["options"]["num_predict"] == 1024
     assert payload["messages"][0] == {"role": "system", "content": "Be terse."}
 
 
