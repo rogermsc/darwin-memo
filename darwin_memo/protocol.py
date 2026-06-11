@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .llm import THINK_RE as _THINK_RE
 from .llm import LLMClient
 from .store import MemoryStore
 
@@ -126,7 +127,6 @@ class QueryProtocol:
 
 
 _SOURCES_RE = re.compile(r"^\s*SOURCES?\s*:\s*(.*)$", re.IGNORECASE | re.MULTILINE)
-_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
 
 def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str], bool]:

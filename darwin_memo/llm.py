@@ -246,8 +246,23 @@ class OllamaEmbedder:
         return vector
 
 
+# Hybrid-reasoning models (Hermes 4.x, Qwen3, R1 style) may emit a
+# <think>...</think> block before any structured output. One regex,
+# shared by citation parsing (protocol.py) and JSON extraction here:
+# reasoning text is never data.
+THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+
+
 def parse_json_array(text: str) -> list[Any]:
-    """Pull the first JSON array out of a model response, tolerating fences."""
+    """Pull the first JSON array out of a model response, tolerating fences.
+
+    Think-blocks are stripped first: the greedy array match would
+    otherwise span from a stray bracket inside the reasoning to the
+    real array's closing bracket and parse as garbage. Measured on
+    qwen3:30b-a3b, this single failure took reflection-QA encoding
+    from 0% to 100% valid calls.
+    """
+    text = THINK_RE.sub("", text)
     text = re.sub(r"```(?:json)?", "", text)
     match = re.search(r"\[.*\]", text, re.DOTALL)
     if not match:

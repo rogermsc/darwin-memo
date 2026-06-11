@@ -57,6 +57,27 @@ project uses [SemVer](https://semver.org/).
   (the shadow schedule would come from a noise-free world; experience
   writes select on reported deltas and embed detail strings that name
   the true delta).
+### Fixed
+
+- `parse_json_array` strips `<think>...</think>` reasoning blocks
+  before extracting, so hybrid-reasoning models can drive the
+  reflection-QA encoder: measured on qwen3:30b-a3b, encoding validity
+  went from 0% to 100% (a stray bracket inside the reasoning poisoned
+  the greedy array match into garbage). One shared `THINK_RE` in
+  `llm.py` now serves both citation parsing and JSON extraction.
+
+### Added
+
+- Measured citation-fidelity matrix in
+  docs/integrations/hermes.md (llama3.2, hermes3:8b, qwen3:30b-a3b,
+  Hermes 4.3 36B): SOURCES-line emission, citation vs explicit-none vs
+  fallback rates, think-block handling verified live, and the
+  unattributed-action hazard (an answer that reads as an action while
+  citing nothing: the environment acts, selection has nobody to
+  charge). Plus the first measured LLM-mode survival results: with
+  llama3.2 the actionable poison dies at cycle 14 in 3/3 seeds (cycle
+  0 in local mode) — citation dilution slows selection by an order of
+  magnitude, it does not break it.
 
 ## [0.4.0] - 2026-06-11
 

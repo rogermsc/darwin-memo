@@ -68,3 +68,22 @@ def test_decision_polarity():
     assert (
         decision_polarity("Caches are disposable but these ones must be kept.") is False
     )
+
+
+def test_parse_json_array_strips_think_blocks():
+    """Reasoning text is never data: brackets inside <think> must not
+    poison the greedy array match (measured 0% -> 100% encoding
+    validity on qwen3:30b-a3b)."""
+    from darwin_memo.llm import parse_json_array
+
+    raw = (
+        "<think>\nFacts: [1] the file, [2] the policy...\n"
+        "Let me draft the array.\n</think>\n"
+        '[{"question": "What about logs?", "answer": "Deletable.", '
+        '"kind": "explicit"}]'
+    )
+    parsed = parse_json_array(raw)
+    assert parsed == [
+        {"question": "What about logs?", "answer": "Deletable.", "kind": "explicit"}
+    ]
+    assert parse_json_array("<think>only [reasoning] here</think>no array") == []
