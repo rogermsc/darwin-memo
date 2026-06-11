@@ -9,6 +9,38 @@ Nobody reviews the store.
 `examples/06_ci_lesson_store.py` runs the full cycle offline. This page
 is the wiring for the real thing.
 
+## This repo runs it on itself
+
+darwin-memo dogfoods this integration. `.darwin-memo/lessons.json` is
+the repo's own store, seeded with real lessons from its development
+(`.darwin-memo/seed.py` lists them); `.github/workflows/memory.yml`
+settles tickets on every merged PR with the measured pass-count delta
+and commits the curated store back to main. The loop for an agent
+working on this repo:
+
+```bash
+python -c "
+from darwin_memo import Ledger
+ledger = Ledger.load('.darwin-memo/lessons.json', resource_scale=2.0)
+ticket = ledger.decide('Are LLM benchmark arms safe to run in CI?')
+print(ticket.answer); print('ticket:', ticket.id)
+ledger.save('.darwin-memo/lessons.json')
+"
+```
+
+Act on the answer, commit the store (the open ticket ships with the
+PR), and add one line to the PR body:
+
+```
+darwin-memo-ticket: <id>
+```
+
+The merge workflow settles it with `passes_after - passes_before`. If
+you do not act on the answer, abandon the ticket instead so its escrow
+releases. The first tickets through this loop were the decisions in
+the PRs that built it, including the one whose answer is this
+workflow's own concurrency group.
+
 ## The shape
 
 ```

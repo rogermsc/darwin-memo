@@ -327,7 +327,9 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 ## Integrations
 
 - **[CI lesson store](docs/integrations/ci-lesson-store.md)**: the
-  primary production shape, lessons settled by CI pass deltas.
+  primary production shape, lessons settled by CI pass deltas. This
+  repo runs it on itself: `.darwin-memo/lessons.json` is curated by
+  `memory.yml` on every merged PR.
 - **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP today;
   a memory-slot plugin with measured (not self-reported) settlement
   from `agent_end` outcomes is planned.

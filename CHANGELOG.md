@@ -6,6 +6,17 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Dogfood: this repo now runs its own CI lesson store.
+  `.darwin-memo/lessons.json` (seeded with real lessons from this
+  repo's development by `.darwin-memo/seed.py`) is consulted by agents
+  via `ledger.decide()`, tickets ride in PR bodies as
+  `darwin-memo-ticket: <id>`, and `.github/workflows/memory.yml`
+  settles them with the measured pass-count delta on every merged PR,
+  ticks, and commits the curated store back to main. First production
+  deployment of the flagship integration, on the repo that ships it.
+
 ## [0.4.0] - 2026-06-11
 
 A max-effort review pass surfaced 15 correctness findings plus a
