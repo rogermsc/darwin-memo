@@ -340,9 +340,10 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   primary production shape, lessons settled by CI pass deltas. This
   repo runs it on itself: `.darwin-memo/lessons.json` is curated by
   `memory.yml` on every merged PR.
-- **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP today;
-  a memory-slot plugin with measured (not self-reported) settlement
-  from `agent_end` outcomes is planned.
+- **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP, or
+  claim the memory slot with
+  [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin)
+  — measured (not self-reported) settlement from `agent_end` outcomes.
 - **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
   the Ollama client (think-blocks handled), and Hermes Agent mounts the
   MCP server natively.

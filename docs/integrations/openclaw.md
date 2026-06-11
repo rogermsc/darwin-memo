@@ -42,30 +42,35 @@ Two caveats with this shape:
 - darwin-memo state survives OpenClaw retiring idle MCP processes,
   because everything persists to the JSON file after each call.
 
-## Planned: `openclaw-memory-darwin` (the memory-slot plugin)
+## Shipped: `openclaw-memory-darwin` (the memory-slot plugin)
 
-OpenClaw's memory is a swappable plugin slot (`plugins.slots.memory`,
-one active at a time; `memory-lancedb` and the mem0 bridge are working
-precedents). The plan, tracked in the repo issues:
+github.com/rogermsc/openclaw-memory-darwin claims OpenClaw's memory
+slot (`plugins.slots.memory`, one active at a time) and replaces
+curation with selection. Zero npm dependencies; targets host
+2026.3.24; verified by link-install into a real gateway (slot claimed
+from memory-core, doctor clean).
 
-- A thin TypeScript plugin claims the slot: `memory_recall` calls
-  `decide()` (opening a ticket keyed by `ctx.runId`), `memory_store`
-  calls `memory_add`, `memory_forget` retires an entry.
-- The plugin listens on OpenClaw's `agent_end` hook, which carries a
-  success boolean and run duration, and settles the run's tickets
-  automatically from those measurements, optionally weighted by
-  `after_tool_call` errors and `message_sent` delivery failures during
-  the run. Settlement becomes measured rather than self-reported,
-  which no other OpenClaw memory plugin does.
-- A background cron calls `tick()`; obituaries surface in chat on
-  request.
-- The bridge to Python is the `darwin-memo ledger` CLI, one
-  short-lived process per operation with a JSON object on stdout.
-  (The original plan said "the MCP stdio server as a child process";
-  ground truth changed it: OpenClaw's plugin SDK ships no MCP client,
-  so the CLI keeps both sides dependency-free.)
+- `memory_recall` calls `decide()` through the `darwin-memo ledger`
+  CLI, opening a ticket keyed by the session (OpenClaw's `agent_end`
+  carries no run id, so the session key is the correlation unit).
+- The `agent_end` hook settles every ticket the session opened with
+  the measured outcome (configurable success/failure deltas).
+  Settlement is measured rather than self-reported, which no other
+  OpenClaw memory plugin does. Tickets older than `maxTicketAgeHours`
+  are abandoned rather than inheriting a later run's outcome, and
+  failed settlements re-queue instead of stranding escrow.
+- A background service runs `tick()` on a persisted cadence that
+  survives gateway restarts; `memory_store`/`memory_forget` round out
+  the slot (forget honors ledger escrow and says so).
+- The bridge is the `darwin-memo ledger` CLI, one short-lived process
+  per operation with a JSON object on stdout, serialized client-side
+  to respect the CLI's single-writer contract. (The original plan
+  said "the MCP stdio server as a child process"; ground truth
+  changed it: OpenClaw's plugin SDK ships no MCP client, so the CLI
+  keeps both sides dependency-free.)
 
-Honest note on the delta semantics: a success boolean is a weaker
-conserved resource than bytes or passing tests. The default mapping
-(+1 success, -1 failure, scaled by recalls in the run) will be
-configurable and stated in the plugin docs, not hidden.
+Honest note on the delta semantics, also stated in the plugin's own
+README: a success boolean is a weaker conserved resource than bytes
+or passing tests. The default mapping (+1 success, -1 failure) is
+configurable, and lessons that keep being recalled into failing runs
+die on their own.
