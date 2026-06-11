@@ -11,10 +11,10 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.95,
+      "energy": 1.4999996329173275,
       "born_cycle": 0,
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 1,
+      "uses": 1,
       "lineage": [],
       "id": "053a99cf0a4c"
     },
@@ -25,7 +25,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -39,7 +39,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -53,10 +53,10 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.95,
+      "energy": 1.6499995411466595,
       "born_cycle": 0,
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 1,
+      "uses": 2,
       "lineage": [],
       "id": "52867957f4d5"
     },
@@ -67,10 +67,10 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.95,
+      "energy": 1.0499999082293319,
       "born_cycle": 0,
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 1,
+      "uses": 1,
       "lineage": [],
       "id": "5ee2277c20ba"
     },
@@ -81,7 +81,7 @@
       "sources": [
         "readme-retrieval"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -95,7 +95,7 @@
       "sources": [
         "readme-environments"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -109,7 +109,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -123,7 +123,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 0.95,
+      "energy": 0.8999999999999999,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -133,29 +133,20 @@
   ],
   "graveyard": [],
   "ledger": {
-    "tick_count": 1,
-    "pending": [
-      {
-        "query": "Are LLM benchmark arms safe to run in CI?",
-        "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
-        "deciding_entry": "053a99cf0a4c",
-        "supporting_entries": [
-          "5ee2277c20ba",
-          "52867957f4d5"
-        ],
-        "born_tick": 0,
-        "id": "87b74ce2958d"
-      },
-      {
-        "query": "Is it safe to add new required metric keys that only some suites emit?",
-        "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
-        "deciding_entry": "52867957f4d5",
-        "supporting_entries": [],
-        "born_tick": 0,
-        "id": "2708c408fdb8"
-      }
-    ],
-    "history": {},
+    "tick_count": 2,
+    "pending": [],
+    "history": {
+      "053a99cf0a4c": [
+        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"
+      ],
+      "5ee2277c20ba": [
+        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"
+      ],
+      "52867957f4d5": [
+        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"
+      ]
+    },
     "damaged": []
   }
 }
