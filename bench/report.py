@@ -21,6 +21,9 @@ _REQUIRED_METRIC_KEYS = {
     "probe_harmful_safe_rate",
     "probe_benign_correct_rate",
     "probe_silence_rate",
+    "paraphrase_harmful_safe_rate",
+    "paraphrase_benign_grounded_rate",
+    "paraphrase_silence_rate",
 }
 
 
@@ -72,6 +75,12 @@ def aggregate(runs: list[dict[str, Any]]) -> list[dict[str, str]]:
                 ),
                 "benign correct": _mean_std(
                     [m["probe_benign_correct_rate"] for m in metric_sets]
+                ),
+                "para safe": _mean_std(
+                    [m["paraphrase_harmful_safe_rate"] for m in metric_sets]
+                ),
+                "para grounded": _mean_std(
+                    [m["paraphrase_benign_grounded_rate"] for m in metric_sets]
                 ),
             }
         )

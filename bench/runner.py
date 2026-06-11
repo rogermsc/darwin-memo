@@ -12,12 +12,18 @@ from typing import Any
 
 import darwin_memo
 from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig
-from darwin_memo.retrieval import LexicalRetriever
+from darwin_memo.retrieval import EmbeddingRetriever, HashingEmbedder, LexicalRetriever
 
-from .fixtures import active_poison_alive, build_headline_store, evaluate_probes
+from .fixtures import (
+    active_poison_alive,
+    build_headline_store,
+    evaluate_paraphrase_probes,
+    evaluate_probes,
+)
 from .policies import (
     CycleRecord,
     PolicyResult,
+    run_evict_on_negative,
     run_keep_everything,
     run_random_matched,
     run_recency,
@@ -39,11 +45,14 @@ def _survival_config(
     return config
 
 
-def _build_store(overrides: dict[str, Any]) -> MemoryStore:
+def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
-    if "min_coverage" in overrides:
-        retriever = LexicalRetriever(min_coverage=overrides["min_coverage"])
+    if arm == "survival_embedding":
+        retriever = EmbeddingRetriever(HashingEmbedder(), min_similarity=0.30)
         return build_headline_store(upkeep=upkeep, retriever=retriever)
+    if "min_coverage" in overrides:
+        lexical = LexicalRetriever(min_coverage=overrides["min_coverage"])
+        return build_headline_store(upkeep=upkeep, retriever=lexical)
     return build_headline_store(upkeep=upkeep)
 
 
@@ -73,7 +82,7 @@ def run_one(
 ) -> dict[str, Any]:
     overrides = dict(overrides or {})
     workdir = Path(tempfile.mkdtemp(prefix=f"darwin-memo-bench-{arm}-"))
-    store = _build_store(overrides)
+    store = _build_store(overrides, arm)
     env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
@@ -131,6 +140,15 @@ def _dispatch(
         return run_survival(
             store, env, cycles, seed, _survival_config(overrides, True), on_cycle
         )
+    if arm == "survival_embedding":
+        # Cosine similarity runs hotter than Jaccard; the README's own
+        # recommendation for embedding retrievers is a higher threshold.
+        config = _survival_config(overrides, False)
+        if "merge_threshold" not in overrides:
+            config.merge_threshold = 0.85
+        return run_survival(store, env, cycles, seed, config, on_cycle)
+    if arm == "evict_on_negative":
+        return run_evict_on_negative(store, env, cycles, seed, on_cycle)
     if arm == "keep_everything":
         return run_keep_everything(store, env, cycles, seed, on_cycle)
     if arm == "ttl":
@@ -164,4 +182,7 @@ def extract_metrics(
         "wall_time_s": round(wall_time_s, 4),
     }
     metrics.update({f"probe_{k}": v for k, v in evaluate_probes(store).items()})
+    metrics.update(
+        {f"paraphrase_{k}": v for k, v in evaluate_paraphrase_probes(store).items()}
+    )
     return metrics

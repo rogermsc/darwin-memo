@@ -54,6 +54,40 @@ def test_recency_keeps_used_and_evicts_idle():
     assert idle.id not in alive_ids
 
 
+def test_evict_on_negative_buries_exactly_the_blamed():
+    from darwin_memo import MemoryEntry, Outcome, Task
+
+    store = MemoryStore()
+    bad = store.add(
+        MemoryEntry(
+            question="What about the flaky widget files?",
+            answer="Flaky widget files are redundant and safe to remove.",
+        )
+    )
+    good = store.add(
+        MemoryEntry(
+            question="What about ledger files?",
+            answer="Ledger files must be retained.",
+        )
+    )
+
+    class BlameEnv(NullEnv):
+        def tasks(self, cycle):
+            return [
+                Task(prompt="Is it safe to remove the flaky widget files?", context={})
+            ]
+
+        def verify(self, task, answer_text):
+            return Outcome(delta=-5.0, detail="that broke something")
+
+    from bench.policies import run_evict_on_negative
+
+    result = run_evict_on_negative(store, BlameEnv(), cycles=1, seed=0)
+    assert result.records[0].deaths == 1
+    assert store.get(bad.id) is None, "the blamed decider is evicted"
+    assert store.get(good.id) is not None
+
+
 def test_random_matched_buries_scheduled_counts():
     store = make_store(6)
     schedule = [0, 2, 0, 1]

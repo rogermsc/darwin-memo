@@ -88,10 +88,10 @@ def cmd_demo(args: argparse.Namespace) -> int:
     for entry in store.graveyard():
         if entry.id in merged_away:
             cause = "merged"
-        elif entry.id in poisoned:
-            cause = "executed"
+        elif entry.id in poisoned and entry.uses > 0:
+            cause = "executed"  # punished by outcomes it decided
         else:
-            cause = "starved"
+            cause = "starved"  # never earned its upkeep, poisoned or not
         print(f"  {cause:>8} [{entry.kind.value:>12}] {entry.answer[:70]}")
 
     still_poisoned = sum(1 for e in store.alive() if "forum-post" in e.sources)

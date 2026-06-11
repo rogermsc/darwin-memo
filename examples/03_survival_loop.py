@@ -44,10 +44,10 @@ print("\nGraveyard:")
 for entry in store.graveyard():
     if entry.id in merged_away:
         cause = "merged"
-    elif entry.id in poisoned_ids or (entry.uses > 0 and entry.energy < -0.1):
-        cause = "executed"
+    elif entry.id in poisoned_ids and entry.uses > 0:
+        cause = "executed"  # punished by outcomes it decided
     else:
-        cause = "starved"
+        cause = "starved"  # never earned its upkeep, poisoned or not
     print(f"  {cause:>8} [{entry.kind.value:>12}] {entry.answer[:80]}")
 
 poisoned_alive = [e for e in store.alive() if "forum-post" in e.sources]

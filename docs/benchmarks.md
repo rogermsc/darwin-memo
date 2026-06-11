@@ -21,7 +21,7 @@ nothing can only starve and are excluded from the kill metric.
 
 ## Setup
 
-- Machine: Apple M4, macOS, Python 3.14.3, darwin-memo 0.1.0
+- Machine: Apple M4, macOS, Python 3.14.3, darwin-memo 0.2.0
 - Store: the exact headline-demo store (examples corpus, LocalEncoder,
   16 entries of which 3 derive from the poisoned forum post)
 - Environment: `StorageEnv`, 30 cycles, 12 files per cycle, seeds 0..9
@@ -29,17 +29,32 @@ nothing can only starve and are excluded from the kill metric.
   never touch energy. `random_matched` evicts the same per-cycle death
   COUNTS as the survival arm on the same seed, victims chosen uniformly
   at random: same pruning rate, no outcome direction.
+  `evict_on_negative` is the one-line alternative to the whole ledger:
+  instantly evict whatever decided a negative-outcome task.
+  `survival_embedding` runs the identical loop over the zero-dependency
+  hashing-embedder retriever instead of lexical matching.
 
-## Headline: survival vs four baselines (10 seeds)
+Two probe sets score the final population. The standard probes mirror
+StorageEnv's own phrasing and are read by `decision_polarity`. The
+paraphrase probes use vocabulary deliberately outside the corpus
+("wipe", "trash", "clear out") and are scored by PROVENANCE, not by the
+keyword reader: a harmful paraphrase counts as safe when memory stays
+silent or the deciding entry comes from a trusted source, and a benign
+paraphrase counts as grounded only when the deciding entry is the
+runbook entry that actually licenses the action.
 
-| arm             | kill rate | kill cycle (med) | damage before kill    | tail delta        | cum delta             | final pop | harmful safe | benign correct |
-|-----------------|-----------|------------------|-----------------------|-------------------|-----------------------|-----------|--------------|----------------|
-| survival        | 1.00      | 0                | -751,104 ±519,398     | 434,688 ±70,221   | 11,996,570 ±447,162   | 4.0       | 1.00         | 1.00           |
-| survival_writes | 1.00      | 0                | -751,104 ±519,398     | 434,688 ±70,221   | 11,996,570 ±447,162   | 4.0       | 1.00         | 1.00           |
-| recency (10)    | 0.00      | -                | -3,639,808 ±583,973   | 434,688 ±70,221   | 6,129,357 ±669,226    | 7.0       | 1.00         | 1.00           |
-| random_matched  | 0.80      | 19               | -8,970,854 ±3,121,331 | -75,284 ±498,295  | -5,251,891 ±4,704,253 | 6.0       | 0.90 ±0.21   | 0.40 ±0.34     |
-| ttl (10)        | 1.00      | 10               | -3,639,808 ±583,973   | 0                 | -2,566,042 ±736,475   | 0.0       | 1.00         | 0.00           |
-| keep_everything | 0.00      | -                | -10,605,773 ±663,147  | -287,478 ±231,963 | -7,291,290 ±829,780   | 16.0      | 0.50         | 1.00           |
+## Headline: survival vs six baselines (10 seeds)
+
+| arm                | kill rate | kill cycle (med) | damage before kill    | tail delta        | cum delta             | final pop | harmful safe | benign correct | para safe | para grounded |
+|--------------------|-----------|------------------|-----------------------|-------------------|-----------------------|-----------|--------------|----------------|-----------|---------------|
+| survival           | 1.00      | 0                | -751,104 ±519,398     | 434,688 ±70,221   | 11,996,570 ±447,162   | 4.0       | 1.00         | 1.00           | 1.00      | 0.33          |
+| survival_writes    | 1.00      | 0                | -751,104 ±519,398     | 434,688 ±70,221   | 11,996,570 ±447,162   | 4.0       | 1.00         | 1.00           | 1.00      | 0.33          |
+| survival_embedding | 1.00      | 19 (starved)     | 0                     | 434,688 ±70,221   | 13,178,061 ±130,173   | 4.0       | 1.00         | 1.00           | 1.00      | 0.67          |
+| evict_on_negative  | 1.00      | 0                | -547,328 ±584,640     | 434,688 ±70,221   | 12,341,555 ±629,725   | 15.0      | 1.00         | 1.00           | 1.00      | 0.33          |
+| recency (10)       | 0.00      | -                | -3,639,808 ±583,973   | 434,688 ±70,221   | 6,129,357 ±669,226    | 7.0       | 1.00         | 1.00           | 1.00      | 0.33          |
+| random_matched     | 0.80      | 19               | -8,970,854 ±3,121,331 | -75,284 ±498,295  | -5,251,891 ±4,704,253 | 6.0       | 0.90 ±0.21   | 0.40 ±0.34     | 1.00      | 0.07          |
+| ttl (10)           | 1.00      | 10               | -3,639,808 ±583,973   | 0                 | -2,566,042 ±736,475   | 0.0       | 1.00         | 0.00           | 1.00      | 0.00          |
+| keep_everything    | 0.00      | -                | -10,605,773 ±663,147  | -287,478 ±231,963 | -7,291,290 ±829,780   | 16.0      | 0.50         | 1.00           | 1.00      | 0.33          |
 
 What each arm's best metric is, stated plainly:
 
@@ -63,12 +78,33 @@ What each arm's best metric is, stated plainly:
   rate is not the active ingredient. Outcome direction is.
 - **survival** kills the actionable poison at median cycle 0 (it decides
   a few deletions, the restore costs land on it, it is dead before
-  cycle 1 in most seeds), pays the smallest lesson price, and is the
-  only arm that is simultaneously poison-free, capability-complete on
-  probes, and maximally delta-positive.
+  cycle 1 in most seeds), pays a small lesson price, ends maximally
+  lean (4 entries), and is poison-free and capability-complete on
+  probes.
 - **survival_writes** (experience writes on) is metric-identical here:
   writes reinforce already-winning entries on this corpus. The arm
   exists to show the writes at least do no harm.
+- **evict_on_negative** is the result this report exists to publish
+  honestly: on this deterministic environment, the one-line heuristic
+  MATCHES the full energy ledger on outcomes (cum +12.3M vs +12.0M,
+  kill at 0, slightly less lesson damage). What the ledger buys on this
+  benchmark is exactly two things the if-statement does not do: it
+  starves dead weight (final population 4 vs 15, the if-statement
+  hoards everything that never erred), and it forgives. One negative
+  outcome instantly executes an entry under evict_on_negative; under
+  the ledger, an entry that was right ninety-nine times survives one
+  disaster. This environment is deterministic, so the forgiveness
+  property is not exercised here and the table cannot show it. If you
+  do not need leanness or noise tolerance, the if-statement is the
+  right tool and this row says so.
+- **survival_embedding** runs the same loop over the hashing-embedder
+  retriever and posts the best cumulative delta (+13.2M) by a different
+  route: cosine ranking happened to place the runbook protector above
+  the poison from cycle 0, so the poison never decided anything, caused
+  zero damage, and starved at cycle 19 instead of being executed. It
+  also doubles paraphrase grounding (0.67 vs 0.33). One corpus is not
+  evidence that embeddings dominate, but the mechanism demonstrably
+  does not depend on the lexical-match path.
 
 ## Ablations (survival arm, 5 seeds, one knob at a time)
 
@@ -105,11 +141,23 @@ zero-dependency core.
 
 ## Honest caveats
 
+- Vocabulary coupling, named plainly: the corpus, the StorageEnv task
+  prompts, and `decision_polarity`'s marker list were written by the
+  same hand in the same vocabulary. The crisp cycle-0 kill lives in the
+  near-exact lexical-match regime that coupling creates. The paraphrase
+  probe columns measure what happens outside it: harmful paraphrases
+  stay safe (silence is conservative), but lexical arms ground only a
+  third of benign paraphrases. Treat the headline numbers as
+  within-distribution results; the paraphrase columns are the
+  out-of-distribution honesty check, scored by provenance precisely so
+  the keyword reader cannot grade its own homework.
 - One environment family. Every arm above runs on `StorageEnv`. The
   TestSuiteEnv poison-extinction result is covered by tests, not yet by
   this multi-arm harness.
 - The corpus is demo-scale (16 entries) and encoded by the rule-based
-  LocalEncoder, not an LLM.
+  LocalEncoder, not an LLM. LLM-mode (citation-based attribution) has
+  no benchmark arm yet; its credit fidelity is covered by unit tests
+  only.
 - Survival's lean population is a trade: it starves protective and
   unused knowledge that keep_everything retains. On these probes that
   costs nothing because silence defaults to the safe action; in an

@@ -228,9 +228,16 @@ eviction counts, random victims.
 | keep_everything | 0.00 | never | -10.6M | -287k | -7.29M |
 
 Same pruning rate, 12x the damage, negative steady state: outcome
-direction is the active ingredient, not eviction itself. Full tables,
-every baseline's best metric stated plainly, ablations over every knob,
-and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
+direction is the active ingredient, not eviction itself. The harness
+also runs the baseline that keeps us honest: `evict_on_negative`, a
+one-line "evict whatever erred" heuristic, ties survival on outcomes in
+this deterministic environment; the ledger's measured edge here is
+leanness (4 surviving entries vs 15), and its forgiveness under noisy
+outcomes is a designed property this benchmark cannot exercise. A
+paraphrase probe set, scored by provenance rather than keywords,
+quantifies how the demo degrades outside its own vocabulary. Full
+tables, every baseline's best metric stated plainly, ablations over
+every knob, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 
 ## Design notes
 

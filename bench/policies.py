@@ -5,6 +5,11 @@ the same environment. They differ only in what they evict at the end of
 each cycle:
 
 - survival / survival_writes: the real SurvivalLoop (energy ledger).
+- survival_embedding: the same loop over an EmbeddingRetriever store
+  (hashing embedder), testing the mechanism off the lexical-match path.
+- evict_on_negative: the if-statement alternative. Instantly evict any
+  entry that decided a negative-outcome task. If the energy ledger
+  cannot beat this one-liner on some metric, the report says so.
 - keep_everything: nothing, ever. The no-curation lower bound.
 - ttl: age-based eviction, blind to usage and outcomes.
 - recency: idle-based eviction, blind to outcomes.
@@ -49,14 +54,24 @@ class PolicyResult:
         return [r.deaths for r in self.records]
 
 
-def _baseline_task_loop(store: MemoryStore, env: Environment, cycle: int) -> float:
-    """Answer and act exactly like the survival loop, minus the ledger."""
+def _baseline_task_loop(
+    store: MemoryStore, env: Environment, cycle: int
+) -> tuple[float, set[str]]:
+    """Answer and act exactly like the survival loop, minus the ledger.
+
+    Returns the cycle's resource delta and the ids of entries that
+    decided a negative-outcome task (the blame set the
+    evict_on_negative baseline acts on).
+    """
     protocol = QueryProtocol(store)
     delta = 0.0
+    blamed: set[str] = set()
     for task in env.tasks(cycle):
         answer = protocol.answer(task.prompt)
         outcome = env.verify(task, answer.text)
         delta += outcome.delta
+        if outcome.delta < 0 and answer.deciding_entry:
+            blamed.add(answer.deciding_entry)
         consulted = list(answer.supporting_entries)
         if answer.deciding_entry:
             consulted.append(answer.deciding_entry)
@@ -65,7 +80,7 @@ def _baseline_task_loop(store: MemoryStore, env: Environment, cycle: int) -> flo
             if entry is not None:
                 entry.uses += 1
                 entry.last_used_cycle = cycle
-    return delta
+    return delta, blamed
 
 
 def run_survival(
@@ -101,7 +116,7 @@ def run_keep_everything(
 ) -> PolicyResult:
     result = PolicyResult()
     for cycle in range(cycles):
-        delta = _baseline_task_loop(store, env, cycle)
+        delta, _ = _baseline_task_loop(store, env, cycle)
         record = CycleRecord(cycle, len(store), 0, delta)
         result.records.append(record)
         if on_cycle:
@@ -119,7 +134,7 @@ def run_ttl(
 ) -> PolicyResult:
     result = PolicyResult()
     for cycle in range(cycles):
-        delta = _baseline_task_loop(store, env, cycle)
+        delta, _ = _baseline_task_loop(store, env, cycle)
         expired = [e for e in store.alive() if cycle - e.born_cycle >= ttl]
         for entry in expired:
             store.bury(entry.id)
@@ -140,7 +155,7 @@ def run_recency(
 ) -> PolicyResult:
     result = PolicyResult()
     for cycle in range(cycles):
-        delta = _baseline_task_loop(store, env, cycle)
+        delta, _ = _baseline_task_loop(store, env, cycle)
         idle = [
             e
             for e in store.alive()
@@ -167,7 +182,7 @@ def run_random_matched(
     rng = random.Random(seed * 1000 + 17)
     result = PolicyResult()
     for cycle in range(cycles):
-        delta = _baseline_task_loop(store, env, cycle)
+        delta, _ = _baseline_task_loop(store, env, cycle)
         budget = death_schedule[cycle] if cycle < len(death_schedule) else 0
         alive = store.alive()
         victims = rng.sample(alive, k=min(budget, len(alive)))
@@ -180,9 +195,34 @@ def run_random_matched(
     return result
 
 
+def run_evict_on_negative(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    seed: int,
+    on_cycle: OnCycle | None = None,
+) -> PolicyResult:
+    """The if-statement baseline: instantly evict any entry that decided
+    a negative-outcome task this cycle. No energy, no forgiveness, no
+    starvation of the useless. If the full ledger cannot beat this on
+    some metric, the benchmark says so."""
+    result = PolicyResult()
+    for cycle in range(cycles):
+        delta, blamed = _baseline_task_loop(store, env, cycle)
+        for entry_id in blamed:
+            store.bury(entry_id)
+        record = CycleRecord(cycle, len(store), len(blamed), delta)
+        result.records.append(record)
+        if on_cycle:
+            on_cycle(cycle, record)
+    return result
+
+
 ARMS = (
     "survival",
     "survival_writes",
+    "survival_embedding",
+    "evict_on_negative",
     "keep_everything",
     "ttl",
     "recency",
