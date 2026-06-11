@@ -1,0 +1,169 @@
+{
+  "config": {
+    "max_energy": 5.0,
+    "upkeep": 0.05
+  },
+  "entries": [
+    {
+      "question": "Are LLM benchmark arms safe to run in CI?",
+      "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "053a99cf0a4c"
+    },
+    {
+      "question": "Can retrieval scoring read entry energy?",
+      "answer": "Never. Retrieval scores are pure relevance and energy is only a sort tie-break in the store; selection pressure must come from outcomes, not from retrieval preferring incumbents.",
+      "kind": "explicit",
+      "sources": [
+        "docs/paper-to-code"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "74a2ba34e5ab"
+    },
+    {
+      "question": "Should bench result JSON files be committed?",
+      "answer": "No. bench/results is regenerated, not committed; doc tables are regenerated from the Reproduce commands, and if numbers disagree the generated doc wins.",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "7e40e33bc60d"
+    },
+    {
+      "question": "Is it safe to add new required metric keys that only some suites emit?",
+      "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "52867957f4d5"
+    },
+    {
+      "question": "Does the poison-kill CI gate apply to noisy benchmark runs?",
+      "answer": "No. The kill gate is a noiseless-era invariant and noisy runs are exempt: a delayed or missed kill under measurement noise is an honest expected result, not a CI failure.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "5ee2277c20ba"
+    },
+    {
+      "question": "Can cosine embedding retrievers keep the default merge threshold?",
+      "answer": "No. Cosine similarity runs hotter than Jaccard; raise merge_threshold to roughly 0.85 or unrelated entries will consolidate.",
+      "kind": "explicit",
+      "sources": [
+        "readme-retrieval"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "c56020e5a87a"
+    },
+    {
+      "question": "Do new environments need extra decision_polarity markers?",
+      "answer": "Yes. The built-in vocabulary covers delete/remove and apply/keep only; a new action verb needs extra_positive and extra_negative markers or every answer reads as silence and the population starves at about spawn energy over upkeep cycles.",
+      "kind": "explicit",
+      "sources": [
+        "readme-environments"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "3b61822cf5a6"
+    },
+    {
+      "question": "Are StorageEnv seeds independent samples?",
+      "answer": "No. StorageEnv derives cycle worlds from seed plus cycle, so adjacent seeds are shifted windows of one another; treat across-seed spreads as smoother than independent draws.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "8388150e56d3"
+    },
+    {
+      "question": "Can multiple workflow jobs settle the memory store in parallel?",
+      "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
+      "kind": "explicit",
+      "sources": [
+        "docs/integrations/ci-lesson-store"
+      ],
+      "energy": 1.0,
+      "born_cycle": 0,
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "7af78c536de1"
+    }
+  ],
+  "graveyard": [],
+  "ledger": {
+    "tick_count": 0,
+    "pending": [
+      {
+        "query": "Can multiple workflow jobs settle the memory store in parallel?",
+        "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
+        "deciding_entry": "7af78c536de1",
+        "supporting_entries": [],
+        "born_tick": 0,
+        "id": "c804d482b22d"
+      },
+      {
+        "query": "Are LLM benchmark arms safe to run in CI?",
+        "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
+        "deciding_entry": "053a99cf0a4c",
+        "supporting_entries": [
+          "5ee2277c20ba",
+          "52867957f4d5"
+        ],
+        "born_tick": 0,
+        "id": "87b74ce2958d"
+      },
+      {
+        "query": "Is it safe to add new required metric keys that only some suites emit?",
+        "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
+        "deciding_entry": "52867957f4d5",
+        "supporting_entries": [],
+        "born_tick": 0,
+        "id": "2708c408fdb8"
+      }
+    ],
+    "history": {},
+    "damaged": []
+  }
+}
