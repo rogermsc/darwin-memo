@@ -8,6 +8,21 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `darwin-memo ledger FILE OP`: every Ledger operation as a CLI
+  subcommand with one JSON object on stdout (decide, settle, abandon,
+  add, forget, tick, stats, obituary). The scripting bridge for shell
+  scripts, CI steps, and host-process plugins — built for the OpenClaw
+  memory plugin, whose host SDK ships no MCP client. The store
+  auto-creates on first use; mutating ops save before printing (a
+  crash cannot acknowledge an unsaved settlement, though concurrent
+  invocations on one file are not locked against each other); events
+  append to the same `.events.jsonl` the MCP server writes; and
+  `forget` refuses entries escrowed by pending tickets, since burying
+  one would let a later settle report success while crediting a
+  corpse.
+
+### Added
+
 - Dogfood: this repo now runs its own CI lesson store.
   `.darwin-memo/lessons.json` (seeded with real lessons from this
   repo's development by `.darwin-memo/seed.py`) is consulted by agents

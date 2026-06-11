@@ -92,3 +92,143 @@ def test_mcp_server_full_cycle(tmp_path):
 
     asyncio.run(scenario())
     assert path.exists(), "state persists across calls"
+
+
+def _ledger_json(capsys, argv):
+    assert cli_main(argv) == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def test_cli_ledger_full_cycle(tmp_path, capsys):
+    """add -> decide -> settle -> tick -> obituary, all through the CLI."""
+    memory = str(tmp_path / "nested" / "ledger.json")
+
+    added = _ledger_json(
+        capsys,
+        [
+            "ledger",
+            memory,
+            "add",
+            "Is the nightly job safe to skip?",
+            "The nightly job is redundant and safe to skip.",
+            "--source",
+            "runbook",
+        ],
+    )
+    assert added["entry_id"]
+
+    decided = _ledger_json(
+        capsys,
+        ["ledger", memory, "--scale", "2.0", "decide", "can I skip the nightly job?"],
+    )
+    assert decided["answer"] and decided["ticket_id"] and not decided["silent"]
+
+    settled = _ledger_json(
+        capsys,
+        [
+            "ledger",
+            memory,
+            "--scale",
+            "2.0",
+            "settle",
+            decided["ticket_id"],
+            "3.0",
+            "--detail",
+            "saved 40 minutes",
+        ],
+    )
+    assert settled["settled"] is True
+    assert _ledger_json(
+        capsys, ["ledger", memory, "settle", decided["ticket_id"], "3.0"]
+    ) == {"settled": False}, "duplicate delivery is reported, not re-credited"
+
+    stats = _ledger_json(capsys, ["ledger", memory, "stats"])
+    assert stats["alive"] == 1 and stats["pending_tickets"] == 0
+    assert stats["total_energy"] > 1.0, "settlement credited the entry"
+
+    ticked = _ledger_json(capsys, ["ledger", memory, "tick"])
+    assert ticked["tick"] == 1
+
+    obit = _ledger_json(capsys, ["ledger", memory, "obituary", added["entry_id"]])
+    assert "credit" in obit["obituary"]
+
+
+def test_cli_ledger_silent_decide_abandon_forget(tmp_path, capsys):
+    memory = str(tmp_path / "ledger.json")
+
+    decided = _ledger_json(capsys, ["ledger", memory, "decide", "anything?"])
+    assert decided == {"answer": None, "ticket_id": None, "silent": True}
+
+    added = _ledger_json(
+        capsys,
+        [
+            "ledger",
+            memory,
+            "add",
+            "Is the cache disposable?",
+            "The cache is disposable and safe to remove.",
+        ],
+    )
+    decided = _ledger_json(
+        capsys, ["ledger", memory, "decide", "is the cache safe to remove?"]
+    )
+    assert decided["ticket_id"]
+    assert _ledger_json(
+        capsys, ["ledger", memory, "abandon", decided["ticket_id"]]
+    ) == {"abandoned": True}
+
+    assert _ledger_json(capsys, ["ledger", memory, "forget", added["entry_id"]]) == {
+        "forgotten": True
+    }
+    assert _ledger_json(capsys, ["ledger", memory, "forget", added["entry_id"]]) == {
+        "forgotten": False
+    }, "already buried"
+    assert _ledger_json(capsys, ["ledger", memory, "stats"])["alive"] == 0
+
+
+def test_cli_ledger_forget_refuses_escrowed_entries(tmp_path, capsys):
+    """Burying an escrowed entry would falsify a later settlement."""
+    memory = str(tmp_path / "ledger.json")
+    added = _ledger_json(
+        capsys,
+        [
+            "ledger",
+            memory,
+            "add",
+            "Is the cache disposable?",
+            "The cache is disposable and safe to remove.",
+        ],
+    )
+    decided = _ledger_json(
+        capsys, ["ledger", memory, "decide", "is the cache safe to remove?"]
+    )
+    assert decided["ticket_id"]
+
+    refused = _ledger_json(capsys, ["ledger", memory, "forget", added["entry_id"]])
+    assert refused == {"forgotten": False, "reason": "escrowed by a pending ticket"}
+
+    settled = _ledger_json(
+        capsys, ["ledger", memory, "settle", decided["ticket_id"], "2.0"]
+    )
+    assert settled["settled"] is True
+    stats = _ledger_json(capsys, ["ledger", memory, "stats"])
+    assert stats["total_energy"] > 1.0, "the credit landed on a live entry"
+
+    # Escrow released: now forget works.
+    assert (
+        _ledger_json(capsys, ["ledger", memory, "forget", added["entry_id"]])[
+            "forgotten"
+        ]
+        is True
+    )
+
+
+def test_cli_ledger_writes_the_shared_event_log(tmp_path, capsys):
+    """CLI ops append to the same .events.jsonl the MCP server uses."""
+    memory = tmp_path / "ledger.json"
+    _ledger_json(capsys, ["ledger", str(memory), "add", "Is X safe?", "X is safe."])
+    _ledger_json(capsys, ["ledger", str(memory), "decide", "is X safe?"])
+    log = memory.with_suffix(".events.jsonl")
+    assert log.exists()
+    events = [json.loads(line)["event"] for line in log.read_text().splitlines()]
+    assert "decide" in events

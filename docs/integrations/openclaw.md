@@ -59,8 +59,11 @@ precedents). The plan, tracked in the repo issues:
   which no other OpenClaw memory plugin does.
 - A background cron calls `tick()`; obituaries surface in chat on
   request.
-- The bridge to Python is the existing MCP stdio server as a child
-  process: no new Python code.
+- The bridge to Python is the `darwin-memo ledger` CLI, one
+  short-lived process per operation with a JSON object on stdout.
+  (The original plan said "the MCP stdio server as a child process";
+  ground truth changed it: OpenClaw's plugin SDK ships no MCP client,
+  so the CLI keeps both sides dependency-free.)
 
 Honest note on the delta semantics: a success boolean is a weaker
 conserved resource than bytes or passing tests. The default mapping
