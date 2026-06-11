@@ -6,6 +6,28 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-11
+
+### Added
+
+- Fully local stack through Ollama with zero dependencies:
+  `OllamaClient` and `OllamaEmbedder` speak the native localhost API
+  over stdlib urllib (current `/api/embed` with legacy fallback), plus
+  `ollama_available` for graceful auto-detection and
+  `examples/07_local_stack.py`.
+- `darwin-memo query --model ollama:NAME` (and `anthropic:NAME`) runs
+  the full three-stage protocol from the shell.
+- Opt-in `bench --suite llm`: the at-home recipe for the LLM-mode
+  benchmark question, survival with a local model answering. Sampled,
+  never in CI.
+- Citation parsing strips `<think>...</think>` blocks, so
+  hybrid-reasoning models (Hermes 4, R1 style) cannot cite from inside
+  their thinking.
+- Integration guides: OpenClaw (MCP mount today, memory-slot plugin
+  planned with measured settlement), Hermes (models via Ollama, Hermes
+  Agent via MCP), Animoca Minds (planned spike around a generic EVM
+  settler on Base RPC). Roadmap issues #1, #2, #3.
+
 ## [0.2.0] - 2026-06-11
 
 ### Added
@@ -84,6 +106,7 @@ project uses [SemVer](https://semver.org/).
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rogermsc/darwin-memo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rogermsc/darwin-memo/releases/tag/v0.1.0

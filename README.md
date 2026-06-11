@@ -317,6 +317,20 @@ embedding-retriever arm shows the mechanism does not depend on the
 lexical-match path. Full tables, every baseline's best metric stated
 plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 
+## Integrations
+
+- **[CI lesson store](docs/integrations/ci-lesson-store.md)**: the
+  primary production shape, lessons settled by CI pass deltas.
+- **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP today;
+  a memory-slot plugin with measured (not self-reported) settlement
+  from `agent_end` outcomes is planned.
+- **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
+  the Ollama client (think-blocks handled), and Hermes Agent mounts the
+  MCP server natively.
+- **[Animoca Minds](docs/integrations/animoca-minds.md)**: planned
+  spike; on-chain balance deltas and gas on Base are judge-free
+  settlement signals, readable without anyone's permission.
+
 ## More examples
 
 ```bash
