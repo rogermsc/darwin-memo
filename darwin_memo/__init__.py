@@ -16,6 +16,7 @@ from .environments import (
     VerifiableQAEnv,
     decision_polarity,
 )
+from .evm import DEFAULT_BASE_RPC, EvmRpc, EvmRpcError, EvmSettler
 from .ledger import Ledger, Ticket
 from .llm import OllamaClient, OllamaEmbedder, OllamaError, ollama_available
 from .protocol import ProtocolAnswer, QueryProtocol
@@ -42,6 +43,7 @@ from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 __version__ = "0.4.0"
 
 __all__ = [
+    "DEFAULT_BASE_RPC",
     "EMBEDDING_MERGE_THRESHOLD",
     "CycleStats",
     "Document",
@@ -49,6 +51,9 @@ __all__ = [
     "EmbeddingRetriever",
     "EntryKind",
     "Environment",
+    "EvmRpc",
+    "EvmRpcError",
+    "EvmSettler",
     "HashingEmbedder",
     "Ledger",
     "LexicalRetriever",
