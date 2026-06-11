@@ -139,6 +139,13 @@ class OllamaClient:
     defaults to 0 because the survival loop wants the most repeatable
     answers a sampled model can give (local sampling is still not
     byte-deterministic; keep LLM arms out of determinism checks).
+
+    ``max_tokens`` maps to Ollama's ``num_predict`` and matches the
+    other clients' default. It is load-bearing: a small model that
+    loses the plot at temperature 0 (observed: llama3.2 drifting into
+    generating Python code on a reflection-QA extraction prompt) will
+    otherwise generate until the context window fills, which presents
+    as an inexplicable timeout rather than as a bad answer.
     """
 
     def __init__(
@@ -147,11 +154,13 @@ class OllamaClient:
         base_url: str = DEFAULT_OLLAMA_URL,
         temperature: float = 0.0,
         timeout: float = 120.0,
+        max_tokens: int = 1024,
     ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.temperature = temperature
         self.timeout = timeout
+        self.max_tokens = max_tokens
 
     def complete(self, prompt: str, system: str = "") -> str:
         result = _post_json(
@@ -163,7 +172,10 @@ class OllamaClient:
                     {"role": "system", "content": system or _DEFAULT_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                "options": {"temperature": self.temperature},
+                "options": {
+                    "temperature": self.temperature,
+                    "num_predict": self.max_tokens,
+                },
             },
             timeout=self.timeout,
         )
@@ -246,8 +258,23 @@ class OllamaEmbedder:
         return vector
 
 
+# Hybrid-reasoning models (Hermes 4.x, Qwen3, R1 style) may emit a
+# <think>...</think> block before any structured output. One regex,
+# shared by citation parsing (protocol.py) and JSON extraction here:
+# reasoning text is never data.
+THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+
+
 def parse_json_array(text: str) -> list[Any]:
-    """Pull the first JSON array out of a model response, tolerating fences."""
+    """Pull the first JSON array out of a model response, tolerating fences.
+
+    Think-blocks are stripped first: the greedy array match would
+    otherwise span from a stray bracket inside the reasoning to the
+    real array's closing bracket and parse as garbage. Measured on
+    qwen3:30b-a3b, this single failure took reflection-QA encoding
+    from 0/6 valid calls to 5/6.
+    """
+    text = THINK_RE.sub("", text)
     text = re.sub(r"```(?:json)?", "", text)
     match = re.search(r"\[.*\]", text, re.DOTALL)
     if not match:
