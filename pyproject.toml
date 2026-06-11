@@ -102,3 +102,10 @@ ignore_missing_imports = true
 module = "tests.*"
 disallow_untyped_defs = false
 disallow_untyped_calls = false
+
+# When the [mcp] extra is absent, FastMCP resolves as Any and its tool
+# decorator cascades untyped-decorator errors; relax just this module so
+# contributors without the extra still get a clean strict run.
+[[tool.mypy.overrides]]
+module = "darwin_memo.mcp_server"
+disallow_untyped_decorators = false
