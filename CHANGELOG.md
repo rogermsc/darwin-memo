@@ -34,7 +34,6 @@ project uses [SemVer](https://semver.org/).
   the durable half of the Animoca Minds spike (#3);
   `examples/08_evm_settler.py` runs the loop offline.
 
-### Added
 
 - Dogfood: this repo now runs its own CI lesson store.
   `.darwin-memo/lessons.json` (seeded with real lessons from this
