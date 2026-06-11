@@ -82,7 +82,7 @@ def test_keep_everything_keeps_bleeding(tmp_path):
     for seed in SEEDS:
         store, _, _, _ = build_store()
         env = StorageEnv(root=tmp_path / str(seed), files_per_cycle=10, seed=seed)
-        result = run_keep_everything(store, env, cycles=20, seed=seed)
+        result = run_keep_everything(store, env, cycles=20)
         if any(r.resource_delta < 0 for r in result.records[-5:]):
             bleeding_seeds += 1
     assert bleeding_seeds >= 5, (

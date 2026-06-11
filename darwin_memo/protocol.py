@@ -105,7 +105,11 @@ class QueryProtocol:
             "If you used none, write SOURCES: none\n\n"
             f"Memory:\n{memory_block}\n\nQuery: {query}"
         )
-        text, cited = _split_citations(final, ids)
+        text, cited, explicit_none = _split_citations(final, ids)
+        if explicit_none:
+            # The model declared it used nothing. Honoring that means no
+            # provenance at all: no escrow, no credit, counted as silence.
+            return ProtocolAnswer(text=text, deciding_entry=None)
         if cited:
             # Citation-based attribution: cited entries carry the credit.
             return ProtocolAnswer(
@@ -125,8 +129,16 @@ _SOURCES_RE = re.compile(r"^\s*SOURCES?\s*:\s*(.*)$", re.IGNORECASE | re.MULTILI
 _THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
 
-def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str]]:
-    """Strip the SOURCES line and resolve bracket numbers to entry ids.
+def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str], bool]:
+    """Strip the citation line and resolve bracket numbers to entry ids.
+
+    Returns (text, cited_ids, explicit_none). The contract says the
+    SOURCES line ENDS the answer, so the LAST matching line wins:
+    earlier prose that happens to start with "Sources:" (or an echoed
+    instruction) is left in the text and never counts as citations.
+    ``explicit_none`` distinguishes a model declaring "SOURCES: none"
+    from output where no citation line could be parsed at all; callers
+    must not attach fallback provenance to an explicit none.
 
     Hybrid-reasoning models (Hermes 4, DeepSeek-R1 style) may emit a
     ``<think>...</think>`` block before the answer; it is discarded
@@ -134,13 +146,17 @@ def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str]]:
     as citations.
     """
     answer = _THINK_RE.sub("", answer)
-    match = _SOURCES_RE.search(answer)
-    if not match:
-        return answer.strip(), []
+    matches = list(_SOURCES_RE.finditer(answer))
+    if not matches:
+        return answer.strip(), [], False
+    match = matches[-1]
     text = (answer[: match.start()] + answer[match.end() :]).strip()
+    payload = match.group(1)
+    if re.search(r"\bnone\b", payload, re.IGNORECASE):
+        return text, [], True
     cited: list[str] = []
-    for number in re.findall(r"\[(\d+)\]", match.group(1)):
+    for number in re.findall(r"\[(\d+)\]", payload):
         index = int(number) - 1
         if 0 <= index < len(ids) and ids[index] not in cited:
             cited.append(ids[index])
-    return text, cited
+    return text, cited, False

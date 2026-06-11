@@ -18,6 +18,7 @@ import sys
 from common import load_corpus
 
 from darwin_memo import (
+    EMBEDDING_MERGE_THRESHOLD,
     EmbeddingRetriever,
     MemoryStore,
     OllamaClient,
@@ -45,11 +46,12 @@ chat = OllamaClient(model="llama3.2")
 embedder = OllamaEmbedder(model="nomic-embed-text")
 
 print("Encoding the corpus with a local model (this takes a minute)...")
-store = MemoryStore(
-    upkeep=0.05, retriever=EmbeddingRetriever(embedder, min_similarity=0.45)
-)
+retriever = EmbeddingRetriever(embedder, min_similarity=0.45)
+store = MemoryStore(upkeep=0.05, retriever=retriever)
 for entry in ReflectionEncoder(chat).encode(load_corpus()):
     store.add(entry)
+# One batched embed call instead of N sequential ones on first query.
+retriever.warm(store.alive(), batch_embed=embedder.batch)
 poisoned = {e.id for e in store.alive() if "forum-post" in e.sources}
 print(f"Encoded {len(store)} entries ({len(poisoned)} poisoned)\n")
 
@@ -68,7 +70,7 @@ loop = SurvivalLoop(
     store,
     env,
     protocol=protocol,
-    config=SurvivalConfig(cycles=8, merge_threshold=0.9),
+    config=SurvivalConfig(cycles=8, merge_threshold=EMBEDDING_MERGE_THRESHOLD),
 )
 report = loop.run()
 env.cleanup()

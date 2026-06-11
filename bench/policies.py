@@ -1,4 +1,4 @@
-"""Curation policies: the survival arms plus four baselines.
+"""Curation policies: three survival arms plus five baselines.
 
 Every policy answers the same tasks through the same QueryProtocol and
 the same environment. They differ only in what they evict at the end of
@@ -17,7 +17,8 @@ each cycle:
   survival arm evicted on the same seed, chosen uniformly at random.
   The sharpest control: same pruning rate, no outcome direction.
 
-Baselines track entry usage (recency needs it) but never touch energy.
+Baselines share one driver and differ only in their victim selector;
+they track entry usage (recency needs it) but never touch energy.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 
 from darwin_memo import (
     Environment,
+    MemoryEntry,
     MemoryStore,
     QueryProtocol,
     SurvivalConfig,
@@ -35,6 +37,8 @@ from darwin_memo import (
 )
 
 OnCycle = Callable[[int, "CycleRecord"], None]
+# A victim selector sees (store, cycle, blamed_ids) and names who dies.
+VictimSelector = Callable[[MemoryStore, int, set[str]], list[MemoryEntry]]
 
 
 @dataclass
@@ -83,6 +87,27 @@ def _baseline_task_loop(
     return delta, blamed
 
 
+def _run_baseline(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    select_victims: VictimSelector,
+    on_cycle: OnCycle | None = None,
+) -> PolicyResult:
+    """One driver for every baseline; policies are victim selectors."""
+    result = PolicyResult()
+    for cycle in range(cycles):
+        delta, blamed = _baseline_task_loop(store, env, cycle)
+        victims = select_victims(store, cycle, blamed)
+        for entry in victims:
+            store.bury(entry.id)
+        record = CycleRecord(cycle, len(store), len(victims), delta)
+        result.records.append(record)
+        if on_cycle:
+            on_cycle(cycle, record)
+    return result
+
+
 def run_survival(
     store: MemoryStore,
     env: Environment,
@@ -112,63 +137,39 @@ def run_keep_everything(
     store: MemoryStore,
     env: Environment,
     cycles: int,
-    seed: int,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    result = PolicyResult()
-    for cycle in range(cycles):
-        delta, _ = _baseline_task_loop(store, env, cycle)
-        record = CycleRecord(cycle, len(store), 0, delta)
-        result.records.append(record)
-        if on_cycle:
-            on_cycle(cycle, record)
-    return result
+    return _run_baseline(store, env, cycles, lambda s, c, b: [], on_cycle)
 
 
 def run_ttl(
     store: MemoryStore,
     env: Environment,
     cycles: int,
-    seed: int,
     ttl: int = 10,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    result = PolicyResult()
-    for cycle in range(cycles):
-        delta, _ = _baseline_task_loop(store, env, cycle)
-        expired = [e for e in store.alive() if cycle - e.born_cycle >= ttl]
-        for entry in expired:
-            store.bury(entry.id)
-        record = CycleRecord(cycle, len(store), len(expired), delta)
-        result.records.append(record)
-        if on_cycle:
-            on_cycle(cycle, record)
-    return result
+    def expired(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
+        return [e for e in s.alive() if cycle - e.born_cycle >= ttl]
+
+    return _run_baseline(store, env, cycles, expired, on_cycle)
 
 
 def run_recency(
     store: MemoryStore,
     env: Environment,
     cycles: int,
-    seed: int,
     window: int = 10,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    result = PolicyResult()
-    for cycle in range(cycles):
-        delta, _ = _baseline_task_loop(store, env, cycle)
-        idle = [
+    def idle(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
+        return [
             e
-            for e in store.alive()
+            for e in s.alive()
             if cycle - max(e.last_used_cycle, e.born_cycle) >= window
         ]
-        for entry in idle:
-            store.bury(entry.id)
-        record = CycleRecord(cycle, len(store), len(idle), delta)
-        result.records.append(record)
-        if on_cycle:
-            on_cycle(cycle, record)
-    return result
+
+    return _run_baseline(store, env, cycles, idle, on_cycle)
 
 
 def run_random_matched(
@@ -181,42 +182,32 @@ def run_random_matched(
 ) -> PolicyResult:
     """Evict survival's per-cycle death counts, but pick victims at random."""
     rng = random.Random(seed * 1000 + 17)
-    result = PolicyResult()
-    for cycle in range(cycles):
-        delta, _ = _baseline_task_loop(store, env, cycle)
+
+    def random_victims(
+        s: MemoryStore, cycle: int, blamed: set[str]
+    ) -> list[MemoryEntry]:
         budget = death_schedule[cycle] if cycle < len(death_schedule) else 0
-        alive = store.alive()
-        victims = rng.sample(alive, k=min(budget, len(alive)))
-        for entry in victims:
-            store.bury(entry.id)
-        record = CycleRecord(cycle, len(store), len(victims), delta)
-        result.records.append(record)
-        if on_cycle:
-            on_cycle(cycle, record)
-    return result
+        alive = s.alive()
+        return rng.sample(alive, k=min(budget, len(alive)))
+
+    return _run_baseline(store, env, cycles, random_victims, on_cycle)
 
 
 def run_evict_on_negative(
     store: MemoryStore,
     env: Environment,
     cycles: int,
-    seed: int,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
     """The if-statement baseline: instantly evict any entry that decided
     a negative-outcome task this cycle. No energy, no forgiveness, no
     starvation of the useless. If the full ledger cannot beat this on
     some metric, the benchmark says so."""
-    result = PolicyResult()
-    for cycle in range(cycles):
-        delta, blamed = _baseline_task_loop(store, env, cycle)
-        for entry_id in blamed:
-            store.bury(entry_id)
-        record = CycleRecord(cycle, len(store), len(blamed), delta)
-        result.records.append(record)
-        if on_cycle:
-            on_cycle(cycle, record)
-    return result
+
+    def the_blamed(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
+        return [e for e in s.alive() if e.id in blamed]
+
+    return _run_baseline(store, env, cycles, the_blamed, on_cycle)
 
 
 ARMS = (

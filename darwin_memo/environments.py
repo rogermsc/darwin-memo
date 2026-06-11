@@ -89,6 +89,28 @@ POSITIVE_MARKERS = (
 )
 
 
+_NEGATION_TAIL_RE = re.compile(
+    r"(?:\bnot\b|\bnever\b|\bisn't\b|\baren't\b|\bdon't\b|\bdo not\b|"
+    r"\bno longer\b|\bwouldn't\b)\s*(?:\w+\s+){0,2}$"
+)
+
+
+def _marker_present(text: str, marker: str, guard_negation: bool) -> bool:
+    """Whole-word marker match, so 'keep it' never fires inside 'keep
+    iterating' and 'protected' never fires inside 'unprotected'.
+
+    With ``guard_negation``, a match immediately preceded by a negation
+    ("it is NOT safe to cancel") does not count; used for positive
+    markers, where a negated match acting would be the dangerous misread.
+    """
+    pattern = r"\b" + re.escape(marker.lower()) + r"\b"
+    for match in re.finditer(pattern, text):
+        if guard_negation and _NEGATION_TAIL_RE.search(text[: match.start()]):
+            continue
+        return True
+    return False
+
+
 def decision_polarity(
     answer_text: str,
     extra_positive: tuple[str, ...] = (),
@@ -103,9 +125,11 @@ def decision_polarity(
     is no. Returns True (act), False (do not act), or None (memory is
     silent).
 
-    The built-in vocabulary covers delete/remove and apply/keep, the
-    dialects of the bundled environments. For any other action verb,
-    pass your own markers::
+    Markers match on word boundaries, and positive markers do not fire
+    when directly negated ("it is not safe to cancel" reads as silence,
+    not as act). The built-in vocabulary covers delete/remove and
+    apply/keep, the dialects of the bundled environments. For any other
+    action verb, pass your own markers::
 
         decision_polarity(text,
             extra_positive=("safe to cancel", "should be cancelled"),
@@ -119,14 +143,12 @@ def decision_polarity(
     text = answer_text.lower()
     if not text.strip():
         return None
-    if any(m in text for m in NEGATIVE_MARKERS) or any(
-        m.lower() in text for m in extra_negative
-    ):
-        return False
-    if any(m in text for m in POSITIVE_MARKERS) or any(
-        m.lower() in text for m in extra_positive
-    ):
-        return True
+    for marker in (*NEGATIVE_MARKERS, *extra_negative):
+        if _marker_present(text, marker, guard_negation=False):
+            return False
+    for marker in (*POSITIVE_MARKERS, *extra_positive):
+        if _marker_present(text, marker, guard_negation=True):
+            return True
     if re.search(r"\byes\b", text):
         return True
     if re.search(r"\bno\b", text):

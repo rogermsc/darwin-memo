@@ -12,7 +12,12 @@ from typing import Any
 
 import darwin_memo
 from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig
-from darwin_memo.retrieval import EmbeddingRetriever, HashingEmbedder, LexicalRetriever
+from darwin_memo.retrieval import (
+    EMBEDDING_MERGE_THRESHOLD,
+    EmbeddingRetriever,
+    HashingEmbedder,
+    LexicalRetriever,
+)
 
 from .fixtures import (
     active_poison_alive,
@@ -48,6 +53,12 @@ def _survival_config(
 def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
     if arm == "survival_embedding":
+        if "min_coverage" in overrides:
+            raise ValueError(
+                "min_coverage is a lexical-retriever knob and has no effect "
+                "on survival_embedding; refusing to record a config that "
+                "claims a variation that never took effect"
+            )
         retriever = EmbeddingRetriever(HashingEmbedder(), min_similarity=0.30)
         return build_headline_store(upkeep=upkeep, retriever=retriever)
     if "min_coverage" in overrides:
@@ -56,17 +67,32 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     return build_headline_store(upkeep=upkeep)
 
 
+_schedule_memo: dict[tuple[Any, ...], list[int]] = {}
+
+
 def _death_schedule_for(
     seed: int, cycles: int, files_per_cycle: int, overrides: dict[str, Any]
 ) -> list[int]:
-    """Derive the survival arm's death schedule for random_matched."""
+    """Derive the survival arm's death schedule for random_matched.
+
+    The shadow run must be configured EXACTLY like the survival arm it
+    is matched against (including resource_scale, which lives on the
+    env), or "same pruning rate" silently stops being true. Runs are
+    deterministic, so the schedule is memoized per configuration.
+    """
+    key = (seed, cycles, files_per_cycle, tuple(sorted(overrides.items())))
+    if key in _schedule_memo:
+        return _schedule_memo[key]
     workdir = Path(tempfile.mkdtemp(prefix="darwin-memo-shadow-"))
     try:
         store = _build_store(overrides)
         env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
+        if "resource_scale" in overrides:
+            env.resource_scale = overrides["resource_scale"]
         result = run_survival(
             store, env, cycles, seed, _survival_config(overrides, False)
         )
+        _schedule_memo[key] = result.death_schedule
         return result.death_schedule
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -141,11 +167,9 @@ def _dispatch(
             store, env, cycles, seed, _survival_config(overrides, True), on_cycle
         )
     if arm == "survival_embedding":
-        # Cosine similarity runs hotter than Jaccard; the README's own
-        # recommendation for embedding retrievers is a higher threshold.
         config = _survival_config(overrides, False)
         if "merge_threshold" not in overrides:
-            config.merge_threshold = 0.85
+            config.merge_threshold = EMBEDDING_MERGE_THRESHOLD
         return run_survival(store, env, cycles, seed, config, on_cycle)
     if arm == "survival_llm":
         # Opt-in: the full 3-stage protocol answered by a local model.
@@ -166,13 +190,13 @@ def _dispatch(
             protocol=protocol,
         )
     if arm == "evict_on_negative":
-        return run_evict_on_negative(store, env, cycles, seed, on_cycle)
+        return run_evict_on_negative(store, env, cycles, on_cycle)
     if arm == "keep_everything":
-        return run_keep_everything(store, env, cycles, seed, on_cycle)
+        return run_keep_everything(store, env, cycles, on_cycle)
     if arm == "ttl":
-        return run_ttl(store, env, cycles, seed, on_cycle=on_cycle)
+        return run_ttl(store, env, cycles, on_cycle=on_cycle)
     if arm == "recency":
-        return run_recency(store, env, cycles, seed, on_cycle=on_cycle)
+        return run_recency(store, env, cycles, on_cycle=on_cycle)
     if arm == "random_matched":
         schedule = _death_schedule_for(seed, cycles, files_per_cycle, overrides)
         return run_random_matched(store, env, cycles, seed, schedule, on_cycle=on_cycle)

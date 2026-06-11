@@ -17,7 +17,7 @@ import math
 import re
 import zlib
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from .types import MemoryEntry
@@ -156,6 +156,13 @@ class LexicalRetriever:
 # ---------------------------------------------------------------------------
 
 
+# Cosine similarity runs hotter than Jaccard, so survival configs over
+# embedding retrievers should raise merge_threshold to this value or
+# unrelated entries will consolidate. One constant, shared by the bench
+# embedding arm and the examples, so the recommendation cannot drift.
+EMBEDDING_MERGE_THRESHOLD = 0.85
+
+
 class HashingEmbedder:
     """Zero-dependency character n-gram hashing embedder.
 
@@ -230,8 +237,41 @@ class EmbeddingRetriever:
         if cached is not None:
             return cached
         vec = self.embed(entry.question + " " + entry.answer)
+        if not vec:
+            # Never cache (and never persist) a degenerate vector: it
+            # would make the entry permanently unretrievable, surviving
+            # restarts via dump_state long after the embedder recovers.
+            raise ValueError(
+                f"embedding function returned an empty vector for entry "
+                f"{entry.id}; refusing to cache it"
+            )
         self._vectors[entry.id] = vec
         return vec
+
+    def warm(
+        self,
+        entries: Sequence[MemoryEntry],
+        batch_embed: Callable[[list[str]], list[list[float]]] | None = None,
+    ) -> int:
+        """Pre-embed uncached entries so the first query does not stall.
+
+        With ``batch_embed`` (for example ``OllamaEmbedder.batch``) the
+        whole population embeds in one request; without it, entries
+        embed sequentially up front instead of inside the query path.
+        Returns the number of vectors computed.
+        """
+        cold = [e for e in entries if e.id not in self._vectors]
+        if not cold:
+            return 0
+        if batch_embed is not None:
+            vectors = batch_embed([e.question + " " + e.answer for e in cold])
+            for entry, vec in zip(cold, vectors, strict=True):
+                if vec:
+                    self._vectors[entry.id] = vec
+        else:
+            for entry in cold:
+                self._entry_vector(entry)
+        return len(cold)
 
     def rank(
         self, query: str, entries: Sequence[MemoryEntry]

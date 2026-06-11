@@ -79,16 +79,46 @@ class OpenAICompatClient:
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 
 
+class OllamaError(RuntimeError):
+    """An Ollama request failed, with the server's own message attached.
+
+    Failures must be loud: a swallowed error would masquerade as memory
+    silence, and selection would punish healthy entries for an
+    infrastructure problem.
+    """
+
+    def __init__(self, message: str, status: int = 0, body: str = "") -> None:
+        super().__init__(message)
+        self.status = status
+        self.body = body
+
+
 def _post_json(url: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        result = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise OllamaError(
+            f"Ollama returned HTTP {error.code} for {url}: {body or error.reason}"
+            + (
+                " (is the model pulled? try `ollama pull <model>`)"
+                if "not found" in body.lower()
+                else ""
+            ),
+            status=error.code,
+            body=body,
+        ) from error
     if not isinstance(result, dict):
-        raise ValueError(f"unexpected response shape from {url}")
+        raise OllamaError(f"unexpected response shape from {url}")
+    # Some Ollama versions report failures as 200 with an error payload.
+    if result.get("error"):
+        raise OllamaError(f"Ollama error from {url}: {result['error']}")
     return result
 
 
@@ -160,6 +190,27 @@ class OllamaEmbedder:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
+    def batch(self, texts: list[str]) -> list[list[float]]:
+        """Embed many texts in ONE request; /api/embed accepts a list.
+
+        Use this (e.g. via ``EmbeddingRetriever.warm``) before the first
+        query on a large store: N sequential round-trips become one.
+        """
+        if not texts:
+            return []
+        result = _post_json(
+            f"{self.base_url}/api/embed",
+            {"model": self.model, "input": texts},
+            timeout=self.timeout,
+        )
+        embeddings = result.get("embeddings") or []
+        if len(embeddings) != len(texts) or any(not e for e in embeddings):
+            raise OllamaError(
+                f"Ollama /api/embed returned {len(embeddings)} embeddings "
+                f"for {len(texts)} inputs (model {self.model!r})"
+            )
+        return [[float(x) for x in vec] for vec in embeddings]
+
     def __call__(self, text: str) -> list[float]:
         try:
             result = _post_json(
@@ -168,17 +219,31 @@ class OllamaEmbedder:
                 timeout=self.timeout,
             )
             embeddings = result.get("embeddings")
-            if embeddings:
+            if embeddings and embeddings[0]:
                 return [float(x) for x in embeddings[0]]
-        except urllib.error.HTTPError as error:
-            if error.code != 404:
+            raise OllamaError(
+                f"Ollama /api/embed returned no embedding for model "
+                f"{self.model!r}; refusing to hand back an empty vector"
+            )
+        except OllamaError as error:
+            # Fall back to the legacy endpoint only when /api/embed itself
+            # is absent (old server). A 404 whose body names the model
+            # means the model is not pulled; retrying the legacy endpoint
+            # would just 404 again with a worse message.
+            if error.status != 404 or "model" in error.body.lower():
                 raise
         result = _post_json(
             f"{self.base_url}/api/embeddings",
             {"model": self.model, "prompt": text},
             timeout=self.timeout,
         )
-        return [float(x) for x in result.get("embedding", [])]
+        vector = [float(x) for x in result.get("embedding", [])]
+        if not vector:
+            raise OllamaError(
+                f"Ollama legacy /api/embeddings returned no embedding for "
+                f"model {self.model!r}"
+            )
+        return vector
 
 
 def parse_json_array(text: str) -> list[Any]:

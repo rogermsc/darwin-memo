@@ -111,3 +111,4 @@ class CycleStats:
     resource_delta: float
     tasks: int = 0
     silent: int = 0
+    nonzero_outcomes: int = 0

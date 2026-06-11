@@ -9,12 +9,17 @@ along whatever was consulted. Watch the ledger move.
     python examples/04_agent_loop.py
 """
 
-import math
 import os
 
 from common import build_store
 
-from darwin_memo import QueryProtocol, Task, VerifiableQAEnv
+from darwin_memo import (
+    QueryProtocol,
+    SurvivalConfig,
+    Task,
+    VerifiableQAEnv,
+    assign_credit,
+)
 
 store = build_store()
 protocol = QueryProtocol(store)
@@ -89,10 +94,17 @@ for task in env.tasks(cycle=0):
     answer_text = agent_answer(task, consulted)
     outcome = env.verify(task, answer_text)
 
-    # Credit flows back along provenance, same math as SurvivalLoop.
-    credit = 0.6 * math.tanh(outcome.delta / env.resource_scale)
-    for entry_id in dict.fromkeys(consulted):
-        store.credit(entry_id, credit / max(1, len(set(consulted))), cycle=0)
+    # Credit flows back along provenance via the shared credit rule.
+    deduped = list(dict.fromkeys(consulted))
+    assign_credit(
+        store,
+        None,
+        deduped,
+        outcome.delta,
+        env.resource_scale,
+        SurvivalConfig(),
+        cycle=0,
+    )
     store.charge_upkeep()
 
     print(f"Q: {task.prompt}")

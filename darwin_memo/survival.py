@@ -41,6 +41,73 @@ class SurvivalConfig:
     write_experience: bool = True
     experience_min_delta: float = 0.0
     experience_dedup_threshold: float = 0.8
+    # None means "use the environment's resource_scale". The Ledger,
+    # which has no environment, sets this directly so the whole credit
+    # formula lives in one config object.
+    resource_scale: float | None = None
+
+
+def assign_credit(
+    store: MemoryStore,
+    deciding_entry: str | None,
+    supporting_entries: list[str],
+    delta: float,
+    resource_scale: float,
+    config: SurvivalConfig,
+    cycle: int,
+) -> list[tuple[str, float]]:
+    """The one credit rule, shared by SurvivalLoop, Ledger, and examples.
+
+    tanh keeps a single huge outcome from making an entry immortal, and
+    keeps a single disaster from instantly executing an entry that was
+    right ninety-nine times. When a deciding entry is named it takes
+    full credit and supporters take a share; when no single entry
+    decided, credit spreads evenly. Returns the (entry_id, credit)
+    pairs that were applied, so callers can record them.
+    """
+    normalized = math.tanh(delta / resource_scale)
+    credit = config.credit_gain * normalized
+    if credit == 0.0:
+        return []
+    applied: list[tuple[str, float]] = []
+    if deciding_entry:
+        applied.append((deciding_entry, credit))
+        applied.extend(
+            (entry_id, credit * config.supporting_share)
+            for entry_id in supporting_entries
+        )
+    elif supporting_entries:
+        share = credit / len(supporting_entries)
+        applied.extend((entry_id, share) for entry_id in supporting_entries)
+    for entry_id, amount in applied:
+        store.credit(entry_id, amount, cycle)
+    return applied
+
+
+def is_silent(answer_text: str, deciding: str | None, supporting: list[str]) -> bool:
+    """Did memory contribute nothing to this answer?
+
+    Empty text is silence in local mode. In LLM mode the model always
+    produces prose, so silence means no provenance: nothing retrieved,
+    or the model explicitly cited no sources.
+    """
+    return not answer_text or (deciding is None and not supporting)
+
+
+def death_cause(
+    entry: MemoryEntry, poisoned_ids: set[str], merged_away: set[str]
+) -> str:
+    """Classify a graveyard entry: merged, executed, or starved.
+
+    Executed means the entry decided real actions (uses > 0) that the
+    environment punished; a poisoned entry that was never consulted
+    simply starved like any other unused knowledge.
+    """
+    if entry.id in merged_away:
+        return "merged"
+    if entry.id in poisoned_ids and entry.uses > 0:
+        return "executed"
+    return "starved"
 
 
 @dataclass
@@ -82,7 +149,10 @@ class SurvivalReport:
         if not total_tasks:
             return ""
         total_silent = sum(s.silent for s in self.stats)
-        all_zero = all(s.resource_delta == 0 for s in self.stats)
+        # Gross movement, not net: a cycle whose payouts exactly cancel
+        # still paid out, and net-zero float equality must not trigger
+        # a "never paid" diagnosis.
+        never_paid = sum(s.nonzero_outcomes for s in self.stats) == 0
         notes = []
         if total_silent / total_tasks > 0.8:
             notes.append(
@@ -90,10 +160,10 @@ class SurvivalReport:
                 "task phrasing likely does not lexically overlap the corpus "
                 "(see min_coverage), so nothing can earn energy"
             )
-        if all_zero and total_silent / total_tasks <= 0.8:
+        if never_paid and total_silent / total_tasks <= 0.8:
             notes.append(
-                "every cycle had resource delta 0: the environment never "
-                "paid out; check that verify() reads your answers (is "
+                "no task ever produced a nonzero outcome: the environment "
+                "never paid out; check that verify() reads your answers (is "
                 "decision_polarity's vocabulary right for your action verbs?)"
             )
         if not notes:
@@ -133,13 +203,16 @@ class SurvivalLoop:
         trajectories: list[Trajectory] = []
         best: Trajectory | None = None
 
+        nonzero_outcomes = 0
         for task in self.env.tasks(cycle):
             answer = self.protocol.answer(task.prompt)
             tasks_seen += 1
-            if not answer.text:
+            if is_silent(answer.text, answer.deciding_entry, answer.supporting_entries):
                 silent += 1
             outcome = self.env.verify(task, answer.text)
             resource_delta += outcome.delta
+            if outcome.delta != 0:
+                nonzero_outcomes += 1
 
             trajectory = Trajectory(
                 cycle=cycle,
@@ -176,37 +249,24 @@ class SurvivalLoop:
             resource_delta=resource_delta,
             tasks=tasks_seen,
             silent=silent,
+            nonzero_outcomes=nonzero_outcomes,
         )
         return stats, trajectories
 
     # ------------------------------------------------------------------
 
     def _assign_credit(self, trajectory: Trajectory, cycle: int) -> None:
-        """Energy moves only along provenance, scaled by the real delta.
-
-        tanh keeps a single huge outcome from making an entry immortal,
-        and keeps a single disaster from instantly executing an entry
-        that was right ninety-nine times. Selection still gets there,
-        it just takes evidence to do it.
-
-        When the protocol names a deciding entry (local mode), it takes
-        full credit and supporters take a share. When no single entry
-        decided (LLM mode synthesizes across everything consulted),
-        credit spreads evenly rather than inventing a winner.
-        """
-        cfg = self.config
-        normalized = math.tanh(trajectory.outcome.delta / self.env.resource_scale)
-        credit = cfg.credit_gain * normalized
-        if credit == 0.0:
-            return
-        if trajectory.deciding_entry:
-            self.store.credit(trajectory.deciding_entry, credit, cycle)
-            for entry_id in trajectory.supporting_entries:
-                self.store.credit(entry_id, credit * cfg.supporting_share, cycle)
-        elif trajectory.supporting_entries:
-            share = credit / len(trajectory.supporting_entries)
-            for entry_id in trajectory.supporting_entries:
-                self.store.credit(entry_id, share, cycle)
+        """Energy moves only along provenance, via the shared credit rule."""
+        scale = self.config.resource_scale or self.env.resource_scale
+        assign_credit(
+            self.store,
+            trajectory.deciding_entry,
+            trajectory.supporting_entries,
+            trajectory.outcome.delta,
+            scale,
+            self.config,
+            cycle,
+        )
 
     def _write_experience(self, trajectory: Trajectory, cycle: int) -> int:
         """Distill the cycle's best trajectory into a new entry.
@@ -225,12 +285,15 @@ class SurvivalLoop:
         the template, then confidently decided questions they knew
         nothing about. Selection executed them for it, but they kept
         being reborn. Reinforcing provenance avoids that churn.
+
+        In LLM mode a multi-citation answer has no single decider; the
+        first cited entry stands in as parent (citation order is the
+        model's own ranking of what it used).
         """
-        parent = (
-            self.store.get(trajectory.deciding_entry)
-            if trajectory.deciding_entry
-            else None
+        parent_id = trajectory.deciding_entry or (
+            trajectory.supporting_entries[0] if trajectory.supporting_entries else None
         )
+        parent = self.store.get(parent_id) if parent_id else None
         if parent is None:
             return 0
         candidate = MemoryEntry(

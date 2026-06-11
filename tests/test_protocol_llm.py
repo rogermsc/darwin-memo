@@ -81,10 +81,42 @@ def test_unparseable_citations_fall_back_to_even_spread():
 
 
 def test_split_citations_handles_noise():
-    text, cited = _split_citations("Answer.\nSOURCES: none", ["a", "b"])
-    assert text == "Answer." and cited == []
-    text, cited = _split_citations("Answer.\nsources: [2] [2] [9]", ["a", "b"])
+    text, cited, none = _split_citations("Answer.\nSOURCES: none", ["a", "b"])
+    assert text == "Answer." and cited == [] and none is True
+    text, cited, none = _split_citations("Answer.\nsources: [2] [2] [9]", ["a", "b"])
     assert cited == ["b"], "dedupes and ignores out-of-range numbers"
+    assert none is False
+
+
+def test_split_citations_takes_the_last_sources_line():
+    """The contract says SOURCES ends the answer; earlier prose that
+    happens to start with 'Sources:' (or an echoed instruction) must not
+    shadow the real citation line."""
+    raw = (
+        "Sources: the runbook and the platform notes both cover this.\n"
+        "Databases must be retained.\n"
+        "SOURCES: [2]"
+    )
+    text, cited, none = _split_citations(raw, ["a", "b"])
+    assert cited == ["b"]
+    assert none is False
+    assert "SOURCES: [2]" not in text
+    assert "Sources: the runbook" in text, "earlier prose stays in the text"
+
+
+def test_explicit_none_attaches_no_provenance():
+    """'SOURCES: none' is the model disclaiming its memory; the fallback
+    must not attribute every consulted entry to that answer."""
+    store = seeded_store()
+    client = ScriptedClient(
+        [
+            "anything",
+            "Memory does not support an answer to that.\nSOURCES: none",
+        ]
+    )
+    answer = QueryProtocol(store, client).answer("capital of France?")
+    assert answer.deciding_entry is None
+    assert answer.supporting_entries == []
 
 
 def test_split_citations_strips_think_blocks():
@@ -93,7 +125,8 @@ def test_split_citations_strips_think_blocks():
         "<think>Snippet [1] looks wrong, but [2] settles it.</think>\n"
         "Retain the database files.\nSOURCES: [2]"
     )
-    text, cited = _split_citations(raw, ["a", "b"])
+    text, cited, none = _split_citations(raw, ["a", "b"])
     assert text == "Retain the database files."
     assert cited == ["b"]
+    assert none is False
     assert "<think>" not in text

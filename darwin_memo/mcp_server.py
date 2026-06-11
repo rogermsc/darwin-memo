@@ -42,9 +42,19 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         ) from exc
 
     memory_path.parent.mkdir(parents=True, exist_ok=True)
-    store = MemoryStore.load(memory_path) if memory_path.exists() else MemoryStore()
     event_log = memory_path.with_suffix(".events.jsonl")
-    ledger = Ledger(store, resource_scale=resource_scale, event_log=event_log)
+    # Ledger.load restores BOTH the store and the ledger state (pending
+    # tickets, tick count, history), so tickets survive server restarts:
+    # the whole point of decide-now-settle-later.
+    if memory_path.exists():
+        ledger = Ledger.load(
+            memory_path, resource_scale=resource_scale, event_log=event_log
+        )
+    else:
+        ledger = Ledger(
+            MemoryStore(), resource_scale=resource_scale, event_log=event_log
+        )
+    store = ledger.store
 
     server = FastMCP(
         name="darwin-memo",
@@ -54,23 +64,25 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
             "acting on that answer is known, call memory_settle with the "
             "MEASURED resource delta (tests passed, bytes freed, dollars "
             "saved): a measurement, never your opinion of answer quality. "
-            "Entries that keep producing bad outcomes die on their own. "
-            "Call memory_tick at natural boundaries (end of a session or "
-            "work unit) so upkeep and consolidation run."
+            "If you decide NOT to act on an answer, call memory_abandon "
+            "with the ticket id so its escrow releases. Entries that keep "
+            "producing bad outcomes die on their own. Call memory_tick at "
+            "natural boundaries (end of a session or work unit) so upkeep "
+            "and consolidation run."
         ),
     )
 
     def _persist() -> None:
-        store.save(memory_path)
+        ledger.save(memory_path)
 
     @server.tool()
     def memory_query(query: str) -> str:
         """Ask the memory a question. Returns the answer and a ticket id.
 
         If you act on the answer, keep the ticket id and call
-        memory_settle once the outcome is measurable. An empty answer
-        means memory has nothing relevant: prefer that silence over
-        guessing.
+        memory_settle once the outcome is measurable; if you do not act,
+        call memory_abandon with it. A silent result means memory has
+        nothing relevant: prefer that silence over guessing.
         """
         ticket = ledger.decide(query)
         _persist()
@@ -78,7 +90,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
             {
                 "answer": ticket.answer or None,
                 "ticket_id": ticket.id if ticket.provenance else None,
-                "silent": not ticket.answer,
+                "silent": not ticket.provenance,
             }
         )
 
@@ -91,9 +103,29 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         reinforces the entries that produced the answer, negative
         drains them. Do not pass a quality score or a vibe.
         """
-        ledger.settle(ticket_id, delta, detail)
+        landed = ledger.settle(ticket_id, delta, detail)
         _persist()
-        return f"settled {ticket_id} at delta {delta:+g}"
+        if landed:
+            return f"settled {ticket_id} at delta {delta:+g}"
+        return (
+            f"NOT settled: ticket {ticket_id} is unknown, already settled, "
+            "or expired; no credit moved"
+        )
+
+    @server.tool()
+    def memory_abandon(ticket_id: str) -> str:
+        """Release a ticket whose answer you did not act on.
+
+        No action means no outcome to measure; abandoning settles at
+        delta zero so the entries it escrowed can be curated normally.
+        """
+        landed = ledger.abandon(ticket_id)
+        _persist()
+        return (
+            f"abandoned {ticket_id}"
+            if landed
+            else f"ticket {ticket_id} was not pending; nothing to abandon"
+        )
 
     @server.tool()
     def memory_add(question: str, answer: str, source: str = "agent") -> str:
@@ -124,7 +156,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return json.dumps(
             {
                 "alive": len(store),
-                "graveyard": len(store.graveyard()),
+                "graveyard": store.dead_count(),
                 "pending_tickets": len(ledger.pending()),
                 "total_energy": round(store.total_energy(), 3),
                 "energy_share_by_kind": {

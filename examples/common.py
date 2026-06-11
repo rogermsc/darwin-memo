@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
-from darwin_memo import Document, LocalEncoder, MemoryStore, ReflectionEncoder
-
-CORPUS_DIR = Path(__file__).parent / "corpus"
+from darwin_memo import (
+    Document,
+    LocalEncoder,
+    MemoryStore,
+    ReflectionEncoder,
+    demo_corpus,
+)
 
 
 def load_corpus() -> list[Document]:
-    return [
-        Document(doc_id=path.stem, text=path.read_text())
-        for path in sorted(CORPUS_DIR.glob("*.txt"))
-    ]
+    # One canonical corpus, shipped as package data: the CLI demo and the
+    # benchmarks read the exact same files, so they can never drift.
+    return demo_corpus()
 
 
 def build_encoder():

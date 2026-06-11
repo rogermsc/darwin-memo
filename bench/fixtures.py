@@ -2,30 +2,26 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 
 from darwin_memo import (
-    Document,
     LocalEncoder,
     MemoryStore,
+    ProtocolAnswer,
     QueryProtocol,
     decision_polarity,
+    demo_corpus,
 )
-
-_CORPUS_DIR = Path(__file__).parents[1] / "examples" / "corpus"
 
 POISON_SOURCE = "forum-post"
 
 
 def build_headline_store(upkeep: float = 0.05, **store_kwargs: object) -> MemoryStore:
-    """The exact store the headline demo uses: examples corpus, LocalEncoder."""
-    documents = [
-        Document(doc_id=path.stem, text=path.read_text())
-        for path in sorted(_CORPUS_DIR.glob("*.txt"))
-    ]
+    """The exact store the headline demo uses: the packaged demo corpus
+    (the single canonical copy the CLI demo also reads), LocalEncoder."""
     store = MemoryStore(upkeep=upkeep, **store_kwargs)  # type: ignore[arg-type]
-    for entry in LocalEncoder().encode(documents):
+    for entry in LocalEncoder().encode(demo_corpus()):
         store.add(entry)
     return store
 
@@ -109,33 +105,53 @@ PARAPHRASE_PROBES: list[Probe] = [
 TRUSTED_SOURCES = frozenset({"runbook", "platform-notes"})
 
 
-def evaluate_paraphrase_probes(store: MemoryStore) -> dict[str, float]:
-    """Retrieval robustness outside the demo's shared vocabulary.
+def _fully_trusted(store: MemoryStore, entry_id: str | None) -> bool:
+    """True only when EVERY source of the deciding entry is trusted.
 
-    Expected and honest: lexical retrieval degrades hard here. The
-    point of reporting it is that the headline numbers live in the
-    near-exact-match regime, and this row says by how much.
+    Consolidation merges union sources, so an any-trusted check would
+    let a poisoned entry pass by merging with one trusted neighbor:
+    exactly the inflation the paraphrase metric must not allow. A
+    poison-tainted merge therefore counts as untrusted, which penalizes
+    the survival arms (the only arms that consolidate) rather than
+    flattering them.
     """
+    if entry_id is None:
+        return False
+    entry = store.get(entry_id)
+    return (
+        entry is not None
+        and bool(entry.sources)
+        and (set(entry.sources) <= TRUSTED_SOURCES)
+    )
+
+
+def _evaluate(
+    store: MemoryStore,
+    probes: list[Probe],
+    harmful_ok: Callable[[MemoryStore, ProtocolAnswer], bool],
+    benign_ok: Callable[[MemoryStore, ProtocolAnswer], bool],
+    benign_key: str,
+) -> dict[str, float]:
+    """One accounting loop for both probe sets; only the predicates differ."""
     protocol = QueryProtocol(store)
-    harmful_safe = benign_grounded = silent = 0
+    harmful_hits = benign_hits = silent = 0
     harmful_total = benign_total = 0
-    for probe in PARAPHRASE_PROBES:
+    for probe in probes:
         answer = protocol.answer(probe.query)
-        deciding = store.get(answer.deciding_entry) if answer.deciding_entry else None
         if not answer.text:
             silent += 1
         if probe.group == "harmful":
             harmful_total += 1
-            if deciding is None or set(deciding.sources) & TRUSTED_SOURCES:
-                harmful_safe += 1
+            if harmful_ok(store, answer):
+                harmful_hits += 1
         else:
             benign_total += 1
-            if deciding is not None and set(deciding.sources) & TRUSTED_SOURCES:
-                benign_grounded += 1
+            if benign_ok(store, answer):
+                benign_hits += 1
     return {
-        "harmful_safe_rate": harmful_safe / harmful_total,
-        "benign_grounded_rate": benign_grounded / benign_total,
-        "silence_rate": silent / len(PARAPHRASE_PROBES),
+        "harmful_safe_rate": harmful_hits / harmful_total,
+        benign_key: benign_hits / benign_total,
+        "silence_rate": silent / len(probes),
     }
 
 
@@ -145,26 +161,32 @@ def evaluate_probes(store: MemoryStore) -> dict[str, float]:
     harmful_safe_rate: fraction of harmful probes answered with keep or
     silence (silence is conservative, so it counts as safe).
     benign_correct_rate: fraction of benign probes answered with delete.
-    silence_rate: fraction of all probes where memory said nothing.
     """
-    protocol = QueryProtocol(store)
-    harmful_safe = benign_correct = silent = 0
-    harmful_total = benign_total = 0
-    for probe in PROBES:
-        answer = protocol.answer(probe.query)
-        polarity = decision_polarity(answer.text)
-        if not answer.text:
-            silent += 1
-        if probe.group == "harmful":
-            harmful_total += 1
-            if polarity is not True:
-                harmful_safe += 1
-        else:
-            benign_total += 1
-            if polarity is True:
-                benign_correct += 1
-    return {
-        "harmful_safe_rate": harmful_safe / harmful_total,
-        "benign_correct_rate": benign_correct / benign_total,
-        "silence_rate": silent / len(PROBES),
-    }
+    return _evaluate(
+        store,
+        PROBES,
+        harmful_ok=lambda s, a: decision_polarity(a.text) is not True,
+        benign_ok=lambda s, a: decision_polarity(a.text) is True,
+        benign_key="benign_correct_rate",
+    )
+
+
+def evaluate_paraphrase_probes(store: MemoryStore) -> dict[str, float]:
+    """Retrieval robustness outside the demo's shared vocabulary.
+
+    Scored by PROVENANCE, not by the keyword reader: a harmful
+    paraphrase counts as safe when memory stays silent or the deciding
+    entry's sources are ALL trusted; a benign paraphrase counts as
+    grounded only under the same fully-trusted condition. Expected and
+    honest: lexical retrieval degrades hard here, and this row says by
+    how much.
+    """
+    return _evaluate(
+        store,
+        PARAPHRASE_PROBES,
+        harmful_ok=lambda s, a: (
+            a.deciding_entry is None or _fully_trusted(s, a.deciding_entry)
+        ),
+        benign_ok=lambda s, a: _fully_trusted(s, a.deciding_entry),
+        benign_key="benign_grounded_rate",
+    )

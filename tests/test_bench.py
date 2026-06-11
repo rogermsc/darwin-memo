@@ -33,7 +33,7 @@ def make_store(n: int = 4) -> MemoryStore:
 
 def test_ttl_evicts_exactly_at_age():
     store = make_store(3)
-    result = run_ttl(store, NullEnv(), cycles=12, seed=0, ttl=10)
+    result = run_ttl(store, NullEnv(), cycles=12, ttl=10)
     # All entries born at cycle 0, so all die together at cycle 10.
     assert [r.deaths for r in result.records][:11] == [0] * 10 + [3]
     assert len(store) == 0
@@ -48,7 +48,7 @@ def test_recency_keeps_used_and_evicts_idle():
             used.last_used_cycle = cycle  # simulate constant consultation
             return []
 
-    run_recency(store, TouchingEnv(), cycles=12, seed=0, window=10)
+    run_recency(store, TouchingEnv(), cycles=12, window=10)
     alive_ids = {e.id for e in store.alive()}
     assert used.id in alive_ids
     assert idle.id not in alive_ids
@@ -82,7 +82,7 @@ def test_evict_on_negative_buries_exactly_the_blamed():
 
     from bench.policies import run_evict_on_negative
 
-    result = run_evict_on_negative(store, BlameEnv(), cycles=1, seed=0)
+    result = run_evict_on_negative(store, BlameEnv(), cycles=1)
     assert result.records[0].deaths == 1
     assert store.get(bad.id) is None, "the blamed decider is evicted"
     assert store.get(good.id) is not None

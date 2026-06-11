@@ -19,8 +19,10 @@ acts only as a sort tie-break.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Collection
 from pathlib import Path
+from typing import Any
 
 from .retrieval import LexicalRetriever, Retriever, tokenize
 from .types import MemoryEntry
@@ -59,6 +61,13 @@ class MemoryStore:
 
     def graveyard(self) -> list[MemoryEntry]:
         return list(self._graveyard.values())
+
+    def get_dead(self, entry_id: str) -> MemoryEntry | None:
+        """O(1) graveyard lookup; the graveyard only grows."""
+        return self._graveyard.get(entry_id)
+
+    def dead_count(self) -> int:
+        return len(self._graveyard)
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -135,8 +144,8 @@ class MemoryStore:
     # Persistence
     # ------------------------------------------------------------------
 
-    def save(self, path: str | Path) -> None:
-        payload = {
+    def to_payload(self) -> dict[str, object]:
+        payload: dict[str, object] = {
             "config": {
                 "max_energy": self.max_energy,
                 "upkeep": self.upkeep,
@@ -147,11 +156,12 @@ class MemoryStore:
         retriever_state = self.retriever.dump_state()
         if retriever_state:
             payload["retriever"] = retriever_state
-        Path(path).write_text(json.dumps(payload, indent=2))
+        return payload
 
     @classmethod
-    def load(cls, path: str | Path, retriever: Retriever | None = None) -> MemoryStore:
-        payload = json.loads(Path(path).read_text())
+    def from_payload(
+        cls, payload: dict[str, Any], retriever: Retriever | None = None
+    ) -> MemoryStore:
         # Filter to known keys so files saved by other versions still load.
         config = {
             k: v for k, v in payload["config"].items() if k in ("max_energy", "upkeep")
@@ -164,3 +174,20 @@ class MemoryStore:
         if "retriever" in payload:
             store.retriever.load_state(payload["retriever"])
         return store
+
+    def save(self, path: str | Path) -> None:
+        write_json_atomic(path, self.to_payload())
+
+    @classmethod
+    def load(cls, path: str | Path, retriever: Retriever | None = None) -> MemoryStore:
+        payload = json.loads(Path(path).read_text())
+        return cls.from_payload(payload, retriever=retriever)
+
+
+def write_json_atomic(path: str | Path, payload: dict[str, object]) -> None:
+    """Write via a sibling temp file and rename, so a crash mid-write can
+    never leave a truncated file behind (the previous snapshot survives)."""
+    target = Path(path)
+    temp = target.with_name(target.name + ".tmp")
+    temp.write_text(json.dumps(payload, indent=2))
+    os.replace(temp, target)

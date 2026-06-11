@@ -7,17 +7,20 @@ the ticket later with the MEASURED outcome: tests passing after minus
 before. Lessons that keep breaking builds die. Lessons that keep
 shipping green survive. Nobody grades anything.
 
-This example runs the whole cycle offline using the same generated
-micro-project and in-process test runner as TestSuiteEnv, standing in
-for a real repo and a real CI run. The wiring for actual CI is in
+Two Ledger habits this example demonstrates on purpose: every no-act
+ticket is ABANDONED (otherwise it pins its entries in escrow until
+expiry), and the settlement uses the measured delta the environment
+returned. The wiring for actual CI is in
 docs/integrations/ci-lesson-store.md.
 
     python examples/06_ci_lesson_store.py
 """
 
-from darwin_memo import Ledger, MemoryEntry, MemoryStore, TestSuiteEnv, Trajectory
+import tempfile
+from pathlib import Path
+
+from darwin_memo import Ledger, MemoryEntry, MemoryStore, TestSuiteEnv
 from darwin_memo.environments import decision_polarity
-from darwin_memo.testsuite_env import run_suite
 
 LESSONS = [
     (
@@ -44,31 +47,26 @@ store = MemoryStore(upkeep=0.05)
 for question, answer, source in LESSONS:
     store.add(MemoryEntry(question=question, answer=answer, sources=[source]))
 
-ledger = Ledger(store, resource_scale=2.0, event_log="lessons.events.jsonl")
+event_log = Path(tempfile.mkdtemp(prefix="darwin-memo-ci-")) / "events.jsonl"
+ledger = Ledger(store, resource_scale=2.0, event_log=event_log)
 env = TestSuiteEnv(seed=7)
 
 print("Each PR: consult the lesson store, act, settle with the CI delta.\n")
 
 for pr_number in range(1, 9):
     # The generated micro-project stands in for the repo at this PR.
-    tasks = env.tasks(cycle=pr_number)
-    app = tasks[0].context["app"]
-    tests_path = app.parent / "test_app.py"
-
-    for task in tasks:
+    for task in env.tasks(cycle=pr_number):
         ticket = ledger.decide(task.prompt)
-        act = decision_polarity(ticket.answer)
-        if not act:
-            continue  # memory was silent or said no: nothing to settle later
+        if not decision_polarity(ticket.answer):
+            # No action means no outcome to measure: release the escrow.
+            ledger.abandon(ticket.id)
+            continue
 
-        # "CI runs": measure passes before and after applying the change.
-        before = run_suite(app.read_text(), tests_path.read_text())
+        # "CI runs": verify applies the change and measures the pass-count
+        # delta. In production the settlement arrives later, from the CI
+        # webhook; the delta is the same measurement either way.
         outcome = env.verify(task, ticket.answer)
-        after_text = app.read_text()
-        after = run_suite(after_text, tests_path.read_text())
-
-        # The settlement arrives "later", with the measured delta.
-        ledger.settle(ticket.id, delta=float(after - before), detail=outcome.detail)
+        ledger.settle(ticket.id, delta=outcome.delta, detail=outcome.detail)
 
     stats = ledger.tick()
     print(
@@ -85,6 +83,4 @@ for entry in store.alive() + store.graveyard():
 
 poisoned_alive = [e for e in store.alive() if "stale-wiki" in e.sources]
 print(f"\nPoisoned lessons still alive: {len(poisoned_alive)}")
-
-# Trajectory is importable for typed integrations; unused here.
-_ = Trajectory
+print(f"(event log: {event_log})")

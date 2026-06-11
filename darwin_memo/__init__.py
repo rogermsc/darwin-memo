@@ -8,7 +8,7 @@ models, no judges, no human curation.
 """
 
 from .consolidate import consolidate
-from .encode import Document, LocalEncoder, ReflectionEncoder
+from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import (
     Environment,
     StorageEnv,
@@ -17,9 +17,10 @@ from .environments import (
     decision_polarity,
 )
 from .ledger import Ledger, Ticket
-from .llm import OllamaClient, OllamaEmbedder, ollama_available
+from .llm import OllamaClient, OllamaEmbedder, OllamaError, ollama_available
 from .protocol import ProtocolAnswer, QueryProtocol
 from .retrieval import (
+    EMBEDDING_MERGE_THRESHOLD,
     EmbeddingFn,
     EmbeddingRetriever,
     HashingEmbedder,
@@ -27,13 +28,21 @@ from .retrieval import (
     Retriever,
 )
 from .store import MemoryStore
-from .survival import SurvivalConfig, SurvivalLoop, SurvivalReport
+from .survival import (
+    SurvivalConfig,
+    SurvivalLoop,
+    SurvivalReport,
+    assign_credit,
+    death_cause,
+    is_silent,
+)
 from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
 __version__ = "0.3.0"
 
 __all__ = [
+    "EMBEDDING_MERGE_THRESHOLD",
     "CycleStats",
     "Document",
     "EmbeddingFn",
@@ -48,6 +57,7 @@ __all__ = [
     "MemoryStore",
     "OllamaClient",
     "OllamaEmbedder",
+    "OllamaError",
     "Outcome",
     "ProtocolAnswer",
     "QueryProtocol",
@@ -63,7 +73,11 @@ __all__ = [
     "Trajectory",
     "VerifiableQAEnv",
     "__version__",
+    "assign_credit",
     "consolidate",
+    "death_cause",
     "decision_polarity",
+    "demo_corpus",
+    "is_silent",
     "ollama_available",
 ]

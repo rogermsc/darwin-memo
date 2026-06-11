@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from importlib import resources
 from itertools import combinations
 from typing import Any
 
@@ -40,6 +41,18 @@ class Document:
     text: str
 
 
+def demo_corpus() -> list[Document]:
+    """The canonical demo corpus (ops runbook, platform notes, and the
+    poisoned forum post), shipped as package data so the CLI demo, the
+    examples, and the benchmarks all read ONE copy that cannot drift."""
+    root = resources.files("darwin_memo").joinpath("data/demo_corpus")
+    return [
+        Document(doc_id=item.name.removesuffix(".txt"), text=item.read_text())
+        for item in sorted(root.iterdir(), key=lambda i: i.name)
+        if item.name.endswith(".txt")
+    ]
+
+
 class LocalEncoder:
     """Rule-based reflection encoding. No network, no models.
 
@@ -52,7 +65,7 @@ class LocalEncoder:
 
     def encode(self, documents: list[Document]) -> list[MemoryEntry]:
         entries: list[MemoryEntry] = []
-        seen_qa: set[tuple[str, str]] = set()
+        seen_qa: dict[tuple[str, str], MemoryEntry] = {}
         entity_docs: dict[str, set[str]] = {}
         entity_sentences: dict[str, list[str]] = {}
         entity_mid_sentence: set[str] = set()
@@ -61,20 +74,25 @@ class LocalEncoder:
             for sentence in self._sentences(doc.text):
                 # Step 1 + 3: each declarative sentence is an explicit fact,
                 # kept self-contained by storing the full sentence as answer.
-                # Identical QA pairs dedupe at encode time; repeated text in
-                # a document must not multiply the population.
+                # Identical QA pairs dedupe at encode time, but a duplicate
+                # in a SECOND document must merge its provenance, not vanish:
+                # a fact shared by the runbook and a poisoned doc is sourced
+                # from both, and trust scoring depends on seeing that.
                 subject = self._subject_of(sentence)
                 question = f"What is known about {subject}?"
-                if (question, sentence) not in seen_qa:
-                    seen_qa.add((question, sentence))
-                    entries.append(
-                        MemoryEntry(
-                            question=question,
-                            answer=sentence,
-                            kind=EntryKind.EXPLICIT,
-                            sources=[doc.doc_id],
-                        )
+                existing = seen_qa.get((question, sentence))
+                if existing is not None:
+                    if doc.doc_id not in existing.sources:
+                        existing.sources.append(doc.doc_id)
+                else:
+                    entry = MemoryEntry(
+                        question=question,
+                        answer=sentence,
+                        kind=EntryKind.EXPLICIT,
+                        sources=[doc.doc_id],
                     )
+                    seen_qa[(question, sentence)] = entry
+                    entries.append(entry)
                 # Step 4: surface entities, both directions.
                 for entity, mid_sentence in self._entities(sentence):
                     entity_docs.setdefault(entity, set()).add(doc.doc_id)

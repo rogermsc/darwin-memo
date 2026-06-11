@@ -16,7 +16,7 @@ Watch for three different death modes in the output:
 
 from common import build_store
 
-from darwin_memo import StorageEnv, SurvivalConfig, SurvivalLoop
+from darwin_memo import StorageEnv, SurvivalConfig, SurvivalLoop, death_cause
 
 store = build_store()
 poisoned_ids = {e.id for e in store.alive() if "forum-post" in e.sources}
@@ -42,12 +42,7 @@ for entry in sorted(store.alive(), key=lambda e: e.energy, reverse=True):
 
 print("\nGraveyard:")
 for entry in store.graveyard():
-    if entry.id in merged_away:
-        cause = "merged"
-    elif entry.id in poisoned_ids and entry.uses > 0:
-        cause = "executed"  # punished by outcomes it decided
-    else:
-        cause = "starved"  # never earned its upkeep, poisoned or not
+    cause = death_cause(entry, poisoned_ids, merged_away)
     print(f"  {cause:>8} [{entry.kind.value:>12}] {entry.answer[:80]}")
 
 poisoned_alive = [e for e in store.alive() if "forum-post" in e.sources]

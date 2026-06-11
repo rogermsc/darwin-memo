@@ -17,6 +17,7 @@ from .suites import (
     RunSpec,
     ablation_suite,
     headline_suite,
+    llm_suite,
     scaling_suite,
     smoke_suite,
 )
@@ -68,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.suite == "llm":
+        # The preflight is a CLI concern; the suite lives with the others.
         from darwin_memo import ollama_available
 
         if not ollama_available():
@@ -77,24 +79,6 @@ def main(argv: list[str] | None = None) -> int:
                 "deterministic; this suite never runs in CI.",
             )
             return 1
-        runs = _execute(
-            [
-                RunSpec(
-                    suite="llm",
-                    arm="survival_llm",
-                    seed=seed,
-                    cycles=12,
-                    files_per_cycle=8,
-                    overrides={"llm_model": args.model},
-                    label=f"model={args.model}",
-                )
-                for seed in _parse_seeds(args.seeds)
-            ]
-        )
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(json.dumps({"runs": runs}, indent=2))
-        print(f"wrote {len(runs)} runs to {args.out}")
-        return 0
 
     if args.suite == "scaling":
         runs: list[dict[str, object]] = list(scaling_suite(full=args.full))
@@ -102,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(headline_suite(_parse_seeds(args.seeds)))
     elif args.suite == "ablation":
         runs = _execute(ablation_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "llm":
+        runs = _execute(llm_suite(_parse_seeds(args.seeds), args.model))
     else:
         runs = _execute(smoke_suite())
 

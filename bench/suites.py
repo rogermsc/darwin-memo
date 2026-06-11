@@ -74,6 +74,23 @@ def smoke_suite() -> list[RunSpec]:
     ]
 
 
+def llm_suite(seeds: list[int], model: str) -> list[RunSpec]:
+    """Opt-in: survival with a local model answering through the full
+    3-stage protocol. Sampled, not deterministic, never run in CI."""
+    return [
+        RunSpec(
+            suite="llm",
+            arm="survival_llm",
+            seed=seed,
+            cycles=12,
+            files_per_cycle=8,
+            overrides={"llm_model": model},
+            label=f"model={model}",
+        )
+        for seed in seeds
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Scaling probe (timed micro-operations, not policy runs)
 # ---------------------------------------------------------------------------

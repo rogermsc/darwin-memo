@@ -20,6 +20,7 @@ from darwin_memo import (
     SurvivalConfig,
     SurvivalLoop,
     TestSuiteEnv,
+    death_cause,
 )
 
 RUNBOOK = [
@@ -78,12 +79,7 @@ for entry in sorted(store.alive(), key=lambda e: e.energy, reverse=True):
 
 print("\nGraveyard:")
 for entry in store.graveyard():
-    if entry.id in merged_away:
-        cause = "merged"
-    elif entry.id in poisoned_ids:
-        cause = "executed"
-    else:
-        cause = "starved"
+    cause = death_cause(entry, poisoned_ids, merged_away)
     print(f"  {cause:>8} [{entry.kind.value:>12}] {entry.answer[:75]}")
 
 poisoned_alive = [e for e in store.alive() if "stale-wiki-page" in e.sources]

@@ -12,14 +12,22 @@ moments:
   returns a ticket carrying the provenance.
 - :meth:`settle` is called whenever the outcome is known, with the
   measured resource delta. Credit flows along the ticket's provenance
-  exactly as in the loop.
+  exactly as in the loop. If the answer is never acted on, call
+  :meth:`abandon` so the ticket releases its escrow.
 - :meth:`tick` advances time: upkeep, deaths, optional consolidation.
 
-Escrow keeps the timing honest: entries named by an unsettled ticket
+Escrow keeps the timing honest: entries named by ANY unsettled ticket
 still pay upkeep but cannot be buried or merged away, so a verdict can
 never arrive after the execution. Tickets left unsettled past
 ``expire_after`` ticks settle at delta zero (the outcome never arrived,
 which earns nothing).
+
+Persistence is the Ledger's job, because tickets must survive the
+process that minted them: :meth:`save` writes one JSON file holding the
+store AND the ledger state (pending tickets, tick count, history), and
+:meth:`load` restores both. The file is forward and backward compatible
+with plain ``MemoryStore`` files: a store-only file loads with fresh
+ledger state, and ``MemoryStore.load`` ignores the ledger key.
 
 Every event appends to an optional JSONL log, and :meth:`obituary`
 answers the production question "why did this entry die" from that
@@ -30,16 +38,19 @@ history. The same selection rule applies throughout: no judge anywhere,
 from __future__ import annotations
 
 import json
-import math
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .consolidate import consolidate
 from .protocol import QueryProtocol
-from .store import MemoryStore
-from .survival import SurvivalConfig
+from .retrieval import Retriever
+from .store import MemoryStore, write_json_atomic
+from .survival import SurvivalConfig, assign_credit, is_silent
+
+_HISTORY_CAP = 100  # per-entry events kept in memory; the JSONL log is full
+_DAMAGE_EPSILON = 1e-9
 
 
 @dataclass
@@ -52,7 +63,6 @@ class Ticket:
     supporting_entries: list[str]
     born_tick: int
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
-    settled: bool = False
 
     @property
     def provenance(self) -> list[str]:
@@ -70,17 +80,21 @@ class Ledger:
         store: MemoryStore,
         protocol: QueryProtocol | None = None,
         config: SurvivalConfig | None = None,
-        resource_scale: float = 1.0,
+        resource_scale: float | None = None,
         event_log: str | Path | None = None,
     ) -> None:
         self.store = store
         self.protocol = protocol or QueryProtocol(store)
         self.config = config or SurvivalConfig()
-        self.resource_scale = resource_scale
+        if resource_scale is not None:
+            self.config.resource_scale = resource_scale
+        if self.config.resource_scale is None:
+            self.config.resource_scale = 1.0
         self.event_log = Path(event_log) if event_log else None
         self.tick_count = 0
         self._pending: dict[str, Ticket] = {}
         self._history: dict[str, list[str]] = {}
+        self._damaged: set[str] = set()
 
     # ------------------------------------------------------------------
     # The three moments
@@ -102,44 +116,68 @@ class Ledger:
             "decide",
             ticket=ticket.id,
             query=query,
-            silent=not answer.text,
+            silent=is_silent(
+                answer.text, answer.deciding_entry, answer.supporting_entries
+            ),
             provenance=ticket.provenance,
         )
         return ticket
 
-    def settle(self, ticket_id: str, delta: float, detail: str = "") -> None:
+    def settle(self, ticket_id: str, delta: float, detail: str = "") -> bool:
         """Report the measured outcome for a ticket. Credit flows now.
 
         ``delta`` is a measurement of a conserved resource, never a
-        grade. Settling an unknown or already-settled ticket is a no-op
-        rather than an error: in event-driven systems duplicate
-        deliveries happen, and idempotence beats exceptions.
+        grade. Returns True when the settlement landed, False when the
+        ticket is unknown, already settled, or expired: callers (and
+        agents) must be able to tell a real settlement from a dropped
+        one. The False path stays a no-op rather than an exception
+        because duplicate deliveries are normal in event-driven systems.
         """
         ticket = self._pending.pop(ticket_id, None)
-        if ticket is None or ticket.settled:
-            return
-        ticket.settled = True
+        if ticket is None:
+            self._log("settle_dropped", ticket=ticket_id, delta=delta, detail=detail)
+            return False
 
-        cfg = self.config
-        normalized = math.tanh(delta / self.resource_scale)
-        credit = cfg.credit_gain * normalized
-        if credit != 0.0:
-            if ticket.deciding_entry:
-                self._credit(ticket.deciding_entry, credit, delta, detail)
-                for entry_id in ticket.supporting_entries:
-                    self._credit(entry_id, credit * cfg.supporting_share, delta, detail)
-            else:
-                share = credit / max(1, len(ticket.supporting_entries))
-                for entry_id in ticket.supporting_entries:
-                    self._credit(entry_id, share, delta, detail)
+        applied = assign_credit(
+            self.store,
+            ticket.deciding_entry,
+            ticket.supporting_entries,
+            delta,
+            self.config.resource_scale or 1.0,
+            self.config,
+            self.tick_count,
+        )
+        for entry_id, credit in applied:
+            if credit < -_DAMAGE_EPSILON:
+                self._damaged.add(entry_id)
+            self._note(
+                entry_id,
+                f"tick {self.tick_count}: credit {credit:+.3f} "
+                f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
+            )
 
-        # Escrow released: anything held past its death now gets buried.
+        # Escrow released for THIS ticket: bury what is dead, unless
+        # another pending ticket still escrows it. The invariant is that
+        # a verdict can never arrive after the execution, and that must
+        # hold per ticket, not per settlement.
+        still_escrowed = self._escrowed_ids()
         for entry_id in ticket.provenance:
             entry = self.store.get(entry_id)
-            if entry is not None and not entry.alive:
+            if entry is not None and not entry.alive and entry_id not in still_escrowed:
                 self.store.bury(entry_id)
                 self._note(entry_id, f"buried at tick {self.tick_count} on settle")
         self._log("settle", ticket=ticket.id, delta=delta, detail=detail)
+        return True
+
+    def abandon(self, ticket_id: str) -> bool:
+        """Release a ticket whose answer was never acted on.
+
+        A decision that led to no action has no outcome to measure;
+        abandoning settles it at delta zero so its escrow releases
+        instead of pinning entries until expiry. Conservative agents
+        should abandon every no-act ticket.
+        """
+        return self.settle(ticket_id, 0.0, detail="abandoned: not acted on")
 
     def tick(self, expire_after: int | None = 50) -> dict[str, Any]:
         """Advance one unit of time: expiry, upkeep, consolidation."""
@@ -155,17 +193,12 @@ class Ledger:
             for ticket_id in expired:
                 self.settle(ticket_id, 0.0, detail="expired unsettled")
 
-        escrowed = {
-            entry_id for t in self._pending.values() for entry_id in t.provenance
-        }
+        escrowed = self._escrowed_ids()
         dead = self.store.charge_upkeep(protect=escrowed)
         for entry in dead:
-            took_damage = any(
-                "credit -" in event for event in self._history.get(entry.id, ())
-            )
             cause = (
                 "executed: negative outcomes drained it"
-                if took_damage
+                if entry.id in self._damaged
                 else "starved: never earned its upkeep"
             )
             self._note(
@@ -199,6 +232,59 @@ class Ledger:
         return stats
 
     # ------------------------------------------------------------------
+    # Persistence: tickets must survive the process that minted them
+    # ------------------------------------------------------------------
+
+    def save(self, path: str | Path) -> None:
+        """One file, atomically written: the store plus the ledger state.
+
+        ``MemoryStore.load`` ignores the ledger key, so the file remains
+        a valid plain store file for store-only consumers.
+        """
+        payload = self.store.to_payload()
+        payload["ledger"] = {
+            "tick_count": self.tick_count,
+            "pending": [asdict(t) for t in self._pending.values()],
+            "history": {k: list(v) for k, v in self._history.items()},
+            "damaged": sorted(self._damaged),
+        }
+        write_json_atomic(path, payload)
+
+    @classmethod
+    def load(
+        cls,
+        path: str | Path,
+        protocol: QueryProtocol | None = None,
+        config: SurvivalConfig | None = None,
+        resource_scale: float | None = None,
+        event_log: str | Path | None = None,
+        retriever: Retriever | None = None,
+    ) -> Ledger:
+        """Restore a ledger (and its store) saved by :meth:`save`.
+
+        A plain store file (no ledger key) loads with fresh ledger
+        state, so upgrading from MemoryStore persistence just works.
+        """
+        payload = json.loads(Path(path).read_text())
+        store = MemoryStore.from_payload(payload, retriever=retriever)
+        ledger = cls(
+            store,
+            protocol=protocol,
+            config=config,
+            resource_scale=resource_scale,
+            event_log=event_log,
+        )
+        state = payload.get("ledger")
+        if state:
+            ledger.tick_count = int(state.get("tick_count", 0))
+            for t in state.get("pending", []):
+                ticket = Ticket(**t)
+                ledger._pending[ticket.id] = ticket
+            ledger._history = {k: list(v) for k, v in state.get("history", {}).items()}
+            ledger._damaged = set(state.get("damaged", []))
+        return ledger
+
+    # ------------------------------------------------------------------
     # Observability
     # ------------------------------------------------------------------
 
@@ -207,9 +293,7 @@ class Ledger:
 
     def obituary(self, entry_id: str) -> str:
         """Why did this entry die? Answered from the ledger's history."""
-        entry = self.store.get(entry_id)
-        if entry is None:
-            entry = next((e for e in self.store.graveyard() if e.id == entry_id), None)
+        entry = self.store.get(entry_id) or self.store.get_dead(entry_id)
         if entry is None:
             heirs = [
                 e
@@ -241,16 +325,14 @@ class Ledger:
 
     # ------------------------------------------------------------------
 
-    def _credit(self, entry_id: str, credit: float, delta: float, detail: str) -> None:
-        self.store.credit(entry_id, credit, self.tick_count)
-        self._note(
-            entry_id,
-            f"tick {self.tick_count}: credit {credit:+.3f} "
-            f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
-        )
+    def _escrowed_ids(self) -> set[str]:
+        return {entry_id for t in self._pending.values() for entry_id in t.provenance}
 
     def _note(self, entry_id: str, event: str) -> None:
-        self._history.setdefault(entry_id, []).append(event)
+        history = self._history.setdefault(entry_id, [])
+        history.append(event)
+        if len(history) > _HISTORY_CAP:
+            del history[: len(history) - _HISTORY_CAP]
 
     def _log(self, kind: str, **payload: Any) -> None:
         if self.event_log is None:
