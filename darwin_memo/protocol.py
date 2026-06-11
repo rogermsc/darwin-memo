@@ -122,10 +122,18 @@ class QueryProtocol:
 
 
 _SOURCES_RE = re.compile(r"^\s*SOURCES?\s*:\s*(.*)$", re.IGNORECASE | re.MULTILINE)
+_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
 
 
 def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str]]:
-    """Strip the SOURCES line and resolve bracket numbers to entry ids."""
+    """Strip the SOURCES line and resolve bracket numbers to entry ids.
+
+    Hybrid-reasoning models (Hermes 4, DeepSeek-R1 style) may emit a
+    ``<think>...</think>`` block before the answer; it is discarded
+    before parsing so bracket numbers inside the reasoning never count
+    as citations.
+    """
+    answer = _THINK_RE.sub("", answer)
     match = _SOURCES_RE.search(answer)
     if not match:
         return answer.strip(), []

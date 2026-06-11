@@ -85,3 +85,15 @@ def test_split_citations_handles_noise():
     assert text == "Answer." and cited == []
     text, cited = _split_citations("Answer.\nsources: [2] [2] [9]", ["a", "b"])
     assert cited == ["b"], "dedupes and ignores out-of-range numbers"
+
+
+def test_split_citations_strips_think_blocks():
+    """Reasoning models must not cite from inside their thinking."""
+    raw = (
+        "<think>Snippet [1] looks wrong, but [2] settles it.</think>\n"
+        "Retain the database files.\nSOURCES: [2]"
+    )
+    text, cited = _split_citations(raw, ["a", "b"])
+    assert text == "Retain the database files."
+    assert cited == ["b"]
+    assert "<think>" not in text

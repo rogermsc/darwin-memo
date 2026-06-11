@@ -162,7 +162,35 @@ The agent gets `memory_query` (returns an answer plus a ticket id),
 `memory_tick`, `memory_stats`, and `memory_obituary`. The store
 persists across sessions, so the population carries its scars forward.
 
-### With an LLM
+### Fully local with Ollama (zero dependencies, zero cloud)
+
+The Ollama client and embedder speak the native localhost API over
+stdlib `urllib`, so the complete stack (encoding, the 3-stage protocol,
+real embeddings, the measuring environment) runs on one machine with no
+third-party packages and no keys:
+
+```python
+from darwin_memo import (
+    EmbeddingRetriever, MemoryStore, OllamaClient, OllamaEmbedder,
+    QueryProtocol, ReflectionEncoder,
+)
+
+chat = OllamaClient(model="llama3.2")          # any local model
+store = MemoryStore(retriever=EmbeddingRetriever(OllamaEmbedder()))
+encoder = ReflectionEncoder(chat)
+protocol = QueryProtocol(store, chat)
+```
+
+`examples/07_local_stack.py` runs it end to end, and
+`darwin-memo query memory.json "..." --model ollama:llama3.2` does it
+from the shell. The selection loop is call-hungry (cycles x tasks), so
+free local inference is what makes LLM-mode experiments economically
+sane; `python -m bench.run --suite llm` is the at-home recipe for the
+LLM-mode benchmark question the docs flag as open. The survival
+mechanics stay deterministic; the sampled model does not, which is why
+that suite never runs in CI.
+
+### With a cloud LLM
 
 `pip install "darwin-memo[anthropic]"` and set `ANTHROPIC_API_KEY`; the
 examples pick it up automatically.
@@ -176,9 +204,11 @@ encoder = ReflectionEncoder(client)         # 5-step reflection QA synthesis
 protocol = QueryProtocol(store, client)     # grounding -> entities -> answer seeking
 ```
 
-In LLM mode the memory snippets are numbered and the model cites which
-it used, so credit flows to the entries that actually shaped the answer
-(even spread over everything consulted is the fallback).
+In any LLM mode the memory snippets are numbered and the model cites
+which it used, so credit flows to the entries that actually shaped the
+answer (even spread over everything consulted is the fallback, and
+`<think>` blocks from reasoning models are stripped before citations
+are parsed).
 
 ## Bring your own selection pressure
 

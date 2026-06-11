@@ -17,6 +17,7 @@ from .environments import (
     decision_polarity,
 )
 from .ledger import Ledger, Ticket
+from .llm import OllamaClient, OllamaEmbedder, ollama_available
 from .protocol import ProtocolAnswer, QueryProtocol
 from .retrieval import (
     EmbeddingFn,
@@ -45,6 +46,8 @@ __all__ = [
     "LocalEncoder",
     "MemoryEntry",
     "MemoryStore",
+    "OllamaClient",
+    "OllamaEmbedder",
     "Outcome",
     "ProtocolAnswer",
     "QueryProtocol",
@@ -62,4 +65,5 @@ __all__ = [
     "__version__",
     "consolidate",
     "decision_polarity",
+    "ollama_available",
 ]

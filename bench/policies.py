@@ -90,8 +90,9 @@ def run_survival(
     seed: int,
     config: SurvivalConfig,
     on_cycle: OnCycle | None = None,
+    protocol: QueryProtocol | None = None,
 ) -> PolicyResult:
-    loop = SurvivalLoop(store, env, config=config)
+    loop = SurvivalLoop(store, env, protocol=protocol, config=config)
     result = PolicyResult()
     for cycle in range(cycles):
         stats, _ = loop.run_cycle(cycle)

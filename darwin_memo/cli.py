@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .encode import Document, LocalEncoder
 from .environments import StorageEnv
+from .llm import LLMClient
 from .protocol import QueryProtocol
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop
@@ -121,9 +122,36 @@ def cmd_encode(args: argparse.Namespace) -> int:
     return 0
 
 
+def _client_for(spec: str | None) -> LLMClient | None:
+    """Resolve a --model spec like ollama:llama3.2 into an LLM client."""
+    if not spec:
+        return None
+    if spec.startswith("ollama:"):
+        from .llm import OllamaClient, ollama_available
+
+        if not ollama_available():
+            print(
+                "error: --model ollama:* needs a running Ollama server "
+                "(https://ollama.com, `ollama serve`)",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        return OllamaClient(model=spec.split(":", 1)[1])
+    if spec.startswith("anthropic:"):
+        from .llm import AnthropicClient
+
+        return AnthropicClient(model=spec.split(":", 1)[1])
+    print(
+        f"error: unknown model spec {spec!r}; use ollama:NAME or anthropic:NAME",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
 def cmd_query(args: argparse.Namespace) -> int:
     store = MemoryStore.load(args.memory)
-    answer = QueryProtocol(store).answer(args.question)
+    client = _client_for(args.model)
+    answer = QueryProtocol(store, client).answer(args.question)
     if not answer.text:
         print("(memory is silent: no entry clears the relevance floor)")
         return 0
@@ -132,6 +160,8 @@ def cmd_query(args: argparse.Namespace) -> int:
     if deciding:
         print(f"  deciding entry: [{deciding.kind.value}] {deciding.question}")
         print(f"  sources: {', '.join(deciding.sources)}")
+    elif answer.supporting_entries:
+        print(f"  cited entries: {', '.join(answer.supporting_entries)}")
     return 0
 
 
@@ -169,6 +199,12 @@ def main(argv: list[str] | None = None) -> int:
     query = sub.add_parser("query", help="ask a saved memory a question")
     query.add_argument("memory")
     query.add_argument("question")
+    query.add_argument(
+        "--model",
+        default=None,
+        help="LLM for the full 3-stage protocol: ollama:NAME or anthropic:NAME "
+        "(default: local retrieval, no model)",
+    )
     query.set_defaults(fn=cmd_query)
 
     stats = sub.add_parser("stats", help="population and energy overview")

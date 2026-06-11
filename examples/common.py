@@ -18,7 +18,7 @@ def load_corpus() -> list[Document]:
 
 
 def build_encoder():
-    """Use Claude when a key is present, otherwise the offline encoder."""
+    """Prefer Claude, then a local Ollama model, then the offline encoder."""
     if os.environ.get("ANTHROPIC_API_KEY"):
         try:
             from darwin_memo.llm import AnthropicClient
@@ -26,7 +26,15 @@ def build_encoder():
             print("Encoder: ReflectionEncoder (Claude)")
             return ReflectionEncoder(AnthropicClient())
         except ImportError:
-            print("anthropic package missing, falling back to LocalEncoder")
+            print("anthropic package missing, trying local options")
+    if os.environ.get("DARWIN_MEMO_OLLAMA"):
+        from darwin_memo.llm import OllamaClient, ollama_available
+
+        if ollama_available():
+            model = os.environ.get("DARWIN_MEMO_OLLAMA_MODEL", "llama3.2")
+            print(f"Encoder: ReflectionEncoder (Ollama, {model})")
+            return ReflectionEncoder(OllamaClient(model=model))
+        print("DARWIN_MEMO_OLLAMA set but no server detected on :11434")
     print("Encoder: LocalEncoder (offline, rule-based)")
     return LocalEncoder()
 

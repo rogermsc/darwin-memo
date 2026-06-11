@@ -147,6 +147,24 @@ def _dispatch(
         if "merge_threshold" not in overrides:
             config.merge_threshold = 0.85
         return run_survival(store, env, cycles, seed, config, on_cycle)
+    if arm == "survival_llm":
+        # Opt-in: the full 3-stage protocol answered by a local model.
+        # Not deterministic, never in CI; this is the at-home recipe for
+        # the question the docs flag as open (does citation-based credit
+        # keep selection working under synthesis?).
+        from darwin_memo import OllamaClient, QueryProtocol
+
+        client = OllamaClient(model=str(overrides.get("llm_model", "llama3.2")))
+        protocol = QueryProtocol(store, client)
+        return run_survival(
+            store,
+            env,
+            cycles,
+            seed,
+            _survival_config(overrides, False),
+            on_cycle,
+            protocol=protocol,
+        )
     if arm == "evict_on_negative":
         return run_evict_on_negative(store, env, cycles, seed, on_cycle)
     if arm == "keep_everything":
