@@ -36,7 +36,6 @@ from .llm import LLMClient
 from .protocol import QueryProtocol
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
-from .types import EntryKind, MemoryEntry
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -177,8 +176,13 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     """
     path = Path(args.memory).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Same event-log convention as the MCP server, so a store shared
-    # between the two gets one continuous JSONL audit trail.
+    # Loads use the default lexical retriever; a store built with an
+    # embedding retriever keeps its persisted vectors but ranks
+    # lexically here (the CLI cannot construct your embedder).
+    # Same event-log convention as the MCP server. Sequential sharing
+    # only: the MCP server holds its ledger in memory and saves after
+    # every call, so running both against one file concurrently means
+    # the server's next save clobbers whatever the CLI wrote.
     event_log = path.with_suffix(".events.jsonl")
     if path.exists():
         ledger = Ledger.load(path, resource_scale=args.scale, event_log=event_log)
@@ -191,7 +195,10 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     if args.ledger_op == "decide":
         ticket = ledger.decide(args.question, k=args.k)
         out = {
-            "answer": ticket.answer or None,
+            # All three fields key on provenance, the silence signal,
+            # so consumers never see a ticket without an answer or
+            # vice versa.
+            "answer": ticket.answer if ticket.provenance else None,
             "ticket_id": ticket.id if ticket.provenance else None,
             "silent": not ticket.provenance,
         }
@@ -201,27 +208,19 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     elif args.ledger_op == "abandon":
         out = {"abandoned": ledger.abandon(args.ticket_id)}
     elif args.ledger_op == "add":
-        entry = store.add(
-            MemoryEntry(
-                question=args.question,
-                answer=args.answer,
-                kind=EntryKind.EXPERIENCE,
-                sources=[args.source],
+        question, answer = args.question.strip(), args.answer.strip()
+        if not question or not answer:
+            print(
+                "error: add requires a non-empty question and answer",
+                file=sys.stderr,
             )
-        )
-        out = {"entry_id": entry.id}
+            return 1
+        out = {"entry_id": ledger.add(question, answer, source=args.source).id}
     elif args.ledger_op == "forget":
-        escrowed = {entry_id for t in ledger.pending() for entry_id in t.provenance}
-        if args.entry_id in escrowed:
-            # Burying an escrowed entry would let a later settle report
-            # success while crediting a corpse: the Ledger invariant is
-            # that a verdict can never arrive after the execution.
-            out = {"forgotten": False, "reason": "escrowed by a pending ticket"}
-        else:
-            alive = store.get(args.entry_id) is not None
-            if alive:
-                store.bury(args.entry_id)
-            out = {"forgotten": alive}
+        status = ledger.forget(args.entry_id)
+        out = {"forgotten": status == "buried"}
+        if status == "escrowed":
+            out["reason"] = "escrowed by a pending ticket"
     elif args.ledger_op == "tick":
         out = ledger.tick(expire_after=args.expire_after)
     elif args.ledger_op == "stats":
