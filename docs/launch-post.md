@@ -130,9 +130,16 @@ The harness also runs the baseline that keeps us honest:
 outcome" heuristic. In this deterministic environment it ties the full
 energy ledger on outcomes, and the benchmark doc says so plainly. What
 the ledger buys is leanness (4 surviving entries against the
-if-statement's 15) and graded forgiveness under noisy outcomes, a
-designed property a deterministic benchmark cannot exercise. A
-paraphrase probe set, scored by provenance so the keyword reader cannot
+if-statement's 15) and forgiveness when measurements lie — and that
+one is measured, not asserted: a noisy suite corrupts outcomes
+deterministically and scores everyone on the truth. At 5-20% flaky-CI
+noise survival's true outcomes are byte-identical to its clean run
+while every strike-counter variant degrades — the strongest holds at
+5% and has collapsed by 20%; the suite also publishes forgiveness's
+price (lying rewards delay the poison's execution, and at heavy noise
+some seeds never kill it) and
+the ledger's own failure boundary (underwater at 50% noise, where a
+sign flip carries no information). A paraphrase probe set, scored by provenance so the keyword reader cannot
 grade its own homework, quantifies how the demo degrades outside its
 own vocabulary, and an embedding-retriever arm posts the best
 cumulative result of all, with the poison never deciding anything at

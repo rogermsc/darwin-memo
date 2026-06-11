@@ -1,6 +1,7 @@
 """Benchmark CLI.
 
 python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json
+python -m bench.run --suite noisy    --seeds 0:30 --out bench/results/noisy.json
 python -m bench.run --suite ablation --seeds 0:5  --out bench/results/ablation.json
 python -m bench.run --suite scaling [--full]      --out bench/results/scaling.json
 python -m bench.run --suite smoke                 --out bench/results/smoke.json
@@ -18,6 +19,7 @@ from .suites import (
     ablation_suite,
     headline_suite,
     llm_suite,
+    noisy_suite,
     scaling_suite,
     smoke_suite,
 )
@@ -53,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--suite",
-        choices=["headline", "ablation", "scaling", "smoke", "llm"],
+        choices=["headline", "noisy", "ablation", "scaling", "smoke", "llm"],
         required=True,
     )
     parser.add_argument("--seeds", default="0:10", help="a:b range or comma list")
@@ -84,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
         runs: list[dict[str, object]] = list(scaling_suite(full=args.full))
     elif args.suite == "headline":
         runs = _execute(headline_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "noisy":
+        runs = _execute(noisy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "ablation":
         runs = _execute(ablation_suite(_parse_seeds(args.seeds)))
     elif args.suite == "llm":

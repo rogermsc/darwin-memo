@@ -316,9 +316,19 @@ direction is the active ingredient, not eviction itself. The harness
 also runs the baseline that keeps us honest: `evict_on_negative`, a
 one-line "evict whatever erred" heuristic, ties survival on outcomes in
 this deterministic environment; the ledger's measured edge here is
-leanness (4 surviving entries vs 15), and its forgiveness under noisy
-outcomes is a designed property this benchmark cannot exercise. A
-paraphrase probe set, scored by provenance rather than keywords,
+leanness (4 surviving entries vs 15).
+
+Forgiveness is no longer asserted, it is measured: a noisy suite makes
+measurements lie deterministically and scores everyone on the truth. At
+5-20% flaky-CI noise (good changes reporting red), survival's true
+outcomes are byte-identical to its noise-free run while every strike
+counter collapses (k=1 loses essentially all benign capability by 5%;
+the strongest variant, strikes-reset-on-success, halves by 10%). The
+suite also publishes the costs: lying rewards delay the poison's
+execution (median kill cycle 0 to 5.5 among seeds that still kill —
+73% at the half-lies extreme — as symmetric noise rises), and past
+roughly one lie in three the ledger itself breaks, underwater at 50%.
+A paraphrase probe set, scored by provenance rather than keywords,
 quantifies how the demo degrades outside its own vocabulary, and an
 embedding-retriever arm shows the mechanism does not depend on the
 lexical-match path. Full tables, every baseline's best metric stated
@@ -369,9 +379,14 @@ on the surviving QA pairs with LoRA, conditioning on questions only.
   (supporting entries get 25% of that), and are capped at 5.0. Death is at
   zero. All tunable via `MemoryStore` and `SurvivalConfig`.
 - **Credit flows along provenance.** Only the entries that produced an
-  answer are touched by its outcome. In LLM mode, citations name them;
-  tanh keeps one disaster from executing an entry that was right
-  ninety-nine times, and one jackpot from making an entry immortal.
+  answer are touched by its outcome. In LLM mode, citations name them.
+  Per-event credit is bounded (tanh-capped at ±credit_gain), so what
+  keeps one disaster from executing an entry that was right ninety-nine
+  times is the accumulated energy buffer plus earn-back, and one
+  jackpot cannot make an entry immortal. The noisy benchmark suite
+  measures exactly this property; honest detail: on that benchmark the
+  buffer does the forgiving, not the grading curve (capped deciders
+  clip incoming credit, so even large lies change nothing).
 - **Memory silence is a feature.** Retrieval has a relevance floor, and an
   earlier version of this repo demonstrated why: entries matching only
   structural tokens ("safe", "file") were deciding questions they knew

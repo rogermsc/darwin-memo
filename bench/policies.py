@@ -7,9 +7,14 @@ each cycle:
 - survival / survival_writes: the real SurvivalLoop (energy ledger).
 - survival_embedding: the same loop over an EmbeddingRetriever store
   (hashing embedder), testing the mechanism off the lexical-match path.
-- evict_on_negative: the if-statement alternative. Instantly evict any
-  entry that decided a negative-outcome task. If the energy ledger
+- evict_on_negative: the if-statement alternative. Evict any entry
+  whose decisions have produced K negative outcomes (K=1, instant, in
+  the headline suite; K=2,3 in the noisy suite). If the energy ledger
   cannot beat this one-liner on some metric, the report says so.
+- evict_consecutive: strikes that a success wipes clean, forgiveness
+  as an if-statement (noisy suite).
+- quarantine: evict on blame but re-encode a fresh copy after a
+  cooldown, the recovery path real deployments have (noisy suite).
 - keep_everything: nothing, ever. The no-curation lower bound.
 - ttl: age-based eviction, blind to usage and outcomes.
 - recency: idle-based eviction, blind to outcomes.
@@ -24,6 +29,7 @@ they track entry usage (recency needs it) but never touch energy.
 from __future__ import annotations
 
 import random
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -37,8 +43,13 @@ from darwin_memo import (
 )
 
 OnCycle = Callable[[int, "CycleRecord"], None]
-# A victim selector sees (store, cycle, blamed_ids) and names who dies.
-VictimSelector = Callable[[MemoryStore, int, set[str]], list[MemoryEntry]]
+# A victim selector sees (store, cycle, blame counts, praise counts) and
+# names who dies. Blame/praise count how many negative/positive-outcome
+# tasks each entry decided THIS cycle; selectors needing lifetime totals
+# accumulate in their own closures.
+VictimSelector = Callable[
+    [MemoryStore, int, "Counter[str]", "Counter[str]"], list[MemoryEntry]
+]
 
 
 @dataclass
@@ -60,22 +71,28 @@ class PolicyResult:
 
 def _baseline_task_loop(
     store: MemoryStore, env: Environment, cycle: int
-) -> tuple[float, set[str]]:
+) -> tuple[float, Counter[str], Counter[str]]:
     """Answer and act exactly like the survival loop, minus the ledger.
 
-    Returns the cycle's resource delta and the ids of entries that
-    decided a negative-outcome task (the blame set the
-    evict_on_negative baseline acts on).
+    Returns the cycle's resource delta and per-entry counts of
+    negative-outcome decisions (the blame the evict_on_negative family
+    acts on) and positive-outcome decisions (the praise the
+    consecutive-strikes variant forgives on). Both read the REPORTED
+    outcome, exactly like the heuristics they feed would in production.
     """
     protocol = QueryProtocol(store)
     delta = 0.0
-    blamed: set[str] = set()
+    blamed: Counter[str] = Counter()
+    praised: Counter[str] = Counter()
     for task in env.tasks(cycle):
         answer = protocol.answer(task.prompt)
         outcome = env.verify(task, answer.text)
         delta += outcome.delta
-        if outcome.delta < 0 and answer.deciding_entry:
-            blamed.add(answer.deciding_entry)
+        if answer.deciding_entry:
+            if outcome.delta < 0:
+                blamed[answer.deciding_entry] += 1
+            elif outcome.delta > 0:
+                praised[answer.deciding_entry] += 1
         consulted = list(answer.supporting_entries)
         if answer.deciding_entry:
             consulted.append(answer.deciding_entry)
@@ -84,7 +101,7 @@ def _baseline_task_loop(
             if entry is not None:
                 entry.uses += 1
                 entry.last_used_cycle = cycle
-    return delta, blamed
+    return delta, blamed, praised
 
 
 def _run_baseline(
@@ -97,8 +114,8 @@ def _run_baseline(
     """One driver for every baseline; policies are victim selectors."""
     result = PolicyResult()
     for cycle in range(cycles):
-        delta, blamed = _baseline_task_loop(store, env, cycle)
-        victims = select_victims(store, cycle, blamed)
+        delta, blamed, praised = _baseline_task_loop(store, env, cycle)
+        victims = select_victims(store, cycle, blamed, praised)
         for entry in victims:
             store.bury(entry.id)
         record = CycleRecord(cycle, len(store), len(victims), delta)
@@ -139,7 +156,7 @@ def run_keep_everything(
     cycles: int,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    return _run_baseline(store, env, cycles, lambda s, c, b: [], on_cycle)
+    return _run_baseline(store, env, cycles, lambda s, c, b, p: [], on_cycle)
 
 
 def run_ttl(
@@ -149,7 +166,9 @@ def run_ttl(
     ttl: int = 10,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    def expired(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
+    def expired(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
         return [e for e in s.alive() if cycle - e.born_cycle >= ttl]
 
     return _run_baseline(store, env, cycles, expired, on_cycle)
@@ -162,7 +181,9 @@ def run_recency(
     window: int = 10,
     on_cycle: OnCycle | None = None,
 ) -> PolicyResult:
-    def idle(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
+    def idle(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
         return [
             e
             for e in s.alive()
@@ -184,7 +205,7 @@ def run_random_matched(
     rng = random.Random(seed * 1000 + 17)
 
     def random_victims(
-        s: MemoryStore, cycle: int, blamed: set[str]
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
     ) -> list[MemoryEntry]:
         budget = death_schedule[cycle] if cycle < len(death_schedule) else 0
         alive = s.alive()
@@ -198,16 +219,99 @@ def run_evict_on_negative(
     env: Environment,
     cycles: int,
     on_cycle: OnCycle | None = None,
+    strikes: int = 1,
 ) -> PolicyResult:
-    """The if-statement baseline: instantly evict any entry that decided
-    a negative-outcome task this cycle. No energy, no forgiveness, no
-    starvation of the useless. If the full ledger cannot beat this on
-    some metric, the benchmark says so."""
+    """The if-statement baseline: evict any entry whose decisions have
+    produced ``strikes`` negative outcomes, lifetime. At the default of
+    one strike this is the instant version: no energy, no forgiveness,
+    no starvation of the useless. Higher strike counts are the obvious
+    noise-tolerance upgrade a practitioner would write, and the noisy
+    suite runs them so the ledger is compared against the heuristic's
+    best self, not a strawman. Strikes never reset or decay: that is
+    the structural difference from the energy ledger, where earning
+    replenishes the buffer. If the full ledger cannot beat this on some
+    metric, the benchmark says so."""
+    lifetime: Counter[str] = Counter()
 
-    def the_blamed(s: MemoryStore, cycle: int, blamed: set[str]) -> list[MemoryEntry]:
-        return [e for e in s.alive() if e.id in blamed]
+    def the_blamed(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
+        lifetime.update(blamed)
+        return [e for e in s.alive() if lifetime[e.id] >= strikes]
 
     return _run_baseline(store, env, cycles, the_blamed, on_cycle)
+
+
+def run_evict_consecutive(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    on_cycle: OnCycle | None = None,
+    strikes: int = 2,
+) -> PolicyResult:
+    """Strikes that a success wipes clean: the strongest cheap heuristic.
+
+    An entry's strike count resets to zero in any cycle where it also
+    decided a positive-outcome task, then accumulates that cycle's
+    blame; ``strikes`` total gets it evicted. This is forgiveness as an
+    if-statement, and the closest a counter gets to the ledger's
+    earn-back without inventing energy. Granularity is the cycle, so a
+    cycle containing both a success and a failure forgives first and
+    then counts the failure.
+    """
+    count: Counter[str] = Counter()
+
+    def strike_out(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
+        for entry_id in praised:
+            count[entry_id] = 0
+        count.update(blamed)
+        return [e for e in s.alive() if count[e.id] >= strikes]
+
+    return _run_baseline(store, env, cycles, strike_out, on_cycle)
+
+
+def run_quarantine(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    suspend: int = 3,
+    on_cycle: OnCycle | None = None,
+) -> PolicyResult:
+    """Evict on blame, but the knowledge comes back after a cooldown.
+
+    Eviction is permanent in every other baseline, while in deployments
+    the evicted lesson's source often still exists: re-encoding it is
+    cheap. This arm models that recovery path: a blamed entry is buried
+    immediately, and ``suspend`` cycles later a fresh copy (same QA
+    text, spawn-fresh id and energy) re-enters the population. The
+    ``deaths`` column counts suspensions; revivals are silent, matching
+    how the survival loop's births column ignores resurrection too.
+    """
+    pending: dict[int, list[MemoryEntry]] = {}
+    result = PolicyResult()
+    for cycle in range(cycles):
+        for ancestor in pending.pop(cycle, []):
+            store.add(
+                MemoryEntry(
+                    question=ancestor.question,
+                    answer=ancestor.answer,
+                    kind=ancestor.kind,
+                    sources=list(ancestor.sources),
+                    born_cycle=cycle,
+                )
+            )
+        delta, blamed, _praised = _baseline_task_loop(store, env, cycle)
+        victims = [e for e in store.alive() if blamed[e.id] > 0]
+        for entry in victims:
+            store.bury(entry.id)
+            pending.setdefault(cycle + suspend, []).append(entry)
+        record = CycleRecord(cycle, len(store), len(victims), delta)
+        result.records.append(record)
+        if on_cycle:
+            on_cycle(cycle, record)
+    return result
 
 
 ARMS = (
@@ -219,4 +323,15 @@ ARMS = (
     "ttl",
     "recency",
     "random_matched",
+)
+
+# The noisy suite's arm set: the ledger against the heuristic family's
+# best selves, plus the no-curation canary (its TRUE deltas must be
+# invariant to measurement noise, which validates the harness).
+NOISY_ARMS = (
+    "survival",
+    "evict_on_negative",  # strikes=1 unless overridden
+    "evict_consecutive",
+    "quarantine",
+    "keep_everything",
 )
