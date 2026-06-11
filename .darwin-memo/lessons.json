@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -25,7 +25,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -39,7 +39,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -53,7 +53,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -67,7 +67,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -81,7 +81,7 @@
       "sources": [
         "readme-retrieval"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -95,7 +95,7 @@
       "sources": [
         "readme-environments"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -109,7 +109,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -123,7 +123,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "last_used_cycle": -1,
       "uses": 0,
@@ -133,16 +133,8 @@
   ],
   "graveyard": [],
   "ledger": {
-    "tick_count": 0,
+    "tick_count": 1,
     "pending": [
-      {
-        "query": "Can multiple workflow jobs settle the memory store in parallel?",
-        "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
-        "deciding_entry": "7af78c536de1",
-        "supporting_entries": [],
-        "born_tick": 0,
-        "id": "c804d482b22d"
-      },
       {
         "query": "Are LLM benchmark arms safe to run in CI?",
         "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
