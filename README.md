@@ -346,9 +346,10 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 - **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
   the Ollama client (think-blocks handled), and Hermes Agent mounts the
   MCP server natively.
-- **[Animoca Minds](docs/integrations/animoca-minds.md)**: planned
-  spike; on-chain balance deltas and gas on Base are judge-free
-  settlement signals, readable without anyone's permission.
+- **[Animoca Minds / EVM](docs/integrations/animoca-minds.md)**: the
+  generic settler is built in (`EvmSettler`, zero dependencies):
+  on-chain balance deltas and gas are judge-free settlement signals,
+  readable from any RPC node without anyone's permission.
 
 ## More examples
 

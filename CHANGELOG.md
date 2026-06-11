@@ -20,6 +20,19 @@ project uses [SemVer](https://semver.org/).
   `forget` refuses entries escrowed by pending tickets, since burying
   one would let a later settle report success while crediting a
   corpse.
+- `EvmSettler`: on-chain balances as the conserved resource, with zero
+  dependencies (stdlib JSON-RPC). One settler measures one resource
+  for one address — native wei or one ERC-20's raw units — via pinned
+  block snapshots, so the decide-now-settle-later flow needs no
+  archive node. Timestamp-bisection `block_at`/`measure` for
+  retroactive windows, and `tx_cost` for single transactions
+  (including the OP-stack `l1Fee`, verified to the wei against a live
+  balance movement; reverted txs burn gas and move nothing). Default
+  endpoint is `mainnet.base.org`, the only public Base RPC that
+  served honest full-archive state when measured — the module
+  docstring names the one that silently lies about history. Closes
+  the durable half of the Animoca Minds spike (#3);
+  `examples/08_evm_settler.py` runs the loop offline.
 
 ### Added
 
