@@ -13,10 +13,12 @@ shows the whole idea with no checkout, no keys, no network.
 
 ``ledger`` is the scripting bridge: every Ledger operation as a
 subcommand printing one JSON object to stdout, so shell scripts, CI
-steps, and host-process plugins (the OpenClaw memory plugin shells out
-here) get the full decide/settle/tick contract without speaking MCP or
-importing Python. Same rule as everywhere else: ``settle`` takes a
-measured delta, never a grade.
+steps, and host-process plugins (built for the OpenClaw memory plugin,
+whose host SDK has no MCP client) get the full decide/settle/tick
+contract without speaking MCP or importing Python. Same rule as
+everywhere else: ``settle`` takes a measured delta, never a grade.
+Invocations against one file must not run concurrently: there is no
+file locking, and the last writer wins.
 """
 
 from __future__ import annotations
@@ -175,10 +177,13 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     """
     path = Path(args.memory).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Same event-log convention as the MCP server, so a store shared
+    # between the two gets one continuous JSONL audit trail.
+    event_log = path.with_suffix(".events.jsonl")
     if path.exists():
-        ledger = Ledger.load(path, resource_scale=args.scale)
+        ledger = Ledger.load(path, resource_scale=args.scale, event_log=event_log)
     else:
-        ledger = Ledger(MemoryStore(), resource_scale=args.scale)
+        ledger = Ledger(MemoryStore(), resource_scale=args.scale, event_log=event_log)
     store = ledger.store
 
     out: dict[str, object]
@@ -206,10 +211,17 @@ def cmd_ledger(args: argparse.Namespace) -> int:
         )
         out = {"entry_id": entry.id}
     elif args.ledger_op == "forget":
-        alive = store.get(args.entry_id) is not None
-        if alive:
-            store.bury(args.entry_id)
-        out = {"forgotten": alive}
+        escrowed = {entry_id for t in ledger.pending() for entry_id in t.provenance}
+        if args.entry_id in escrowed:
+            # Burying an escrowed entry would let a later settle report
+            # success while crediting a corpse: the Ledger invariant is
+            # that a verdict can never arrive after the execution.
+            out = {"forgotten": False, "reason": "escrowed by a pending ticket"}
+        else:
+            alive = store.get(args.entry_id) is not None
+            if alive:
+                store.bury(args.entry_id)
+            out = {"forgotten": alive}
     elif args.ledger_op == "tick":
         out = ledger.tick(expire_after=args.expire_after)
     elif args.ledger_op == "stats":
