@@ -349,7 +349,9 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 - **[Animoca Minds / EVM](docs/integrations/animoca-minds.md)**: the
   generic settler is built in (`EvmSettler`, zero dependencies):
   on-chain balance deltas and gas are judge-free settlement signals,
-  readable from any RPC node without anyone's permission.
+  readable with no API key (the snapshot flow needs no archive node;
+  the module docstring names public endpoints that lie about
+  history).
 
 ## More examples
 

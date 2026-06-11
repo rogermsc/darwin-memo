@@ -28,8 +28,8 @@ project uses [SemVer](https://semver.org/).
   retroactive windows, and `tx_cost` for single transactions
   (including the OP-stack `l1Fee`, verified to the wei against a live
   balance movement; reverted txs burn gas and move nothing). Default
-  endpoint is `mainnet.base.org`, the only public Base RPC that
-  served honest full-archive state when measured — the module
+  endpoint is `mainnet.base.org`, the only one of the public Base
+  RPCs tested that served honest full-archive state — the module
   docstring names the one that silently lies about history. Closes
   the durable half of the Animoca Minds spike (#3);
   `examples/08_evm_settler.py` runs the loop offline.

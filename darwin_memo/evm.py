@@ -215,7 +215,14 @@ class EvmSettler:
 
     @staticmethod
     def delta(before: dict[str, int], after: dict[str, int]) -> float:
-        """The conserved-resource movement between two snapshots."""
+        """The conserved-resource movement between two snapshots.
+
+        Float because that is ``Ledger.settle``'s signature. Exact up
+        to 2**53 raw units; above that (about 0.009 of an 18-decimals
+        token) float64 rounds, which is harmless for credit (tanh
+        normalizes) but means wei-true accounting should read the
+        snapshots' int balances directly. ``measure`` inherits this.
+        """
         return float(after["balance"] - before["balance"])
 
     # ------------------------------------------------------------------
