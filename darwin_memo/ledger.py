@@ -160,10 +160,18 @@ class Ledger:
         }
         dead = self.store.charge_upkeep(protect=escrowed)
         for entry in dead:
+            took_damage = any(
+                "credit -" in event for event in self._history.get(entry.id, ())
+            )
+            cause = (
+                "executed: negative outcomes drained it"
+                if took_damage
+                else "starved: never earned its upkeep"
+            )
             self._note(
                 entry.id,
-                f"starved at tick {self.tick_count} "
-                f"(uses={entry.uses}, last_used_tick={entry.last_used_cycle})",
+                f"died at tick {self.tick_count} ({cause}; "
+                f"uses={entry.uses}, last_used_tick={entry.last_used_cycle})",
             )
 
         merges = 0

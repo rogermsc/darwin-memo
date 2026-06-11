@@ -6,6 +6,50 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-11
+
+### Added
+
+- `Ledger`: event-driven decide/settle/tick API for real-world outcome
+  timing. Escrow holds entries with unsettled tickets out of burial and
+  consolidation, unsettled tickets expire at delta zero, every event
+  appends to an optional JSONL log, and `obituary(entry_id)` answers
+  why an entry died from its credit history.
+- `darwin-memo` CLI: `demo` (self-contained poison extinction, one
+  command after pip install), `encode`, `query`, `stats`.
+- MCP server (`darwin-memo-mcp`, `[mcp]` extra): `memory_query` opens a
+  ledger ticket, `memory_settle` reports the measured delta later, plus
+  `memory_add`, `memory_tick`, `memory_stats`, `memory_obituary`. State
+  persists across sessions.
+- Citation-based attribution in LLM mode: memory snippets are numbered,
+  the model cites which it used, and credit flows to the cited entries
+  (even spread over everything consulted is the fallback).
+- `decision_polarity` accepts `extra_positive`/`extra_negative` marker
+  vocabulary for environments whose actions are not delete/apply.
+- Silence diagnostics: per-cycle silent-task counts in `CycleStats` and
+  the report summary, plus a plain-language health warning naming the
+  two degenerate-run failure modes.
+- Benchmarks: `evict_on_negative` (the one-line heuristic; it ties the
+  ledger on outcomes in the deterministic environment and the doc says
+  so), `survival_embedding` (the loop off the lexical-match path), and
+  a paraphrase probe set scored by provenance rather than keywords.
+- CI lesson-store integration example and guide
+  (`examples/06_ci_lesson_store.py`, docs/integrations/).
+
+### Changed
+
+- README restructured: one-command demo first, an explicit "when to use
+  this (and when not)" section, and a guide to the three silent failure
+  modes that catch new environments.
+- The vocabulary coupling between corpus, environment prompts, and the
+  keyword reader is now named plainly in docs/benchmarks.md.
+- Demo graveyards no longer label starved poisoned entries as executed.
+
+### Fixed
+
+- `LocalEncoder` dedupes identical QA pairs at encode time, so repeated
+  text in a document cannot multiply the population.
+
 ## [0.1.0] - 2026-06-11
 
 ### Added
@@ -40,5 +84,6 @@ project uses [SemVer](https://semver.org/).
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rogermsc/darwin-memo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rogermsc/darwin-memo/releases/tag/v0.1.0

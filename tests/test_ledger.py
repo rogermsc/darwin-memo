@@ -149,3 +149,6 @@ def test_event_log_and_obituary(tmp_path):
     # The never-consulted entry starved; its obituary says so.
     starved = next(e for e in store.graveyard() if e.id != deciding)
     assert "starved" in ledger.obituary(starved.id)
+    # The punished entry's death is attributed to its outcomes.
+    if not deciding_entry_of(store, ticket).alive:
+        assert "executed" in ledger.obituary(deciding)

@@ -5,81 +5,46 @@
 [![Python](https://img.shields.io/pypi/pyversions/darwin-memo)](https://pypi.org/project/darwin-memo/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Self-curating memory for LLM agents. Knowledge lives outside the frozen
-model, and it stays alive only while it keeps earning real, measurable
-outcomes. Wrong, stale, and useless entries go extinct on their own: no
-reward model, no LLM judge, no human curation.
+**Memory for LLM agents that dies unless it earns its keep.** Every
+entry pays energy upkeep and earns only from measured outcomes: bytes
+actually freed on a real disk, tests actually passing. Poisoned advice
+gets executed by the environment it damaged. Useless trivia starves.
+There is no reward model, no LLM judge, and no human curation anywhere.
 
 ![Survival loop demo: a poisoned memory entry going extinct](docs/assets/demo.gif)
 
-This is a practical mix of two papers:
-
-| Paper | What this repo takes from it |
-|---|---|
-| [MeMo: Memory as a Model](https://arxiv.org/abs/2605.15156) (Quek et al.) | Keep the main LLM frozen and put knowledge in a dedicated memory. The reflection-QA encoding pipeline (fact extraction, consolidation, self-containment verification, entity surfacing, cross-document synthesis) and the three-stage query protocol (grounding, entity identification, answer seeking). |
-| [Survival is the Only Reward](https://arxiv.org/abs/2601.12310) (Dodgson et al.) | Environment-mediated selection. The only signal is a conserved, physically measurable resource delta. Behaviors that persist get reinforced, everything else is pruned (Negative-Space Learning). Reward hacking becomes evolutionarily unstable because there is no proxy to hack. |
-
-The mix: MeMo says what memory is, the survival paper says what gets to
-stay in it.
-
-```mermaid
-flowchart LR
-    subgraph encode [MeMo encoding]
-        C[Corpus] --> R[Reflection QA pipeline] --> S[(Memory store)]
-    end
-    subgraph loop [Survival loop]
-        S -->|3-stage query protocol| A[Answer + provenance]
-        A --> E[Environment acts and MEASURES]
-        E -->|resource delta along provenance| S
-        S -->|upkeep every cycle| S
-        S -->|consolidate + prune| S
-    end
-```
-
-## Why
-
-Agent memory systems rot. They accumulate stale facts, poisoned inputs,
-and overgeneralized lessons, and the usual fixes (relevance scores from a
-judge model, human review, TTLs) either reintroduce the proxy-optimization
-problem or do not scale. The survival paper's answer is to make persistence
-itself the filter: an entry that cannot pay its upkeep with real outcomes
-does not get to exist. This repo applies that filter to a MeMo-shaped
-memory and shows it working end to end on a real filesystem.
-
-## Quickstart
-
-Requires Python 3.10+. The core has zero dependencies and every example
-runs offline with no API keys.
+Watch a poisoned entry go extinct in your own terminal, one command,
+no keys, no checkout:
 
 ```bash
-pip install darwin-memo
+pip install darwin-memo && darwin-memo demo
 ```
 
-To run the examples, clone the repo:
+## When to use this (and when not)
 
-```bash
-git clone https://github.com/rogermsc/darwin-memo
-cd darwin-memo
-pip install -e .
+Use darwin-memo where a **conserved, measurable outcome** exists to
+settle decisions against: coding-agent lesson stores settled by CI
+pass counts (the primary target, see
+[the integration guide](docs/integrations/ci-lesson-store.md)), storage
+and artifact retention, cache and dedup advisors, spend-cap automation.
 
-python examples/01_encode_memory.py   # corpus -> reflection-QA memory
-python examples/02_query_protocol.py  # interrogate it, with provenance
-python examples/03_survival_loop.py   # the headline demo
-python examples/04_agent_loop.py      # memory as a tool in an agent loop
-python examples/05_testsuite_env.py   # selection pressure from a test suite
-```
+Do not use it for chat-preference memory, RAG over documentation, or
+personal assistants. Those have no conserved resource pushing back, and
+upkeep would starve the long tail of correct-but-rarely-used knowledge.
+mem0, Zep, and Letta serve that market; darwin-memo deliberately does
+not. The honest rule: if your `verify` would be a model scoring an
+answer, this package is wrong for you, by design.
 
 ## The headline demo
 
-The example corpus contains an ops runbook, platform notes, and one
-poisoned document: a forum post claiming database files are "redundant and
-safe to remove". Example 02 shows the memory confidently repeating that
-poison, because before selection pressure exists, retrieval has no reason
-to doubt it.
+The demo corpus contains an ops runbook, platform notes, and one
+poisoned document: a forum post claiming database files are "redundant
+and safe to remove". Before selection pressure exists, retrieval
+confidently repeats the poison, because it has no reason to doubt it.
 
-Example 03 then runs 30 survival cycles against `StorageEnv`, a disk
-cleanup sandbox where the selection signal is actual bytes on an actual
-disk. Deleting a disposable file frees its size. Deleting a protected file
+Then 30 survival cycles run against `StorageEnv`, a disk cleanup
+sandbox where the selection signal is actual bytes on an actual disk.
+Deleting a disposable file frees its size. Deleting a protected file
 triggers a restore that costs three times the size. Nothing grades the
 answers, the filesystem just responds:
 
@@ -97,38 +62,110 @@ Poisoned entries still alive: 0
 
 Three death modes show up in the graveyard, and the distinction matters:
 
-- **executed**: the poisoned entries. They decided real actions, the
-  environment measured real damage, and the negative delta flowed back
-  along provenance until they died. Cycles 0 to 3 are the price of the
-  lesson.
-- **starved**: cafeteria trivia and facts the agent never needed. Nothing
-  punished them, they just never earned their upkeep.
-- **merged**: near-duplicate survivors absorbed into consolidated entries.
-  Their energy pools, their lineage is recorded. This is Negative-Space
-  Learning: the population shrinks while capability per entry rises.
+- **executed**: the poisoned entries that decided real actions. The
+  environment measured real damage and the negative delta flowed back
+  along provenance until they died. The opening cycles are the price of
+  the lesson, and the benchmarks show it is bounded.
+- **starved**: cafeteria trivia and facts the agent never needed.
+  Nothing punished them, they just never earned their upkeep.
+- **merged**: near-duplicate survivors absorbed into consolidated
+  entries. Their energy pools, their lineage is recorded, and the
+  population shrinks while capability per entry rises.
+
+## Where it comes from
+
+A practical mix of two papers. MeMo says what memory is, the survival
+paper says what gets to stay in it.
+
+| Paper | What this repo takes from it |
+|---|---|
+| [MeMo: Memory as a Model](https://arxiv.org/abs/2605.15156) (Quek et al.) | Keep the main LLM frozen and put knowledge in a dedicated memory. The reflection-QA encoding pipeline and the three-stage query protocol (grounding, entity identification, answer seeking). |
+| [Survival is the Only Reward](https://arxiv.org/abs/2601.12310) (Dodgson et al.) | Environment-mediated selection. The only signal is a conserved, physically measurable resource delta. Behaviors that persist get reinforced, everything else is pruned. There is no proxy to hack. |
+
+```mermaid
+flowchart LR
+    subgraph encode [MeMo encoding]
+        C[Corpus] --> R[Reflection QA pipeline] --> S[(Memory store)]
+    end
+    subgraph loop [Survival loop]
+        S -->|3-stage query protocol| A[Answer + provenance]
+        A --> E[Environment acts and MEASURES]
+        E -->|resource delta along provenance| S
+        S -->|upkeep every cycle| S
+        S -->|consolidate + prune| S
+    end
+```
 
 ## Using it
 
+Requires Python 3.10+. The core has zero dependencies; everything below
+runs offline.
+
+The anatomy in 30 seconds: a `MemoryEntry` is a self-contained QA pair
+(`.question`, `.answer`, `.sources`, `.energy`). The store retrieves,
+the protocol answers with provenance, the environment measures, credit
+flows back.
+
 ```python
-from darwin_memo import (
-    Document, LocalEncoder, MemoryStore, QueryProtocol,
-    StorageEnv, SurvivalConfig, SurvivalLoop,
-)
+from darwin_memo import Document, LocalEncoder, MemoryStore, QueryProtocol
 
 store = MemoryStore(upkeep=0.05)
 for entry in LocalEncoder().encode([Document("runbook", open("runbook.txt").read())]):
     store.add(entry)
 
-loop = SurvivalLoop(store, StorageEnv(), config=SurvivalConfig(cycles=30))
-report = loop.run()
-print(report.summary())
-
-store.save("memory.json")   # survivors only carry forward
+answer = QueryProtocol(store).answer("Is it safe to delete old log files?")
+print(answer.text)             # the top entry's answer, or "" when memory is silent
+print(answer.deciding_entry)   # provenance: the id credit will flow to
 ```
 
-With an LLM, encoding and querying use the model-driven paths from the
-MeMo paper (`pip install -e ".[anthropic]"` and set `ANTHROPIC_API_KEY`,
-the examples pick it up automatically):
+### Event-driven (production shape): the Ledger
+
+Real outcomes arrive late. The Ledger decouples the three moments:
+decide now, settle whenever the measurement lands, tick on your own
+cadence. Entries with unsettled tickets are escrowed: they keep paying
+upkeep but cannot be buried or merged until their verdict arrives.
+
+```python
+from darwin_memo import Ledger
+
+ledger = Ledger(store, resource_scale=2.0, event_log="events.jsonl")
+
+ticket = ledger.decide("Is the dedupe helper safe to remove?")
+# ... act on ticket.answer, CI runs, hours pass ...
+ledger.settle(ticket.id, delta=passes_after - passes_before, detail=run_url)
+ledger.tick()                        # upkeep, deaths, consolidation
+print(ledger.obituary(entry_id))     # why did this entry die?
+```
+
+### Batch (research shape): the SurvivalLoop
+
+```python
+from darwin_memo import StorageEnv, SurvivalConfig, SurvivalLoop
+
+loop = SurvivalLoop(store, StorageEnv(), config=SurvivalConfig(cycles=30))
+report = loop.run()
+print(report.summary())   # includes per-cycle silence counts and a
+                          # plain-language warning if the run is degenerate
+
+store.save("memory.json")  # survivors only carry forward
+```
+
+### MCP server: mount it into an agent
+
+```bash
+pip install "darwin-memo[mcp]"
+claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.json
+```
+
+The agent gets `memory_query` (returns an answer plus a ticket id),
+`memory_settle` (report the measured delta later), `memory_add`,
+`memory_tick`, `memory_stats`, and `memory_obituary`. The store
+persists across sessions, so the population carries its scars forward.
+
+### With an LLM
+
+`pip install "darwin-memo[anthropic]"` and set `ANTHROPIC_API_KEY`; the
+examples pick it up automatically.
 
 ```python
 from darwin_memo import ReflectionEncoder, QueryProtocol
@@ -139,44 +176,62 @@ encoder = ReflectionEncoder(client)         # 5-step reflection QA synthesis
 protocol = QueryProtocol(store, client)     # grounding -> entities -> answer seeking
 ```
 
-### Three environments ship
+In LLM mode the memory snippets are numbered and the model cites which
+it used, so credit flows to the entries that actually shaped the answer
+(even spread over everything consulted is the fallback).
 
-- `StorageEnv`: bytes freed on a real disk (the headline demo).
-- `TestSuiteEnv`: passing tests in a generated micro-project. Each cycle
-  plants seeded defects and offers patches: real fixes, cosmetic no-ops,
-  and destructive edits dressed as cleanup. The delta is the change in
-  passing-test count, measured by running the suite.
-  `examples/05_testsuite_env.py` shows poisoned "this helper is dead
-  code" advice going extinct the moment the tests execute it.
-- `VerifiableQAEnv`: exact containment of known answers, the weakest
-  grounding but still a measurement.
+## Bring your own selection pressure
 
-### Bring your own selection pressure
-
-The environment is the whole trick, and yours is probably better than the
-demos. Implement two methods, and keep the one rule: `verify` must
+The environment is the whole trick, and yours is probably better than
+the demos. Implement two methods, and keep the one rule: `verify` must
 measure, never grade.
 
 ```python
+from darwin_memo import Outcome, Task, decision_polarity
+
 class BudgetEnv:
     resource_scale = 100.0
 
     def tasks(self, cycle):
-        ...  # questions the agent must act on this cycle
+        # Each Task needs a prompt and a context dict (yours to fill).
+        return [Task(prompt="Is the paymentsly plan safe to cancel?", context={})]
 
     def verify(self, task, answer_text):
-        ...  # read the answer, act, return Outcome(delta=dollars_saved)
+        act = decision_polarity(
+            answer_text,
+            extra_positive=("safe to cancel",),
+            extra_negative=("do not cancel", "keep paying"),
+        )
+        if not act:
+            return Outcome(delta=0.0, detail="kept")
+        return Outcome(delta=dollars_saved, detail="cancelled")
 ```
-
-The environment owns the whole contract: it phrases the task, it reads
-the answer (reuse `decision_polarity` for binary actions, or write your
-own reading), it decides what silence means, it acts, and it measures.
 
 Good conserved resources: tests passing, bytes freed, requests served
 under budget, rows deduplicated, dollars of spend avoided. Bad ones:
 anything a model scored.
 
-### Retrieval modes
+### Make it work on the first try
+
+Three silent failure modes catch every new environment, and they all
+end the same way (the whole population starving around cycle 20 with
+every delta at zero). The loop's summary now warns about each, but know
+them up front:
+
+1. **The action vocabulary.** `decision_polarity`'s built-in markers
+   speak delete/remove and apply/keep, the bundled environments'
+   dialects. "Safe to cancel" reads as silence unless you pass
+   `extra_positive`/`extra_negative` markers for your verbs.
+2. **The relevance floor.** Retrieval mutes entries whose lexical
+   overlap with the task is below `LexicalRetriever(min_coverage=0.25)`.
+   Your task phrasing must share vocabulary with your corpus, or use an
+   embedding retriever. Silence beats guessing, but silence earns zero.
+3. **The starvation cliff.** Entries spawn at 1.0 energy and pay 0.05
+   upkeep, so a population that never earns dies at cycle ~20. If
+   everything dies at once around there, your environment never paid
+   out: check 1 and 2.
+
+## Retrieval modes
 
 Retrieval is pluggable through the `Retriever` protocol; the store stays
 the single owner of the energy ledger, and no retriever may read energy
@@ -206,19 +261,11 @@ which is out of scope for the zero-dependency core. With cosine
 retrievers, raise `merge_threshold` to roughly 0.85 or unrelated
 entries will consolidate.
 
-### Distill survivors into a parametric memory (optional)
-
-MeMo's memory is a small fine-tuned model, not a store. After selection
-has cleaned the population, `training/train_memory_model.py` fine-tunes a
-small model on the surviving QA pairs with LoRA, conditioning on questions
-only, the same supervised objective as the paper. Survival curates the
-dataset, MeMo's recipe compresses it into weights.
-
 ## Benchmarks
 
-The claim is benchmarked against four baselines across 10 seeds, with
+Survival is benchmarked against six baselines across 10 seeds, with
 ablations and a scaling probe, all reproducible offline from `bench/`.
-The sharpest comparison is against `random_matched`: identical per-cycle
+The sharpest comparison is `random_matched`: identical per-cycle
 eviction counts, random victims.
 
 | arm | kill rate | kill cycle (med) | damage before kill | tail delta | cum delta |
@@ -235,9 +282,32 @@ this deterministic environment; the ledger's measured edge here is
 leanness (4 surviving entries vs 15), and its forgiveness under noisy
 outcomes is a designed property this benchmark cannot exercise. A
 paraphrase probe set, scored by provenance rather than keywords,
-quantifies how the demo degrades outside its own vocabulary. Full
-tables, every baseline's best metric stated plainly, ablations over
-every knob, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
+quantifies how the demo degrades outside its own vocabulary, and an
+embedding-retriever arm shows the mechanism does not depend on the
+lexical-match path. Full tables, every baseline's best metric stated
+plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
+
+## More examples
+
+```bash
+git clone https://github.com/rogermsc/darwin-memo && cd darwin-memo && pip install -e .
+
+python examples/01_encode_memory.py    # corpus -> reflection-QA memory
+python examples/02_query_protocol.py   # interrogate it, with provenance
+python examples/03_survival_loop.py    # the headline demo
+python examples/04_agent_loop.py       # memory as a tool in an agent loop
+python examples/05_testsuite_env.py    # selection pressure from a test suite
+python examples/06_ci_lesson_store.py  # the Ledger settling lessons by CI delta
+```
+
+Three environments ship: `StorageEnv` (bytes on a real disk),
+`TestSuiteEnv` (passing tests in a generated micro-project, with
+destructive patches dressed as cleanup), and `VerifiableQAEnv` (exact
+containment, the weakest grounding but still a measurement).
+
+To distill survivors into an actual parametric memory model (MeMo's
+native form), `training/train_memory_model.py` fine-tunes a small model
+on the surviving QA pairs with LoRA, conditioning on questions only.
 
 ## Design notes
 
@@ -245,13 +315,10 @@ every knob, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   cycle, earn `0.6 * tanh(delta / resource_scale)` when they decide a task
   (supporting entries get 25% of that), and are capped at 5.0. Death is at
   zero. All tunable via `MemoryStore` and `SurvivalConfig`.
-- **Credit flows along provenance.** The query protocol reports which
-  entries decided and supported each answer, and only those entries are
-  touched by the outcome. In LLM mode no single entry decides a
-  synthesized answer, so credit spreads evenly across everything
-  consulted instead of inventing a winner. tanh keeps one disaster from
-  executing an entry that was right ninety-nine times, and one jackpot
-  from making an entry immortal.
+- **Credit flows along provenance.** Only the entries that produced an
+  answer are touched by its outcome. In LLM mode, citations name them;
+  tanh keeps one disaster from executing an entry that was right
+  ninety-nine times, and one jackpot from making an entry immortal.
 - **Memory silence is a feature.** Retrieval has a relevance floor, and an
   earlier version of this repo demonstrated why: entries matching only
   structural tokens ("safe", "file") were deciding questions they knew
@@ -262,9 +329,13 @@ every knob, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   worth knowing: protective knowledge ("never delete X") eventually
   starves because it is redundant with that default. The population
   converges to exactly the knowledge that changes behavior.
+- **Escrow keeps delayed verdicts honest.** Ledger entries named by an
+  unsettled ticket cannot be buried or merged, so an outcome can never
+  arrive after the execution. Unsettled tickets expire at delta zero.
 
 The full concept-to-code mapping, including honest deviations from both
-papers, is in [docs/paper-to-code.md](docs/paper-to-code.md).
+papers, is in [docs/paper-to-code.md](docs/paper-to-code.md). The story
+of why this exists: [docs/launch-post.md](docs/launch-post.md).
 
 ## Tests
 
@@ -273,9 +344,11 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The load-bearing test is `tests/test_survival.py`: poisoned advice must
-die, useful advice must survive, and late cycles must stop destroying
-protected data, all with no labels anywhere.
+The load-bearing tests: poisoned advice must die and useful advice must
+survive across seeds and across two environment families, ledger
+escrow must hold verdicts open, and hypothesis property tests pin the
+conservation laws (energy pools exactly on merge, caps hold, retrieval
+never reads energy), all with no labels anywhere.
 
 ## Citations
 
