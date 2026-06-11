@@ -39,7 +39,7 @@ from .survival import (
 from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "EMBEDDING_MERGE_THRESHOLD",

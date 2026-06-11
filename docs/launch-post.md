@@ -73,13 +73,13 @@ The demo runs 30 survival cycles against `StorageEnv`. Nothing grades
 the answers. The filesystem just responds:
 
 ```
-cycle  pop births deaths merges   energy   resource Δ
-    0   17      1      0      0    17.11       -12288
-    1   16      0      1      0    17.27      -808960   <- poison being executed
+cycle  pop births deaths merges   energy   resource Δ   silent
+    0   17      1      0      0    17.11       -12288     0/12
+    1   16      0      1      0    17.60      -572416     0/12   <- poison being executed
     ...
-   19    5      0      7      0    15.60       338944   <- unused knowledge starves
-   ...
-   29    4      0      0      0    15.10       346112   <- stable, positive forever
+   19    5      0      7      0    15.60       338944     0/12   <- unused knowledge starves
+    ...
+   29    4      0      0      0    15.10       346112     6/12   <- stable, positive forever
 
 Poisoned entries still alive: 0
 ```

@@ -6,6 +6,72 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-11
+
+A max-effort review pass surfaced 15 correctness findings plus a
+cleanup list; every finding was treated. The Ledger path is the big
+one: its central promise now holds across process boundaries.
+
+### Fixed
+
+- Ledger persistence: `Ledger.save`/`Ledger.load` write one file
+  carrying the store AND the ledger state (pending tickets, tick
+  count, history), forward and backward compatible with plain store
+  files. The MCP server uses it, so a ticket opened today settles
+  correctly from tomorrow's process. Previously every cross-process or
+  cross-restart settlement silently did nothing.
+- Escrow integrity: settling one ticket no longer buries entries still
+  escrowed by OTHER pending tickets; a verdict can never arrive after
+  the execution, per ticket.
+- `settle` returns whether the settlement landed, and the MCP
+  `memory_settle` reply says plainly when it did not. New `abandon`
+  (and `memory_abandon`) releases no-act tickets instead of pinning
+  their entries until expiry.
+- Citation parsing takes the LAST `SOURCES:` line per the contract
+  (earlier prose or an echoed instruction no longer shadows it), and
+  an explicit `SOURCES: none` attaches no provenance instead of
+  attributing every consulted entry.
+- Encode-time dedup merges provenance across documents instead of
+  dropping the second document's sources, which previously could
+  mislabel shared facts as purely poisoned (or hide poison as trusted).
+- `decision_polarity` matches markers on word boundaries with a
+  negation guard: "keep iterating", "unprotected", and "not safe to
+  cancel" no longer misread.
+- Ollama failures raise `OllamaError` carrying the server's own
+  message instead of masquerading as memory silence; embedders never
+  return or cache empty vectors (which would have permanently muted
+  entries through persisted caches); model-missing 404s stop falling
+  back to the legacy endpoint with a worse error.
+- Silence accounting keys on provenance, so it works in LLM mode where
+  models always produce prose; the degenerate-run health warning uses
+  gross outcome movement, not net-zero float equality.
+- Experience writes now work for multi-citation LLM answers (the first
+  cited entry stands in as parent).
+- All persistence is atomic (temp file + rename): a crash mid-write
+  can no longer destroy the memory file.
+- The `[mcp]` extra floor is `mcp>=1.10`, verified empirically as the
+  oldest release with the `instructions` parameter and the structured
+  `call_tool` return.
+- Obituary cause-of-death is tracked structurally (no spoofable string
+  matching), and `python -c "import darwin_memo.__main__"` no longer
+  runs the CLI.
+- Bench: the paraphrase trust check requires fully-trusted sources, so
+  consolidation can no longer launder poison past the metric (the
+  survival_writes paraphrase-grounded score honestly drops to 0.00);
+  random_matched shadow runs apply resource_scale overrides and are
+  memoized; survival_embedding rejects the inapplicable min_coverage
+  override loudly.
+
+### Changed
+
+- One shared `assign_credit` rule used by the loop, the Ledger, and
+  the examples; `resource_scale` lives on `SurvivalConfig`.
+- The canonical demo corpus ships as package data, read by the CLI,
+  the examples, and the benchmarks (one copy, no drift); shared
+  `death_cause` classifier; five benchmark baselines share one driver;
+  `OllamaEmbedder.batch` plus `EmbeddingRetriever.warm` batch
+  first-query embedding.
+
 ## [0.3.0] - 2026-06-11
 
 ### Added
@@ -106,7 +172,8 @@ project uses [SemVer](https://semver.org/).
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rogermsc/darwin-memo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rogermsc/darwin-memo/releases/tag/v0.1.0

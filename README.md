@@ -49,13 +49,13 @@ triggers a restore that costs three times the size. Nothing grades the
 answers, the filesystem just responds:
 
 ```
-cycle  pop births deaths merges   energy   resource Δ
-    0   17      1      0      0    17.11       -12288
-    1   16      0      1      0    17.27      -808960   <- poison being executed
+cycle  pop births deaths merges   energy   resource Δ   silent
+    0   17      1      0      0    17.11       -12288     0/12
+    1   16      0      1      0    17.60      -572416     0/12   <- poison being executed
     ...
-   19    5      0      7      0    15.60       338944   <- unused knowledge starves
-   ...
-   29    4      0      0      0    15.10       346112   <- stable, positive forever
+   19    5      0      7      0    15.60       338944     0/12   <- unused knowledge starves
+    ...
+   29    4      0      0      0    15.10       346112     6/12   <- stable, positive forever
 
 Poisoned entries still alive: 0
 ```
@@ -158,9 +158,12 @@ claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.jso
 ```
 
 The agent gets `memory_query` (returns an answer plus a ticket id),
-`memory_settle` (report the measured delta later), `memory_add`,
-`memory_tick`, `memory_stats`, and `memory_obituary`. The store
-persists across sessions, so the population carries its scars forward.
+`memory_settle` (report the measured delta later; the reply says
+plainly when a settlement did NOT land), `memory_abandon` (release a
+ticket you chose not to act on), `memory_add`, `memory_tick`,
+`memory_stats`, and `memory_obituary`. The full state, including open
+tickets, persists across sessions and restarts, so a ticket opened
+today settles correctly from tomorrow's process.
 
 ### Fully local with Ollama (zero dependencies, zero cloud)
 
@@ -303,6 +306,10 @@ eviction counts, random victims.
 | survival | 1.00 | 0 | -751k | +435k | +12.0M |
 | random_matched | 0.80 | 19 | -8.97M | -75k | -5.25M |
 | keep_everything | 0.00 | never | -10.6M | -287k | -7.29M |
+
+(Rounded from the full tables; regenerate both with the commands in the
+benchmarks doc, and if the numbers ever disagree, the generated doc
+wins.)
 
 Same pruning rate, 12x the damage, negative steady state: outcome
 direction is the active ingredient, not eviction itself. The harness
