@@ -193,3 +193,40 @@ def test_address_validation():
     with pytest.raises(ValueError, match="not an EVM address"):
         EvmSettler(ADDR, token="bogus")
     assert EvmSettler(ADDR.upper().replace("0X", "0x")).address == ADDR
+
+
+def test_connection_failures_are_wrapped():
+    """DNS/refused/timeout surface as EvmRpcError, never bare OSError."""
+    dead = EvmRpc("http://127.0.0.1:9", timeout=0.3)
+    with pytest.raises(EvmRpcError, match="network error"):
+        dead.block_number()
+
+
+def test_empty_eth_call_return_is_loud(tmp_path, fake_rpc):
+    """balanceOf against a codeless address returns '0x'; must not crash."""
+
+    class EmptyCallRpc(EvmRpc):
+        def __init__(self):
+            super().__init__("http://fake")
+
+        def call(self, method, params):
+            if method == "eth_blockNumber":
+                return hex(HEAD)
+            return "0x"
+
+    settler = EvmSettler(ADDR, rpc=EmptyCallRpc(), token=TOKEN)
+    with pytest.raises(EvmRpcError, match="no contract code"):
+        settler.snapshot()
+    with pytest.raises(EvmRpcError, match="no contract code"):
+        settler.token_decimals()
+
+
+def test_tx_cost_missing_tx_body_is_loud(fake_rpc):
+    FakeRpc.receipts["0xorphan"] = {
+        "status": "0x1",
+        "gasUsed": hex(10),
+        "effectiveGasPrice": hex(10),
+    }
+    # No matching entry in FakeRpc.txs: eth_getTransactionByHash -> null.
+    with pytest.raises(EvmRpcError, match="no transaction body"):
+        EvmSettler(ADDR, rpc=fake_rpc).tx_cost("0xorphan")

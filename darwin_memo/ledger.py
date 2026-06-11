@@ -48,6 +48,7 @@ from .protocol import QueryProtocol
 from .retrieval import Retriever
 from .store import MemoryStore, write_json_atomic
 from .survival import SurvivalConfig, assign_credit, is_silent
+from .types import EntryKind, MemoryEntry
 
 _HISTORY_CAP = 100  # per-entry events kept in memory; the JSONL log is full
 _DAMAGE_EPSILON = 1e-9
@@ -178,6 +179,44 @@ class Ledger:
         should abandon every no-act ticket.
         """
         return self.settle(ticket_id, 0.0, detail="abandoned: not acted on")
+
+    def add(self, question: str, answer: str, source: str = "agent") -> MemoryEntry:
+        """Write a new entry through the ledger, so the event is logged.
+
+        The entry starts at spawn energy and must earn its keep from
+        here: adding is cheap, surviving is not.
+        """
+        entry = self.store.add(
+            MemoryEntry(
+                question=question,
+                answer=answer,
+                kind=EntryKind.EXPERIENCE,
+                sources=[source],
+            )
+        )
+        self._log("add", entry=entry.id, question=question)
+        return entry
+
+    def forget(self, entry_id: str) -> str:
+        """Bury an entry, honoring escrow. Returns the outcome.
+
+        ``"buried"`` on success, ``"missing"`` when the entry is not
+        alive, and ``"escrowed"`` when a pending ticket names it:
+        burying an escrowed entry would let a later settle report
+        success while crediting a corpse, violating the invariant that
+        a verdict can never arrive after the execution. This is the
+        one bury path callers should use; ``store.bury`` is the raw
+        mechanism and enforces nothing.
+        """
+        if entry_id in self._escrowed_ids():
+            self._log("forget_refused", entry=entry_id, reason="escrowed")
+            return "escrowed"
+        if self.store.get(entry_id) is None:
+            return "missing"
+        self.store.bury(entry_id)
+        self._note(entry_id, f"buried at tick {self.tick_count} by forget")
+        self._log("forget", entry=entry_id)
+        return "buried"
 
     def tick(self, expire_after: int | None = 50) -> dict[str, Any]:
         """Advance one unit of time: expiry, upkeep, consolidation."""

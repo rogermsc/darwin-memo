@@ -116,6 +116,14 @@ class EvmRpc:
                 code=error.code,
                 body=body,
             ) from error
+        except OSError as error:
+            # URLError (DNS, refused, TLS) and raw read timeouts are
+            # both OSError subclasses; the loud-failure contract says
+            # every transport failure surfaces as EvmRpcError, never a
+            # bare socket exception a caller did not sign up to catch.
+            raise EvmRpcError(
+                f"network error calling {method} on {self.url}: {error}"
+            ) from error
 
         failure = self._rpc_error(body)
         if failure is not None:
@@ -158,6 +166,21 @@ class EvmRpc:
         if result is None:
             raise EvmRpcError(f"block {block} not found on {self.url}")
         return int(result["timestamp"], 16)
+
+
+def _decode_uint(raw: str, contract: str, call: str) -> int:
+    """Decode an eth_call uint256, loudly.
+
+    A call to an address with no deployed code returns "0x" (empty
+    data), and ``int("0x", 16)`` is a ValueError; a wrong token address
+    must read as a measurement failure, not a Python crash.
+    """
+    if raw in ("0x", "", None):
+        raise EvmRpcError(
+            f"empty return data from {call} on {contract}: no contract "
+            "code at that address?"
+        )
+    return int(raw, 16)
 
 
 def _validate_address(address: str) -> str:
@@ -206,7 +229,7 @@ class EvmSettler:
         else:
             data = _BALANCE_OF + self.address[2:].rjust(64, "0")
             raw = self.rpc.call("eth_call", [{"to": self.token, "data": data}, tag])
-            balance = int(raw, 16)
+            balance = _decode_uint(raw, self.token, "balanceOf")
         return {"block": block, "balance": balance}
 
     def call_balance(self, tag: str) -> str:
@@ -276,6 +299,8 @@ class EvmSettler:
         if receipt is None:
             raise EvmRpcError(f"no receipt for {tx_hash} on {self.rpc.url}")
         tx = self.rpc.call("eth_getTransactionByHash", [tx_hash])
+        if tx is None:
+            raise EvmRpcError(f"no transaction body for {tx_hash} on {self.rpc.url}")
         status = int(receipt["status"], 16) == 1
         gas = int(receipt["gasUsed"], 16) * int(receipt["effectiveGasPrice"], 16)
         gas += int(receipt.get("l1Fee", "0x0"), 16)
@@ -292,4 +317,4 @@ class EvmSettler:
         raw = self.rpc.call(
             "eth_call", [{"to": self.token, "data": _DECIMALS}, "latest"]
         )
-        return int(raw, 16)
+        return _decode_uint(raw, self.token, "decimals")

@@ -6,6 +6,19 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- xhigh review findings: every EVM transport failure (DNS, refused,
+  TLS, read timeout) now surfaces as `EvmRpcError` instead of a bare
+  socket exception; `eth_call` empty return data (`"0x"`, the
+  no-contract-code case) reads as a measurement failure instead of a
+  Python `ValueError`; `tx_cost` guards a null transaction body. New
+  `Ledger.add`/`Ledger.forget` put entry writes and burials on the
+  event log and enforce escrow at the invariant's home (`forget`
+  returns buried/escrowed/missing); the CLI routes through them,
+  validates non-empty add, and keys all three decide fields on
+  provenance so consumers never see a ticket without an answer.
+
 ### Added
 
 - `darwin-memo ledger FILE OP`: every Ledger operation as a CLI

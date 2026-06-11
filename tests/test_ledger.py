@@ -152,3 +152,26 @@ def test_event_log_and_obituary(tmp_path):
     # The punished entry's death is attributed to its outcomes.
     if not deciding_entry_of(store, ticket).alive:
         assert "executed" in ledger.obituary(deciding)
+
+
+def test_ledger_add_and_forget_honor_escrow_and_log(tmp_path):
+    import json as _json
+
+    log = tmp_path / "events.jsonl"
+    store = seeded_store()
+    ledger = Ledger(store, resource_scale=1.0, event_log=log)
+
+    entry = ledger.add("Is the bridge safe?", "The bridge is safe to use.")
+    ticket = ledger.decide("is the bridge safe to use?")
+    assert ticket.deciding_entry == entry.id
+
+    assert ledger.forget(entry.id) == "escrowed", "pending ticket blocks burial"
+    assert store.get(entry.id) is not None
+
+    ledger.settle(ticket.id, 1.0)
+    assert ledger.forget(entry.id) == "buried"
+    assert ledger.forget(entry.id) == "missing", "already gone"
+
+    events = [_json.loads(line)["event"] for line in log.read_text().splitlines()]
+    assert "add" in events and "forget_refused" in events and "forget" in events
+    assert "by forget" in ledger.obituary(entry.id)
