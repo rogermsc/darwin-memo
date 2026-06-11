@@ -14,6 +14,9 @@ the conclusions lose; file an issue.
 | Curation pays off in steady state | tail delta (mean of last 5 cycles) |
 | Outcome direction, not pruning rate, does the work | survival vs random_matched |
 | Capability is retained, not destroyed | benign probe correctness, cum delta |
+| Forgiveness under lying measurements is real, and beats counters | noisy suite: true cum delta and benign capability vs flake rate |
+| Forgiveness has a price: noise delays poison execution | noisy suite: kill cycle and kill rate under the flip model |
+| The ledger has its own failure boundary, and it is published | noisy suite: the flip sweep to 50% |
 
 "Poison killed" means no alive entry from the poisoned source whose
 answer reads as a positive action. Inert poisoned entries that advise
@@ -102,9 +105,11 @@ What each arm's best metric is, stated plainly:
   hoards everything that never erred), and it forgives. One negative
   outcome instantly executes an entry under evict_on_negative; under
   the ledger, an entry that was right ninety-nine times survives one
-  disaster. This environment is deterministic, so the forgiveness
-  property is not exercised here and the table cannot show it. If you
-  do not need leanness or noise tolerance, the if-statement is the
+  disaster. This environment is deterministic, so this table cannot
+  show forgiveness; the [noisy suite](#noisy-outcomes-the-forgiveness-test)
+  below exercises it directly, against the heuristic's noise-hardened
+  variants, and reports where each side breaks. If your measurements
+  never lie and you do not need leanness, the if-statement is the
   right tool and this row says so.
 - **survival_embedding** runs the same loop over the hashing-embedder
   retriever and posts the best cumulative delta (+13.2M) by a different
@@ -130,7 +135,164 @@ the population's shape, not the outcomes.
 | upkeep | 0.01 / 0.05 / 0.1 / 0.2 | Outcomes identical. Only the final population moves: 13 / 4 / 3 / 3. Upkeep tunes leanness, not safety. |
 | merge_threshold | 0.4 / 0.55 / 0.7 | Outcomes identical, population 5 / 4 / 4. |
 | consolidate_every | off / 5 | Outcomes identical, population 3 / 4. Consolidation is hygiene, not safety, at this scale. |
-| resource_scale | 25k / 100k / 400k | No measurable effect: per-file deltas saturate tanh at all three scales. |
+| resource_scale | 25k / 100k / 400k | No measurable effect on noise-free outcomes. (An earlier draft blamed tanh saturation; only 3x restore costs saturate, and the noisy suite's 400k cells show the knob does move outcomes once measurements lie. Cap-clipping, not saturation, is the insensitivity mechanism.) |
+
+## Noisy outcomes: the forgiveness test
+
+The headline table admits that evict_on_negative ties the ledger when
+measurements are truthful. The ledger's designed advantage is supposed
+to be tolerance of measurements that LIE, so this suite makes them lie,
+deterministically, and scores everyone on the truth.
+
+`FlakyStorageEnv` wraps StorageEnv. The world stays real (files are
+created, deletions free bytes, restores cost 3x); only the measurement
+is corrupted. Flake marks are drawn per task at generation time from a
+dedicated RNG stream, so the set of potentially-lying measurements is a
+fixed property of the world: every arm at the same seed and rate faces
+the same one, marks nest across rates, and arms within a cell are
+exactly paired. Arms decide off REPORTED deltas; every outcome metric
+below is computed from TRUE deltas. A per-run accounting identity
+(reported = true + injected distortion) is asserted at run time, and
+keep_everything doubles as a canary: it never reads outcomes, so its
+true cum delta must be identical in every cell, and `--check` fails on
+drift (measured: the same 30 per-seed values, mean -9,502,447, in all
+12 cells).
+
+Three noise models: **false_bad** (only positive truths flip — flaky
+CI, where good changes report red builds but broken builds do not
+report green), **flip** (symmetric — lies can also reward the guilty),
+and **magnitude** (sign kept, size lied about by 0.25-4x — the one
+model where sign-driven heuristics are immune by construction and only
+magnitude-reading credit can degrade).
+
+Because beating a zero-tolerance baseline under noise would prove
+nothing, the heuristic family fields its best selves: K lifetime
+strikes (K=1,2,3), consecutive strikes that a success wipes clean
+(forgiveness as an if-statement, the strongest cheap variant), and
+quarantine (evict on blame, re-encode a fresh copy after a 3-cycle
+cooldown — the recovery path real deployments have). 30 seeds per
+cell, 30 cycles, 12 files per cycle.
+
+### false_bad: the flaky-CI case (mean true cum delta / benign capability)
+
+| arm | 0.00 | 0.05 | 0.10 | 0.20 | 0.35 |
+|---|---|---|---|---|---|
+| survival | 11.94M / 1.00 | 11.94M / 1.00 | 11.94M / 1.00 | 11.94M / 1.00 | 10.13M / 0.83 |
+| evict k=1 | 12.19M / 1.00 | 2.48M / 0.01 | 1.41M / 0.00 | 0.42M / 0.00 | -0.06M / 0.00 |
+| evict k=2 | 11.94M / 1.00 | 5.49M / 0.14 | 2.80M / 0.01 | 1.19M / 0.00 | 0.11M / 0.00 |
+| evict k=3 | 11.73M / 1.00 | 7.56M / 0.26 | 4.09M / 0.03 | 1.84M / 0.00 | 0.47M / 0.00 |
+| consecutive k=2 | 11.94M / 1.00 | 10.56M / 0.82 | 8.02M / 0.50 | 3.45M / 0.04 | 0.73M / 0.00 |
+| quarantine m=3 | 4.52M / 1.00 | 2.02M / 0.77 | 0.71M / 0.58 | -0.97M / 0.37 | -2.44M / 0.14 |
+
+The headline cell: at 5-20% false-bad noise, survival's true outcomes
+are IDENTICAL to its noise-free run, byte for byte. The lies fire (11,
+22, 43 of them on average), drain energy, and change nothing, because
+a capped decider holds ~9 lies' worth of buffer and refills it by
+earning. Every counter variant collapses instead: k=1 loses nearly all
+benign capability by 5%, and the strongest variant (consecutive) holds
+at 5% but halves capability by 10%, because a cycle-granularity reset
+is coarser than a continuous buffer. Strikes without earn-back are
+consumed linearly by noise; patching that with decay, magnitude
+grading, and dead-weight expiry is reinventing the energy ledger.
+
+Paired per seed (same worlds) under false_bad, survival vs consecutive
+on true cum delta: 13W-17T-0L at 5%, 26W-4T-0L at 10%, 30W-0T-0L at
+20% and 35% (median margins +8.2M and +10.6M). Under false_bad,
+survival does not lose a single seed to any counter variant at any
+rate. Under flip it concedes a few: one seed to consecutive at 5% and
+10% (margin -356k), one or two seeds per counter at 35% (worst -6.9M,
+to k=1), then most seeds at 50% where everything is underwater anyway.
+And k=1 keeps its small deterministic edge over survival (8 of 30
+seeds, at most 2.2M) in the rate-0.00 and magnitude cells, exactly as
+the first column shows.
+
+### flip: forgiveness's price, and the ledger's own failure boundary
+
+| survival under flip | 0.00 | 0.05 | 0.10 | 0.20 | 0.35 | 0.50 |
+|---|---|---|---|---|---|---|
+| true cum delta | 11.94M | 11.85M | 11.73M | 11.32M | 7.49M | -3.75M |
+| benign capability | 1.00 | 1.00 | 1.00 | 1.00 | 0.83 | 0.18 |
+| poison kill cycle (med) / kill rate | 0 / 1.00 | 0 / 1.00 | 1 / 1.00 | 1 / 1.00 | 3 / 0.97 | 5.5 / 0.73 |
+
+Two pre-committed results, reported as promised. First, forgiveness
+has a price: tolerance for lying measurements is tolerance for guilty
+entries, and the poison's kill cycle climbs from 0 to a median of 5.5
+(among the 73% of seeds where it dies at all) as
+false-good lies (which report a destroyed database as +3x its size,
+tanh-saturated reward) keep rescuing it. Under false_bad, negatives
+stay truthful and the kill stays at cycle 0 at every rate. Second, the
+ledger's failure boundary: at 35% it degrades visibly, and at 50% — a
+sign flip with no information content — it goes underwater (-3.75M)
+and loses the paired sign test against consecutive (14W-16L). Past
+roughly one lie in three, nothing here curates safely; the counters
+are already long dead by then (every arm is negative at 50%).
+
+### magnitude: the model where only the ledger could lose
+
+Sign-preserved size lies (0.25-4x) leave every strike counter at
+exactly its rate-0.00 numbers, as they must (they read only the sign).
+The honest part: survival is ALSO at exactly its rate-0.00 numbers.
+The mechanism is not tanh saturation: at resource_scale 100k only the
+3x restore costs are near-saturated (tanh 0.91-1.0), while disposable
+deltas land on tanh's working range (0.20-0.84), so size lies DO move
+per-event credit. What clips them is the energy cap: healthy deciders
+sit at max_energy 5.0, where exaggerated or shrunken rewards change
+nothing, and lies never flip a sign, so no death threshold is crossed.
+The sensitivity cells re-run rate 0.20 at resource_scale=400k, where
+per-event credit is a quarter the size and cap-clipping correspondingly
+weaker, anchored by a clean rate-0.00 cell at the same scale (11.69M):
+magnitude noise still costs almost nothing (11.78M / 1.00),
+false_bad remains per-seed identical to clean (11.69M), and flip costs
+a little (10.92M, capability 1.00). Magnitude
+grading does almost no work on this corpus; what forgives is bounded
+per-event credit, the energy buffer, and earn-back, not the tanh
+curve's shape.
+
+### What each arm's row is for, stated plainly
+
+- **evict k=1** is the headline-table champion meeting its designed
+  weakness: one lie permanently executes a load-bearing decider, and
+  the 16-entry corpus has no redundancy to absorb that, so capability
+  goes with it.
+- **consecutive k=2** is the strongest counter and the honest
+  comparison point. It is forgiveness-as-an-if-statement and it works
+  at low noise; the gap to the ledger is the granularity of the
+  buffer, not the idea of one.
+- **quarantine** carries the recovery story and reveals its dark side:
+  resurrection forgives the GUILTY too. The poisoned entry returns
+  fresh from every cooldown and re-advises the same deletion, so
+  quarantine bleeds even at rate 0.00 (4.52M vs survival's 11.94M; its
+  kill-cycle column reads first-extinction, not permanence). Recovery
+  without selection is rot with extra steps.
+- **keep_everything** is the canary, and it also shows what no
+  curation costs under any noise: -9.50M everywhere.
+
+### Caveats, on the record
+
+- The corpus has no redundancy: one wrongful eviction zeroes a whole
+  earning category, which inflates every counter's collapse. Treat the
+  survival-vs-counter gaps as the redundancy-free upper bound.
+- Silence is a noise-free harbor in this design: a kept file produces
+  no measurement event to corrupt. Environments where inaction is
+  also measured would expose entries to lies survival cannot dodge by
+  conservatism.
+- `flakes_fired` is endogenous to the arm (a lie needs a nonzero
+  measurement to corrupt): lean arms that act more expose themselves
+  to more lies, and k=1 fires almost none because it has almost
+  nobody left acting. `flakes_marked` is the world-level constant.
+- Under flip, StorageEnv's payoff convention makes false-good lies
+  about protected files 3x larger (and tanh-saturated) relative to
+  false-bad lies about disposable ones; the poison-kill delay is
+  partly that convention's size, which is why false_bad is the
+  headline forgiveness cell and flip is the price/boundary cell.
+- StorageEnv derives cycle worlds from `seed + cycle`, so adjacent
+  seeds are shifted windows of one another rather than independent
+  draws; the paired per-seed comparisons are unaffected (same world,
+  both arms), but treat across-seed means and spreads as smoother
+  than 30 independent samples would be.
+- Tables here use 30 seeds; the headline table uses 10, so rate-0.00
+  means differ slightly from headline means. Exact per-seed parity at
+  rate 0.00 is pinned by a unit test instead.
 
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
@@ -182,9 +344,12 @@ zero-dependency core.
 ```bash
 pip install -e .
 python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json
+python -m bench.run --suite noisy    --seeds 0:30 --out bench/results/noisy.json
 python -m bench.run --suite ablation --seeds 0:5  --out bench/results/ablation.json
 python -m bench.run --suite scaling --full        --out bench/results/scaling.json
 python -m bench.report bench/results/headline.json --fmt md
+python -m bench.report bench/results/noisy.json --fmt md
+python -m bench.report bench/results/noisy.json --paired survival evict_consecutive
 ```
 
 Raw JSON is regenerated, not committed. Runs are deterministic per seed:

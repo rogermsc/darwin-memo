@@ -67,11 +67,101 @@ def ablation_suite(seeds: list[int]) -> list[RunSpec]:
 
 
 def smoke_suite() -> list[RunSpec]:
-    return [
+    specs = [
         RunSpec(suite="smoke", arm=arm, seed=seed, cycles=12, files_per_cycle=8)
         for arm in ARMS
         for seed in (0, 1, 2)
     ]
+    # A noisy slice so the FlakyStorageEnv path cannot rot unexercised
+    # in CI. One cell per noise model, both selection families.
+    for arm, extra, suffix, model, rate in (
+        ("survival", {}, "", "flip", 0.2),
+        ("evict_on_negative", {"strikes": 1}, ",k=1", "flip", 0.2),
+        ("evict_on_negative", {"strikes": 2}, ",k=2", "false_bad", 0.2),
+        ("quarantine", {"suspend": 3}, ",m=3", "magnitude", 0.2),
+    ):
+        specs.append(
+            RunSpec(
+                suite="smoke",
+                arm=arm,
+                seed=0,
+                cycles=12,
+                files_per_cycle=8,
+                overrides={"flake_rate": rate, "noise_model": model, **extra},
+                label=f"model={model},rate={rate:.2f}{suffix}",
+            )
+        )
+    return specs
+
+
+# The noisy grid: the ledger against the heuristic family's best selves.
+# Cells past rate 0.20 exist to find the LEDGER's own failure boundary,
+# not just the baselines'; the magnitude model is the one cell where
+# sign-driven heuristics are immune by construction and only credit
+# that reads magnitudes can degrade.
+NOISY_VARIANTS: list[tuple[str, dict[str, Any], str]] = [
+    ("survival", {}, ""),
+    ("evict_on_negative", {"strikes": 1}, ",k=1"),
+    ("evict_on_negative", {"strikes": 2}, ",k=2"),
+    ("evict_on_negative", {"strikes": 3}, ",k=3"),
+    ("evict_consecutive", {"strikes": 2}, ",k=2"),
+    ("quarantine", {"suspend": 3}, ",m=3"),
+    ("keep_everything", {}, ""),  # true-delta canary: noise-invariant
+]
+
+NOISY_CELLS: list[tuple[str, float]] = [
+    ("none", 0.0),  # in-suite reproduction of the deterministic tie
+    *[("flip", r) for r in (0.05, 0.10, 0.20, 0.35, 0.50)],
+    *[("false_bad", r) for r in (0.05, 0.10, 0.20, 0.35)],
+    *[("magnitude", r) for r in (0.10, 0.20)],
+]
+
+
+def noisy_suite(seeds: list[int]) -> list[RunSpec]:
+    specs: list[RunSpec] = []
+    for model, rate in NOISY_CELLS:
+        for arm, extra, suffix in NOISY_VARIANTS:
+            for seed in seeds:
+                specs.append(
+                    RunSpec(
+                        suite="noisy",
+                        arm=arm,
+                        seed=seed,
+                        overrides={
+                            "flake_rate": rate,
+                            "noise_model": "flip" if model == "none" else model,
+                            **extra,
+                        },
+                        label=f"model={model},rate={rate:.2f}{suffix}",
+                    )
+                )
+    # Sensitivity cells: resource_scale=400k shrinks per-event credit
+    # (tanh of a quarter the argument), so magnitude lies genuinely
+    # move credit instead of being clipped at the energy cap. The
+    # magnitude-model cell is the load-bearing one: it is the only
+    # configuration in the grid where size lies can move credit at all.
+    # The rate-0.00 cell anchors the comparison at the same scale.
+    for model, rate in (
+        ("none", 0.0),
+        ("flip", 0.20),
+        ("false_bad", 0.20),
+        ("magnitude", 0.20),
+    ):
+        for seed in seeds:
+            specs.append(
+                RunSpec(
+                    suite="noisy",
+                    arm="survival",
+                    seed=seed,
+                    overrides={
+                        "flake_rate": rate,
+                        "noise_model": "flip" if model == "none" else model,
+                        "resource_scale": 400_000.0,
+                    },
+                    label=f"model={model},rate={rate:.2f},scale=400k",
+                )
+            )
+    return specs
 
 
 def llm_suite(seeds: list[int], model: str) -> list[RunSpec]:

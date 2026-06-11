@@ -16,6 +16,47 @@ project uses [SemVer](https://semver.org/).
   settles them with the measured pass-count delta on every merged PR,
   ticks, and commits the curated store back to main. First production
   deployment of the flagship integration, on the repo that ships it.
+- Noisy-outcome benchmark suite (`bench --suite noisy`): the ledger's
+  forgiveness claim is now measured instead of asserted.
+  `FlakyStorageEnv` makes measurements lie deterministically (the world
+  stays truthful; arms decide off reported deltas and are scored on
+  true ones) under three noise models: `flip` (symmetric sign flip),
+  `false_bad` (flaky-CI shape: good changes report red), and
+  `magnitude` (sign kept, size lied about — the one model where
+  sign-driven heuristics are provably immune and only the ledger can
+  degrade). The grid runs to 50% noise so the ledger's own failure
+  boundary is published, not just the baselines'.
+- Noise-hardened baselines, so the ledger is compared against the
+  heuristic family's best selves rather than a strawman:
+  `evict_on_negative` generalized to K lifetime strikes (K=1,2,3),
+  `evict_consecutive` (strikes a success wipes clean), and
+  `quarantine` (evict on blame, re-encode a fresh copy after a
+  cooldown — the recovery path real deployments have).
+- `bench.report --paired ARM_A ARM_B [--metric M]`: per-seed paired
+  differences with win counts. Flake marks are a fixed property of the
+  world at a given (seed, rate, model), so arms are exactly paired and
+  mean±std understates what the data supports.
+- Per-run lie accounting (`flakes_marked`, `flakes_fired`, fired
+  counts split by direction, `reported_cum_delta`) with a hard
+  accounting-identity check; `keep_everything` doubles as an in-suite
+  canary (its true deltas are provably noise-invariant, and
+  `bench.report --check` fails on any drift).
+- Citation-fidelity probe (`python -m bench.citation_probe --model
+  NAME`): per-model rates for parsed citations, explicit none,
+  even-spread fallback, think-block emission, reflection-QA JSON
+  validity, and the dangerous cell local mode cannot have:
+  answers that read as an action while citing nothing, so the
+  environment acts and selection has nobody to charge.
+
+### Changed
+
+- `bench.report --check`'s poison-kill gate now exempts noisy runs:
+  under measurement noise a delayed or missed kill is an honest result
+  the suite exists to measure, not a CI failure.
+- `random_matched` and `survival_writes` refuse flake overrides loudly
+  (the shadow schedule would come from a noise-free world; experience
+  writes select on reported deltas and embed detail strings that name
+  the true delta).
 
 ## [0.4.0] - 2026-06-11
 
