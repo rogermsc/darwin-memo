@@ -19,6 +19,7 @@ acts only as a sort tie-break.
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from pathlib import Path
 
 from .retrieval import LexicalRetriever, Retriever, tokenize
@@ -93,12 +94,18 @@ class MemoryStore:
         entry.uses += 1
         entry.last_used_cycle = cycle
 
-    def charge_upkeep(self) -> list[MemoryEntry]:
-        """Charge every alive entry one cycle of upkeep, bury the dead."""
+    def charge_upkeep(self, protect: Collection[str] = ()) -> list[MemoryEntry]:
+        """Charge every alive entry one cycle of upkeep, bury the dead.
+
+        Entries in ``protect`` still pay upkeep but are not buried even
+        at zero energy: the Ledger escrows entries with unsettled
+        outcomes so a pending verdict cannot arrive after the execution.
+        """
+        protected = set(protect)
         dead: list[MemoryEntry] = []
         for entry in list(self._entries.values()):
             entry.energy -= self.upkeep
-            if not entry.alive:
+            if not entry.alive and entry.id not in protected:
                 dead.append(entry)
         for entry in dead:
             self.bury(entry.id)

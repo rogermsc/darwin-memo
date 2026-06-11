@@ -52,6 +52,7 @@ class LocalEncoder:
 
     def encode(self, documents: list[Document]) -> list[MemoryEntry]:
         entries: list[MemoryEntry] = []
+        seen_qa: set[tuple[str, str]] = set()
         entity_docs: dict[str, set[str]] = {}
         entity_sentences: dict[str, list[str]] = {}
         entity_mid_sentence: set[str] = set()
@@ -60,15 +61,20 @@ class LocalEncoder:
             for sentence in self._sentences(doc.text):
                 # Step 1 + 3: each declarative sentence is an explicit fact,
                 # kept self-contained by storing the full sentence as answer.
+                # Identical QA pairs dedupe at encode time; repeated text in
+                # a document must not multiply the population.
                 subject = self._subject_of(sentence)
-                entries.append(
-                    MemoryEntry(
-                        question=f"What is known about {subject}?",
-                        answer=sentence,
-                        kind=EntryKind.EXPLICIT,
-                        sources=[doc.doc_id],
+                question = f"What is known about {subject}?"
+                if (question, sentence) not in seen_qa:
+                    seen_qa.add((question, sentence))
+                    entries.append(
+                        MemoryEntry(
+                            question=question,
+                            answer=sentence,
+                            kind=EntryKind.EXPLICIT,
+                            sources=[doc.doc_id],
+                        )
                     )
-                )
                 # Step 4: surface entities, both directions.
                 for entity, mid_sentence in self._entities(sentence):
                     entity_docs.setdefault(entity, set()).add(doc.doc_id)

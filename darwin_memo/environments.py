@@ -48,7 +48,13 @@ class Environment(Protocol):
 # Reading an action out of a memory answer
 # ---------------------------------------------------------------------------
 
-_NEGATIVE_MARKERS = (
+# The default vocabulary speaks the bundled environments' dialect:
+# delete/remove (StorageEnv) and apply/keep (TestSuiteEnv). If your
+# environment's actions use different verbs (cancel, restart, migrate),
+# you MUST extend these or the reader returns None on every answer and
+# your whole population silently starves. Pass extra markers rather
+# than relying on the defaults.
+NEGATIVE_MARKERS = (
     "must be retained",
     "must not be deleted",
     "never delete",
@@ -56,6 +62,8 @@ _NEGATIVE_MARKERS = (
     "not safe to delete",
     "must be kept",
     "should be kept",
+    "keep it",
+    "keep this",
     "protected",
     "required for",
     "retained indefinitely",
@@ -63,8 +71,10 @@ _NEGATIVE_MARKERS = (
     "should not be applied",
     "do not apply",
     "load-bearing",
+    "never cancel",
+    "do not cancel",
 )
-_POSITIVE_MARKERS = (
+POSITIVE_MARKERS = (
     "safe to delete",
     "may be deleted",
     "can be deleted",
@@ -79,7 +89,11 @@ _POSITIVE_MARKERS = (
 )
 
 
-def decision_polarity(answer_text: str) -> bool | None:
+def decision_polarity(
+    answer_text: str,
+    extra_positive: tuple[str, ...] = (),
+    extra_negative: tuple[str, ...] = (),
+) -> bool | None:
     """Read a yes/no action decision out of a memory answer.
 
     This lives in the environment layer because the vocabulary is the
@@ -87,15 +101,31 @@ def decision_polarity(answer_text: str) -> bool | None:
     read an answer to it. Negative markers win over positive ones: when
     memory is ambiguous about something irreversible, the safe reading
     is no. Returns True (act), False (do not act), or None (memory is
-    silent). Reuse or replace it when building your own binary-action
-    environment.
+    silent).
+
+    The built-in vocabulary covers delete/remove and apply/keep, the
+    dialects of the bundled environments. For any other action verb,
+    pass your own markers::
+
+        decision_polarity(text,
+            extra_positive=("safe to cancel", "should be cancelled"),
+            extra_negative=("do not cancel", "keep paying"))
+
+    A None result fed to a conservative environment means "do not act",
+    which earns zero. If every answer in your environment reads as None,
+    nothing ever earns and the population starves: extend the vocabulary
+    before blaming the selection mechanics.
     """
     text = answer_text.lower()
     if not text.strip():
         return None
-    if any(marker in text for marker in _NEGATIVE_MARKERS):
+    if any(m in text for m in NEGATIVE_MARKERS) or any(
+        m.lower() in text for m in extra_negative
+    ):
         return False
-    if any(marker in text for marker in _POSITIVE_MARKERS):
+    if any(m in text for m in POSITIVE_MARKERS) or any(
+        m.lower() in text for m in extra_positive
+    ):
         return True
     if re.search(r"\byes\b", text):
         return True

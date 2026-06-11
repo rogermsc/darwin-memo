@@ -16,9 +16,22 @@ from .store import MemoryStore
 from .types import EntryKind, MemoryEntry
 
 
-def consolidate(store: MemoryStore, cycle: int, threshold: float = 0.55) -> int:
-    """Merge clusters of similar alive entries. Returns merges performed."""
-    alive = sorted(store.alive(), key=lambda e: e.energy, reverse=True)
+def consolidate(
+    store: MemoryStore,
+    cycle: int,
+    threshold: float = 0.55,
+    exclude: frozenset[str] | set[str] = frozenset(),
+) -> int:
+    """Merge clusters of similar alive entries. Returns merges performed.
+
+    Entries in ``exclude`` never merge: the Ledger excludes entries with
+    unsettled outcomes so a pending verdict's provenance ids stay valid.
+    """
+    alive = sorted(
+        (e for e in store.alive() if e.id not in exclude),
+        key=lambda e: e.energy,
+        reverse=True,
+    )
     consumed: set[str] = set()
     merges = 0
 

@@ -16,6 +16,7 @@ from .environments import (
     VerifiableQAEnv,
     decision_polarity,
 )
+from .ledger import Ledger, Ticket
 from .protocol import ProtocolAnswer, QueryProtocol
 from .retrieval import (
     EmbeddingFn,
@@ -39,6 +40,7 @@ __all__ = [
     "EntryKind",
     "Environment",
     "HashingEmbedder",
+    "Ledger",
     "LexicalRetriever",
     "LocalEncoder",
     "MemoryEntry",
@@ -54,6 +56,7 @@ __all__ = [
     "SurvivalReport",
     "Task",
     "TestSuiteEnv",
+    "Ticket",
     "Trajectory",
     "VerifiableQAEnv",
     "__version__",

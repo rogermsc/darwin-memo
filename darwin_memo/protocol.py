@@ -12,14 +12,16 @@ exercise the survival loop offline. The answer also reports which
 entries produced it: that provenance is what survival credit assignment
 attaches to. Provenance fidelity differs by mode. In local mode the
 answer IS the top entry's text, so ``deciding_entry`` is real. In LLM
-mode the model synthesizes across everything it consulted and no single
-entry decided the answer, so ``deciding_entry`` stays None and all
-consulted entries are reported as supporting; the survival loop then
-spreads credit evenly instead of inventing a winner.
+mode the snippets are numbered and the model cites which it used, so
+credit flows to the cited entries (a single citation becomes the
+deciding entry). When citations cannot be parsed, the protocol falls
+back to spreading credit evenly across everything consulted rather
+than inventing a winner.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .llm import LLMClient
@@ -78,28 +80,59 @@ class QueryProtocol:
             if line.strip()
         ][:4]
 
-        grounding: list[str] = []
-        used: list[str] = []
+        consulted: dict[str, str] = {}  # entry id -> snippet
         for sub in sub_questions or [query]:
             for entry, _ in self.store.retrieve(sub, k=2):
-                grounding.append(f"Q: {entry.question}\nA: {entry.answer}")
-                used.append(entry.id)
+                consulted[entry.id] = f"Q: {entry.question}\nA: {entry.answer}"
 
         # Stage 2: entity identification. Narrow which retrieved facts
         # actually bear on the query.
         # Stage 3: answer seeking, conditioned on the surviving facts.
+        # Snippets carry citation tags so credit can flow to the entries
+        # the model actually used, instead of spreading evenly over
+        # everything retrieval happened to surface.
+        ids = list(consulted)
         memory_block = (
-            "\n\n".join(dict.fromkeys(grounding)) or "(memory returned nothing)"
+            "\n\n".join(f"[{i + 1}] {consulted[eid]}" for i, eid in enumerate(ids))
+            or "(memory returned nothing)"
         )
         final = self.client.complete(
-            "Answer the query using ONLY the memory snippets below. First "
-            "identify which entities or facts are actually relevant, then "
-            "answer. If memory does not support an answer, say so plainly "
-            "rather than guessing.\n\n"
+            "Answer the query using ONLY the numbered memory snippets below. "
+            "First identify which entities or facts are actually relevant, "
+            "then answer. If memory does not support an answer, say so "
+            "plainly rather than guessing. End your answer with one line:\n"
+            "SOURCES: the bracket numbers you actually used, e.g. SOURCES: [1] [3]\n"
+            "If you used none, write SOURCES: none\n\n"
             f"Memory:\n{memory_block}\n\nQuery: {query}"
         )
+        text, cited = _split_citations(final, ids)
+        if cited:
+            # Citation-based attribution: cited entries carry the credit.
+            return ProtocolAnswer(
+                text=text,
+                deciding_entry=cited[0] if len(cited) == 1 else None,
+                supporting_entries=cited if len(cited) > 1 else [],
+            )
+        # No parseable citations: fall back to even spread over consulted.
         return ProtocolAnswer(
-            text=final.strip(),
+            text=text,
             deciding_entry=None,
-            supporting_entries=list(dict.fromkeys(used)),
+            supporting_entries=ids,
         )
+
+
+_SOURCES_RE = re.compile(r"^\s*SOURCES?\s*:\s*(.*)$", re.IGNORECASE | re.MULTILINE)
+
+
+def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str]]:
+    """Strip the SOURCES line and resolve bracket numbers to entry ids."""
+    match = _SOURCES_RE.search(answer)
+    if not match:
+        return answer.strip(), []
+    text = (answer[: match.start()] + answer[match.end() :]).strip()
+    cited: list[str] = []
+    for number in re.findall(r"\[(\d+)\]", match.group(1)):
+        index = int(number) - 1
+        if 0 <= index < len(ids) and ids[index] not in cited:
+            cited.append(ids[index])
+    return text, cited

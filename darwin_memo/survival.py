@@ -57,14 +57,48 @@ class SurvivalReport:
     def summary(self) -> str:
         lines = [
             f"{'cycle':>5} {'pop':>4} {'births':>6} {'deaths':>6} {'merges':>6} "
-            f"{'energy':>8} {'resource Δ':>12}"
+            f"{'energy':>8} {'resource Δ':>12} {'silent':>8}"
         ]
         for s in self.stats:
+            silence = f"{s.silent}/{s.tasks}" if s.tasks else "-"
             lines.append(
                 f"{s.cycle:>5} {s.population:>4} {s.births:>6} {s.deaths:>6} "
-                f"{s.merges:>6} {s.total_energy:>8.2f} {s.resource_delta:>12.0f}"
+                f"{s.merges:>6} {s.total_energy:>8.2f} {s.resource_delta:>12.0f} "
+                f"{silence:>8}"
             )
-        return "\n".join(lines)
+        return "\n".join(lines) + self.health_warning()
+
+    def health_warning(self) -> str:
+        """A plain-language diagnosis when the run looks degenerate.
+
+        The two failure modes a new environment hits are silent: memory
+        never answers (phrasing mismatch or action vocabulary not read),
+        or answers never earn (verify never pays out). Both end the same
+        way, the whole population starving at spawn_energy / upkeep
+        cycles, so the report says so instead of letting the table look
+        like success.
+        """
+        total_tasks = sum(s.tasks for s in self.stats)
+        if not total_tasks:
+            return ""
+        total_silent = sum(s.silent for s in self.stats)
+        all_zero = all(s.resource_delta == 0 for s in self.stats)
+        notes = []
+        if total_silent / total_tasks > 0.8:
+            notes.append(
+                f"memory was silent on {total_silent}/{total_tasks} tasks: "
+                "task phrasing likely does not lexically overlap the corpus "
+                "(see min_coverage), so nothing can earn energy"
+            )
+        if all_zero and total_silent / total_tasks <= 0.8:
+            notes.append(
+                "every cycle had resource delta 0: the environment never "
+                "paid out; check that verify() reads your answers (is "
+                "decision_polarity's vocabulary right for your action verbs?)"
+            )
+        if not notes:
+            return ""
+        return "\n\nWARNING: " + "\nWARNING: ".join(notes)
 
 
 class SurvivalLoop:
@@ -94,11 +128,16 @@ class SurvivalLoop:
         cfg = self.config
         births = 0
         resource_delta = 0.0
+        tasks_seen = 0
+        silent = 0
         trajectories: list[Trajectory] = []
         best: Trajectory | None = None
 
         for task in self.env.tasks(cycle):
             answer = self.protocol.answer(task.prompt)
+            tasks_seen += 1
+            if not answer.text:
+                silent += 1
             outcome = self.env.verify(task, answer.text)
             resource_delta += outcome.delta
 
@@ -135,6 +174,8 @@ class SurvivalLoop:
             merges=merges,
             total_energy=self.store.total_energy(),
             resource_delta=resource_delta,
+            tasks=tasks_seen,
+            silent=silent,
         )
         return stats, trajectories
 

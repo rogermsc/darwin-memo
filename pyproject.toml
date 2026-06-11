@@ -38,6 +38,7 @@ dependencies = []
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.50"]
 embeddings = ["sentence-transformers>=3"]
+mcp = ["mcp>=1.2"]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
@@ -45,6 +46,10 @@ dev = [
     "mypy>=1.13",
     "hypothesis>=6",
 ]
+
+[project.scripts]
+darwin-memo = "darwin_memo.cli:main"
+darwin-memo-mcp = "darwin_memo.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/rogermsc/darwin-memo"

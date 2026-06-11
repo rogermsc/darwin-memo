@@ -1,0 +1,252 @@
+"""The Ledger: event-driven survival for real-world outcome timing.
+
+``SurvivalLoop`` is batch-shaped: the environment proposes tasks, the
+answer is verified in the same call, and credit lands immediately. Real
+deployments are event-shaped: a question arrives now (a PR opens), the
+outcome arrives later (CI finishes, the cost report lands tomorrow),
+and upkeep should follow wall-clock or event cadence, neither of which
+belongs to an environment object. The Ledger decouples the three
+moments:
+
+- :meth:`decide` answers a query through the normal protocol and
+  returns a ticket carrying the provenance.
+- :meth:`settle` is called whenever the outcome is known, with the
+  measured resource delta. Credit flows along the ticket's provenance
+  exactly as in the loop.
+- :meth:`tick` advances time: upkeep, deaths, optional consolidation.
+
+Escrow keeps the timing honest: entries named by an unsettled ticket
+still pay upkeep but cannot be buried or merged away, so a verdict can
+never arrive after the execution. Tickets left unsettled past
+``expire_after`` ticks settle at delta zero (the outcome never arrived,
+which earns nothing).
+
+Every event appends to an optional JSONL log, and :meth:`obituary`
+answers the production question "why did this entry die" from that
+history. The same selection rule applies throughout: no judge anywhere,
+``settle`` takes a measurement.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from .consolidate import consolidate
+from .protocol import QueryProtocol
+from .store import MemoryStore
+from .survival import SurvivalConfig
+
+
+@dataclass
+class Ticket:
+    """One decision waiting for its outcome."""
+
+    query: str
+    answer: str
+    deciding_entry: str | None
+    supporting_entries: list[str]
+    born_tick: int
+    id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
+    settled: bool = False
+
+    @property
+    def provenance(self) -> list[str]:
+        ids = list(self.supporting_entries)
+        if self.deciding_entry:
+            ids.append(self.deciding_entry)
+        return ids
+
+
+class Ledger:
+    """decide / settle / tick over a memory store, with escrow."""
+
+    def __init__(
+        self,
+        store: MemoryStore,
+        protocol: QueryProtocol | None = None,
+        config: SurvivalConfig | None = None,
+        resource_scale: float = 1.0,
+        event_log: str | Path | None = None,
+    ) -> None:
+        self.store = store
+        self.protocol = protocol or QueryProtocol(store)
+        self.config = config or SurvivalConfig()
+        self.resource_scale = resource_scale
+        self.event_log = Path(event_log) if event_log else None
+        self.tick_count = 0
+        self._pending: dict[str, Ticket] = {}
+        self._history: dict[str, list[str]] = {}
+
+    # ------------------------------------------------------------------
+    # The three moments
+    # ------------------------------------------------------------------
+
+    def decide(self, query: str, k: int = 3) -> Ticket:
+        """Answer a query and open a ticket for its eventual outcome."""
+        answer = self.protocol.answer(query, k=k)
+        ticket = Ticket(
+            query=query,
+            answer=answer.text,
+            deciding_entry=answer.deciding_entry,
+            supporting_entries=answer.supporting_entries,
+            born_tick=self.tick_count,
+        )
+        if ticket.provenance:
+            self._pending[ticket.id] = ticket
+        self._log(
+            "decide",
+            ticket=ticket.id,
+            query=query,
+            silent=not answer.text,
+            provenance=ticket.provenance,
+        )
+        return ticket
+
+    def settle(self, ticket_id: str, delta: float, detail: str = "") -> None:
+        """Report the measured outcome for a ticket. Credit flows now.
+
+        ``delta`` is a measurement of a conserved resource, never a
+        grade. Settling an unknown or already-settled ticket is a no-op
+        rather than an error: in event-driven systems duplicate
+        deliveries happen, and idempotence beats exceptions.
+        """
+        ticket = self._pending.pop(ticket_id, None)
+        if ticket is None or ticket.settled:
+            return
+        ticket.settled = True
+
+        cfg = self.config
+        normalized = math.tanh(delta / self.resource_scale)
+        credit = cfg.credit_gain * normalized
+        if credit != 0.0:
+            if ticket.deciding_entry:
+                self._credit(ticket.deciding_entry, credit, delta, detail)
+                for entry_id in ticket.supporting_entries:
+                    self._credit(entry_id, credit * cfg.supporting_share, delta, detail)
+            else:
+                share = credit / max(1, len(ticket.supporting_entries))
+                for entry_id in ticket.supporting_entries:
+                    self._credit(entry_id, share, delta, detail)
+
+        # Escrow released: anything held past its death now gets buried.
+        for entry_id in ticket.provenance:
+            entry = self.store.get(entry_id)
+            if entry is not None and not entry.alive:
+                self.store.bury(entry_id)
+                self._note(entry_id, f"buried at tick {self.tick_count} on settle")
+        self._log("settle", ticket=ticket.id, delta=delta, detail=detail)
+
+    def tick(self, expire_after: int | None = 50) -> dict[str, Any]:
+        """Advance one unit of time: expiry, upkeep, consolidation."""
+        self.tick_count += 1
+
+        expired = []
+        if expire_after is not None:
+            expired = [
+                t.id
+                for t in self._pending.values()
+                if self.tick_count - t.born_tick > expire_after
+            ]
+            for ticket_id in expired:
+                self.settle(ticket_id, 0.0, detail="expired unsettled")
+
+        escrowed = {
+            entry_id for t in self._pending.values() for entry_id in t.provenance
+        }
+        dead = self.store.charge_upkeep(protect=escrowed)
+        for entry in dead:
+            self._note(
+                entry.id,
+                f"starved at tick {self.tick_count} "
+                f"(uses={entry.uses}, last_used_tick={entry.last_used_cycle})",
+            )
+
+        merges = 0
+        if (
+            self.config.consolidate_every
+            and self.tick_count % self.config.consolidate_every == 0
+        ):
+            merges = consolidate(
+                self.store,
+                self.tick_count,
+                threshold=self.config.merge_threshold,
+                exclude=escrowed,
+            )
+
+        stats = {
+            "tick": self.tick_count,
+            "population": len(self.store),
+            "deaths": len(dead),
+            "merges": merges,
+            "pending": len(self._pending),
+            "expired": len(expired),
+            "total_energy": round(self.store.total_energy(), 3),
+        }
+        self._log("tick", **stats)
+        return stats
+
+    # ------------------------------------------------------------------
+    # Observability
+    # ------------------------------------------------------------------
+
+    def pending(self) -> list[Ticket]:
+        return list(self._pending.values())
+
+    def obituary(self, entry_id: str) -> str:
+        """Why did this entry die? Answered from the ledger's history."""
+        entry = self.store.get(entry_id)
+        if entry is None:
+            entry = next((e for e in self.store.graveyard() if e.id == entry_id), None)
+        if entry is None:
+            heirs = [
+                e
+                for e in self.store.alive() + self.store.graveyard()
+                if entry_id in e.lineage
+            ]
+            if heirs:
+                return f"{entry_id}: merged into {heirs[0].id} ({heirs[0].question!r})"
+            return f"{entry_id}: unknown to this store"
+
+        lines = [
+            f"{entry.id} [{entry.kind.value}] {entry.question!r}",
+            f"  energy={entry.energy:.3f} uses={entry.uses} alive={entry.alive}",
+        ]
+        heirs = [
+            e
+            for e in self.store.alive() + self.store.graveyard()
+            if entry.id in e.lineage
+        ]
+        if heirs:
+            lines.append(f"  merged into {heirs[0].id}")
+        lines.extend(f"  {event}" for event in self._history.get(entry.id, []))
+        if not self._history.get(entry.id) and not entry.alive and not heirs:
+            lines.append(
+                "  no credited outcomes on record: starved (never earned"
+                " enough to cover upkeep)"
+            )
+        return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+
+    def _credit(self, entry_id: str, credit: float, delta: float, detail: str) -> None:
+        self.store.credit(entry_id, credit, self.tick_count)
+        self._note(
+            entry_id,
+            f"tick {self.tick_count}: credit {credit:+.3f} "
+            f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
+        )
+
+    def _note(self, entry_id: str, event: str) -> None:
+        self._history.setdefault(entry_id, []).append(event)
+
+    def _log(self, kind: str, **payload: Any) -> None:
+        if self.event_log is None:
+            return
+        record = {"event": kind, "tick": self.tick_count, **payload}
+        with self.event_log.open("a") as f:
+            f.write(json.dumps(record) + "\n")

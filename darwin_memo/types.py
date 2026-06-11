@@ -91,7 +91,16 @@ class Trajectory:
 
 @dataclass
 class CycleStats:
-    """Population accounting for one survival cycle."""
+    """Population accounting for one survival cycle.
+
+    ``silent`` counts tasks where memory produced no answer at all. A
+    persistently high silence rate is the single best debugging signal:
+    it means retrieval cannot connect your task phrasing to your corpus
+    (or your action vocabulary is not being read), nothing ever earns,
+    and the whole population will starve at roughly
+    ``spawn_energy / upkeep`` cycles regardless of how good the
+    knowledge is.
+    """
 
     cycle: int
     population: int
@@ -100,3 +109,5 @@ class CycleStats:
     merges: int
     total_energy: float
     resource_delta: float
+    tasks: int = 0
+    silent: int = 0
