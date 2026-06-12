@@ -24,9 +24,17 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .consolidate import DEFAULT_MERGE_THRESHOLD
 from .llm import THINK_RE as _THINK_RE
 from .llm import LLMClient
 from .store import MemoryStore
+from .temporal import (
+    CONFLICT_LABEL,
+    age_annotation,
+    conflict_clusters,
+    render_consult,
+)
+from .types import EntryKind, MemoryEntry
 
 
 @dataclass
@@ -34,26 +42,75 @@ class ProtocolAnswer:
     text: str
     deciding_entry: str | None = None
     supporting_entries: list[str] = field(default_factory=list)
+    # The consult-surface rendering of ``text``: the same answer plus
+    # age annotations, and a dated conflict block when near-duplicate
+    # entries disagree (see darwin_memo.temporal). Acting paths (the
+    # survival loop, environments) keep reading ``text``; surfaces that
+    # show memory to a model or agent read this.
+    annotated_text: str = ""
 
 
 class QueryProtocol:
-    """Grounding, entity identification, answer seeking."""
+    """Grounding, entity identification, answer seeking.
 
-    def __init__(self, store: MemoryStore, client: LLMClient | None = None) -> None:
+    ``conflict_threshold`` is the near-duplicate similarity floor used
+    to flag overlapping retrieval hits as conflicting advice; it reuses
+    consolidation's threshold semantics (raise it toward
+    ``EMBEDDING_MERGE_THRESHOLD`` over cosine retrievers).
+    """
+
+    def __init__(
+        self,
+        store: MemoryStore,
+        client: LLMClient | None = None,
+        conflict_threshold: float = DEFAULT_MERGE_THRESHOLD,
+    ) -> None:
         self.store = store
         self.client = client
+        self.conflict_threshold = conflict_threshold
 
-    def answer(self, query: str, k: int = 3) -> ProtocolAnswer:
+    def answer(
+        self,
+        query: str,
+        k: int = 3,
+        *,
+        half_life: float | None = None,
+        now_cycle: int | None = None,
+        kind: EntryKind | str | None = None,
+        source: str | None = None,
+    ) -> ProtocolAnswer:
+        """Answer a query from memory.
+
+        ``half_life``, ``now_cycle``, ``kind``, and ``source`` pass
+        straight through to :meth:`MemoryStore.retrieve`: optional
+        recency-weighted ranking and metadata filters, all pure
+        retrieval concerns that never touch balances.
+        """
         if self.client is None:
-            return self._answer_local(query, k)
-        return self._answer_llm(query, k)
+            return self._answer_local(query, k, half_life, now_cycle, kind, source)
+        return self._answer_llm(query, k, half_life, now_cycle, kind, source)
 
     # ------------------------------------------------------------------
     # Local mode
     # ------------------------------------------------------------------
 
-    def _answer_local(self, query: str, k: int) -> ProtocolAnswer:
-        hits = self.store.retrieve(query, k=k)
+    def _answer_local(
+        self,
+        query: str,
+        k: int,
+        half_life: float | None,
+        now_cycle: int | None,
+        kind: EntryKind | str | None,
+        source: str | None,
+    ) -> ProtocolAnswer:
+        hits = self.store.retrieve(
+            query,
+            k=k,
+            half_life=half_life,
+            now_cycle=now_cycle,
+            kind=kind,
+            source=source,
+        )
         if not hits:
             return ProtocolAnswer(text="")
         deciding, _ = hits[0]
@@ -61,13 +118,24 @@ class QueryProtocol:
             text=deciding.answer,
             deciding_entry=deciding.id,
             supporting_entries=[e.id for e, _ in hits[1:]],
+            annotated_text=render_consult(
+                hits, self.store.similarity, self.conflict_threshold
+            ),
         )
 
     # ------------------------------------------------------------------
     # LLM mode
     # ------------------------------------------------------------------
 
-    def _answer_llm(self, query: str, k: int) -> ProtocolAnswer:
+    def _answer_llm(
+        self,
+        query: str,
+        k: int,
+        half_life: float | None,
+        now_cycle: int | None,
+        kind: EntryKind | str | None,
+        source: str | None,
+    ) -> ProtocolAnswer:
         assert self.client is not None
         # Stage 1: grounding. Decompose into atomic sub-questions.
         decomposition = self.client.complete(
@@ -81,22 +149,48 @@ class QueryProtocol:
             if line.strip()
         ][:4]
 
-        consulted: dict[str, str] = {}  # entry id -> snippet
+        consulted: dict[str, MemoryEntry] = {}  # entry id -> entry
         for sub in sub_questions or [query]:
-            for entry, _ in self.store.retrieve(sub, k=2):
-                consulted[entry.id] = f"Q: {entry.question}\nA: {entry.answer}"
+            for entry, _ in self.store.retrieve(
+                sub,
+                k=2,
+                half_life=half_life,
+                now_cycle=now_cycle,
+                kind=kind,
+                source=source,
+            ):
+                consulted[entry.id] = entry
 
         # Stage 2: entity identification. Narrow which retrieved facts
         # actually bear on the query.
         # Stage 3: answer seeking, conditioned on the surviving facts.
         # Snippets carry citation tags so credit can flow to the entries
         # the model actually used, instead of spreading evenly over
-        # everything retrieval happened to surface.
+        # everything retrieval happened to surface. Each snippet carries
+        # its age line, and near-duplicate snippets get a mechanical
+        # conflict note, so the model sees the time dimension instead of
+        # treating all surviving advice as equally current.
         ids = list(consulted)
         memory_block = (
-            "\n\n".join(f"[{i + 1}] {consulted[eid]}" for i, eid in enumerate(ids))
+            "\n\n".join(
+                f"[{i + 1}] Q: {consulted[eid].question}\n"
+                f"A: {consulted[eid].answer}\n{age_annotation(consulted[eid])}"
+                for i, eid in enumerate(ids)
+            )
             or "(memory returned nothing)"
         )
+        conflict_notes = [
+            "note: snippets "
+            + " ".join(f"[{ids.index(e.id) + 1}]" for e in cluster)
+            + f" are {CONFLICT_LABEL}"
+            for cluster in conflict_clusters(
+                [consulted[eid] for eid in ids],
+                self.store.similarity,
+                self.conflict_threshold,
+            )
+        ]
+        if conflict_notes:
+            memory_block += "\n\n" + "\n".join(conflict_notes)
         final = self.client.complete(
             "Answer the query using ONLY the numbered memory snippets below. "
             "First identify which entities or facts are actually relevant, "
@@ -107,22 +201,27 @@ class QueryProtocol:
             f"Memory:\n{memory_block}\n\nQuery: {query}"
         )
         text, cited, explicit_none = _split_citations(final, ids)
+        # In LLM mode the age lines and conflict notes already traveled
+        # to the model inside the snippets, so the model's own prose is
+        # the surfaced form: annotated_text is just text.
         if explicit_none:
             # The model declared it used nothing. Honoring that means no
             # provenance at all: no escrow, no credit, counted as silence.
-            return ProtocolAnswer(text=text, deciding_entry=None)
+            return ProtocolAnswer(text=text, deciding_entry=None, annotated_text=text)
         if cited:
             # Citation-based attribution: cited entries carry the credit.
             return ProtocolAnswer(
                 text=text,
                 deciding_entry=cited[0] if len(cited) == 1 else None,
                 supporting_entries=cited if len(cited) > 1 else [],
+                annotated_text=text,
             )
         # No parseable citations: fall back to even spread over consulted.
         return ProtocolAnswer(
             text=text,
             deciding_entry=None,
             supporting_entries=ids,
+            annotated_text=text,
         )
 
 

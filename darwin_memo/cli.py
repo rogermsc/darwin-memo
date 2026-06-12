@@ -44,6 +44,30 @@ from .protocol import QueryProtocol
 from .render import register_render_command
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
+from .types import EntryKind
+
+
+def _add_retrieval_flags(parser: argparse.ArgumentParser) -> None:
+    """The temporal and metadata retrieval options, shared by ``query``
+    and ``ledger decide`` so the two surfaces cannot drift apart."""
+    parser.add_argument(
+        "--half-life",
+        type=float,
+        default=None,
+        help="recency-weighted ranking: scores halve every N ticks since an "
+        "entry last settled (default: off; reorders results, never balances)",
+    )
+    parser.add_argument(
+        "--kind",
+        default=None,
+        choices=[k.value for k in EntryKind],
+        help="only consult entries of this kind",
+    )
+    parser.add_argument(
+        "--source",
+        default=None,
+        help="only consult entries citing this source",
+    )
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -146,11 +170,16 @@ def _client_for(spec: str | None) -> LLMClient | None:
 def cmd_query(args: argparse.Namespace) -> int:
     store = MemoryStore.load(args.memory)
     client = _client_for(args.model)
-    answer = QueryProtocol(store, client).answer(args.question)
+    answer = QueryProtocol(store, client).answer(
+        args.question,
+        half_life=args.half_life,
+        kind=args.kind,
+        source=args.source,
+    )
     if not answer.text:
         print("(memory is silent: no entry clears the relevance floor)")
         return 0
-    print(answer.text)
+    print(answer.annotated_text or answer.text)
     deciding = store.get(answer.deciding_entry) if answer.deciding_entry else None
     if deciding:
         print(f"  deciding entry: [{deciding.kind.value}] {deciding.question}")
@@ -201,7 +230,13 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     out: dict[str, object]
     save = True
     if args.ledger_op == "decide":
-        ticket = ledger.decide(args.question, k=args.k)
+        ticket = ledger.decide(
+            args.question,
+            k=args.k,
+            half_life=args.half_life,
+            kind=args.kind,
+            source=args.source,
+        )
         out = {
             # All three fields key on provenance, the silence signal,
             # so consumers never see a ticket without an answer or
@@ -278,6 +313,7 @@ def main(argv: list[str] | None = None) -> int:
         help="LLM for the full 3-stage protocol: ollama:NAME or anthropic:NAME "
         "(default: local retrieval, no model)",
     )
+    _add_retrieval_flags(query)
     query.set_defaults(fn=cmd_query)
 
     stats = sub.add_parser("stats", help="population and energy overview")
@@ -301,6 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     decide = lsub.add_parser("decide", help="answer a query, open a ticket")
     decide.add_argument("question")
     decide.add_argument("-k", type=int, default=3, help="entries to retrieve")
+    _add_retrieval_flags(decide)
 
     settle = lsub.add_parser("settle", help="report a ticket's measured outcome")
     settle.add_argument("ticket_id")

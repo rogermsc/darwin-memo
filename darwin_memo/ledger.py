@@ -41,7 +41,6 @@ import itertools
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -50,16 +49,12 @@ from .protocol import QueryProtocol
 from .retrieval import Retriever
 from .store import MemoryStore, store_lock, write_json_atomic
 from .survival import SurvivalConfig, assign_credit, is_silent
-from .types import EntryKind, MemoryEntry
+from .types import EntryKind, MemoryEntry, utc_now_iso
 
 _HISTORY_CAP = 100  # per-entry events kept in memory; the JSONL log is full
 _DAMAGE_EPSILON = 1e-9
 EVENT_LOG_MAX_BYTES = 10 * 1024 * 1024  # rotate the JSONL log at this size
 EVENT_LOG_KEEP = 3  # rotated files retained alongside the live one
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def event_log_paths(path: Path, keep: int = EVENT_LOG_KEEP) -> list[Path]:
@@ -131,12 +126,36 @@ class Ledger:
     # The three moments
     # ------------------------------------------------------------------
 
-    def decide(self, query: str, k: int = 3) -> Ticket:
-        """Answer a query and open a ticket for its eventual outcome."""
-        answer = self.protocol.answer(query, k=k)
+    def decide(
+        self,
+        query: str,
+        k: int = 3,
+        *,
+        half_life: float | None = None,
+        kind: str | None = None,
+        source: str | None = None,
+    ) -> Ticket:
+        """Answer a query and open a ticket for its eventual outcome.
+
+        The ticket carries the consult-surface rendering of the answer:
+        entry text plus its age line, or a dated conflict block when
+        near-duplicate entries disagree (see ``darwin_memo.temporal``).
+        ``half_life`` opts into recency-weighted ranking anchored at
+        this ledger's tick count; ``kind`` and ``source`` filter the
+        candidate entries. All three are pure retrieval concerns:
+        escrow, credit, and settlement never see them.
+        """
+        answer = self.protocol.answer(
+            query,
+            k=k,
+            half_life=half_life,
+            now_cycle=self.tick_count,
+            kind=kind,
+            source=source,
+        )
         ticket = Ticket(
             query=query,
-            answer=answer.text,
+            answer=answer.annotated_text or answer.text,
             deciding_entry=answer.deciding_entry,
             supporting_entries=answer.supporting_entries,
             born_tick=self.tick_count,
@@ -455,7 +474,7 @@ class Ledger:
     def _note(self, entry_id: str, text: str, **data: Any) -> None:
         history = self._history.setdefault(entry_id, [])
         history.append(
-            {"tick": self.tick_count, "ts": _utc_now(), "text": text, **data}
+            {"tick": self.tick_count, "ts": utc_now_iso(), "text": text, **data}
         )
         if len(history) > _HISTORY_CAP:
             del history[: len(history) - _HISTORY_CAP]
@@ -463,7 +482,12 @@ class Ledger:
     def _log(self, kind: str, **payload: Any) -> None:
         if self.event_log is None:
             return
-        record = {"event": kind, "tick": self.tick_count, "ts": _utc_now(), **payload}
+        record = {
+            "event": kind,
+            "tick": self.tick_count,
+            "ts": utc_now_iso(),
+            **payload,
+        }
         self._rotate_event_log()
         with self.event_log.open("a") as f:
             f.write(json.dumps(record) + "\n")

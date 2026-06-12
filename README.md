@@ -296,6 +296,29 @@ which is out of scope for the zero-dependency core. With cosine
 retrievers, raise `merge_threshold` to roughly 0.85 or unrelated
 entries will consolidate.
 
+### Temporal awareness
+
+Survival selection culls a stale entry only after it causes damage, so
+every consult surface carries the time dimension instead of waiting for
+the world to hurt:
+
+- Surfaced answers carry an age line per entry: UTC timestamp when
+  recorded, born tick, last settled tick. Entries persisted before
+  timestamps existed render as "age unknown" rather than faking a date.
+- When retrieval returns near-duplicate entries (the same similarity
+  machinery and threshold consolidation uses), nothing is silently
+  preferred: the group surfaces together, each entry with its dates,
+  newest first, marked as conflicting/overlapping advice. Mechanical
+  throughout, no LLM judges anything.
+- Recency-weighted ranking is opt-in: pass a half-life in ticks
+  (`store.retrieve(..., half_life=20)`, `--half-life 20` on `query` and
+  `ledger decide`, `half_life` on the MCP `memory_query` tool) and
+  scores halve for every half-life since an entry last settled. A pure
+  ranking concern: balances and credit assignment never see it.
+- `kind` and `source` filters (`--kind`, `--source`) narrow the
+  candidate population before ranking and compose with everything
+  above.
+
 ## Benchmarks
 
 Survival is benchmarked against six baselines across 10 seeds, with

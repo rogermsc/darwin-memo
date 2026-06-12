@@ -15,11 +15,18 @@ from __future__ import annotations
 from .store import MemoryStore
 from .types import EntryKind, MemoryEntry
 
+# The near-duplicate similarity floor shared by consolidation merges,
+# SurvivalConfig.merge_threshold, and conflict surfacing in retrieval:
+# one constant so "near duplicate" cannot drift between the path that
+# merges entries and the path that flags them as overlapping advice.
+# Over cosine retrievers raise it toward EMBEDDING_MERGE_THRESHOLD.
+DEFAULT_MERGE_THRESHOLD = 0.55
+
 
 def consolidate(
     store: MemoryStore,
     cycle: int,
-    threshold: float = 0.55,
+    threshold: float = DEFAULT_MERGE_THRESHOLD,
     exclude: frozenset[str] | set[str] = frozenset(),
 ) -> int:
     """Merge clusters of similar alive entries. Returns merges performed.

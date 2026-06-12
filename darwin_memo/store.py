@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from .retrieval import LexicalRetriever, Retriever, tokenize
-from .types import MemoryEntry
+from .temporal import recency_weight
+from .types import EntryKind, MemoryEntry
 
 # fcntl is POSIX-only. CI runs Linux, so the flock path is the tested
 # one; where the import fails (Windows) the advisory lock degrades to a
@@ -127,14 +128,52 @@ class MemoryStore:
     # Retrieval
     # ------------------------------------------------------------------
 
-    def retrieve(self, query: str, k: int = 3) -> list[tuple[MemoryEntry, float]]:
+    def retrieve(
+        self,
+        query: str,
+        k: int = 3,
+        *,
+        half_life: float | None = None,
+        now_cycle: int | None = None,
+        kind: EntryKind | str | None = None,
+        source: str | None = None,
+    ) -> list[tuple[MemoryEntry, float]]:
         """Rank alive entries against a query.
 
         Scoring belongs entirely to the retriever. Energy breaks ties
         only: selection pressure must come from outcomes, not from
         retrieval preferring incumbents.
+
+        ``kind`` and ``source`` filter the candidate population before
+        ranking; an entry matches ``source`` when it appears in its
+        ``sources`` list, and an unknown ``kind`` raises ``ValueError``
+        rather than silently matching nothing.
+
+        ``half_life`` opts into recency-weighted ranking, off by
+        default: scores halve for every ``half_life`` ticks since an
+        entry last settled (its born tick if it never has). A pure
+        ranking concern, like everything else here: balances, credit
+        assignment, and survival economics never see it. ``now_cycle``
+        anchors the decay clock; callers that track time (the Ledger)
+        pass their tick count, and when omitted the latest tick
+        recorded on any alive entry stands in.
         """
-        scored = self.retriever.rank(query, list(self._entries.values()))
+        entries = list(self._entries.values())
+        if kind is not None:
+            kind_value = EntryKind(kind).value
+            entries = [e for e in entries if e.kind.value == kind_value]
+        if source is not None:
+            entries = [e for e in entries if source in e.sources]
+        scored = self.retriever.rank(query, entries)
+        if half_life is not None and half_life > 0 and scored:
+            if now_cycle is None:
+                now_cycle = max(
+                    max(e.born_cycle, e.last_used_cycle) for e in self._entries.values()
+                )
+            scored = [
+                (entry, score * recency_weight(entry, now_cycle, half_life))
+                for entry, score in scored
+            ]
         scored.sort(key=lambda pair: (pair[1], pair[0].energy), reverse=True)
         return scored[:k]
 
