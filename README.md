@@ -349,6 +349,11 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   claim the memory slot with
   [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin):
   measured (not self-reported) settlement from `agent_end` outcomes.
+- **[OpenAI Agents SDK](docs/integrations/openai-agents.md)**: a
+  dependency-free `DarwinMemoSession` implements the SDK's Session
+  protocol (transcript replay as honest JSONL) and adds the long-term
+  layer the SDK leaves vacant: opt-in `consult`/`settle` against a
+  lesson store, deltas always measured by the host.
 - **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
   the Ollama client (think-blocks handled), and Hermes Agent mounts the
   MCP server natively.
