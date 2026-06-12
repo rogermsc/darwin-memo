@@ -27,6 +27,7 @@ import os
 from pathlib import Path
 
 from .ledger import Ledger
+from .observe import audit_digest, filter_events, read_events
 from .store import MemoryStore
 from .types import EntryKind, MemoryEntry
 
@@ -170,6 +171,18 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         """Why did this entry die (or how is it doing)? Full credit
         history from the ledger."""
         return ledger.obituary(entry_id)
+
+    @server.tool()
+    def memory_audit(since: str = "", last: int = 0) -> str:
+        """Digest of the event log: decisions, settlements, culls, and
+        energy flow with top gainers and losers. The audit trail for
+        spotting a poisoned entry's rise and death. ``since`` is an
+        ISO-8601 UTC floor, ``last`` keeps only the newest N events;
+        zero values mean no filter."""
+        events = filter_events(
+            read_events(event_log), since=since or None, last=last or None
+        )
+        return json.dumps(audit_digest(events, store=store))
 
     return server
 
