@@ -65,10 +65,10 @@ truth in the detail cannot leak into selection.
 from __future__ import annotations
 
 import math
-import random
 from pathlib import Path
 
 from darwin_memo import Outcome, StorageEnv, Task
+from darwin_memo.environments import cycle_rng
 
 NOISE_MODELS = ("flip", "false_bad", "magnitude")
 
@@ -110,8 +110,10 @@ class FlakyStorageEnv:
         # and of both the rate and the noise model. Two draws per task,
         # always consumed: u1 marks the flake (u1 < rate), u2 seeds the
         # magnitude lie. Identical fields across rates (nested), models,
-        # and arms at a fixed seed.
-        rng = random.Random(self.seed * 1_000_003 + cycle * 7_919 + 13)
+        # and arms at a fixed seed. The hash-derived stream keeps flake
+        # fields at different seeds statistically independent, matching
+        # the world derivation in ``StorageEnv``.
+        rng = cycle_rng(self.seed, cycle, stream="flaky")
         for task in tasks:
             u1, u2 = rng.random(), rng.random()
             task.context["flaky"] = u1 < self.flake_rate

@@ -20,13 +20,12 @@ raise. It is a micro-runner for generated micro-projects, not pytest.
 
 from __future__ import annotations
 
-import random
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from .environments import Task, decision_polarity
+from .environments import Task, cycle_rng, decision_polarity
 from .types import Outcome
 
 # Each function: name, correct source, defective source (None = never
@@ -158,7 +157,7 @@ class TestSuiteEnv:
         self._sandbox: Path | None = None
 
     def tasks(self, cycle: int) -> list[Task]:
-        rng = random.Random(self.seed + cycle)
+        rng = cycle_rng(self.seed, cycle)
         if self._sandbox and self._sandbox.exists():
             shutil.rmtree(self._sandbox)
         self._sandbox = self.root / f"cycle-{cycle}"

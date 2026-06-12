@@ -90,6 +90,24 @@ def test_keep_everything_keeps_bleeding(tmp_path):
     )
 
 
+def test_seed_worlds_are_independent_not_shifted_windows(tmp_path):
+    """Under seed+cycle derivation, seed 3 cycle 5 WAS seed 4 cycle 4.
+
+    The hash-derived scheme must break that overlap (seeds are
+    independent draws) while keeping determinism (same seed, same
+    world).
+    """
+    env_a = StorageEnv(root=tmp_path / "a", files_per_cycle=10, seed=3)
+    env_b = StorageEnv(root=tmp_path / "b", files_per_cycle=10, seed=4)
+    world_a = [(t.context["category"], t.context["size"]) for t in env_a.tasks(5)]
+    world_b = [(t.context["category"], t.context["size"]) for t in env_b.tasks(4)]
+    assert world_a != world_b, "adjacent seeds must not share shifted worlds"
+
+    env_c = StorageEnv(root=tmp_path / "c", files_per_cycle=10, seed=3)
+    world_c = [(t.context["category"], t.context["size"]) for t in env_c.tasks(5)]
+    assert world_a == world_c, "same seed must reproduce the same world"
+
+
 def test_zero_upkeep_proves_starvation_is_the_upkeep_mechanism(tmp_path):
     """With upkeep off, only outcome-punished entries can die."""
     store, _good, trivia, poisoned = build_store(upkeep=0.0)
