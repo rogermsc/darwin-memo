@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import darwin_memo
-from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig
+from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig, TestSuiteEnv
 from darwin_memo.retrieval import (
     EMBEDDING_MERGE_THRESHOLD,
     EmbeddingRetriever,
@@ -38,9 +38,33 @@ from .policies import (
     run_survival,
     run_ttl,
 )
+from .testsuite_fixtures import (
+    build_testsuite_store,
+    evaluate_testsuite_paraphrase_probes,
+    evaluate_testsuite_probes,
+)
+from .testsuite_noise import FlakyTestSuiteEnv
 
 SCHEMA_VERSION = 1
 TAIL = 5
+
+# Both noise wrappers expose the same accounting surface (true vs
+# reported per-cycle deltas, fired-lie counters, the distortion sum),
+# so everything downstream of env construction treats them as one type.
+FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv
+
+
+def _env_family(overrides: dict[str, Any]) -> str:
+    """Which environment family a run belongs to; storage is the default.
+
+    The family rides in overrides so it lands in the recorded config
+    (and therefore the manifest's config hash) without widening every
+    suite's RunSpec.
+    """
+    family = str(overrides.get("env_family", "storage"))
+    if family not in ("storage", "testsuite"):
+        raise ValueError(f"unknown env_family: {family!r}")
+    return family
 
 
 def _survival_config(
@@ -55,6 +79,11 @@ def _survival_config(
 
 def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
+    build = (
+        build_testsuite_store
+        if _env_family(overrides) == "testsuite"
+        else build_headline_store
+    )
     if arm == "survival_embedding":
         if "min_coverage" in overrides:
             raise ValueError(
@@ -63,11 +92,11 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
                 "claims a variation that never took effect"
             )
         retriever = EmbeddingRetriever(HashingEmbedder(), min_similarity=0.30)
-        return build_headline_store(upkeep=upkeep, retriever=retriever)
+        return build(upkeep=upkeep, retriever=retriever)
     if "min_coverage" in overrides:
         lexical = LexicalRetriever(min_coverage=overrides["min_coverage"])
-        return build_headline_store(upkeep=upkeep, retriever=lexical)
-    return build_headline_store(upkeep=upkeep)
+        return build(upkeep=upkeep, retriever=lexical)
+    return build(upkeep=upkeep)
 
 
 _schedule_memo: dict[tuple[Any, ...], list[int]] = {}
@@ -89,7 +118,15 @@ def _death_schedule_for(
     workdir = Path(tempfile.mkdtemp(prefix="darwin-memo-shadow-"))
     try:
         store = _build_store(overrides)
-        env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
+        env: StorageEnv | TestSuiteEnv
+        if _env_family(overrides) == "testsuite":
+            env = TestSuiteEnv(
+                root=workdir,
+                defects_per_cycle=int(overrides.get("defects_per_cycle", 3)),
+                seed=seed,
+            )
+        else:
+            env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
         if "resource_scale" in overrides:
             env.resource_scale = overrides["resource_scale"]
         result = run_survival(
@@ -110,10 +147,27 @@ def run_one(
     suite: str = "adhoc",
 ) -> dict[str, Any]:
     overrides = dict(overrides or {})
+    family = _env_family(overrides)
     workdir = Path(tempfile.mkdtemp(prefix=f"darwin-memo-bench-{arm}-"))
     store = _build_store(overrides, arm)
-    env: StorageEnv | FlakyStorageEnv
-    if "flake_rate" in overrides:
+    env: StorageEnv | TestSuiteEnv | FlakyEnv
+    if family == "testsuite":
+        if "noise_model" in overrides:
+            raise ValueError(
+                "noise_model is a StorageEnv knob; TestSuiteEnv has one "
+                "noise model (flaky pass counts), selected by flake_rate"
+            )
+        defects = int(overrides.get("defects_per_cycle", 3))
+        if "flake_rate" in overrides:
+            env = FlakyTestSuiteEnv(
+                root=workdir,
+                defects_per_cycle=defects,
+                seed=seed,
+                flake_rate=overrides["flake_rate"],
+            )
+        else:
+            env = TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed)
+    elif "flake_rate" in overrides:
         env = FlakyStorageEnv(
             root=workdir,
             files_per_cycle=files_per_cycle,
@@ -145,19 +199,24 @@ def run_one(
     # outcome metrics are computed from the TRUE resource movement: the
     # benchmark scores what actually happened to the disk, exactly the
     # position of a system whose CI sometimes lies to it.
-    flaky = env if isinstance(env, FlakyStorageEnv) else None
+    flaky = env if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)) else None
     if flaky is not None:
         _check_accounting(flaky, result)
-    metrics = extract_metrics(result, store, kill_tracker["cycle"], wall, env=flaky)
+    metrics = extract_metrics(
+        result, store, kill_tracker["cycle"], wall, env=flaky, env_family=family
+    )
 
     run: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "suite": suite,
         "arm": arm,
         "seed": seed,
+        # files_per_cycle is a StorageEnv knob; recording it on a
+        # testsuite run would claim a variation that never took effect,
+        # so the family's configs carry defects_per_cycle instead.
         "config": {
             "cycles": cycles,
-            "files_per_cycle": files_per_cycle,
+            **({} if family == "testsuite" else {"files_per_cycle": files_per_cycle}),
             **overrides,
         },
         "per_cycle": [vars(r) for r in result.records],
@@ -168,7 +227,7 @@ def run_one(
             "darwin_memo": darwin_memo.__version__,
         },
     }
-    if isinstance(env, FlakyStorageEnv):
+    if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)):
         run["per_cycle_true_delta"] = list(env.true_deltas)
     return run
 
@@ -176,7 +235,7 @@ def run_one(
 def _dispatch(
     arm: str,
     store: Any,
-    env: StorageEnv | FlakyStorageEnv,
+    env: StorageEnv | TestSuiteEnv | FlakyEnv,
     cycles: int,
     seed: int,
     files_per_cycle: int,
@@ -254,7 +313,7 @@ def _dispatch(
     raise ValueError(f"unknown arm: {arm}")
 
 
-def _check_accounting(env: FlakyStorageEnv, result: PolicyResult) -> None:
+def _check_accounting(env: FlakyEnv, result: PolicyResult) -> None:
     """The lie ledger must balance, or the run's numbers are garbage.
 
     Two identities hold by construction unless cycle indexing drifted:
@@ -289,7 +348,8 @@ def extract_metrics(
     store: Any,
     kill_cycle: int | None,
     wall_time_s: float,
-    env: FlakyStorageEnv | None = None,
+    env: FlakyEnv | None = None,
+    env_family: str = "storage",
 ) -> dict[str, Any]:
     reported = [r.resource_delta for r in result.records]
     # TRUE resource movement when measurements lie; identical otherwise.
@@ -313,8 +373,12 @@ def extract_metrics(
         "fired_false_bad": env.fired_false_bad if env else 0,
         "fired_false_good": env.fired_false_good if env else 0,
     }
-    metrics.update({f"probe_{k}": v for k, v in evaluate_probes(store).items()})
-    metrics.update(
-        {f"paraphrase_{k}": v for k, v in evaluate_paraphrase_probes(store).items()}
-    )
+    if env_family == "testsuite":
+        probe_scores = evaluate_testsuite_probes(store)
+        paraphrase_scores = evaluate_testsuite_paraphrase_probes(store)
+    else:
+        probe_scores = evaluate_probes(store)
+        paraphrase_scores = evaluate_paraphrase_probes(store)
+    metrics.update({f"probe_{k}": v for k, v in probe_scores.items()})
+    metrics.update({f"paraphrase_{k}": v for k, v in paraphrase_scores.items()})
     return metrics

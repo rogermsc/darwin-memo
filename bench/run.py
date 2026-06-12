@@ -3,6 +3,10 @@
 python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json
 python -m bench.run --suite noisy    --seeds 0:30 --out bench/results/noisy.json
 python -m bench.run --suite ablation --seeds 0:5  --out bench/results/ablation.json
+python -m bench.run --suite testsuite --seeds 0:10 \
+    --out bench/results/testsuite.json
+python -m bench.run --suite testsuite_noisy --seeds 0:30 \
+    --out bench/results/testsuite_noisy.json
 python -m bench.run --suite scaling [--full]      --out bench/results/scaling.json
 python -m bench.run --suite smoke                 --out bench/results/smoke.json
 """
@@ -24,6 +28,7 @@ from .suites import (
     scaling_suite,
     smoke_suite,
 )
+from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
 
 
 def _parse_seeds(text: str) -> list[int]:
@@ -56,7 +61,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--suite",
-        choices=["headline", "noisy", "ablation", "scaling", "smoke", "llm"],
+        choices=[
+            "headline",
+            "noisy",
+            "ablation",
+            "testsuite",
+            "testsuite_noisy",
+            "scaling",
+            "smoke",
+            "llm",
+        ],
         required=True,
     )
     parser.add_argument("--seeds", default="0:10", help="a:b range or comma list")
@@ -97,6 +111,10 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(noisy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "ablation":
         runs = _execute(ablation_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "testsuite":
+        runs = _execute(testsuite_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "testsuite_noisy":
+        runs = _execute(testsuite_noisy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "llm":
         runs = _execute(llm_suite(_parse_seeds(args.seeds), args.model))
     else:
