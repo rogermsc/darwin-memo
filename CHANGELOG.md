@@ -8,6 +8,22 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- SWE-Bench-CL learning-curve pilot harness (`bench/swebench_cl/`):
+  pins one or two continual-learning sequences (dataset commit plus
+  file sha256, task identity in a committed manifest), runs a model
+  through them task by task under three arms (memory_on, memory_off,
+  random_matched at the same injected-token budget), settles the
+  lesson store from the official SWE-Bench evaluation outcome, and
+  mints one lesson per task from a deterministic template (no LLM
+  judging; only the model's quoted reflection is model-authored).
+  Model calls sit behind one OpenAI-compatible endpoint config, so a
+  local Ollama server and a frontier provider differ by config only.
+  The Docker executor sizes every image from the registry before
+  pulling and refuses any pull that would leave less than 4 GB of
+  disk free; the documented stub executor exercises every runner
+  path offline and labels every report `mode="stub"`. The pilot
+  protocol and its pre-committed cells live in `docs/benchmarks.md`
+  before any result exists.
 - `darwin-memo render STORE -o MEMORY.md`: project top-balance
   survivors into Claude Code's auto-memory file under both ceilings the
   host actually loads, a hard byte budget (`--budget`, default 25kb)

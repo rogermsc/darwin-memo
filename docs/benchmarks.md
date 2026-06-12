@@ -448,3 +448,157 @@ CI runs `--suite smoke` plus `bench.report --check` on the smoke output
 and `--check --require-manifest` on every committed results file on
 every push, so a deleted manifest or entry fails instead of silently
 passing.
+
+## SWE-Bench-CL learning-curve pilot (protocol pre-committed, no results yet)
+
+Everything above measures the synthetic storage environment. This
+section pins, before any result exists, the protocol for the first run
+on real software-engineering tasks: does a lesson store under survival
+selection produce a learning curve across a continual sequence of
+SWE-Bench tasks? The harness lives in `bench/swebench_cl/`; this
+section is committed ahead of any scored run so the cells below cannot
+be bent around the numbers later.
+
+### Pinned data
+
+- Dataset: SWE-Bench-CL-Curriculum v1.0.0 (arXiv 2507.00014), which
+  organizes SWE-Bench Verified instances into per-repository
+  continual-learning sequences. Upstream publishes one JSON file with
+  no release tags, so the pin is exact bytes:
+  `thomasjoshi/agents-never-forget` at commit `74a38a90baace2563`,
+  sha256 `91bc39a769b6218419bd44308650e5d2c846ecd3e6f7a6c086f74a37b6db90f7`.
+  `load_dataset` refuses any file whose hash differs; the pin was
+  re-verified against the live upstream blob on 2026-06-12.
+- Sequences, committed in `bench/swebench_cl/manifests/pilot.json`:
+  `pytest-dev_pytest_sequence` (19 tasks) and
+  `astropy_astropy_sequence` (22 tasks), in the dataset's own
+  curriculum order. The manifest holds task identity only (instance
+  id, order, repo, base commit); problem statements and test lists
+  stay in the verified dataset file and the join is checked both ways
+  at run time, so a moved base commit refuses to run. All 41 pinned
+  instances are members of SWE-bench_Verified (checked against the
+  Hugging Face dataset, 500 ids, on 2026-06-12), so the official
+  evaluation images and harness apply unchanged.
+
+### Arms
+
+Defined in code (`bench/swebench_cl/arms.py`), all three answering the
+same tasks through the same endpoint and executor:
+
+| arm | lessons injected | minted | settled |
+|---|---|---|---|
+| memory_on | top-k by relevance | yes | yes, by eval outcome |
+| memory_off | none | no | no |
+| random_matched | uniformly random alive lessons under the SAME token budget relevance retrieval would have spent on that task | yes | yes, by eval outcome |
+
+`random_matched` is the control that matters, mirroring the storage
+bench's arm of the same name: same memory quantity, same credit
+mechanics, no outcome-directed selection. If memory_on does not beat
+it, the learning curve is a token-budget effect, not a memory effect.
+
+### Per-task protocol
+
+1. Retrieve k=3 lessons for the query `repo + problem statement`;
+   inject per arm.
+2. One completion, temperature 0, through one OpenAI-compatible
+   endpoint config (`bench/swebench_cl/model.py`). Ollama for plumbing
+   runs; a frontier endpoint later is a base_url, model, api_key
+   change and nothing else.
+3. Extract the unified diff; an empty patch is a real result that
+   settles at exactly 0, never an error.
+4. Evaluate with the official SWE-Bench harness in the official
+   x86_64 instance images (`DockerExecutor`); every pull is sized
+   against Docker Hub first and refused outright if free disk would
+   drop below 4 GB. Settlement delta = fraction of fail-to-pass tests
+   gained minus fraction of pass-to-pass tests broken, in [-1, 1],
+   read from the harness's per-instance report.
+5. Settle injected lessons through the library's one credit rule
+   (same tanh, same supporting share as production), mint one lesson
+   from a deterministic template (verdict from the eval result only;
+   the text may quote the model's own one-line reflection, sanitized),
+   charge one upkeep tick.
+6. Write one run JSON per task (schema pinned by tests); committed
+   evidence binds to `bench/results/MANIFEST.json` exactly as the
+   storage suites do. Smoke runs stay uncommitted.
+
+### Pre-committed cells
+
+To be filled only from committed run JSONs under `bench/results/`,
+per (sequence, arm), seeds stated when they exist. Every contributing
+run must carry `eval.mode == "docker"`; the CLI enforces this by
+refusing `--update-manifest` for any other executor, so stub plumbing
+runs can never enter committed evidence.
+
+| cell | memory_on | memory_off | random_matched |
+|---|---|---|---|
+| resolve rate, full sequence | pending | pending | pending |
+| resolve rate, first half vs second half | pending | pending | pending |
+| mean settlement delta, first half vs second half | pending | pending | pending |
+| injected lesson tokens, second half | pending | n/a | pending |
+| store population at end / upkeep deaths | pending | n/a | pending |
+
+The learning-curve claim is the second-half minus first-half
+improvement of memory_on against both controls, with the same paired
+per-seed machinery as the storage suites once seeds exist.
+
+### What the pilot must show before any expansion
+
+Pre-committed gates, in order of priority:
+
+- The store must reach its survival budget within a sequence: deaths
+  from upkeep must be nonzero, so culling decisions actually happen.
+  A pilot whose store never fills says nothing about selection.
+- Injection must be real: lessons minted early in a sequence must be
+  retrieved into later prompts at a nonzero rate, or the arms are
+  identical by construction.
+- The headline cell, reported per sequence position: resolve rate and
+  settlement delta, memory_on vs memory_off vs random_matched, same
+  seeds. memory_on must beat both controls, and random_matched is the
+  bar that decides: beating it shows outcome-directed selection at
+  work, where beating memory_off alone could be a token-budget effect.
+- Per-position curves over at least 3 seeds before any claim of a
+  learning curve; one seed is an anecdote.
+
+### Plumbing validation, 2026-06-12 (Apple Silicon, 6-7 GB free disk)
+
+What actually ran, stated plainly:
+
+- Full pipeline live against a local Ollama endpoint with the
+  documented stub executor: manifest loaded, dataset hash verified,
+  real model calls (qwen3:4b, llama3.2:3b), both response paths
+  exercised (qwen3:4b spent its entire token budget thinking and
+  returned empty content, which settled cleanly at 0; llama3.2:3b
+  produced a real 505-char diff that flowed through extraction,
+  evaluation, settlement, and minting), lessons minted on every task,
+  store ticked, run JSON written in the committed schema.
+- Docker path, up to the guard: image existence and size verified
+  against the registry (x86_64 published for the pinned instances, no
+  arm64 variants), x86_64 emulation confirmed working on this host,
+  swebench 4.1.0 installed and its CLI flags verified. The disk guard
+  then refused the 0.98 GB compressed pull live (estimated 2.76 GB on
+  disk against 5.5 GB free and a 4 GB floor), which is the guard
+  doing exactly its job. The report-parsing leg is covered by offline
+  tests against both official report shapes (per-instance and run
+  summary).
+- A real pilot run therefore needs: a linux x86_64 runner (or an
+  Apple Silicon machine with 20+ GB free that accepts emulation
+  slowness), roughly 3 GB transient disk per instance image (freed
+  between tasks at `--cache_level none`), about 1 GB for the swebench
+  package plus dataset caches, and model spend in the low single-digit
+  dollars per seed at mid-tier frontier pricing (41 tasks x 3 arms,
+  about 2k prompt + 1k completion tokens per call), so a 5-seed pilot
+  is tens of dollars.
+
+### Reproduce (pilot)
+
+```bash
+pip install -e . swebench
+python -m bench.swebench_cl.run pin --dataset SWE-Bench-CL-Curriculum.json \
+  --out bench/swebench_cl/manifests/pilot.json   # byte-identical to the committed pin
+python -m bench.swebench_cl.run run \
+  --manifest bench/swebench_cl/manifests/pilot.json \
+  --dataset SWE-Bench-CL-Curriculum.json \
+  --sequence pytest-dev_pytest_sequence --arm memory_on \
+  --executor docker --seed 0 --out bench/results/swebench_cl_pilot.json \
+  --update-manifest
+```
