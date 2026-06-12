@@ -1,5 +1,7 @@
 # darwin-memo
 
+<!-- mcp-name: io.github.rogermsc/darwin-memo -->
+
 [![CI](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml/badge.svg)](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/darwin-memo)](https://pypi.org/project/darwin-memo/)
 [![Python](https://img.shields.io/pypi/pyversions/darwin-memo)](https://pypi.org/project/darwin-memo/)

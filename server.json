@@ -1,0 +1,42 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.rogermsc/darwin-memo",
+  "title": "darwin-memo",
+  "description": "Self-curating agent memory kept honest by survival-based selection over measured outcomes.",
+  "repository": {
+    "url": "https://github.com/rogermsc/darwin-memo",
+    "source": "github",
+    "id": "1265188448"
+  },
+  "websiteUrl": "https://github.com/rogermsc/darwin-memo",
+  "version": "0.5.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "darwin-memo",
+      "version": "0.5.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--from",
+          "value": "darwin-memo[mcp]",
+          "description": "Install the mcp extra; the stdio server entry point is the darwin-memo-mcp console script",
+          "isRequired": true
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "DARWIN_MEMO_PATH",
+          "description": "Path to the persistent memory file (default ~/.darwin-memo/memory.json)",
+          "isRequired": false,
+          "format": "filepath"
+        }
+      ]
+    }
+  ]
+}
