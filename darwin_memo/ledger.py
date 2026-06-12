@@ -46,7 +46,7 @@ from typing import Any
 from .consolidate import consolidate
 from .protocol import QueryProtocol
 from .retrieval import Retriever
-from .store import MemoryStore, write_json_atomic
+from .store import MemoryStore, store_lock, write_json_atomic
 from .survival import SurvivalConfig, assign_credit, is_silent
 from .types import EntryKind, MemoryEntry
 
@@ -278,7 +278,10 @@ class Ledger:
         """One file, atomically written: the store plus the ledger state.
 
         ``MemoryStore.load`` ignores the ledger key, so the file remains
-        a valid plain store file for store-only consumers.
+        a valid plain store file for store-only consumers. The write
+        holds the sidecar advisory lock: an overlapping save or load on
+        the same file raises ``StoreLockedError`` instead of silently
+        clobbering (see :func:`darwin_memo.store.store_lock`).
         """
         payload = self.store.to_payload()
         payload["ledger"] = {
@@ -287,7 +290,8 @@ class Ledger:
             "history": {k: list(v) for k, v in self._history.items()},
             "damaged": sorted(self._damaged),
         }
-        write_json_atomic(path, payload)
+        with store_lock(path):
+            write_json_atomic(path, payload)
 
     @classmethod
     def load(
@@ -304,7 +308,8 @@ class Ledger:
         A plain store file (no ledger key) loads with fresh ledger
         state, so upgrading from MemoryStore persistence just works.
         """
-        payload = json.loads(Path(path).read_text())
+        with store_lock(path):
+            payload = json.loads(Path(path).read_text())
         store = MemoryStore.from_payload(payload, retriever=retriever)
         ledger = cls(
             store,

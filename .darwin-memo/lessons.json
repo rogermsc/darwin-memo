@@ -134,7 +134,16 @@
   "graveyard": [],
   "ledger": {
     "tick_count": 8,
-    "pending": [],
+    "pending": [
+      {
+        "query": "Can concurrent processes safely write one memory store file in parallel?",
+        "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
+        "deciding_entry": "7af78c536de1",
+        "supporting_entries": [],
+        "born_tick": 8,
+        "id": "a6e4388f2086"
+      }
+    ],
     "history": {
       "053a99cf0a4c": [
         "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"

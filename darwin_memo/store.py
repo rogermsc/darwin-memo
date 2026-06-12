@@ -20,14 +20,65 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Collection
+from collections.abc import Collection, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from .retrieval import LexicalRetriever, Retriever, tokenize
 from .types import MemoryEntry
 
-__all__ = ["MemoryStore", "tokenize"]
+# fcntl is POSIX-only. CI runs Linux, so the flock path is the tested
+# one; where the import fails (Windows) the advisory lock degrades to a
+# no-op, which is exactly the lockless behavior every release before
+# 0.5.0 had on every platform. The single-writer contract is unchanged
+# either way.
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows only
+    fcntl = None  # type: ignore[assignment]
+
+__all__ = ["MemoryStore", "StoreLockedError", "tokenize"]
+
+
+class StoreLockedError(RuntimeError):
+    """Another process holds the advisory lock on a store file."""
+
+
+@contextmanager
+def store_lock(path: str | Path) -> Iterator[None]:
+    """Hold the sidecar advisory lock for one persistence operation.
+
+    darwin-memo is single-writer by contract, and this lock does not
+    change that: there is no blocking, no waiting, no multi-writer
+    merge. What it adds is noise. Two operations overlapping on one
+    store file used to clobber each other silently (last writer wins);
+    now the second one raises :class:`StoreLockedError` instead. The
+    lock is ``fcntl.flock`` with ``LOCK_EX | LOCK_NB`` on a sidecar
+    file (``memory.json.lock``), held only for the duration of one save
+    or load, so the atomic temp-file-and-rename dance on the store file
+    itself never touches the lock. The sidecar is never unlinked:
+    removing it would race a concurrent acquisition onto a dead inode.
+    """
+    if fcntl is None:  # pragma: no cover - Windows only
+        yield
+        return
+    target = Path(path)
+    lock_path = target.with_name(target.name + ".lock")
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            raise StoreLockedError(
+                f"{lock_path} is held by another process. darwin-memo "
+                "is single-writer: concurrent operations on one store "
+                "file would silently overwrite each other, so this one "
+                "refuses to run. Retry after the holder finishes."
+            ) from exc
+        yield
+    finally:
+        os.close(fd)
 
 
 class MemoryStore:
@@ -176,11 +227,13 @@ class MemoryStore:
         return store
 
     def save(self, path: str | Path) -> None:
-        write_json_atomic(path, self.to_payload())
+        with store_lock(path):
+            write_json_atomic(path, self.to_payload())
 
     @classmethod
     def load(cls, path: str | Path, retriever: Retriever | None = None) -> MemoryStore:
-        payload = json.loads(Path(path).read_text())
+        with store_lock(path):
+            payload = json.loads(Path(path).read_text())
         return cls.from_payload(payload, retriever=retriever)
 
 

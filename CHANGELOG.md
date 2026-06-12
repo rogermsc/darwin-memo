@@ -6,48 +6,48 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
+## [0.5.0] - 2026-06-12
 
-- xhigh review findings: every EVM transport failure (DNS, refused,
-  TLS, read timeout) now surfaces as `EvmRpcError` instead of a bare
-  socket exception; `eth_call` empty return data (`"0x"`, the
-  no-contract-code case) reads as a measurement failure instead of a
-  Python `ValueError`; `tx_cost` guards a null transaction body. New
-  `Ledger.add`/`Ledger.forget` put entry writes and burials on the
-  event log and enforce escrow at the invariant's home (`forget`
-  returns buried/escrowed/missing); the CLI routes through them,
-  validates non-empty add, and keys all three decide fields on
-  provenance so consumers never see a ticket without an answer.
+The release that unbreaks the published OpenClaw plugin: its install
+instructions invoke `darwin-memo ledger`, which existed on main but
+not in PyPI 0.4.0. It is also the first release where a concurrent
+clobber of a store file is loud instead of silent.
 
 ### Added
 
 - `darwin-memo ledger FILE OP`: every Ledger operation as a CLI
   subcommand with one JSON object on stdout (decide, settle, abandon,
   add, forget, tick, stats, obituary). The scripting bridge for shell
-  scripts, CI steps, and host-process plugins — built for the OpenClaw
+  scripts, CI steps, and host-process plugins, built for the OpenClaw
   memory plugin, whose host SDK ships no MCP client. The store
   auto-creates on first use; mutating ops save before printing (a
-  crash cannot acknowledge an unsaved settlement, though concurrent
-  invocations on one file are not locked against each other); events
-  append to the same `.events.jsonl` the MCP server writes; and
-  `forget` refuses entries escrowed by pending tickets, since burying
-  one would let a later settle report success while crediting a
-  corpse.
+  crash cannot acknowledge an unsaved settlement, and invocations that
+  overlap on one file trip the advisory lock instead of clobbering
+  each other silently); events append to the same `.events.jsonl` the
+  MCP server writes; and `forget` refuses entries escrowed by pending
+  tickets, since burying one would let a later settle report success
+  while crediting a corpse.
+- Fail-loud advisory file lock on persistence: `MemoryStore.save`/
+  `load` and `Ledger.save`/`load` hold `fcntl.flock` (`LOCK_EX |
+  LOCK_NB`) on a sidecar lock file (`memory.json.lock`) for the
+  duration of the operation, and contention raises `StoreLockedError`
+  naming the lock file. Single-writer stays the contract: no blocking,
+  no waiting, no multi-writer merge. The lock only turns a concurrent
+  clobber from silent data loss into a loud error. POSIX-only; where
+  `fcntl` is missing (Windows) it degrades to a documented no-op.
 - `EvmSettler`: on-chain balances as the conserved resource, with zero
   dependencies (stdlib JSON-RPC). One settler measures one resource
-  for one address — native wei or one ERC-20's raw units — via pinned
+  for one address, native wei or one ERC-20's raw units, via pinned
   block snapshots, so the decide-now-settle-later flow needs no
   archive node. Timestamp-bisection `block_at`/`measure` for
   retroactive windows, and `tx_cost` for single transactions
   (including the OP-stack `l1Fee`, verified to the wei against a live
   balance movement; reverted txs burn gas and move nothing). Default
   endpoint is `mainnet.base.org`, the only one of the public Base
-  RPCs tested that served honest full-archive state — the module
+  RPCs tested that served honest full-archive state: the module
   docstring names the one that silently lies about history. Closes
   the durable half of the Animoca Minds spike (#3);
   `examples/08_evm_settler.py` runs the loop offline.
-
-
 - Dogfood: this repo now runs its own CI lesson store.
   `.darwin-memo/lessons.json` (seeded with real lessons from this
   repo's development by `.darwin-memo/seed.py`) is consulted by agents
@@ -62,7 +62,7 @@ project uses [SemVer](https://semver.org/).
   stays truthful; arms decide off reported deltas and are scored on
   true ones) under three noise models: `flip` (symmetric sign flip),
   `false_bad` (flaky-CI shape: good changes report red), and
-  `magnitude` (sign kept, size lied about — the one model where
+  `magnitude` (sign kept, size lied about: the one model where
   sign-driven heuristics are provably immune and only the ledger can
   degrade). The grid runs to 50% noise so the ledger's own failure
   boundary is published, not just the baselines'.
@@ -71,7 +71,7 @@ project uses [SemVer](https://semver.org/).
   `evict_on_negative` generalized to K lifetime strikes (K=1,2,3),
   `evict_consecutive` (strikes a success wipes clean), and
   `quarantine` (evict on blame, re-encode a fresh copy after a
-  cooldown — the recovery path real deployments have).
+  cooldown: the recovery path real deployments have).
 - `bench.report --paired ARM_A ARM_B [--metric M]`: per-seed paired
   differences with win counts. Flake marks are a fixed property of the
   world at a given (seed, rate, model), so arms are exactly paired and
@@ -95,7 +95,7 @@ project uses [SemVer](https://semver.org/).
   citing nothing: the environment acts, selection has nobody to
   charge). Plus the first measured LLM-mode survival results: with
   llama3.2 the actionable poison dies at cycle 14 in 3/3 seeds (cycle
-  0 in local mode) — citation dilution slows selection by an order of
+  0 in local mode): citation dilution slows selection by an order of
   magnitude, it does not break it.
 
 ### Changed
@@ -107,9 +107,22 @@ project uses [SemVer](https://semver.org/).
   (the shadow schedule would come from a noise-free world; experience
   writes select on reported deltas and embed detail strings that name
   the true delta).
+- Trove classifier moved from `3 - Alpha` to `4 - Beta`: the README
+  has called the Ledger the production shape since 0.2.0 and the
+  dogfood deployment runs it on this repo; the metadata now agrees.
 
 ### Fixed
 
+- xhigh review findings: every EVM transport failure (DNS, refused,
+  TLS, read timeout) now surfaces as `EvmRpcError` instead of a bare
+  socket exception; `eth_call` empty return data (`"0x"`, the
+  no-contract-code case) reads as a measurement failure instead of a
+  Python `ValueError`; `tx_cost` guards a null transaction body. New
+  `Ledger.add`/`Ledger.forget` put entry writes and burials on the
+  event log and enforce escrow at the invariant's home (`forget`
+  returns buried/escrowed/missing); the CLI routes through them,
+  validates non-empty add, and keys all three decide fields on
+  provenance so consumers never see a ticket without an answer.
 - `OllamaClient` caps generation (`max_tokens=1024`, mapped to
   `num_predict`), matching the Anthropic and OpenAI-compat clients.
   Previously unbounded: a small model that loses the plot at
@@ -290,7 +303,8 @@ one: its central promise now holds across process boundaries.
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rogermsc/darwin-memo/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rogermsc/darwin-memo/compare/v0.1.0...v0.2.0
