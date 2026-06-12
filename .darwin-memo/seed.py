@@ -6,7 +6,8 @@ settled by this repo's own CI (see .github/workflows/memory.yml and
 docs/integrations/ci-lesson-store.md). Agents working on the repo
 consult it with ledger.decide(), record the ticket id in the PR body as
 `darwin-memo-ticket: <id>`, and the merge workflow settles the ticket
-with the measured pass-count delta.
+with the measured per-test delta (`darwin-memo settle-ci` over junit
+XML from the base and merge commits).
 
 Run from the repo root. Refuses to overwrite an existing store, because
 a live store carries earned energy and open tickets that a re-seed

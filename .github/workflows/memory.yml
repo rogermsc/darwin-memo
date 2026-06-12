@@ -4,8 +4,9 @@ name: Memory
 # repo's own test suite. Agents consult .darwin-memo/lessons.json via
 # ledger.decide() while working, record the ticket id in the PR body
 # as `darwin-memo-ticket: <id>`, and this workflow settles the ticket
-# with the measured pass-count delta when the PR merges. Lessons that
-# keep shipping green survive; lessons that keep breaking builds die.
+# when the PR merges: junit XML from the base and merge commits,
+# diffed per test id by `darwin-memo settle-ci`. Lessons that keep
+# shipping green survive; lessons that keep breaking builds die.
 # Nobody reviews the store. docs/integrations/ci-lesson-store.md is
 # the general wiring guide this instantiates.
 
@@ -35,29 +36,33 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - name: Measure passing tests at base and merge
+      - name: Run the suite at base and merge, per test
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          count() {
+          report() {
             git checkout -q "$1"
-            pytest -q --tb=no -p no:cacheprovider 2>/dev/null \
-              | grep -Eo '[0-9]+ passed' | grep -Eo '[0-9]+' || echo 0
+            # Failing tests are data, not a step failure; a run that
+            # measured nothing leaves no XML and settle-ci abstains.
+            pytest -q --tb=no -p no:cacheprovider --junitxml "$2" || true
           }
-          echo "PASSES_BEFORE=$(count "$BASE_SHA")" >> "$GITHUB_ENV"
-          echo "PASSES_AFTER=$(count "$MERGE_SHA")" >> "$GITHUB_ENV"
+          report "$BASE_SHA" /tmp/base.xml
+          report "$MERGE_SHA" /tmp/head.xml
           git checkout -q main
       - name: Settle tickets and tick
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: python .darwin-memo/settle.py
+        run: |
+          darwin-memo settle-ci .darwin-memo/lessons.json \
+            --base-xml /tmp/base.xml --head-xml /tmp/head.xml \
+            --scale 2.0 --detail "$RUN_URL"
       - name: Commit the store back to main
         run: |
           git config user.name "darwin-memo-settler"
           git config user.email "actions@users.noreply.github.com"
-          git add .darwin-memo/lessons.json
+          git add .darwin-memo/lessons.json .darwin-memo/flaky.json
           if ! git diff --cached --quiet; then
             git commit -m "memory: settle and tick after PR #${{ github.event.pull_request.number }}"
             git push origin main
