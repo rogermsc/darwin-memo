@@ -39,6 +39,7 @@ from .ledger import Ledger
 from .llm import LLMClient
 from .observe import register_observe_commands
 from .protocol import QueryProtocol
+from .render import register_render_command
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
 
@@ -324,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:
     obituary.add_argument("entry_id")
 
     register_observe_commands(sub)
+    register_render_command(sub)
     add_settle_ci_parser(sub)
 
     args = parser.parse_args(argv)

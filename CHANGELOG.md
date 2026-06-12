@@ -6,6 +6,22 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `darwin-memo render STORE -o MEMORY.md`: project top-balance
+  survivors into Claude Code's auto-memory file under both ceilings the
+  host actually loads, a hard byte budget (`--budget`, default 25kb)
+  and a hard line cap (`--max-lines`, default 200), with admission
+  measured against the fully rendered document. Deterministic: same
+  store, same arguments, byte-identical output. `--split-dir DIR`
+  writes one topic file per kind plus a budget-aware index that counts
+  only the topics it links, and a re-render deletes topic files for
+  kinds with nothing left to show, so dead lessons never linger on the
+  reading surface. A missing or empty-world store renders a minimal
+  honest file; an unreadable store (empty, truncated, locked, or not a
+  store payload) exits with a one-line error and leaves the previous
+  render untouched, so hooks and cron jobs can run it unconditionally.
+
 ## [0.5.0] - 2026-06-12
 
 The release that unbreaks the published OpenClaw plugin: its install
