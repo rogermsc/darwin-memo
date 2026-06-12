@@ -78,15 +78,25 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         ledger.save(memory_path)
 
     @server.tool()
-    def memory_query(query: str) -> str:
+    def memory_query(query: str, half_life: float = 0) -> str:
         """Ask the memory a question. Returns the answer and a ticket id.
+
+        Answers carry each entry's age (UTC recorded timestamp, born
+        tick, last settled tick; "age unknown" for entries persisted
+        before timestamps existed), and near-duplicate entries that
+        disagree surface together as a dated conflict block, newest
+        first, instead of one silently winning. Weigh stale advice
+        accordingly. half_life greater than zero opts into
+        recency-weighted ranking, halving scores every that many ticks
+        since an entry last settled; it reorders results only and never
+        moves energy.
 
         If you act on the answer, keep the ticket id and call
         memory_settle once the outcome is measurable; if you do not act,
         call memory_abandon with it. A silent result means memory has
         nothing relevant: prefer that silence over guessing.
         """
-        ticket = ledger.decide(query)
+        ticket = ledger.decide(query, half_life=half_life if half_life > 0 else None)
         _persist()
         return json.dumps(
             {

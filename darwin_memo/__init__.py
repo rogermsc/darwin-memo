@@ -7,7 +7,7 @@ real measured outcomes, and die when they stop earning. No reward
 models, no judges, no human curation.
 """
 
-from .consolidate import consolidate
+from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
 from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import (
     Environment,
@@ -37,13 +37,22 @@ from .survival import (
     death_cause,
     is_silent,
 )
+from .temporal import (
+    CONFLICT_HEADER,
+    age_annotation,
+    conflict_clusters,
+    newest_first,
+    recency_weight,
+)
 from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
 __version__ = "0.5.0"
 
 __all__ = [
+    "CONFLICT_HEADER",
     "DEFAULT_BASE_RPC",
+    "DEFAULT_MERGE_THRESHOLD",
     "EMBEDDING_MERGE_THRESHOLD",
     "CycleStats",
     "Document",
@@ -79,11 +88,15 @@ __all__ = [
     "Trajectory",
     "VerifiableQAEnv",
     "__version__",
+    "age_annotation",
     "assign_credit",
+    "conflict_clusters",
     "consolidate",
     "death_cause",
     "decision_polarity",
     "demo_corpus",
     "is_silent",
+    "newest_first",
     "ollama_available",
+    "recency_weight",
 ]

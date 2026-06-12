@@ -4,8 +4,15 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
+
+
+def utc_now_iso() -> str:
+    """UTC now in ISO-8601 at second precision, the one timestamp format
+    used package-wide (entry birth stamps, ledger history, event log)."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 class EntryKind(str, Enum):
@@ -33,6 +40,12 @@ class MemoryEntry:
     Energy is the survival currency: every cycle charges upkeep, and the
     only way to earn energy back is to contribute to a task whose outcome
     persists in the environment. There is no quality score and no judge.
+
+    ``recorded_ts`` is the UTC wall-clock moment the entry was created,
+    so every surface that shows the entry can show its age. Entries
+    persisted before the field existed load as the empty string and
+    render as "age unknown": faking a timestamp at load time would be
+    exactly the time-blindness this field exists to fix.
     """
 
     question: str
@@ -41,6 +54,7 @@ class MemoryEntry:
     sources: list[str] = field(default_factory=list)
     energy: float = 1.0
     born_cycle: int = 0
+    recorded_ts: str = field(default_factory=utc_now_iso)
     last_used_cycle: int = -1
     uses: int = 0
     lineage: list[str] = field(default_factory=list)
@@ -59,6 +73,9 @@ class MemoryEntry:
     def from_dict(cls, d: dict[str, Any]) -> MemoryEntry:
         d = dict(d)
         d["kind"] = EntryKind(d["kind"])
+        # Files saved before recorded_ts existed carry no timestamp; the
+        # honest default is "age unknown" (empty), never load time.
+        d.setdefault("recorded_ts", "")
         return cls(**d)
 
 

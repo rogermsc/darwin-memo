@@ -15,11 +15,18 @@ from __future__ import annotations
 from .store import MemoryStore
 from .types import EntryKind, MemoryEntry
 
+# The near-duplicate similarity floor shared by consolidation merges,
+# SurvivalConfig.merge_threshold, and conflict surfacing in retrieval:
+# one constant so "near duplicate" cannot drift between the path that
+# merges entries and the path that flags them as overlapping advice.
+# Over cosine retrievers raise it toward EMBEDDING_MERGE_THRESHOLD.
+DEFAULT_MERGE_THRESHOLD = 0.55
+
 
 def consolidate(
     store: MemoryStore,
     cycle: int,
-    threshold: float = 0.55,
+    threshold: float = DEFAULT_MERGE_THRESHOLD,
     exclude: frozenset[str] | set[str] = frozenset(),
 ) -> int:
     """Merge clusters of similar alive entries. Returns merges performed.
@@ -70,6 +77,11 @@ def _merge(cluster: list[MemoryEntry], cycle: int, max_energy: float) -> MemoryE
         sources=sources,
         energy=min(max_energy, sum(m.energy for m in cluster)),
         born_cycle=cycle,
+        # The merged entry carries its newest member's timestamp, not a
+        # fresh one: the content was recorded then, and stamping merge
+        # time would make stale advice look current on every consult
+        # surface. Empty (age unknown) when no member has a timestamp.
+        recorded_ts=max(m.recorded_ts for m in cluster),
         uses=sum(m.uses for m in cluster),
         lineage=[m.id for m in cluster],
     )

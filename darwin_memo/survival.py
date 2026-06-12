@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from .consolidate import consolidate
+from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
 from .environments import Environment
 from .protocol import QueryProtocol
 from .store import MemoryStore
@@ -37,7 +37,7 @@ class SurvivalConfig:
     credit_gain: float = 0.6
     supporting_share: float = 0.25
     consolidate_every: int = 5
-    merge_threshold: float = 0.55
+    merge_threshold: float = DEFAULT_MERGE_THRESHOLD
     write_experience: bool = True
     experience_min_delta: float = 0.0
     experience_dedup_threshold: float = 0.8
@@ -183,8 +183,12 @@ class SurvivalLoop:
     ) -> None:
         self.store = store
         self.env = env
-        self.protocol = protocol or QueryProtocol(store)
         self.config = config or SurvivalConfig()
+        # Default protocol flags conflicting advice at the same floor
+        # this loop consolidates at; see Ledger.__init__ for the why.
+        self.protocol = protocol or QueryProtocol(
+            store, conflict_threshold=self.config.merge_threshold
+        )
 
     def run(self) -> SurvivalReport:
         report = SurvivalReport()
