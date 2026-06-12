@@ -5,10 +5,11 @@ name: Memory
 # ledger.decide() while working, record the ticket id in the PR body
 # as `darwin-memo-ticket: <id>`, and this workflow settles the ticket
 # when the PR merges: junit XML from the base and merge commits,
-# diffed per test id by `darwin-memo settle-ci`. Lessons that keep
-# shipping green survive; lessons that keep breaking builds die.
-# Nobody reviews the store. docs/integrations/ci-lesson-store.md is
-# the general wiring guide this instantiates.
+# diffed per test id by rogermsc/darwin-memo-action, the published
+# wrapper around `darwin-memo settle-ci`. Lessons that keep shipping
+# green survive; lessons that keep breaking builds die. Nobody
+# reviews the store. docs/integrations/ci-lesson-store.md is the
+# general wiring guide this instantiates.
 
 on:
   pull_request:
@@ -17,8 +18,9 @@ on:
 permissions:
   contents: write
 
-# One settler at a time: the store is a single JSON file with no
-# locking (lesson 9 in the store, consulted when this file was written).
+# One settler at a time: the store is a single JSON file guarded only
+# by an advisory lock (lesson 9 in the store, consulted when this
+# file was written).
 concurrency:
   group: darwin-memo-settle
   cancel-in-progress: false
@@ -51,14 +53,19 @@ jobs:
           report "$MERGE_SHA" /tmp/head.xml
           git checkout -q main
       - name: Settle tickets and tick
+        id: settle
+        uses: rogermsc/darwin-memo-action@v1
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          darwin-memo settle-ci .darwin-memo/lessons.json \
-            --base-xml /tmp/base.xml --head-xml /tmp/head.xml \
-            --scale 2.0 --detail "$RUN_URL"
+        with:
+          junit-base: /tmp/base.xml
+          junit-head: /tmp/head.xml
+          scale: "2.0"
+          # The repo commits the store itself to keep the PR number
+          # in the message; the action would use a generic one.
+          commit-store: "false"
       - name: Commit the store back to main
+        if: steps.settle.outputs.result == 'settled'
         run: |
           git config user.name "darwin-memo-settler"
           git config user.email "actions@users.noreply.github.com"
