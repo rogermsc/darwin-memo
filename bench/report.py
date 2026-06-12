@@ -208,7 +208,9 @@ def paired(
     that matches SEVERAL variants in one cell (``evict_on_negative``
     matches k=1, k=2, and k=3) is ambiguous — which variant wins would
     silently change the verdict — so it raises; qualify the arm with
-    its variant key instead.
+    its variant key instead. A duplicated (cell, group, seed) row, e.g.
+    two result files concatenated, raises for the same reason: keeping
+    one copy silently would change the verdict.
     """
 
     def matches(run: dict[str, Any], arm: str) -> bool:
@@ -229,12 +231,17 @@ def paired(
             continue
         slot = by_cell.setdefault(_world_cell(run), {}).setdefault(run["seed"], {})
         group = _group_key(run)
-        if side in slot and slot[side][0] != group:
+        if side in slot:
+            if slot[side][0] != group:
+                raise ValueError(
+                    f"ambiguous arm {arm_a if side == 'a' else arm_b!r}: both "
+                    f"{slot[side][0]!r} and {group!r} match in cell "
+                    f"{_world_cell(run)!r}; qualify the variant (e.g. "
+                    "'evict_on_negative:k=2')"
+                )
             raise ValueError(
-                f"ambiguous arm {arm_a if side == 'a' else arm_b!r}: both "
-                f"{slot[side][0]!r} and {group!r} match in cell "
-                f"{_world_cell(run)!r}; qualify the variant (e.g. "
-                "'evict_on_negative:k=2')"
+                f"duplicate run for {group!r} at seed {run['seed']} in cell "
+                f"{_world_cell(run)!r}; deduplicate the results file"
             )
         slot[side] = (group, run["metrics"][metric])
 
@@ -279,15 +286,22 @@ def significance(
     seeded Monte Carlo above. Holm-Bonferroni then adjusts across the
     FULL grid of comparisons in this call, so the adjusted column
     already pays for every comparison printed next to it. Deterministic
-    ties give p = 1.0, never spurious significance.
+    ties give p = 1.0, never spurious significance. A duplicated
+    (cell, group, seed) row, e.g. two result files concatenated, raises
+    instead of silently keeping the last copy's metric.
     """
     by_cell: dict[str, dict[str, dict[int, float]]] = {}
     arm_of: dict[str, str] = {}
     for run in runs:
         group = _group_key(run)
         arm_of[group] = run["arm"]
-        cell = by_cell.setdefault(_world_cell(run), {})
-        cell.setdefault(group, {})[run["seed"]] = run["metrics"][metric]
+        seeds = by_cell.setdefault(_world_cell(run), {}).setdefault(group, {})
+        if run["seed"] in seeds:
+            raise ValueError(
+                f"duplicate run for {group!r} at seed {run['seed']} in cell "
+                f"{_world_cell(run)!r}; deduplicate the results file"
+            )
+        seeds[run["seed"]] = run["metrics"][metric]
 
     rows: list[dict[str, str]] = []
     raw_pvalues: list[float] = []
@@ -334,6 +348,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fmt", choices=["ascii", "md"], default="ascii")
     parser.add_argument("--check", action="store_true")
     parser.add_argument(
+        "--require-manifest",
+        action="store_true",
+        help="with --check, fail when the file has no manifest entry: "
+        "committed evidence must stay bound to MANIFEST.json",
+    )
+    parser.add_argument(
         "--paired",
         nargs=2,
         metavar=("ARM_A", "ARM_B"),
@@ -371,7 +391,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.check:
-        failures = check(runs) + manifest_failures(args.results, runs)
+        failures = check(runs) + manifest_failures(
+            args.results, runs, require_entry=args.require_manifest
+        )
         if failures:
             for failure in failures:
                 print(f"FAIL: {failure}", file=sys.stderr)

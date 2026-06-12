@@ -49,5 +49,5 @@ jobs:
       - name: Validate committed benchmark results against their manifest
         run: |
           for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json; do
-            python -m bench.report "$f" --check
+            python -m bench.report "$f" --check --require-manifest
           done

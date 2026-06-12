@@ -2,11 +2,12 @@
 
 import json
 import statistics
+import subprocess
 
 import pytest
 
 from bench.manifest import config_hash, manifest_failures, update_manifest
-from bench.report import aggregate, significance
+from bench.report import aggregate, paired, significance
 from bench.stats import bootstrap_ci, holm_bonferroni, paired_permutation_pvalue
 
 # ---------------------------------------------------------------------------
@@ -158,6 +159,28 @@ def test_significance_keeps_world_cells_apart():
     assert all(r["seeds"] == "2" for r in rows)
 
 
+def test_significance_rejects_duplicate_rows():
+    # Two survival rows at one (cell, seed): keeping the last silently
+    # would change every p-value downstream of it.
+    runs = [
+        _fake_run("survival", 0, 10.0),
+        _fake_run("survival", 0, 11.0),
+        _fake_run("ttl", 0, 1.0),
+    ]
+    with pytest.raises(ValueError, match="duplicate"):
+        significance(runs)
+
+
+def test_paired_rejects_duplicate_rows():
+    runs = [
+        _fake_run("survival", 0, 10.0),
+        _fake_run("ttl", 0, 1.0),
+        _fake_run("ttl", 0, 2.0),
+    ]
+    with pytest.raises(ValueError, match="duplicate"):
+        paired(runs, "survival", "ttl")
+
+
 def test_aggregate_reports_bootstrap_intervals():
     metrics = {
         "poison_killed": True,
@@ -231,6 +254,53 @@ def test_manifest_ignores_unlisted_files(tmp_path):
     update_manifest(out, _manifest_runs(), command="cmd")
     assert manifest_failures(tmp_path / "smoke.json", []) == []
     assert manifest_failures(tmp_path / "other" / "x.json", []) == []
+
+
+def test_manifest_require_entry_fails_on_missing_manifest_or_entry(tmp_path):
+    out = tmp_path / "headline.json"
+    runs = _manifest_runs()
+    # No manifest at all: lenient passes, required fails.
+    assert manifest_failures(out, runs) == []
+    failures = manifest_failures(out, runs, require_entry=True)
+    assert any("no MANIFEST.json" in f for f in failures)
+    # Manifest exists but names only a different file.
+    update_manifest(tmp_path / "other.json", runs, command="cmd")
+    assert manifest_failures(out, runs) == []
+    failures = manifest_failures(out, runs, require_entry=True)
+    assert any("no entry" in f for f in failures)
+    # Once the entry exists, required validates clean.
+    update_manifest(out, runs, command="cmd")
+    assert manifest_failures(out, runs, require_entry=True) == []
+
+
+def test_manifest_records_source_commit(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    identity = ["-c", "user.email=t@t", "-c", "user.name=t"]
+    subprocess.run(
+        ["git", *identity, "commit", "--allow-empty", "-q", "-m", "x"],
+        cwd=tmp_path,
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    path = update_manifest(tmp_path / "h.json", _manifest_runs(), command="cmd")
+    entry = json.loads(path.read_text())["files"]["h.json"]
+    assert entry["source_commit"] == head
+    # The manifest itself is untracked now, so a rewrite reads dirty.
+    path = update_manifest(tmp_path / "h.json", _manifest_runs(), command="cmd")
+    entry = json.loads(path.read_text())["files"]["h.json"]
+    assert entry["source_commit"] == head + "-dirty"
+
+
+def test_manifest_source_commit_unknown_outside_git(tmp_path):
+    path = update_manifest(tmp_path / "x.json", _manifest_runs(), command="cmd")
+    entry = json.loads(path.read_text())["files"]["x.json"]
+    assert entry["source_commit"] == "unknown"
 
 
 def test_config_hash_is_order_independent_and_content_sensitive():

@@ -21,6 +21,17 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Statistical rigor for the benchmark suite: seeded bootstrap 95% CIs
+  on every aggregate column, `bench.report --paired ARM_A ARM_B`
+  per-seed difference tables, and `bench.report --tests` (exact paired
+  sign-flip permutation tests vs a baseline, Holm-Bonferroni adjusted
+  across the full printed grid). Committed raw evidence
+  (`bench/results/headline.json`, `noisy.json`, `ablation.json`) is
+  bound to `bench/results/MANIFEST.json`: suite, seeds, config hash,
+  exact reproduction command, library version, and producing git
+  commit per file. CI validates each committed file against its entry
+  with `bench.report --check --require-manifest`, which fails if the
+  manifest or the entry goes missing.
 - `darwin-memo ledger FILE OP`: every Ledger operation as a CLI
   subcommand with one JSON object on stdout (decide, settle, abandon,
   add, forget, tick, stats, obituary). The scripting bridge for shell
@@ -100,6 +111,16 @@ project uses [SemVer](https://semver.org/).
 
 ### Changed
 
+- BREAKING (same-seed worlds): `StorageEnv`, `VerifiableQAEnv`, and
+  `TestSuiteEnv` derive each cycle's RNG from `cycle_rng(seed, cycle)`,
+  a SHA-256 hash of the pair, instead of `random.Random(seed + cycle)`.
+  The old scheme made adjacent seeds shifted windows of one another
+  (seed 3 at cycle 5 WAS seed 4 at cycle 4), so multi-seed spreads read
+  smoother than independent draws justify. The same seed now produces a
+  different world than released 0.4.0; the next release takes at least
+  a minor version bump for this, and the committed benchmark results
+  record their producing commit in `MANIFEST.json` so the evidence
+  stays reproducible from exactly the code that made it.
 - `bench.report --check`'s poison-kill gate now exempts noisy runs:
   under measurement noise a delayed or missed kill is an honest result
   the suite exists to measure, not a CI failure.

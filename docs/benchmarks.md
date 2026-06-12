@@ -434,11 +434,17 @@ python -m bench.report bench/results/noisy.json --paired survival evict_consecut
 
 Per-seed raw JSON IS committed under `bench/results/` (headline, noisy,
 ablation), with `bench/results/MANIFEST.json` recording each file's
-suite, seeds, config hash, exact reproduction command, and library
-version; `bench.report <file> --check` validates a file against its
-manifest entry. The scaling table is timing data from one machine and
+suite, seeds, config hash, exact reproduction command, library version,
+and producing git commit; `bench.report <file> --check` validates a
+file against its manifest entry. The commit matters: the environments'
+per-cycle seed scheme changed after the 0.4.0 release while
+`__version__` still reads 0.4.0, so reproducing the committed numbers
+means checking out the manifest's `source_commit`, not installing the
+released version. The scaling table is timing data from one machine and
 stays uncommitted. Runs are deterministic per seed: rerunning a suite
 twice produces byte-identical metrics apart from wall times, and the
 seeded bootstrap and permutation tests reproduce byte-identically too.
 CI runs `--suite smoke` plus `bench.report --check` on the smoke output
-and on every committed results file on every push.
+and `--check --require-manifest` on every committed results file on
+every push, so a deleted manifest or entry fails instead of silently
+passing.
