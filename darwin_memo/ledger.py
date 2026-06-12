@@ -40,6 +40,7 @@ from __future__ import annotations
 import itertools
 import json
 import uuid
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -48,11 +49,13 @@ from .consolidate import consolidate
 from .protocol import QueryProtocol
 from .retrieval import Retriever
 from .store import MemoryStore, store_lock, write_json_atomic
-from .survival import SurvivalConfig, assign_credit, is_silent
+from .survival import SurvivalConfig, advance_lifecycle, assign_credit, is_silent
 from .types import EntryKind, MemoryEntry, utc_now_iso
 
 _HISTORY_CAP = 100  # per-entry events kept in memory; the JSONL log is full
 _DAMAGE_EPSILON = 1e-9
+# Net-positive local settlements an import owes before it may decide.
+DEFAULT_PROBATION = 3
 EVENT_LOG_MAX_BYTES = 10 * 1024 * 1024  # rotate the JSONL log at this size
 EVENT_LOG_KEEP = 3  # rotated files retained alongside the live one
 
@@ -151,6 +154,17 @@ class Ledger:
         this ledger's tick count; ``kind`` and ``source`` filter the
         candidate entries. All three are pure retrieval concerns:
         escrow, credit, and settlement never see them.
+
+        Probation is enforced inside the protocol (local retrieval
+        never elects a probationary decider; LLM mode demotes or
+        withholds at the citation parse site, see
+        ``QueryProtocol._enforce_probation``), so every protocol
+        consumer inherits it. This method re-checks anyway: a custom
+        protocol that overrides ``answer`` bypasses the parse site,
+        and a ticket must never carry a probationary decider. When
+        every consulted entry is probationary the answer is withheld
+        entirely: imported knowledge alone never drives a decision
+        and never earns from its own answer.
         """
         answer = self.protocol.answer(
             query,
@@ -160,23 +174,42 @@ class Ledger:
             kind=kind,
             source=source,
         )
+        text = answer.annotated_text or answer.text
+        deciding = answer.deciding_entry
+        supporting = list(answer.supporting_entries)
+        if deciding is not None:
+            decider = self.store.get(deciding)
+            if decider is not None and not decider.may_decide:
+                supporting.append(deciding)
+                deciding = None
+        withheld: list[str] = []
+        if deciding is None and supporting:
+            on_probation = [
+                entry_id
+                for entry_id in supporting
+                if (e := self.store.get(entry_id)) is not None and not e.may_decide
+            ]
+            if len(on_probation) == len(supporting):
+                withheld = supporting
+                supporting = []
+                text = ""
         ticket = Ticket(
             query=query,
-            answer=answer.annotated_text or answer.text,
-            deciding_entry=answer.deciding_entry,
-            supporting_entries=answer.supporting_entries,
+            answer=text,
+            deciding_entry=deciding,
+            supporting_entries=supporting,
             born_tick=self.tick_count,
         )
         if ticket.provenance:
             self._pending[ticket.id] = ticket
+        extra: dict[str, Any] = {"withheld": withheld} if withheld else {}
         self._log(
             "decide",
             ticket=ticket.id,
             query=query,
-            silent=is_silent(
-                answer.text, answer.deciding_entry, answer.supporting_entries
-            ),
+            silent=is_silent(text, deciding, supporting),
             provenance=ticket.provenance,
+            **extra,
         )
         return ticket
 
@@ -217,6 +250,10 @@ class Ledger:
                 delta=delta,
                 detail=detail,
             )
+        for entry_id, event in advance_lifecycle(
+            self.store, applied, delta, ticket.deciding_entry
+        ):
+            self._note_lifecycle(entry_id, event, delta, ticket)
 
         # Escrow released for THIS ticket: bury what is dead, unless
         # another pending ticket still escrows it. The invariant is that
@@ -226,7 +263,17 @@ class Ledger:
         buried: list[str] = []
         for entry_id in ticket.provenance:
             entry = self.store.get(entry_id)
-            if entry is not None and not entry.alive and entry_id not in still_escrowed:
+            if entry is None:
+                continue
+            if entry.pinned:
+                # Pin means nothing removes this. Settlement damage may
+                # drain a pinned balance below zero, but the sweep floors
+                # it at zero exactly as charge_upkeep does, instead of
+                # burying: a pinned entry survives bad outcomes the same
+                # way it survives starvation, until a human unpins it.
+                entry.energy = max(entry.energy, 0.0)
+                continue
+            if not entry.alive and entry_id not in still_escrowed:
                 self.store.bury(entry_id)
                 buried.append(entry_id)
                 self._note(
@@ -260,8 +307,13 @@ class Ledger:
         """Write a new entry through the ledger, so the event is logged.
 
         The entry starts at spawn energy and must earn its keep from
-        here: adding is cheap, surviving is not.
+        here: adding is cheap, surviving is not. When admission gating
+        is on (``config.admission_window`` > 0) the entry also starts
+        juvenile: its deciding credit is capped at the supporting share
+        and one negative deciding outcome buries it on the spot, which
+        bounds the cold-start damage a wrong young lesson can cause.
         """
+        juvenile = max(0, self.config.admission_window)
         entry = self.store.add(
             MemoryEntry(
                 question=question,
@@ -269,11 +321,14 @@ class Ledger:
                 kind=EntryKind.EXPERIENCE,
                 sources=[source],
                 born_cycle=self.tick_count,
+                juvenile=juvenile,
             )
         )
+        window = f", juvenile window {juvenile}" if juvenile else ""
         self._note(
             entry.id,
-            f"born at tick {self.tick_count} (source {source}, stake {entry.energy:g})",
+            f"born at tick {self.tick_count} "
+            f"(source {source}, stake {entry.energy:g}{window})",
             event="birth",
             source=source,
             stake=entry.energy,
@@ -283,6 +338,108 @@ class Ledger:
         )
         return entry
 
+    def import_entries(
+        self,
+        entries: Iterable[MemoryEntry],
+        source: str,
+        probation: int = DEFAULT_PROBATION,
+    ) -> list[MemoryEntry]:
+        """Copy foreign entries in on probation: they re-earn locally.
+
+        Each living foreign entry arrives as a fresh local entry at
+        spawn energy (a foreign balance is foreign-earned and does not
+        transfer), keeps its id and text, and carries provenance:
+        ``imported_from`` is the caller's source label and
+        ``imported_at`` the import time. While ``probation`` > 0 the
+        entry cannot be the deciding entry of any ticket; it rides
+        along as support, settles normally when co-consulted, and
+        graduates after ``probation`` net-positive settlements.
+        ``probation=0`` imports at full status, which is the bootstrap
+        path for a source you trust completely.
+
+        Import is idempotent on ids: an id already present in this
+        store, living or buried, is skipped, so re-importing the same
+        source neither duplicates entries nor resurrects ones that
+        died here.
+        """
+        stamp = utc_now_iso()
+        imported: list[MemoryEntry] = []
+        for foreign in entries:
+            if not foreign.alive:
+                continue
+            if (
+                self.store.get(foreign.id) is not None
+                or self.store.get_dead(foreign.id) is not None
+            ):
+                continue
+            entry = self.store.add(
+                MemoryEntry(
+                    question=foreign.question,
+                    answer=foreign.answer,
+                    kind=foreign.kind,
+                    sources=list(foreign.sources),
+                    born_cycle=self.tick_count,
+                    probation=max(0, probation),
+                    imported_from=source,
+                    imported_at=stamp,
+                    id=foreign.id,
+                )
+            )
+            imported.append(entry)
+            self._note(
+                entry.id,
+                f"imported at tick {self.tick_count} from {source} "
+                f"(probation {entry.probation}, stake {entry.energy:g})",
+                event="import",
+                source=source,
+                probation=entry.probation,
+                stake=entry.energy,
+            )
+            self._log(
+                "import", entry=entry.id, source=source, probation=entry.probation
+            )
+        return imported
+
+    def pin(self, entry_id: str) -> bool:
+        """Protect a living entry from starvation culling and merges.
+
+        A pinned entry still pays upkeep but its balance floors at zero
+        instead of triggering burial, consolidation never merges it
+        away, and ``forget`` refuses it until unpinned. For
+        rare-but-critical knowledge whose payoff cadence is longer than
+        the starvation horizon: the fire-extinguisher lesson that pays
+        off once a year must survive the wait. Pinning opts the entry
+        out of selection's kill switch, so pin sparingly
+        (docs/threat-model.md). Returns False when the id is not alive.
+        """
+        entry = self.store.get(entry_id)
+        if entry is None:
+            return False
+        if not entry.pinned:
+            entry.pinned = True
+            self._note(
+                entry_id,
+                f"pinned at tick {self.tick_count}: culling and merges disabled",
+                event="pinned",
+            )
+            self._log("pin", entry=entry_id)
+        return True
+
+    def unpin(self, entry_id: str) -> bool:
+        """Remove pin protection; survival pressure resumes next tick."""
+        entry = self.store.get(entry_id)
+        if entry is None:
+            return False
+        if entry.pinned:
+            entry.pinned = False
+            self._note(
+                entry_id,
+                f"unpinned at tick {self.tick_count}: survival pressure resumes",
+                event="unpinned",
+            )
+            self._log("unpin", entry=entry_id)
+        return True
+
     def forget(self, entry_id: str) -> str:
         """Bury an entry, honoring escrow. Returns the outcome.
 
@@ -290,15 +447,21 @@ class Ledger:
         alive, and ``"escrowed"`` when a pending ticket names it:
         burying an escrowed entry would let a later settle report
         success while crediting a corpse, violating the invariant that
-        a verdict can never arrive after the execution. This is the
-        one bury path callers should use; ``store.bury`` is the raw
-        mechanism and enforces nothing.
+        a verdict can never arrive after the execution. ``"pinned"``
+        when the entry is pinned: pin means nothing removes this, so
+        an explicit forget requires an explicit unpin first. This is
+        the one bury path callers should use; ``store.bury`` is the
+        raw mechanism and enforces nothing.
         """
         if entry_id in self._escrowed_ids():
             self._log("forget_refused", entry=entry_id, reason="escrowed")
             return "escrowed"
-        if self.store.get(entry_id) is None:
+        entry = self.store.get(entry_id)
+        if entry is None:
             return "missing"
+        if entry.pinned:
+            self._log("forget_refused", entry=entry_id, reason="pinned")
+            return "pinned"
         self.store.bury(entry_id)
         self._note(
             entry_id,
@@ -477,6 +640,47 @@ class Ledger:
 
     def _escrowed_ids(self) -> set[str]:
         return {entry_id for t in self._pending.values() for entry_id in t.provenance}
+
+    def _note_lifecycle(
+        self, entry_id: str, event: str, delta: float, ticket: Ticket
+    ) -> None:
+        """Narrate one lifecycle event from :func:`advance_lifecycle`.
+
+        The arithmetic lives in ``darwin_memo.survival`` so the loop
+        advances the same counters; what is ledger-specific is the
+        history note, the event log line, and marking a denied entry
+        damaged so the settle sweep and the obituary call it executed.
+        """
+        if event == "graduated":
+            self._note(
+                entry_id,
+                f"graduated from probation at tick {self.tick_count}: "
+                "may decide from here",
+                event="graduated",
+                lifecycle="probation",
+            )
+            self._log("graduate", entry=entry_id, lifecycle="probation")
+        elif event == "admitted":
+            self._note(
+                entry_id,
+                f"admitted at tick {self.tick_count}: juvenile window "
+                "complete, full deciding credit from here",
+                event="graduated",
+                lifecycle="admission",
+            )
+            self._log("graduate", entry=entry_id, lifecycle="admission")
+        elif event == "admission_denied":
+            self._damaged.add(entry_id)
+            self._note(
+                entry_id,
+                f"admission denied at tick {self.tick_count}: negative "
+                f"outcome ({delta:+g}) while deciding inside the "
+                "juvenile window",
+                event="admission_denied",
+                delta=delta,
+                ticket=ticket.id,
+            )
+            self._log("admission_denied", entry=entry_id, delta=delta)
 
     def _note(self, entry_id: str, text: str, **data: Any) -> None:
         history = self._history.setdefault(entry_id, [])

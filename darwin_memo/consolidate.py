@@ -33,9 +33,28 @@ def consolidate(
 
     Entries in ``exclude`` never merge: the Ledger excludes entries with
     unsettled outcomes so a pending verdict's provenance ids stay valid.
+    Pinned entries never merge either, as anchor or member: a merge
+    would bury the pinned id and pool its text into an unpinned heir,
+    which is exactly the removal pinning exists to forbid.
+
+    Probationary and juvenile entries are excluded for the same shape
+    of reason: a merge would launder the lifecycle. The CONSOLIDATED
+    heir starts with probation and juvenile at zero, so a poisoned
+    import that near-duplicates a strong local entry (the attacker
+    controls the text) would pool into an heir that carries the poison
+    answer, full deciding rights, and the cluster's energy, skipping
+    every settlement probation exists to demand (docs/threat-model.md).
+    They merge like anyone else once they graduate.
     """
     alive = sorted(
-        (e for e in store.alive() if e.id not in exclude),
+        (
+            e
+            for e in store.alive()
+            if e.id not in exclude
+            and not e.pinned
+            and e.probation <= 0
+            and e.juvenile <= 0
+        ),
         key=lambda e: e.energy,
         reverse=True,
     )
