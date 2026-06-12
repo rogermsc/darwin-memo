@@ -23,9 +23,18 @@
       "runtimeArguments": [
         {
           "type": "named",
-          "name": "--from",
+          "name": "--with",
           "value": "darwin-memo[mcp]",
-          "description": "Install the mcp extra; the stdio server entry point is the darwin-memo-mcp console script",
+          "description": "Install the mcp extra alongside the version-pinned package; with --from, uvx would read the darwin-memo@VERSION spec as a literal executable name and fail",
+          "isRequired": true
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "valueHint": "mcp",
+          "description": "Subcommand of the darwin-memo console script (the one uvx runs for darwin-memo@VERSION) that serves MCP over stdio",
           "isRequired": true
         }
       ],
