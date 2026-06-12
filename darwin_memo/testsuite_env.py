@@ -20,6 +20,7 @@ raise. It is a micro-runner for generated micro-projects, not pytest.
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -118,23 +119,39 @@ _FIX_PROMPTS = {
 }
 
 
-def run_suite(app_source: str, test_source: str) -> int:
-    """Count passing tests. Execution is the measurement, nothing grades."""
+# The canonical, ordered test roster, derived from the suite source so
+# it can never drift from what actually runs. Consumers that need a
+# stable iteration order over tests (the bench's flaky-measurement
+# wrapper draws one RNG mark per test per cycle) iterate this tuple.
+TEST_NAMES: tuple[str, ...] = tuple(re.findall(r"^def (test_\w+)", _TESTS, re.M))
+
+
+def run_suite_detail(app_source: str, test_source: str) -> frozenset[str]:
+    """The set of passing test names. Execution is the measurement.
+
+    A module-level exception (the suite does not even load) passes
+    nothing, exactly like ``run_suite`` counting zero.
+    """
     namespace: dict[str, Any] = {}
     try:
         exec(app_source, namespace)
         exec(test_source, namespace)
     except Exception:
-        return 0
-    passes = 0
+        return frozenset()
+    passing: set[str] = set()
     for name, fn in namespace.items():
         if name.startswith("test_") and callable(fn):
             try:
                 fn()
-                passes += 1
+                passing.add(name)
             except Exception:
                 pass
-    return passes
+    return frozenset(passing)
+
+
+def run_suite(app_source: str, test_source: str) -> int:
+    """Count passing tests. Execution is the measurement, nothing grades."""
+    return len(run_suite_detail(app_source, test_source))
 
 
 class TestSuiteEnv:

@@ -91,6 +91,26 @@ def smoke_suite() -> list[RunSpec]:
                 label=f"model={model},rate={rate:.2f}{suffix}",
             )
         )
+    # A TestSuiteEnv slice so the second environment family cannot rot
+    # unexercised in CI: one clean run per selection family plus one
+    # flaky-pass-count cell.
+    for arm, extra, suffix, rate in (
+        ("survival", {}, "", 0.0),
+        ("evict_on_negative", {"strikes": 1}, ",k=1", 0.0),
+        ("keep_everything", {}, "", 0.0),
+        ("survival", {}, "", 0.2),
+    ):
+        noisy = {"flake_rate": rate} if rate else {}
+        specs.append(
+            RunSpec(
+                suite="smoke",
+                arm=arm,
+                seed=0,
+                cycles=12,
+                overrides={"env_family": "testsuite", **noisy, **extra},
+                label=f"env=testsuite,rate={rate:.2f}{suffix}",
+            )
+        )
     return specs
 
 

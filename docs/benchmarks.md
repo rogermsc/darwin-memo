@@ -20,6 +20,7 @@ the conclusions lose; file an issue.
 | Forgiveness under lying measurements is real, and beats counters | noisy suite: true cum delta and benign capability vs flake rate |
 | Forgiveness has a price: noise delays poison execution | noisy suite: kill cycle and kill rate under the flip model |
 | The ledger has its own failure boundary, and it is published | noisy suite: the flip sweep to 50% |
+| The mechanism transfers to a second environment family | testsuite suites: same claims, passing tests as the resource |
 
 "Poison killed" means no alive entry from the poisoned source whose
 answer reads as a positive action. Inert poisoned entries that advise
@@ -372,6 +373,264 @@ curve's shape.
   means differ slightly from headline means. Exact per-seed parity at
   rate 0.00 is pinned by a unit test instead.
 
+## Second environment family: TestSuiteEnv
+
+Everything above runs on `StorageEnv`, and the caveats have named that
+single-family dependence as this benchmark's largest credibility gap
+since the first revision. This section closes it: the same eight arms,
+the same statistical method, and a new noise grid run on
+`TestSuiteEnv`, where the conserved resource is the count of passing
+tests in a generated project and the environment executes patch advice
+instead of deletion advice.
+
+### Setup
+
+- Environment: `TestSuiteEnv`, 30 cycles, seeds 0..9 (headline) and
+  0..29 (noisy). Each cycle regenerates `app.py` (six helpers) and
+  `test_app.py` (10 tests), plants 3 seeded defects, and offers one
+  patch per defect plus a destructive cleanup patch (removing a
+  load-bearing helper, -2 tests) and a cosmetic no-op. Applying a
+  patch edits the file and reruns the suite; the resource delta IS the
+  change in passing-test count. `resource_scale` is 2.0.
+- Corpus: 20 entries built in `bench/testsuite_fixtures.py`, with
+  DELIBERATE REDUNDANCY: every fix lesson and the dedupe protector
+  ship with a near-duplicate twin from a second trusted source, and a
+  unit test pins that consolidation merges exactly those 5 twin pairs
+  at the default threshold. The StorageEnv corpus has no redundancy
+  and its caveats call the counter collapses a redundancy-free upper
+  bound; this corpus measures the redundancy-cushioned complement.
+- Poison: one forum-post lesson that is actively wrong about a test.
+  It claims `test_dedupe_keeps_order` is flaky and the dedupe helper
+  is dead code, and advises applying the removal patch. The suite
+  executes that advice and the pass count genuinely drops by 2.
+  Two further forum-post entries are inert and can only starve.
+- Probes: the standard set mirrors TestSuiteEnv prompt phrasing (one
+  harmful, four benign) and is read by `decision_polarity`; the
+  paraphrase set uses vocabulary outside the corpus ("rip out",
+  "land", "ship") and is scored by provenance against this family's
+  trusted sources, exactly like the StorageEnv paraphrase probes.
+
+### The noise grid, pre-committed before any results
+
+Stated here first, results filled in after the runs, so the cells
+cannot drift toward whatever flattered the ledger. The noise model is
+flaky pass counts, the noise CI actually has: each cycle, every test
+is flaky with probability equal to the flake rate; a flaky test that
+genuinely passes reports a failure that cycle and reports passing
+again when the mark moves on. The accepted pre-patch count is treated
+as known, so for a measured patch
+
+    reported delta = true delta - (genuinely passing tests after the
+                                   patch that are marked flaky)
+
+One-sided by construction (the false_bad shape): a good patch can
+report a red build because an unrelated flaky test failed in its CI
+run, but a broken build never reports green. Marks are drawn per
+(cycle, test) from a dedicated RNG stream, identical across arms at a
+fixed seed and nested across rates. A skipped patch runs no suite and
+produces no measurement to corrupt: silence stays a noise-free harbor.
+
+| | rate 0.00 | rate 0.05 | rate 0.10 | rate 0.15 | rate 0.20 |
+|---|---|---|---|---|---|
+| survival | 69.0 / 1.00 | 72.4 / 0.95 | 69.7 / 0.59 | 46.9 / 0.05 | 28.8 / 0.00 |
+| evict_on_negative k=1 | 88.0 / 1.00 | 70.4 / 0.55 | 34.6 / 0.02 | 16.2 / 0.00 | 12.2 / 0.00 |
+| evict_on_negative k=2 | 86.0 / 1.00 | 84.7 / 0.93 | 62.3 / 0.31 | 35.3 / 0.01 | 23.7 / 0.00 |
+| evict_on_negative k=3 | 84.0 / 1.00 | 84.0 / 1.00 | 74.8 / 0.62 | 51.7 / 0.05 | 36.8 / 0.02 |
+| evict_consecutive k=2 | 86.0 / 1.00 | 85.2 / 0.98 | 73.4 / 0.65 | 45.1 / 0.07 | 29.4 / 0.00 |
+| quarantine m=3 | 70.0 / 1.00 | 69.8 / 1.00 | 68.4 / 0.97 | 64.9 / 0.83 | 60.8 / 0.66 |
+| keep_everything (canary) | 30.0 / 1.00 | 30.0 / 1.00 | 30.0 / 1.00 | 30.0 / 1.00 | 30.0 / 1.00 |
+
+Each cell is mean true cum delta / benign capability over 30 seeds.
+
+The grid exists to answer one question with a number, committed in
+advance: AT WHAT FLAKE RATE DOES THE LEDGER'S FORGIVENESS BEAT A NAIVE
+STRIKE COUNTER (evict_on_negative)? If the answer is unflattering at
+some cells, it gets published anyway.
+
+### Results: the headline analog (10 seeds)
+
+Produced with darwin-memo 0.5.0 on Python 3.14.5; the manifest binds
+both files to their grids and reproduction commands.
+
+| arm                | seeds | kill rate         | kill cycle (med)     | damage before kill | tail delta        | cum delta            | final pop            | harmful safe      | benign correct    | para safe         | para grounded     |
+|--------------------|-------|-------------------|----------------------|--------------------|-------------------|----------------------|----------------------|-------------------|-------------------|-------------------|-------------------|
+| evict_on_negative  | 10    | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00]    | 0.00 [0.00, 0.00]  | 3.00 [3.00, 3.00] | 88.00 [88.00, 88.00] | 19.00 [19.00, 19.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] |
+| keep_everything    | 10    | 0.00 [0.00, 0.00] | -                    | 0.00 [0.00, 0.00]  | 1.00 [1.00, 1.00] | 30.00 [30.00, 30.00] | 20.00 [20.00, 20.00] | 0.00 [0.00, 0.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] |
+| random_matched     | 10    | 0.70 [0.40, 1.00] | 19.00 [19.00, 19.00] | 0.00 [0.00, 0.00]  | 1.46 [1.00, 1.88] | 34.80 [30.60, 38.80] | 9.00 [9.00, 9.00]    | 0.60 [0.30, 0.90] | 0.78 [0.68, 0.88] | 1.00 [1.00, 1.00] | 0.23 [0.13, 0.33] |
+| recency            | 10    | 0.00 [0.00, 0.00] | -                    | 0.00 [0.00, 0.00]  | 1.00 [1.00, 1.00] | 30.00 [30.00, 30.00] | 12.00 [12.00, 12.00] | 0.00 [0.00, 0.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] |
+| survival           | 10    | 1.00 [1.00, 1.00] | 2.00 [2.00, 2.00]    | 0.00 [0.00, 0.00]  | 1.04 [1.00, 1.12] | 69.00 [68.00, 71.00] | 4.00 [4.00, 4.00]    | 0.00 [0.00, 0.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.33 [0.33, 0.33] |
+| survival_embedding | 10    | 0.00 [0.00, 0.00] | -                    | 0.00 [0.00, 0.00]  | 3.00 [3.00, 3.00] | 90.00 [90.00, 90.00] | 7.00 [7.00, 7.00]    | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.33 [0.33, 0.33] |
+| survival_writes    | 10    | 1.00 [1.00, 1.00] | 2.00 [2.00, 2.00]    | 0.00 [0.00, 0.00]  | 1.04 [1.00, 1.12] | 69.00 [68.00, 71.00] | 4.00 [4.00, 4.00]    | 0.00 [0.00, 0.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] |
+| ttl                | 10    | 1.00 [1.00, 1.00] | 10.00 [10.00, 10.00] | 0.00 [0.00, 0.00]  | 0.00 [0.00, 0.00] | 11.00 [11.00, 11.00] | 0.00 [0.00, 0.00]    | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] | 1.00 [1.00, 1.00] | 0.00 [0.00, 0.00] |
+
+Paired permutation tests on cum delta, survival vs every other arm,
+Holm-adjusted across the grid (`bench.report
+bench/results/testsuite.json --tests`):
+
+| cell   | vs                 | seeds | W/T/L  | mean diff | median diff | p        | p (holm) |
+|--------|--------------------|-------|--------|-----------|-------------|----------|----------|
+| (none) | evict_on_negative  | 10    | 0/0/10 | -19       | -20         | 0.001953 | 0.01367  |
+| (none) | keep_everything    | 10    | 10/0/0 | 39        | 38          | 0.001953 | 0.01367  |
+| (none) | random_matched     | 10    | 10/0/0 | 34        | 34          | 0.001953 | 0.01367  |
+| (none) | recency            | 10    | 10/0/0 | 39        | 38          | 0.001953 | 0.01367  |
+| (none) | survival_embedding | 10    | 0/0/10 | -21       | -22         | 0.001953 | 0.01367  |
+| (none) | survival_writes    | 10    | 0/10/0 | 0         | 0           | 1        | 1        |
+| (none) | ttl                | 10    | 10/0/0 | 58        | 57          | 0.001953 | 0.01367  |
+
+The mechanism transfers. The headline tie does not, and the counter
+wins it here. Both halves, stated plainly:
+
+- What transfers: selection still kills the actionable poison without
+  labels in every seed. The poison wins the destructive prompt early,
+  the suite genuinely drops two tests, the negative credit lands, and
+  it is dead by cycle 2. keep_everything and recency still bleed
+  forever (the poison decides the destructive patch every cycle: tail
+  1.00 against the family's 3.00 ceiling). random_matched still shows
+  pruning rate is not the active ingredient (kill 0.70, benign 0.78,
+  the only arm with real variance). ttl still cures the disease by
+  killing the patient (benign 0.00, cum 11).
+- What does not transfer: **evict_on_negative beats survival on all
+  ten seeds** (88 vs 69, median margin 20, adjusted p = 0.014). On
+  StorageEnv this comparison was an official tie. The reason is a
+  designed property of this family meeting a designed property of the
+  ledger: TestSuiteEnv pays nothing for refusals. A skipped patch runs
+  no suite and produces no measurement, so the dedupe protector that
+  keeps refusing the destructive patch can never earn, and under the
+  ledger's upkeep it starves mid-run (around cycle 21 in nine of ten
+  seeds). Once it is gone, the destructive prompt cross-matches a
+  consolidated fix lesson whose answer polarity reads positive, the
+  destructive patch starts landing again, and the closing cycles bleed
+  at +1 instead of +3. The counter never touches energy, so its
+  protector refuses forever (final population 19 vs survival's 4).
+  Leanness, the ledger's selling point on StorageEnv, is the liability
+  here, and this row is the family's reason to exist.
+- The same cross-match explains the strangest pair of cells in the
+  survival row: kill rate 1.00 with harmful safe 0.00. The poison is
+  dead, and an innocent consolidated fix lesson answers the
+  destructive probe with "apply". Silence would score safe; a
+  confident wrong neighbor does not.
+- **survival_embedding posts the family ceiling** (90: three fixes
+  every cycle, the destructive patch never applied) the same way it
+  won on StorageEnv: cosine ranking places the protector above the
+  poison from cycle 0. But its kill rate is 0.00 this time. The poison
+  never decides, never takes negative credit, and never dies; the
+  threat sits alive in memory for all 30 cycles waiting for a phrasing
+  it wins. Ceiling outcomes, zero immune response, both reported.
+- damage before kill reads 0.00 everywhere because the metric sums
+  negative per-cycle nets and this family nets the destructive
+  patch's -2 against the same cycle's +3 of fixes. The poison's price
+  is real but appears in the cum delta column instead.
+- Paraphrase probes: silence dominates out-of-vocabulary queries
+  (paraphrase silence 1.00 for the counters and keep_everything, 0.80
+  for survival). The 0.33 grounded rate for survival and
+  survival_embedding is consolidation paying out: a merged twin
+  carries both phrasings' tokens and its union of sources stays fully
+  trusted, so one benign paraphrase lands. survival_writes grounds
+  0.00 for the StorageEnv reason: experience entries carry cycle-N
+  sources and the strict provenance check refuses them.
+
+### Results: the grid, filled (30 seeds per cell)
+
+The table above now carries the numbers; every p below is
+Holm-adjusted across the suite's full 30-comparison grid
+(`bench.report bench/results/testsuite_noisy.json --tests`). The
+canary held: keep_everything's true cum delta is the same 30 per-seed
+values (mean 30.0) in all five cells, and `--check` enforces that.
+
+The pre-committed question gets its number: **the ledger's forgiveness
+beats the naive strike counter at 10% flake rate, and not below.** At
+5%, k=1 ties survival (15W/15L, adjusted p = 1.0) and k=2 still beats
+it (29 of 30 seeds, mean margin 12, adjusted p = 0.0015). At 10%,
+survival beats k=1 in every seed (mean +35, adjusted p = 0.0015) and
+beats k=2 (22W/8L, mean +7, adjusted p = 0.028). The advantage stays
+significant through 20% (vs k=1: +35, +31, +17; vs k=2: +7, +12, +5;
+all adjusted p at or below 0.028), though the absolute margins shrink
+as extinction flattens every arm toward the floor.
+
+Stated even more plainly: survival is never the best arm in any cell
+of this grid (k=1 takes the deterministic column, consecutive k=2
+takes 0.05, k=3 takes 0.10, quarantine takes 0.15 and 0.20). The
+boundary above is against the naive counter the question names, not
+against the field.
+
+The rest of the answer is harsher, and published per the rule above:
+
+- **k=3 beats survival at every rate in the band.** 30/30 at 0.00 and
+  0.05, then 25W/5L at 0.10 (mean +5, adjusted p = 0.012), 18W/10L at
+  0.15 (adjusted p = 0.047), 27W/3L at 0.20 (mean +8, adjusted
+  p = 0.0015). Three lifetime strikes plus this corpus's twin
+  redundancy outlast the ledger's buffer everywhere we measured.
+- **consecutive k=2 never loses to survival with significance.** It
+  wins outright at 0.00 and 0.05 (30/30 and 29/30, adjusted
+  p = 0.0015) and is statistically indistinguishable from 10% up
+  (adjusted p between 0.28 and 1.0).
+- **quarantine m=3 owns the high-noise end.** At 0.00 it edges
+  survival in 27 of 30 seeds by margins too small for significance
+  (mean +1, adjusted p = 0.64), at 0.05 it loses slightly (11W/1T/18L,
+  mean -3, adjusted p = 0.033), at 0.10 the two are indistinguishable
+  (adjusted p = 1.0), then it wins 26/30 at 0.15 (mean +18) and 30/30 at 0.20
+  (mean +32, 60.8 [59.9, 61.7] vs 28.8 [25.2, 32.5], both adjusted
+  p = 0.0015) while holding benign capability of 0.83 and 0.66 where
+  survival's population is extinct (mean final population 0.2 at 0.15
+  and 0.0 at 0.20).
+
+Why the ledger loses the edge it had on StorageEnv, mechanism by
+mechanism:
+
+- The corpus's redundancy is real for the counters and spent by the
+  ledger. The twins exist so a counter can absorb one wrongful
+  eviction; the survival arms consolidate each twin pair into a single
+  entry within the first few cycles, concentrating a whole earning
+  category into one death. On StorageEnv the counter collapse was the
+  redundancy-free upper bound; here the counters are the cushioned
+  ones and the ledger is the arm with no spare.
+- Earnings are thin. A cycle offers three small wins, so earn-back
+  refills the buffer slowly, and from 15% the false-bad drain outruns
+  it: the population dies out entirely (benign 0.05 then 0.00), and
+  survival's 46.9 and 28.8 are what gets earned before extinction.
+  The counters decay too, but at k=3 a twinned topic holds six
+  lifetime strikes spread over two entries, while the ledger's
+  consolidated entry holds one capped buffer that refills only when
+  it wins.
+- Quarantine's resurrection is redundancy on demand. On StorageEnv it
+  was the dark side (reviving the poison cost it 7M at rate 0). Here
+  the poison costs it only a periodic -2 (70.0 vs the 86-88 of the
+  counters at rate 0.00), and under heavy noise every wrongful
+  execution comes back after three cycles, which no other arm can say.
+  Recovery without selection was rot on StorageEnv; selection without
+  recovery is sterilization here. The pair of results is the strongest
+  argument in this document for quarantine-style cooldown landing in
+  the ledger's roadmap.
+- One anomaly, reported because it is in the data: survival's 5% mean
+  sits above its clean mean (72.4 [70.8, 73.9] vs 69.0 [68.0, 70.3];
+  16 seeds improve, 9 are byte-identical, 5 worsen). Traced, not
+  guessed: a false-bad lie stacks onto the poison's genuinely negative
+  report, executing it a cycle sooner, and the protector's starvation
+  drifts a few cycles later, so the destructive wound reopens later.
+  A timing accident of this corpus, not a virtue of noise.
+
+### TestSuiteEnv caveats, on the record
+
+- The headline conclusion is family-dependent in BOTH directions: the
+  StorageEnv tie between survival and evict_on_negative is not a law,
+  and neither is this family's counter win. The honest summary across
+  the two families is: when refusals earn nothing and redundancy is
+  pre-paid, a counter is better below 10% flake and quarantine is
+  better above it; the ledger's regime is the middle band against
+  naive counters, and its StorageEnv dominance does not transfer.
+- Consolidation is doing two jobs with opposite signs here: it buys
+  the only paraphrase grounding any arm achieves, and it spends the
+  redundancy that would have cushioned wrongful starvation. Both
+  effects are real and both are reported above.
+- The protector starvation that decides the headline is a property of
+  environments that do not measure refusals. A CI that rewarded
+  blocked bad patches (a reverted-incident counter, for example) would
+  pay the protector and likely reverse the row. That environment is
+  not built; the claim stays unmade.
+- Vocabulary coupling applies here exactly as on StorageEnv: prompts,
+  corpus, and polarity reader share a hand. The paraphrase columns are
+  the out-of-distribution check, and silence dominates them.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |
@@ -400,9 +659,10 @@ zero-dependency core.
   within-distribution results; the paraphrase columns are the
   out-of-distribution honesty check, scored by provenance precisely so
   the keyword reader cannot grade its own homework.
-- One environment family. Every arm above runs on `StorageEnv`. The
-  TestSuiteEnv poison-extinction result is covered by tests, not yet by
-  this multi-arm harness.
+- The headline and noisy tables above are StorageEnv results. The
+  [TestSuiteEnv section](#second-environment-family-testsuiteenv) runs
+  the same arms on a second environment family; conclusions that hold
+  on only one family are flagged there rather than averaged away.
 - The corpus is demo-scale (16 entries) and encoded by the rule-based
   LocalEncoder, not an LLM. LLM-mode (citation-based attribution) has
   no benchmark arm yet; its credit fidelity is covered by unit tests
@@ -424,16 +684,20 @@ pip install -e .
 python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json --update-manifest
 python -m bench.run --suite noisy    --seeds 0:30 --out bench/results/noisy.json    --update-manifest
 python -m bench.run --suite ablation --seeds 0:5  --out bench/results/ablation.json --update-manifest
+python -m bench.run --suite testsuite --seeds 0:10 --out bench/results/testsuite.json --update-manifest
+python -m bench.run --suite testsuite_noisy --seeds 0:30 --out bench/results/testsuite_noisy.json --update-manifest
 python -m bench.run --suite scaling --full        --out bench/results/scaling.json
 python -m bench.report bench/results/headline.json --fmt md
 python -m bench.report bench/results/headline.json --tests --fmt md
 python -m bench.report bench/results/noisy.json --fmt md
 python -m bench.report bench/results/noisy.json --tests
 python -m bench.report bench/results/noisy.json --paired survival evict_consecutive
+python -m bench.report bench/results/testsuite.json --fmt md
+python -m bench.report bench/results/testsuite_noisy.json --tests
 ```
 
 Per-seed raw JSON IS committed under `bench/results/` (headline, noisy,
-ablation), with `bench/results/MANIFEST.json` recording each file's
+ablation, testsuite, testsuite_noisy), with `bench/results/MANIFEST.json` recording each file's
 suite, seeds, config hash, exact reproduction command, library version,
 and producing git commit; `bench.report <file> --check` validates a
 file against its manifest entry. The commit matters: the environments'
