@@ -44,11 +44,19 @@ Two caveats with this shape:
 
 ## Shipped: `openclaw-memory-darwin` (the memory-slot plugin)
 
-github.com/rogermsc/openclaw-memory-darwin claims OpenClaw's memory
-slot (`plugins.slots.memory`, one active at a time) and replaces
-curation with selection. Zero npm dependencies; targets host
-2026.3.24; verified by link-install into a real gateway (slot claimed
-from memory-core, doctor clean).
+[openclaw-memory-darwin](https://www.npmjs.com/package/openclaw-memory-darwin)
+claims OpenClaw's memory slot (`plugins.slots.memory`, one active at
+a time) and replaces curation with selection. Install by name:
+
+```bash
+pipx install darwin-memo            # the ledger CLI the plugin drives
+openclaw plugins install openclaw-memory-darwin
+```
+
+Zero npm dependencies; targets host 2026.3.24; verified end to end by
+installing the published package by bare name into a real gateway
+(slot claimed from memory-core, plugin registered, doctor clean).
+Source: github.com/rogermsc/openclaw-memory-darwin.
 
 - `memory_recall` calls `decide()` through the `darwin-memo ledger`
   CLI, opening a ticket keyed by the session (OpenClaw's `agent_end`
