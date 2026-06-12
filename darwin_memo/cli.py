@@ -17,8 +17,11 @@ steps, and host-process plugins (built for the OpenClaw memory plugin,
 whose host SDK has no MCP client) get the full decide/settle/tick
 contract without speaking MCP or importing Python. Same rule as
 everywhere else: ``settle`` takes a measured delta, never a grade.
-Invocations against one file must not run concurrently: there is no
-file locking, and the last writer wins.
+Invocations against one file must not run concurrently: darwin-memo is
+single-writer. The advisory lock makes two operations that overlap on
+one file fail loudly (``StoreLockedError``) instead of clobbering each
+other silently, but it cannot catch a stale in-memory state saved after
+the other invocation finished, so the contract stays single-writer.
 """
 
 from __future__ import annotations

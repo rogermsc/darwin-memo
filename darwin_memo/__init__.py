@@ -28,7 +28,7 @@ from .retrieval import (
     LexicalRetriever,
     Retriever,
 )
-from .store import MemoryStore
+from .store import MemoryStore, StoreLockedError
 from .survival import (
     SurvivalConfig,
     SurvivalLoop,
@@ -40,7 +40,7 @@ from .survival import (
 from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "DEFAULT_BASE_RPC",
@@ -69,6 +69,7 @@ __all__ = [
     "ReflectionEncoder",
     "Retriever",
     "StorageEnv",
+    "StoreLockedError",
     "SurvivalConfig",
     "SurvivalLoop",
     "SurvivalReport",
