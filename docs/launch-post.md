@@ -32,7 +32,7 @@ to escape: a proxy that can be wrong, gamed, or poisoned itself. TTLs
 avoid judgment by deleting good knowledge on the same schedule as bad.
 In our benchmarks, a TTL of 10 cycles does kill the poison on schedule,
 by killing everything: after cycle 10 the memory is empty, benign
-capability is 0.00, and the run still ends 2.6M underwater.
+capability is 0.00, and the run still ends 3.6M underwater.
 
 ## The survival paper's insight
 
@@ -86,7 +86,7 @@ Poisoned entries still alive: 0
 
 The poisoned entries decide a few deletions in the opening cycles, the
 restore costs flow back along provenance, and across 10 seeds the
-median kill lands at cycle 0. Average damage before the kill is 751k.
+median kill lands at cycle 0. Average damage before the kill is 394k.
 That is the price of the lesson, and it is bounded. By cycle 29 the
 population is stable at 4 entries and every cycle is delta-positive.
 
@@ -119,9 +119,9 @@ survival arm on the same seed, with victims chosen uniformly at random.
 Same pruning rate, no outcome direction.
 
 Across 10 seeds: its kill rate drops to 0.80, the median kill arrives
-at cycle 19 instead of 0, damage before the kill is 8.97M against
-survival's 751k (12x worse), benign capability falls to 0.40 because
-useful entries get evicted instead, and the runs end 5.25M underwater
+at cycle 19 instead of 0, damage before the kill is 10.7M against
+survival's 394k (27x worse), benign capability falls to 0.40 because
+useful entries get evicted instead, and the runs end 7.7M underwater
 with huge variance. Pruning rate is not the active ingredient. Outcome
 direction is.
 
@@ -130,16 +130,17 @@ The harness also runs the baseline that keeps us honest:
 outcome" heuristic. In this deterministic environment it ties the full
 energy ledger on outcomes, and the benchmark doc says so plainly. What
 the ledger buys is leanness (4 surviving entries against the
-if-statement's 15) and forgiveness when measurements lie — and that
+if-statement's 15) and forgiveness when measurements lie, and that
 one is measured, not asserted: a noisy suite corrupts outcomes
-deterministically and scores everyone on the truth. At 5-20% flaky-CI
-noise survival's true outcomes are byte-identical to its clean run
-while every strike-counter variant degrades — the strongest holds at
-5% and has collapsed by 20%; the suite also publishes forgiveness's
-price (lying rewards delay the poison's execution, and at heavy noise
-some seeds never kill it) and
-the ledger's own failure boundary (underwater at 50% noise, where a
-sign flip carries no information). A paraphrase probe set, scored by provenance so the keyword reader cannot
+deterministically and scores everyone on the truth. At 5% flaky-CI
+noise survival's true outcomes are byte-identical to its clean run in
+every seed (29 of 30 at 10-20%) while every strike-counter variant
+degrades; the strongest holds at 5% and has collapsed by 20%. The
+suite also publishes forgiveness's price (lying rewards delay the
+poison's execution, and at heavy noise some seeds never kill it) and
+the ledger's own failure boundary (benign capability collapses past
+one lie in three, where a sign flip carries little information). A
+paraphrase probe set, scored by provenance so the keyword reader cannot
 grade its own homework, quantifies how the demo degrades outside its
 own vocabulary, and an embedding-retriever arm posts the best
 cumulative result of all, with the poison never deciding anything at

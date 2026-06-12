@@ -13,6 +13,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .manifest import update_manifest
 from .runner import run_one
 from .suites import (
     RunSpec,
@@ -68,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
         default="llama3.2",
         help="Ollama model for --suite llm (requires a running server)",
     )
+    parser.add_argument(
+        "--update-manifest",
+        action="store_true",
+        help="record suite, seeds, config hash, and the exact command "
+        "in MANIFEST.json next to --out (committed results only)",
+    )
     args = parser.parse_args(argv)
 
     if args.suite == "llm":
@@ -98,6 +105,19 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))
     print(f"wrote {len(runs)} runs to {args.out}")
+
+    if args.update_manifest:
+        if args.suite == "scaling":
+            # Timing rows have no seeds or config grid to bind; the
+            # scaling table stays machine-local by design.
+            print("error: --update-manifest does not apply to --suite scaling")
+            return 1
+        command = (
+            f"python -m bench.run --suite {args.suite} --seeds {args.seeds} "
+            f"--out {args.out} --update-manifest"
+        )
+        manifest_path = update_manifest(args.out, runs, command)
+        print(f"updated {manifest_path}")
     return 0
 
 

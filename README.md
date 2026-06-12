@@ -303,31 +303,34 @@ eviction counts, random victims.
 
 | arm | kill rate | kill cycle (med) | damage before kill | tail delta | cum delta |
 |---|---|---|---|---|---|
-| survival | 1.00 | 0 | -751k | +435k | +12.0M |
-| random_matched | 0.80 | 19 | -8.97M | -75k | -5.25M |
-| keep_everything | 0.00 | never | -10.6M | -287k | -7.29M |
+| survival | 1.00 | 0 | -394k | +437k | +12.6M |
+| random_matched | 0.80 | 19 | -10.7M | +38k | -7.67M |
+| keep_everything | 0.00 | never | -12.1M | -236k | -9.08M |
 
 (Rounded from the full tables; regenerate both with the commands in the
 benchmarks doc, and if the numbers ever disagree, the generated doc
 wins.)
 
-Same pruning rate, 12x the damage, negative steady state: outcome
-direction is the active ingredient, not eviction itself. The harness
-also runs the baseline that keeps us honest: `evict_on_negative`, a
-one-line "evict whatever erred" heuristic, ties survival on outcomes in
-this deterministic environment; the ledger's measured edge here is
-leanness (4 surviving entries vs 15).
+Same pruning rate, 27x the damage, runs that end 7.7M underwater:
+outcome direction is the active ingredient, not eviction itself. The
+harness also runs the baseline that keeps us honest:
+`evict_on_negative`, a one-line "evict whatever erred" heuristic, ties
+survival on outcomes in this deterministic environment (officially: a
+paired permutation test cannot tell them apart); the ledger's measured
+edge here is leanness (4 surviving entries vs 15).
 
 Forgiveness is no longer asserted, it is measured: a noisy suite makes
 measurements lie deterministically and scores everyone on the truth. At
-5-20% flaky-CI noise (good changes reporting red), survival's true
-outcomes are byte-identical to its noise-free run while every strike
-counter collapses (k=1 loses essentially all benign capability by 5%;
-the strongest variant, strikes-reset-on-success, halves by 10%). The
-suite also publishes the costs: lying rewards delay the poison's
-execution (median kill cycle 0 to 5.5 among seeds that still kill —
-73% at the half-lies extreme — as symmetric noise rises), and past
-roughly one lie in three the ledger itself breaks, underwater at 50%.
+5% flaky-CI noise (good changes reporting red), survival's true
+outcomes are byte-identical to its noise-free run in every seed (29 of
+30 seeds at 10-20%) while every strike counter collapses (k=1 loses
+essentially all benign capability by 5%; the strongest variant,
+strikes-reset-on-success, halves by 10%; every gap holds at adjusted
+p < 0.005). The suite also publishes the costs: lying rewards delay the
+poison's execution (median kill cycle 0 to 3 as symmetric noise rises
+to the half-lies extreme, where 2 of 30 seeds never kill it), and past
+roughly one lie in three the ledger itself degrades hard, benign
+capability down to 0.26 at 50%.
 A paraphrase probe set, scored by provenance rather than keywords,
 quantifies how the demo degrades outside its own vocabulary, and an
 embedding-retriever arm shows the mechanism does not depend on the
@@ -342,8 +345,8 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   `memory.yml` on every merged PR.
 - **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP, or
   claim the memory slot with
-  [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin)
-  — measured (not self-reported) settlement from `agent_end` outcomes.
+  [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin):
+  measured (not self-reported) settlement from `agent_end` outcomes.
 - **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
   the Ollama client (think-blocks handled), and Hermes Agent mounts the
   MCP server natively.

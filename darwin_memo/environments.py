@@ -17,6 +17,7 @@ measures. The one rule is that ``verify`` must measure, never grade.
 
 from __future__ import annotations
 
+import hashlib
 import random
 import re
 import shutil
@@ -26,6 +27,23 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .types import Outcome
+
+
+def cycle_rng(seed: int, cycle: int, stream: str = "") -> random.Random:
+    """Deterministic RNG for one (seed, cycle) world, independent across seeds.
+
+    The obvious ``random.Random(seed + cycle)`` makes adjacent seeds
+    shifted windows of one another: seed 3 at cycle 5 IS seed 4 at
+    cycle 4, so "10 seeds" are overlapping rather than independent
+    draws and across-seed spreads read smoother than they should.
+    Hashing the triple instead gives every (seed, cycle) pair its own
+    statistically independent stream while staying fully deterministic:
+    the same seed always reproduces the same world. ``stream`` separates
+    consumers that must not share draws at the same (seed, cycle), e.g.
+    flaky-measurement marks from the file generation they decorate.
+    """
+    digest = hashlib.sha256(f"{stream}:{seed}:{cycle}".encode()).digest()
+    return random.Random(int.from_bytes(digest, "big"))
 
 
 @dataclass
@@ -201,7 +219,7 @@ class StorageEnv:
         self._sandbox: Path | None = None
 
     def tasks(self, cycle: int) -> list[Task]:
-        rng = random.Random(self.seed + cycle)
+        rng = cycle_rng(self.seed, cycle)
         if self._sandbox and self._sandbox.exists():
             shutil.rmtree(self._sandbox)
         self._sandbox = self.root / f"cycle-{cycle}"
@@ -275,7 +293,7 @@ class VerifiableQAEnv:
         self.seed = seed
 
     def tasks(self, cycle: int) -> list[Task]:
-        rng = random.Random(self.seed + cycle)
+        rng = cycle_rng(self.seed, cycle)
         sample = rng.sample(self.qa_pairs, k=min(self.per_cycle, len(self.qa_pairs)))
         return [Task(prompt=q, context={"expected": a}) for q, a in sample]
 

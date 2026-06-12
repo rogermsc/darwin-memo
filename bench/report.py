@@ -9,6 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .manifest import manifest_failures
+from .stats import bootstrap_ci, holm_bonferroni, paired_permutation_pvalue
+
 _REQUIRED_METRIC_KEYS = {
     "poison_killed",
     "poison_kill_cycle",
@@ -41,12 +44,28 @@ def _group_key(run: dict[str, Any]) -> str:
     return f"{run['arm']}:{label}" if label else run["arm"]
 
 
-def _mean_std(values: list[float]) -> str:
+def _fmt(value: float, big: bool) -> str:
+    return f"{value:,.0f}" if big else f"{value:.2f}"
+
+
+def _mean_ci(values: list[float]) -> str:
+    """Mean with a seeded percentile-bootstrap 95% CI across seeds."""
     if not values:
         return "-"
     mean = statistics.mean(values)
-    std = statistics.stdev(values) if len(values) > 1 else 0.0
-    return f"{mean:,.0f} ±{std:,.0f}" if abs(mean) >= 100 else f"{mean:.2f} ±{std:.2f}"
+    lo, hi = bootstrap_ci(values)
+    big = abs(mean) >= 100
+    return f"{_fmt(mean, big)} [{_fmt(lo, big)}, {_fmt(hi, big)}]"
+
+
+def _median_ci(values: list[float]) -> str:
+    """Median with a seeded percentile-bootstrap 95% CI across seeds."""
+    if not values:
+        return "-"
+    med = statistics.median(values)
+    lo, hi = bootstrap_ci(values, statistic=statistics.median)
+    big = abs(med) >= 100
+    return f"{_fmt(med, big)} [{_fmt(lo, big)}, {_fmt(hi, big)}]"
 
 
 def aggregate(runs: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -67,34 +86,32 @@ def aggregate(runs: list[dict[str, Any]]) -> list[dict[str, str]]:
             {
                 "arm": key,
                 "seeds": str(len(metric_sets)),
-                "kill rate": f"{sum(kills) / len(kills):.2f}",
-                "kill cycle (med)": (
-                    f"{statistics.median(kill_cycles):.0f}" if kill_cycles else "-"
-                ),
-                "damage before kill": _mean_std(
+                "kill rate": _mean_ci([float(k) for k in kills]),
+                "kill cycle (med)": _median_ci([float(c) for c in kill_cycles]),
+                "damage before kill": _mean_ci(
                     [m["damage_before_kill"] for m in metric_sets]
                 ),
-                "tail delta": _mean_std([m["tail_delta_mean"] for m in metric_sets]),
-                "cum delta": _mean_std([m["cum_delta"] for m in metric_sets]),
-                "final pop": _mean_std(
+                "tail delta": _mean_ci([m["tail_delta_mean"] for m in metric_sets]),
+                "cum delta": _mean_ci([m["cum_delta"] for m in metric_sets]),
+                "final pop": _mean_ci(
                     [float(m["final_population"]) for m in metric_sets]
                 ),
-                "harmful safe": _mean_std(
+                "harmful safe": _mean_ci(
                     [m["probe_harmful_safe_rate"] for m in metric_sets]
                 ),
-                "benign correct": _mean_std(
+                "benign correct": _mean_ci(
                     [m["probe_benign_correct_rate"] for m in metric_sets]
                 ),
-                "para safe": _mean_std(
+                "para safe": _mean_ci(
                     [m["paraphrase_harmful_safe_rate"] for m in metric_sets]
                 ),
-                "para grounded": _mean_std(
+                "para grounded": _mean_ci(
                     [m["paraphrase_benign_grounded_rate"] for m in metric_sets]
                 ),
             }
         )
         if any(_is_noisy(r) for r in runs):
-            rows[-1]["flakes fired"] = _mean_std(
+            rows[-1]["flakes fired"] = _mean_ci(
                 [float(m.get("flakes_fired", 0)) for m in metric_sets]
             )
     return rows
@@ -163,6 +180,16 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     return failures
 
 
+def _world_cell(run: dict[str, Any]) -> str:
+    """The world a run faced: its label minus the arm-variant suffix.
+
+    The variant suffix (",k=2", ",m=3") names the arm, not the world;
+    the world cell is model+rate (plus any env override like a scale).
+    """
+    label = run.get("label") or ""
+    return ",".join(p for p in label.split(",") if not p.startswith(("k=", "m=")))
+
+
 def paired(
     runs: list[dict[str, Any]],
     arm_a: str,
@@ -181,14 +208,10 @@ def paired(
     that matches SEVERAL variants in one cell (``evict_on_negative``
     matches k=1, k=2, and k=3) is ambiguous — which variant wins would
     silently change the verdict — so it raises; qualify the arm with
-    its variant key instead.
+    its variant key instead. A duplicated (cell, group, seed) row, e.g.
+    two result files concatenated, raises for the same reason: keeping
+    one copy silently would change the verdict.
     """
-
-    def cell(run: dict[str, Any]) -> str:
-        label = run.get("label") or ""
-        # The variant suffix (",k=2", ",m=3") names the arm, not the
-        # world; the world cell is model+rate.
-        return ",".join(p for p in label.split(",") if not p.startswith(("k=", "m=")))
 
     def matches(run: dict[str, Any], arm: str) -> bool:
         group = _group_key(run)
@@ -206,14 +229,19 @@ def paired(
         side = "a" if matches(run, arm_a) else "b" if matches(run, arm_b) else None
         if side is None:
             continue
-        slot = by_cell.setdefault(cell(run), {}).setdefault(run["seed"], {})
+        slot = by_cell.setdefault(_world_cell(run), {}).setdefault(run["seed"], {})
         group = _group_key(run)
-        if side in slot and slot[side][0] != group:
+        if side in slot:
+            if slot[side][0] != group:
+                raise ValueError(
+                    f"ambiguous arm {arm_a if side == 'a' else arm_b!r}: both "
+                    f"{slot[side][0]!r} and {group!r} match in cell "
+                    f"{_world_cell(run)!r}; qualify the variant (e.g. "
+                    "'evict_on_negative:k=2')"
+                )
             raise ValueError(
-                f"ambiguous arm {arm_a if side == 'a' else arm_b!r}: both "
-                f"{slot[side][0]!r} and {group!r} match in cell "
-                f"{cell(run)!r}; qualify the variant (e.g. "
-                "'evict_on_negative:k=2')"
+                f"duplicate run for {group!r} at seed {run['seed']} in cell "
+                f"{_world_cell(run)!r}; deduplicate the results file"
             )
         slot[side] = (group, run["metrics"][metric])
 
@@ -244,11 +272,87 @@ def paired(
     return rows
 
 
+def significance(
+    runs: list[dict[str, Any]],
+    baseline: str = "survival",
+    metric: str = "cum_delta",
+) -> list[dict[str, str]]:
+    """Exact paired permutation tests of ``baseline`` vs every other arm.
+
+    Within each world cell the baseline arm is paired BY SEED with each
+    other arm group (same seed, same world, same flake marks). The
+    per-seed differences feed a two-sided sign-flip permutation test:
+    exact enumeration of all sign assignments at small seed counts,
+    seeded Monte Carlo above. Holm-Bonferroni then adjusts across the
+    FULL grid of comparisons in this call, so the adjusted column
+    already pays for every comparison printed next to it. Deterministic
+    ties give p = 1.0, never spurious significance. A duplicated
+    (cell, group, seed) row, e.g. two result files concatenated, raises
+    instead of silently keeping the last copy's metric.
+    """
+    by_cell: dict[str, dict[str, dict[int, float]]] = {}
+    arm_of: dict[str, str] = {}
+    for run in runs:
+        group = _group_key(run)
+        arm_of[group] = run["arm"]
+        seeds = by_cell.setdefault(_world_cell(run), {}).setdefault(group, {})
+        if run["seed"] in seeds:
+            raise ValueError(
+                f"duplicate run for {group!r} at seed {run['seed']} in cell "
+                f"{_world_cell(run)!r}; deduplicate the results file"
+            )
+        seeds[run["seed"]] = run["metrics"][metric]
+
+    rows: list[dict[str, str]] = []
+    raw_pvalues: list[float] = []
+    for cell_key in sorted(by_cell):
+        groups = by_cell[cell_key]
+        base_groups = [g for g in groups if arm_of[g] == baseline]
+        if not base_groups:
+            continue
+        if len(base_groups) > 1:
+            raise ValueError(
+                f"ambiguous baseline {baseline!r} in cell {cell_key!r}: "
+                f"{sorted(base_groups)}"
+            )
+        base = groups[base_groups[0]]
+        for group in sorted(g for g in groups if arm_of[g] != baseline):
+            common = sorted(set(base) & set(groups[group]))
+            if not common:
+                continue
+            diffs = [base[seed] - groups[group][seed] for seed in common]
+            wins = sum(1 for d in diffs if d > 0)
+            losses = sum(1 for d in diffs if d < 0)
+            raw = paired_permutation_pvalue(diffs)
+            raw_pvalues.append(raw)
+            rows.append(
+                {
+                    "cell": cell_key or "(none)",
+                    "vs": group,
+                    "seeds": str(len(diffs)),
+                    "W/T/L": f"{wins}/{len(diffs) - wins - losses}/{losses}",
+                    "mean diff": f"{statistics.mean(diffs):,.0f}",
+                    "median diff": f"{statistics.median(diffs):,.0f}",
+                    "p": f"{raw:.4g}",
+                    "p (holm)": "",  # filled below, across the full grid
+                }
+            )
+    for row, adjusted in zip(rows, holm_bonferroni(raw_pvalues), strict=True):
+        row["p (holm)"] = f"{adjusted:.4g}"
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("results", type=Path)
     parser.add_argument("--fmt", choices=["ascii", "md"], default="ascii")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--require-manifest",
+        action="store_true",
+        help="with --check, fail when the file has no manifest entry: "
+        "committed evidence must stay bound to MANIFEST.json",
+    )
     parser.add_argument(
         "--paired",
         nargs=2,
@@ -258,7 +362,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--metric",
         default="cum_delta",
-        help="metric for --paired (default cum_delta)",
+        help="metric for --paired and --tests (default cum_delta)",
+    )
+    parser.add_argument(
+        "--tests",
+        action="store_true",
+        help="paired permutation tests vs --baseline, Holm-adjusted "
+        "across the full grid",
+    )
+    parser.add_argument(
+        "--baseline",
+        default="survival",
+        help="baseline arm for --tests (default survival)",
     )
     args = parser.parse_args(argv)
 
@@ -270,8 +385,15 @@ def main(argv: list[str] | None = None) -> int:
         print(render_table(rows, args.fmt))
         return 0
 
+    if args.tests:
+        rows = significance(runs, baseline=args.baseline, metric=args.metric)
+        print(render_table(rows, args.fmt))
+        return 0
+
     if args.check:
-        failures = check(runs)
+        failures = check(runs) + manifest_failures(
+            args.results, runs, require_entry=args.require_manifest
+        )
         if failures:
             for failure in failures:
                 print(f"FAIL: {failure}", file=sys.stderr)
