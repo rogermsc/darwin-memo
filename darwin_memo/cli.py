@@ -47,12 +47,23 @@ from .survival import SurvivalConfig, SurvivalLoop, death_cause
 from .types import EntryKind
 
 
+def _positive_float(text: str) -> float:
+    """Argparse type for --half-life: a decay rate must be positive."""
+    value = float(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(
+            f"must be positive, got {text}; omit the flag to rank "
+            "without recency weighting"
+        )
+    return value
+
+
 def _add_retrieval_flags(parser: argparse.ArgumentParser) -> None:
     """The temporal and metadata retrieval options, shared by ``query``
     and ``ledger decide`` so the two surfaces cannot drift apart."""
     parser.add_argument(
         "--half-life",
-        type=float,
+        type=_positive_float,
         default=None,
         help="recency-weighted ranking: scores halve every N ticks since an "
         "entry last settled (default: off; reorders results, never balances)",

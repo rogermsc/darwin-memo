@@ -108,12 +108,19 @@ class Ledger:
         event_log_keep: int = EVENT_LOG_KEEP,
     ) -> None:
         self.store = store
-        self.protocol = protocol or QueryProtocol(store)
         self.config = config or SurvivalConfig()
         if resource_scale is not None:
             self.config.resource_scale = resource_scale
         if self.config.resource_scale is None:
             self.config.resource_scale = 1.0
+        # The default protocol flags conflicting advice at the same
+        # similarity floor this ledger consolidates at, so "near
+        # duplicate" cannot mean two different things in one ledger
+        # (configs over cosine retrievers raise merge_threshold, and
+        # conflict surfacing must follow).
+        self.protocol = protocol or QueryProtocol(
+            store, conflict_threshold=self.config.merge_threshold
+        )
         self.event_log = Path(event_log) if event_log else None
         self.event_log_max_bytes = event_log_max_bytes
         self.event_log_keep = event_log_keep

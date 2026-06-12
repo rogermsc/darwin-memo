@@ -153,11 +153,18 @@ class MemoryStore:
         default: scores halve for every ``half_life`` ticks since an
         entry last settled (its born tick if it never has). A pure
         ranking concern, like everything else here: balances, credit
-        assignment, and survival economics never see it. ``now_cycle``
+        assignment, and survival economics never see it. A non-positive
+        ``half_life`` raises ``ValueError`` rather than silently ranking
+        without recency. ``now_cycle``
         anchors the decay clock; callers that track time (the Ledger)
         pass their tick count, and when omitted the latest tick
         recorded on any alive entry stands in.
         """
+        if half_life is not None and half_life <= 0:
+            raise ValueError(
+                f"half_life must be positive, got {half_life}; pass None "
+                "to rank without recency weighting"
+            )
         entries = list(self._entries.values())
         if kind is not None:
             kind_value = EntryKind(kind).value
@@ -165,7 +172,7 @@ class MemoryStore:
         if source is not None:
             entries = [e for e in entries if source in e.sources]
         scored = self.retriever.rank(query, entries)
-        if half_life is not None and half_life > 0 and scored:
+        if half_life is not None and scored:
             if now_cycle is None:
                 now_cycle = max(
                     max(e.born_cycle, e.last_used_cycle) for e in self._entries.values()

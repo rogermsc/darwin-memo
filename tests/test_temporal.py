@@ -8,14 +8,18 @@ import pytest
 
 from darwin_memo import (
     CONFLICT_HEADER,
+    DEFAULT_MERGE_THRESHOLD,
     EntryKind,
     Ledger,
     MemoryEntry,
     MemoryStore,
     QueryProtocol,
+    SurvivalConfig,
     age_annotation,
     conflict_clusters,
+    consolidate,
     newest_first,
+    recency_weight,
 )
 from darwin_memo.cli import main as cli_main
 
@@ -169,6 +173,28 @@ def test_recency_option_leaves_settlement_credit_unchanged():
     assert settled_energy(None) == settled_energy(5.0)
 
 
+def test_non_positive_half_life_raises():
+    """Asking for recency and silently getting none would be a fake
+    success: a decay rate at or below zero is refused, never ignored."""
+    store, _, _ = stale_and_fresh_store()
+    for bad in (0.0, -3.0):
+        with pytest.raises(ValueError):
+            store.retrieve(FLAG_QUERY, k=2, half_life=bad)
+        with pytest.raises(ValueError):
+            recency_weight(flag_entry(), now_cycle=5, half_life=bad)
+
+
+def test_cli_half_life_rejects_non_positive(tmp_path, capsys):
+    store = MemoryStore()
+    store.add(flag_entry())
+    memory = tmp_path / "m.json"
+    store.save(memory)
+    with pytest.raises(SystemExit) as excinfo:
+        cli_main(["query", str(memory), FLAG_QUERY, "--half-life", "0"])
+    assert excinfo.value.code == 2
+    assert "must be positive" in capsys.readouterr().err
+
+
 # ---------------------------------------------------------------------------
 # Conflict surfacing
 # ---------------------------------------------------------------------------
@@ -228,6 +254,46 @@ def test_newest_first_sorts_missing_ts_oldest():
     dated = flag_entry(recorded_ts="2026-06-01T00:00:00+00:00", born_cycle=0)
     undated = flag_entry(recorded_ts="", born_cycle=99)
     assert newest_first([undated, dated]) == [dated, undated]
+
+
+def test_ledger_default_protocol_conflict_threshold_follows_config():
+    """One ledger, one meaning of near-duplicate: a config that raises
+    merge_threshold (cosine retrievers) raises conflict surfacing too."""
+    store = MemoryStore()
+    assert Ledger(store).protocol.conflict_threshold == DEFAULT_MERGE_THRESHOLD
+    raised = Ledger(store, config=SurvivalConfig(merge_threshold=0.9))
+    assert raised.protocol.conflict_threshold == 0.9
+
+
+def consolidated_entry(store: MemoryStore) -> MemoryEntry:
+    merges = consolidate(store, cycle=12)
+    assert merges == 1
+    merged = [e for e in store.alive() if e.kind == EntryKind.CONSOLIDATED]
+    assert len(merged) == 1
+    return merged[0]
+
+
+def test_consolidated_entry_keeps_newest_member_timestamp():
+    """Merging must not reset the age clock: stamping merge time would
+    make stale advice look current on every consult surface."""
+    store, _older, newer = conflicting_pair_store()
+    merged = consolidated_entry(store)
+    assert merged.recorded_ts == newer.recorded_ts
+    assert "recorded 2026-06-01T00:00:00+00:00" in age_annotation(merged)
+
+
+def test_consolidated_legacy_entries_stay_age_unknown():
+    store = MemoryStore()
+    store.add(flag_entry(recorded_ts=""))
+    store.add(
+        flag_entry(
+            recorded_ts="",
+            answer="Stale feature flags are not safe to remove.",
+        )
+    )
+    merged = consolidated_entry(store)
+    assert merged.recorded_ts == ""
+    assert "age unknown" in age_annotation(merged)
 
 
 # ---------------------------------------------------------------------------

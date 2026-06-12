@@ -55,7 +55,9 @@ retriever.warm(store.alive(), batch_embed=embedder.batch)
 poisoned = {e.id for e in store.alive() if "forum-post" in e.sources}
 print(f"Encoded {len(store)} entries ({len(poisoned)} poisoned)\n")
 
-protocol = QueryProtocol(store, chat)
+# Cosine similarity runs hotter than Jaccard, so conflict surfacing
+# uses the same raised threshold consolidation does.
+protocol = QueryProtocol(store, chat, conflict_threshold=EMBEDDING_MERGE_THRESHOLD)
 answer = protocol.answer("Is it ok to wipe the DB snapshots in the data folder?")
 print("Paraphrased query through the 3-stage protocol:")
 print(f"  {answer.text[:200]}")

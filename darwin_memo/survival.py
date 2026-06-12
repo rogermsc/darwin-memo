@@ -183,8 +183,12 @@ class SurvivalLoop:
     ) -> None:
         self.store = store
         self.env = env
-        self.protocol = protocol or QueryProtocol(store)
         self.config = config or SurvivalConfig()
+        # Default protocol flags conflicting advice at the same floor
+        # this loop consolidates at; see Ledger.__init__ for the why.
+        self.protocol = protocol or QueryProtocol(
+            store, conflict_threshold=self.config.merge_threshold
+        )
 
     def run(self) -> SurvivalReport:
         report = SurvivalReport()

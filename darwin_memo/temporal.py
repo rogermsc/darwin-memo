@@ -72,8 +72,11 @@ def recency_weight(entry: MemoryEntry, now_cycle: int, half_life: float) -> floa
     later. Age counts from the last settlement tick (the born tick if
     nothing ever settled), because a settlement is the last moment the
     world confirmed the entry. Balances and survival economics never
-    see this number.
+    see this number. A non-positive ``half_life`` raises ``ValueError``:
+    there is no honest decay rate at or below zero.
     """
+    if half_life <= 0:
+        raise ValueError(f"half_life must be positive, got {half_life}")
     last_confirmed = (
         entry.last_used_cycle if entry.last_used_cycle >= 0 else entry.born_cycle
     )
