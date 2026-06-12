@@ -158,10 +158,12 @@ def test_main_module_import_is_safe():
 
 
 def test_history_is_capped(store_factory):
+    from darwin_memo.ledger import note_text
+
     store = store_factory()
     ledger = Ledger(store, resource_scale=1.0)
     entry_id = store.alive()[0].id
     for i in range(300):
         ledger._note(entry_id, f"event {i}")
     assert len(ledger._history[entry_id]) == 100
-    assert ledger._history[entry_id][-1] == "event 299"
+    assert note_text(ledger._history[entry_id][-1]) == "event 299"

@@ -37,9 +37,11 @@ history. The same selection rule applies throughout: no judge anywhere,
 
 from __future__ import annotations
 
+import itertools
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +54,30 @@ from .types import EntryKind, MemoryEntry
 
 _HISTORY_CAP = 100  # per-entry events kept in memory; the JSONL log is full
 _DAMAGE_EPSILON = 1e-9
+EVENT_LOG_MAX_BYTES = 10 * 1024 * 1024  # rotate the JSONL log at this size
+EVENT_LOG_KEEP = 3  # rotated files retained alongside the live one
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def event_log_paths(path: Path, keep: int = EVENT_LOG_KEEP) -> list[Path]:
+    """Every path the event log may occupy after rotation, oldest first.
+
+    Rotation shifts the live file to ``NAME.1`` and bumps each older
+    file one suffix up, logrotate style, so ``NAME.keep`` is the oldest
+    survivor and the live file is always the newest. Readers that walk
+    this list in order see the full log in append order.
+    """
+    return [path.with_name(f"{path.name}.{i}") for i in range(keep, 0, -1)] + [path]
+
+
+def note_text(event: str | dict[str, Any]) -> str:
+    """Render one history note; saves from older versions stored strings."""
+    if isinstance(event, str):
+        return event
+    return str(event.get("text", event))
 
 
 @dataclass
@@ -83,6 +109,8 @@ class Ledger:
         config: SurvivalConfig | None = None,
         resource_scale: float | None = None,
         event_log: str | Path | None = None,
+        event_log_max_bytes: int = EVENT_LOG_MAX_BYTES,
+        event_log_keep: int = EVENT_LOG_KEEP,
     ) -> None:
         self.store = store
         self.protocol = protocol or QueryProtocol(store)
@@ -92,9 +120,11 @@ class Ledger:
         if self.config.resource_scale is None:
             self.config.resource_scale = 1.0
         self.event_log = Path(event_log) if event_log else None
+        self.event_log_max_bytes = event_log_max_bytes
+        self.event_log_keep = event_log_keep
         self.tick_count = 0
         self._pending: dict[str, Ticket] = {}
-        self._history: dict[str, list[str]] = {}
+        self._history: dict[str, list[str | dict[str, Any]]] = {}
         self._damaged: set[str] = set()
 
     # ------------------------------------------------------------------
@@ -155,6 +185,11 @@ class Ledger:
                 entry_id,
                 f"tick {self.tick_count}: credit {credit:+.3f} "
                 f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
+                event="settle",
+                ticket=ticket.id,
+                credit=round(credit, 6),
+                delta=delta,
+                detail=detail,
             )
 
         # Escrow released for THIS ticket: bury what is dead, unless
@@ -162,12 +197,27 @@ class Ledger:
         # a verdict can never arrive after the execution, and that must
         # hold per ticket, not per settlement.
         still_escrowed = self._escrowed_ids()
+        buried: list[str] = []
         for entry_id in ticket.provenance:
             entry = self.store.get(entry_id)
             if entry is not None and not entry.alive and entry_id not in still_escrowed:
                 self.store.bury(entry_id)
-                self._note(entry_id, f"buried at tick {self.tick_count} on settle")
-        self._log("settle", ticket=ticket.id, delta=delta, detail=detail)
+                buried.append(entry_id)
+                self._note(
+                    entry_id,
+                    f"buried at tick {self.tick_count} on settle",
+                    event="buried",
+                    via="settle",
+                    cause="executed" if entry_id in self._damaged else "starved",
+                )
+        self._log(
+            "settle",
+            ticket=ticket.id,
+            delta=delta,
+            detail=detail,
+            applied=[{"entry": e, "credit": round(c, 6)} for e, c in applied],
+            buried=buried,
+        )
         return True
 
     def abandon(self, ticket_id: str) -> bool:
@@ -192,9 +242,19 @@ class Ledger:
                 answer=answer,
                 kind=EntryKind.EXPERIENCE,
                 sources=[source],
+                born_cycle=self.tick_count,
             )
         )
-        self._log("add", entry=entry.id, question=question)
+        self._note(
+            entry.id,
+            f"born at tick {self.tick_count} (source {source}, stake {entry.energy:g})",
+            event="birth",
+            source=source,
+            stake=entry.energy,
+        )
+        self._log(
+            "add", entry=entry.id, question=question, source=source, stake=entry.energy
+        )
         return entry
 
     def forget(self, entry_id: str) -> str:
@@ -214,7 +274,13 @@ class Ledger:
         if self.store.get(entry_id) is None:
             return "missing"
         self.store.bury(entry_id)
-        self._note(entry_id, f"buried at tick {self.tick_count} by forget")
+        self._note(
+            entry_id,
+            f"buried at tick {self.tick_count} by forget",
+            event="buried",
+            via="forget",
+            cause="forgotten",
+        )
         self._log("forget", entry=entry_id)
         return "buried"
 
@@ -235,15 +301,20 @@ class Ledger:
         escrowed = self._escrowed_ids()
         dead = self.store.charge_upkeep(protect=escrowed)
         for entry in dead:
-            cause = (
+            cause = "executed" if entry.id in self._damaged else "starved"
+            reason = (
                 "executed: negative outcomes drained it"
-                if entry.id in self._damaged
+                if cause == "executed"
                 else "starved: never earned its upkeep"
             )
             self._note(
                 entry.id,
-                f"died at tick {self.tick_count} ({cause}; "
+                f"died at tick {self.tick_count} ({reason}; "
                 f"uses={entry.uses}, last_used_tick={entry.last_used_cycle})",
+                event="death",
+                cause=cause,
+                uses=entry.uses,
+                last_used_tick=entry.last_used_cycle,
             )
 
         merges = 0
@@ -267,7 +338,7 @@ class Ledger:
             "expired": len(expired),
             "total_energy": round(self.store.total_energy(), 3),
         }
-        self._log("tick", **stats)
+        self._log("tick", **stats, dead_entries=[e.id for e in dead])
         return stats
 
     # ------------------------------------------------------------------
@@ -330,6 +401,15 @@ class Ledger:
     def pending(self) -> list[Ticket]:
         return list(self._pending.values())
 
+    def history(self, entry_id: str) -> list[str | dict[str, Any]]:
+        """Per-entry history notes, oldest first, capped at _HISTORY_CAP.
+
+        New notes are dicts (tick, ts, text, plus structured fields per
+        event); notes persisted by older versions are plain strings.
+        Render either with :func:`note_text`.
+        """
+        return list(self._history.get(entry_id, []))
+
     def obituary(self, entry_id: str) -> str:
         """Why did this entry die? Answered from the ledger's history."""
         entry = self.store.get(entry_id) or self.store.get_dead(entry_id)
@@ -354,7 +434,7 @@ class Ledger:
         ]
         if heirs:
             lines.append(f"  merged into {heirs[0].id}")
-        lines.extend(f"  {event}" for event in self._history.get(entry.id, []))
+        lines.extend(f"  {note_text(event)}" for event in self.history(entry.id))
         if not self._history.get(entry.id) and not entry.alive and not heirs:
             lines.append(
                 "  no credited outcomes on record: starved (never earned"
@@ -367,15 +447,40 @@ class Ledger:
     def _escrowed_ids(self) -> set[str]:
         return {entry_id for t in self._pending.values() for entry_id in t.provenance}
 
-    def _note(self, entry_id: str, event: str) -> None:
+    def _note(self, entry_id: str, text: str, **data: Any) -> None:
         history = self._history.setdefault(entry_id, [])
-        history.append(event)
+        history.append(
+            {"tick": self.tick_count, "ts": _utc_now(), "text": text, **data}
+        )
         if len(history) > _HISTORY_CAP:
             del history[: len(history) - _HISTORY_CAP]
 
     def _log(self, kind: str, **payload: Any) -> None:
         if self.event_log is None:
             return
-        record = {"event": kind, "tick": self.tick_count, **payload}
+        record = {"event": kind, "tick": self.tick_count, "ts": _utc_now(), **payload}
+        self._rotate_event_log()
         with self.event_log.open("a") as f:
             f.write(json.dumps(record) + "\n")
+
+    def _rotate_event_log(self) -> None:
+        """Shift a full live log one suffix up before the next append.
+
+        Rotation runs when the live file has reached the byte threshold,
+        so one file can overshoot by at most a single record. The oldest
+        rotated file beyond ``event_log_keep`` falls off the end. Audit
+        readers walk :func:`event_log_paths` and never notice.
+        """
+        log = self.event_log
+        if log is None or self.event_log_max_bytes <= 0 or self.event_log_keep <= 0:
+            return
+        try:
+            if log.stat().st_size < self.event_log_max_bytes:
+                return
+        except FileNotFoundError:
+            return
+        paths = event_log_paths(log, keep=self.event_log_keep)
+        paths[0].unlink(missing_ok=True)
+        for older, newer in itertools.pairwise(paths):
+            if newer.exists():
+                newer.rename(older)

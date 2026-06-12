@@ -33,6 +33,7 @@ from .encode import Document, LocalEncoder, demo_corpus
 from .environments import StorageEnv
 from .ledger import Ledger
 from .llm import LLMClient
+from .observe import register_observe_commands
 from .protocol import QueryProtocol
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
@@ -317,6 +318,8 @@ def main(argv: list[str] | None = None) -> int:
 
     obituary = lsub.add_parser("obituary", help="why did this entry die?")
     obituary.add_argument("entry_id")
+
+    register_observe_commands(sub)
 
     args = parser.parse_args(argv)
     result: int = args.fn(args)
