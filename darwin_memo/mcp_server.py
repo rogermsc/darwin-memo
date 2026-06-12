@@ -2,6 +2,7 @@
 
     pip install "darwin-memo[mcp]"
     darwin-memo-mcp --memory ~/.darwin-memo/memory.json
+    darwin-memo mcp --memory ~/.darwin-memo/memory.json   # same server
 
 Claude Code:
 
@@ -37,7 +38,7 @@ DEFAULT_MEMORY = "~/.darwin-memo/memory.json"
 def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-untyped-def]
     try:
         from mcp.server.fastmcp import FastMCP
-    except ImportError as exc:  # pragma: no cover - exercised without extra
+    except ImportError as exc:
         raise SystemExit(
             'The MCP server needs the optional extra: pip install "darwin-memo[mcp]"'
         ) from exc
@@ -187,11 +188,8 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
     return server
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="darwin-memo-mcp",
-        description="MCP server exposing a self-curating darwin-memo store.",
-    )
+def _add_server_arguments(parser: argparse.ArgumentParser) -> None:
+    """One flag set shared by darwin-memo-mcp and ``darwin-memo mcp``."""
     parser.add_argument(
         "--memory",
         default=os.environ.get("DARWIN_MEMO_PATH", DEFAULT_MEMORY),
@@ -203,13 +201,43 @@ def main(argv: list[str] | None = None) -> int:
         default=1.0,
         help="normalization for settle deltas (see README design notes)",
     )
-    args = parser.parse_args(argv)
 
+
+def cmd_serve(args: argparse.Namespace) -> int:
     server = build_server(
         Path(args.memory).expanduser(), resource_scale=args.resource_scale
     )
     server.run()
     return 0
+
+
+def register_mcp_command(
+    sub: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """Attach mcp, so cli.py stays one import plus one call.
+
+    Registry clients construct ``uvx [runtimeArguments]
+    darwin-memo@VERSION [packageArguments]``, and uvx runs the console
+    script named after the package: the main darwin-memo CLI, not
+    darwin-memo-mcp. This subcommand gives that machine-built launch a
+    working server entry point (server.json passes ``mcp`` as a package
+    argument); darwin-memo-mcp stays for humans and existing configs.
+    """
+    mcp = sub.add_parser(
+        "mcp",
+        help="serve the memory over MCP stdio (same server as darwin-memo-mcp)",
+    )
+    _add_server_arguments(mcp)
+    mcp.set_defaults(fn=cmd_serve)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="darwin-memo-mcp",
+        description="MCP server exposing a self-curating darwin-memo store.",
+    )
+    _add_server_arguments(parser)
+    return cmd_serve(parser.parse_args(argv))
 
 
 if __name__ == "__main__":

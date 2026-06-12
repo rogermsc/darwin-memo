@@ -22,6 +22,19 @@ project uses [SemVer](https://semver.org/).
   store payload) exits with a one-line error and leaves the previous
   render untouched, so hooks and cron jobs can run it unconditionally.
 
+- `darwin-memo mcp`: the main CLI now serves the MCP stdio server,
+  sharing the flag set and `DARWIN_MEMO_PATH` handling of
+  `darwin-memo-mcp` (which keeps working unchanged). MCP registry
+  clients construct launches as `uvx [runtimeArguments]
+  darwin-memo@VERSION [packageArguments]`, and uvx runs the console
+  script named after the package, which had no way to reach the
+  server. `server.json` now installs the extra with `--with
+  "darwin-memo[mcp]"` (with `--from`, uvx reads `darwin-memo@VERSION`
+  as a literal executable name and fails) and passes `mcp` as a
+  package argument, so machine-constructed launches start the server.
+  Without the extra installed the subcommand exits with the exact
+  `pip install "darwin-memo[mcp]"` command.
+
 ## [0.5.0] - 2026-06-12
 
 The release that unbreaks the published OpenClaw plugin: its install

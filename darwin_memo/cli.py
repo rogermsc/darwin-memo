@@ -5,6 +5,7 @@
     darwin-memo query FILE "question"    interrogate a saved memory
     darwin-memo stats FILE               population, energy, graveyard
     darwin-memo ledger FILE OP ...       decide/settle/tick for scripts
+    darwin-memo mcp                      serve the memory over MCP stdio
 
 The demo is self-contained: it carries its own three-document corpus
 (including the poisoned forum post) and runs the survival loop against
@@ -37,6 +38,7 @@ from .encode import Document, LocalEncoder, demo_corpus
 from .environments import StorageEnv
 from .ledger import Ledger
 from .llm import LLMClient
+from .mcp_server import register_mcp_command
 from .observe import register_observe_commands
 from .protocol import QueryProtocol
 from .render import register_render_command
@@ -327,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     register_observe_commands(sub)
     register_render_command(sub)
     add_settle_ci_parser(sub)
+    register_mcp_command(sub)
 
     args = parser.parse_args(argv)
     result: int = args.fn(args)

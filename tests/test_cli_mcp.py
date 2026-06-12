@@ -1,6 +1,7 @@
 """CLI commands and the MCP server (the latter skipped without the extra)."""
 
 import json
+import sys
 
 import pytest
 
@@ -92,6 +93,57 @@ def test_mcp_server_full_cycle(tmp_path):
 
     asyncio.run(scenario())
     assert path.exists(), "state persists across calls"
+
+
+def test_cli_mcp_subcommand_runs_the_server(tmp_path, monkeypatch):
+    """`darwin-memo mcp` starts the same server as darwin-memo-mcp.
+
+    Registry clients construct `uvx [runtimeArguments] darwin-memo@VERSION
+    [packageArguments]`, which lands on the main CLI; the mcp subcommand
+    is what makes that launch work. build_server is faked so no stdio
+    loop starts and the test needs neither the extra nor a network.
+    """
+    calls = {}
+
+    class FakeServer:
+        def run(self):
+            calls["ran"] = True
+
+    def fake_build(memory_path, resource_scale):
+        calls["memory_path"] = memory_path
+        calls["resource_scale"] = resource_scale
+        return FakeServer()
+
+    monkeypatch.setattr("darwin_memo.mcp_server.build_server", fake_build)
+    memory = tmp_path / "memory.json"
+    assert cli_main(["mcp", "--memory", str(memory), "--resource-scale", "2.0"]) == 0
+    assert calls == {"ran": True, "memory_path": memory, "resource_scale": 2.0}
+
+
+def test_cli_mcp_subcommand_honors_darwin_memo_path(tmp_path, monkeypatch):
+    calls = {}
+
+    class FakeServer:
+        def run(self):
+            calls["ran"] = True
+
+    def fake_build(memory_path, resource_scale):
+        calls["memory_path"] = memory_path
+        return FakeServer()
+
+    monkeypatch.setenv("DARWIN_MEMO_PATH", str(tmp_path / "from-env.json"))
+    monkeypatch.setattr("darwin_memo.mcp_server.build_server", fake_build)
+    assert cli_main(["mcp"]) == 0
+    assert calls["memory_path"] == tmp_path / "from-env.json"
+
+
+def test_cli_mcp_without_extra_names_the_install(tmp_path, monkeypatch):
+    """Missing [mcp] extra exits with the exact pip command to run."""
+    for name in ("mcp", "mcp.server", "mcp.server.fastmcp"):
+        monkeypatch.setitem(sys.modules, name, None)
+    with pytest.raises(SystemExit) as excinfo:
+        cli_main(["mcp", "--memory", str(tmp_path / "memory.json")])
+    assert 'pip install "darwin-memo[mcp]"' in str(excinfo.value)
 
 
 def _ledger_json(capsys, argv):
