@@ -387,6 +387,16 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   the module docstring names public endpoints that lie about
   history).
 
+## Documentation
+
+The [docs index](docs/README.md) links everything. The operator set:
+the [tuning guide](docs/tuning.md) (the load-bearing knobs, failure
+symptoms, evidence-backed starting points per profile), the
+[API reference](docs/api.md) (Python surface, CLI, MCP tools,
+exceptions), and the [store format](docs/store-format.md) (the
+on-disk JSON, the event log and its rotation, the sidecars, the
+compatibility policy).
+
 ## More examples
 
 ```bash
