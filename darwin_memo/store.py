@@ -206,12 +206,24 @@ class MemoryStore:
         Entries in ``protect`` still pay upkeep but are not buried even
         at zero energy: the Ledger escrows entries with unsettled
         outcomes so a pending verdict cannot arrive after the execution.
+
+        Pinned entries also pay upkeep but their balance floors at zero
+        instead of triggering burial: rare-but-critical knowledge whose
+        payoff cadence is longer than the starvation horizon stays
+        consultable until it earns again (see docs/threat-model.md for
+        what pinning trades away). Floor-at-zero is the pin contract
+        everywhere energy moves: Ledger.settle floors a pinned balance
+        damaged by a settlement in the same call, so the floor here
+        only ever forgives the tick's own upkeep deduction, never a
+        negative balance carried over from settlement damage.
         """
         protected = set(protect)
         dead: list[MemoryEntry] = []
         for entry in list(self._entries.values()):
             entry.energy -= self.upkeep
-            if not entry.alive and entry.id not in protected:
+            if entry.pinned:
+                entry.energy = max(entry.energy, 0.0)
+            elif not entry.alive and entry.id not in protected:
                 dead.append(entry)
         for entry in dead:
             self.bury(entry.id)

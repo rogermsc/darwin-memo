@@ -3,6 +3,13 @@
 darwin-memo has zero runtime dependencies, so the attack surface is the
 library itself plus whatever optional extras you install.
 
+The full threat model lives in
+[docs/threat-model.md](docs/threat-model.md): the settle trust
+boundary, adversarial deltas, poisoned imports and probation,
+cold-start damage and admission gating, prompt injection through
+lesson text, and the explicit non-goals (single writer, no
+cryptographic provenance).
+
 Two things worth knowing when threat-modeling a deployment:
 
 - `TestSuiteEnv` executes generated Python source in-process by design

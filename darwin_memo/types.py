@@ -33,6 +33,17 @@ class EntryKind(str, Enum):
     CONSOLIDATED = "consolidated"
 
 
+# Trust-lifecycle fields and their defaults: omitted from to_dict when
+# still at the default, so vanilla files keep their pre-lifecycle shape.
+_TRUST_DEFAULTS: dict[str, Any] = {
+    "pinned": False,
+    "probation": 0,
+    "juvenile": 0,
+    "imported_from": None,
+    "imported_at": None,
+}
+
+
 @dataclass
 class MemoryEntry:
     """A single unit of memory, stored as a self-contained QA pair.
@@ -46,6 +57,15 @@ class MemoryEntry:
     persisted before the field existed load as the empty string and
     render as "age unknown": faking a timestamp at load time would be
     exactly the time-blindness this field exists to fix.
+
+    The trust-lifecycle fields (see docs/threat-model.md) all default to
+    the pre-lifecycle behavior. ``probation`` counts the net-positive
+    local settlements an imported entry still owes before it may decide.
+    ``juvenile`` counts the settlements left in a locally minted entry's
+    admission window, during which its deciding credit is capped and one
+    negative deciding outcome denies admission. ``pinned`` entries pay
+    upkeep but can never starve or be merged away. ``imported_from`` and
+    ``imported_at`` record import provenance as plain labels, not proof.
     """
 
     question: str
@@ -58,15 +78,31 @@ class MemoryEntry:
     last_used_cycle: int = -1
     uses: int = 0
     lineage: list[str] = field(default_factory=list)
+    pinned: bool = False
+    probation: int = 0
+    juvenile: int = 0
+    imported_from: str | None = None
+    imported_at: str | None = None
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
 
     @property
     def alive(self) -> bool:
         return self.energy > 1e-9
 
+    @property
+    def may_decide(self) -> bool:
+        """Probationary imports ride along but never take the decision."""
+        return self.probation <= 0
+
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
         d["kind"] = self.kind.value
+        # Trust-lifecycle fields serialize only when set, so a file
+        # written by this version stays loadable by older releases
+        # until an entry actually enters the lifecycle.
+        for key, default in _TRUST_DEFAULTS.items():
+            if d[key] == default:
+                del d[key]
         return d
 
     @classmethod

@@ -6,6 +6,7 @@
     darwin-memo stats FILE               population, energy, graveyard
     darwin-memo ledger FILE OP ...       decide/settle/tick for scripts
     darwin-memo mcp                      serve the memory over MCP stdio
+    darwin-memo import SRC DEST          probationary import from another store
 
 The demo is self-contained: it carries its own three-document corpus
 (including the poisoned forum post) and runs the survival loop against
@@ -36,7 +37,7 @@ from pathlib import Path
 from .ci import add_settle_ci_parser
 from .encode import Document, LocalEncoder, demo_corpus
 from .environments import StorageEnv
-from .ledger import Ledger
+from .ledger import DEFAULT_PROBATION, Ledger
 from .llm import LLMClient
 from .mcp_server import register_mcp_command
 from .observe import register_observe_commands
@@ -275,6 +276,12 @@ def cmd_ledger(args: argparse.Namespace) -> int:
         out = {"forgotten": status == "buried"}
         if status == "escrowed":
             out["reason"] = "escrowed by a pending ticket"
+        elif status == "pinned":
+            out["reason"] = "pinned; unpin first"
+    elif args.ledger_op == "pin":
+        out = {"pinned": ledger.pin(args.entry_id)}
+    elif args.ledger_op == "unpin":
+        out = {"unpinned": ledger.unpin(args.entry_id)}
     elif args.ledger_op == "tick":
         out = ledger.tick(expire_after=args.expire_after)
     elif args.ledger_op == "stats":
@@ -295,6 +302,50 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     if save:
         ledger.save(path)
     print(json.dumps(out))
+    return 0
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    """Probationary import: SRC's living entries join DEST on probation.
+
+    SRC may be a plain store file or a ledger file (the store loader
+    ignores the ledger key). DEST auto-creates on first use, mirroring
+    the ledger command. Imports arrive at spawn energy with provenance
+    (source path, import time) and cannot decide until they re-earn
+    locally; --probation 0 is the explicit full-trust bootstrap path.
+    The operation is idempotent: ids already present in DEST, living
+    or buried, are skipped.
+    """
+    src = Path(args.src).expanduser()
+    if not src.exists():
+        print(f"error: source {args.src} not found", file=sys.stderr)
+        return 1
+    dest = Path(args.dest).expanduser()
+    if src.resolve() == dest.resolve():
+        print("error: SRC and DEST are the same file", file=sys.stderr)
+        return 1
+    src_store = MemoryStore.load(src)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    event_log = dest.with_suffix(".events.jsonl")
+    if dest.exists():
+        ledger = Ledger.load(dest, event_log=event_log)
+    else:
+        ledger = Ledger(MemoryStore(), event_log=event_log)
+    candidates = src_store.alive()
+    imported = ledger.import_entries(
+        candidates, source=str(src), probation=args.probation
+    )
+    ledger.save(dest)
+    print(
+        json.dumps(
+            {
+                "imported": len(imported),
+                "skipped": len(candidates) - len(imported),
+                "probation": max(0, args.probation),
+                "entries": [e.id for e in imported],
+            }
+        )
+    )
     return 0
 
 
@@ -366,6 +417,12 @@ def main(argv: list[str] | None = None) -> int:
     forget = lsub.add_parser("forget", help="bury an entry by id")
     forget.add_argument("entry_id")
 
+    pin = lsub.add_parser("pin", help="protect an entry from culling and merges")
+    pin.add_argument("entry_id")
+
+    unpin = lsub.add_parser("unpin", help="remove pin protection")
+    unpin.add_argument("entry_id")
+
     tick = lsub.add_parser("tick", help="upkeep, deaths, consolidation, expiry")
     tick.add_argument("--expire-after", type=int, default=50)
 
@@ -373,6 +430,21 @@ def main(argv: list[str] | None = None) -> int:
 
     obituary = lsub.add_parser("obituary", help="why did this entry die?")
     obituary.add_argument("entry_id")
+
+    imp = sub.add_parser(
+        "import",
+        help="copy entries from another store on probation: they re-earn locally",
+    )
+    imp.add_argument("src", help="source store or ledger file")
+    imp.add_argument("dest", help="destination ledger file; created on first use")
+    imp.add_argument(
+        "--probation",
+        type=int,
+        default=DEFAULT_PROBATION,
+        help="net-positive settlements required before an import may decide "
+        f"(default {DEFAULT_PROBATION}; 0 imports at full trust)",
+    )
+    imp.set_defaults(fn=cmd_import)
 
     register_observe_commands(sub)
     register_render_command(sub)

@@ -51,6 +51,8 @@ def _top_row(entry: MemoryEntry, tick: int) -> dict[str, Any]:
             entry.last_used_cycle if entry.last_used_cycle >= 0 else None
         ),
         "uses": entry.uses,
+        "pinned": entry.pinned,
+        "probation": entry.probation,
         "question": entry.question,
     }
 
@@ -86,9 +88,15 @@ def cmd_top(args: argparse.Namespace) -> int:
             else f"t{row['last_settled_tick']}"
         )
         source = ",".join(row["sources"]) or "-"
+        flags = ""
+        if row["pinned"]:
+            flags += " [pinned]"
+        if row["probation"]:
+            flags += f" [probation {row['probation']}]"
         print(
             f"{row['balance']:>8.3f} {row['id']:>12} {row['kind']:>12} "
-            f"{row['age_ticks']:>5} {settled:>8}  [{source}] {row['question'][:48]}"
+            f"{row['age_ticks']:>5} {settled:>8}  [{source}] "
+            f"{row['question'][:48]}{flags}"
         )
     return 0
 
@@ -146,6 +154,9 @@ def entry_life(ledger: Ledger, entry_id: str) -> dict[str, Any] | None:
         "sources": list(entry.sources) if entry else [],
         "balance": round(entry.energy, 3) if entry else None,
         "uses": entry.uses if entry else None,
+        "pinned": entry.pinned if entry else False,
+        "probation": entry.probation if entry else 0,
+        "juvenile": entry.juvenile if entry else 0,
         "birth": {
             "tick": entry.born_cycle if entry else None,
             "ts": (birth or {}).get("ts"),
@@ -175,6 +186,15 @@ def cmd_why(args: argparse.Namespace) -> int:
     print(f"{life['id']} [{life['kind']}] {life['status']}: {life['question']!r}")
     balance = "unknown" if life["balance"] is None else f"{life['balance']:.3f}"
     print(f"  balance={balance} uses={life['uses']}")
+    if life["pinned"]:
+        print("  pinned: starvation and merges cannot remove it")
+    if life["probation"]:
+        print(
+            f"  probation: {life['probation']} net-positive settlements"
+            " until it may decide"
+        )
+    if life["juvenile"]:
+        print(f"  juvenile: {life['juvenile']} settlements left in admission window")
     birth = life["birth"]
     stake = "unknown" if birth["stake"] is None else f"{birth['stake']:g}"
     print(

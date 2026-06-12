@@ -45,6 +45,13 @@ class SurvivalConfig:
     # which has no environment, sets this directly so the whole credit
     # formula lives in one config object.
     resource_scale: float | None = None
+    # Admission gating (docs/threat-model.md): entries written through
+    # Ledger.add start with this many juvenile settlements ahead of
+    # them. 0 disables gating and keeps existing behavior byte for
+    # byte; 3 is the documented default when you turn it on. While
+    # juvenile, a deciding entry earns and loses at supporting_share,
+    # and one negative deciding outcome denies admission outright.
+    admission_window: int = 0
 
 
 def assign_credit(
@@ -64,6 +71,20 @@ def assign_credit(
     full credit and supporters take a share; when no single entry
     decided, credit spreads evenly. Returns the (entry_id, credit)
     pairs that were applied, so callers can record them.
+
+    Two trust-lifecycle exceptions. A juvenile decider (an entry still
+    inside its admission window, see ``SurvivalConfig.admission_window``)
+    takes the supporting share instead of full credit, so a young
+    lesson cannot bank energy faster than incumbents while it is still
+    unproven. And on the even-spread path (no deciding entry named), an
+    entry that may not decide (a probationary import) takes its even
+    share AT the supporting share: an import in a two-citation
+    settlement must not earn double the ``credit_gain *
+    supporting_share`` ride-along cap the threat model documents.
+    Neither exception touches pre-lifecycle arithmetic, because such
+    entries did not exist before the lifecycle did. The counters
+    themselves advance in :func:`advance_lifecycle`, called by
+    Ledger.settle and the loop's credit path.
     """
     normalized = math.tanh(delta / resource_scale)
     credit = config.credit_gain * normalized
@@ -71,17 +92,75 @@ def assign_credit(
         return []
     applied: list[tuple[str, float]] = []
     if deciding_entry:
-        applied.append((deciding_entry, credit))
+        decider = store.get(deciding_entry)
+        weight = (
+            config.supporting_share
+            if decider is not None and decider.juvenile > 0
+            else 1.0
+        )
+        applied.append((deciding_entry, credit * weight))
         applied.extend(
             (entry_id, credit * config.supporting_share)
             for entry_id in supporting_entries
         )
     elif supporting_entries:
         share = credit / len(supporting_entries)
-        applied.extend((entry_id, share) for entry_id in supporting_entries)
+        for entry_id in supporting_entries:
+            entry = store.get(entry_id)
+            if entry is not None and not entry.may_decide:
+                applied.append((entry_id, share * config.supporting_share))
+            else:
+                applied.append((entry_id, share))
     for entry_id, amount in applied:
         store.credit(entry_id, amount, cycle)
     return applied
+
+
+def advance_lifecycle(
+    store: MemoryStore,
+    applied: list[tuple[str, float]],
+    delta: float,
+    deciding_entry: str | None,
+) -> list[tuple[str, str]]:
+    """Advance probation and juvenile counters after one credited outcome.
+
+    The one lifecycle rule, shared by Ledger.settle and SurvivalLoop's
+    credit path so an import graduates (and a juvenile is admitted or
+    denied) no matter which consumer measured the outcome.
+
+    Probation (imported entries): each net-positive credit pays one
+    installment; at zero the entry graduates and may decide. Negative
+    credits drain energy as usual but never count toward graduation.
+
+    Juvenile window (admission-gated local entries): every credited
+    settlement advances the window, but a negative measured delta while
+    the entry DECIDED denies admission outright: the balance zeroes and
+    the caller's burial path executes it. Riding along on someone
+    else's bad decision drains energy without denying admission.
+    Zero-delta outcomes apply no credit and reach neither counter.
+
+    Returns ``(entry_id, event)`` pairs, event one of ``"graduated"``,
+    ``"admitted"``, ``"admission_denied"``, so callers can narrate them.
+    """
+    events: list[tuple[str, str]] = []
+    for entry_id, credit in applied:
+        entry = store.get(entry_id)
+        if entry is None:
+            continue
+        if entry.probation > 0 and credit > 0:
+            entry.probation -= 1
+            if entry.probation == 0:
+                events.append((entry_id, "graduated"))
+        if entry.juvenile > 0:
+            if delta < 0 and entry_id == deciding_entry:
+                entry.energy = 0.0
+                entry.juvenile = 0
+                events.append((entry_id, "admission_denied"))
+                continue
+            entry.juvenile -= 1
+            if entry.juvenile == 0:
+                events.append((entry_id, "admitted"))
+    return events
 
 
 def is_silent(answer_text: str, deciding: str | None, supporting: list[str]) -> bool:
@@ -260,9 +339,16 @@ class SurvivalLoop:
     # ------------------------------------------------------------------
 
     def _assign_credit(self, trajectory: Trajectory, cycle: int) -> None:
-        """Energy moves only along provenance, via the shared credit rule."""
+        """Energy moves only along provenance, via the shared credit rule.
+
+        The trust lifecycle advances here too: a probationary import
+        that rides along on a verified win in the loop pays an
+        installment exactly as it would on a Ledger settlement, and a
+        juvenile entry is admitted or denied the same way (the denial
+        zeroes its balance; this cycle's upkeep buries it).
+        """
         scale = self.config.resource_scale or self.env.resource_scale
-        assign_credit(
+        applied = assign_credit(
             self.store,
             trajectory.deciding_entry,
             trajectory.supporting_entries,
@@ -270,6 +356,12 @@ class SurvivalLoop:
             scale,
             self.config,
             cycle,
+        )
+        advance_lifecycle(
+            self.store,
+            applied,
+            trajectory.outcome.delta,
+            trajectory.deciding_entry,
         )
 
     def _write_experience(self, trajectory: Trajectory, cycle: int) -> int:

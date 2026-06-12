@@ -111,15 +111,31 @@ class QueryProtocol:
             kind=kind,
             source=source,
         )
-        if not hits:
+        # The decider is the best-ranked entry eligible to decide.
+        # Probationary imports (entry.may_decide False) demote to
+        # supporting even when they outrank everything: they earn a
+        # ride-along share when co-consulted but never author the
+        # answer. When EVERY hit is probationary the answer is silent,
+        # because imported knowledge alone must not drive a decision
+        # and ride-alongs must not earn from their own answer
+        # (docs/threat-model.md, poisoned imports).
+        deciding = next((e for e, _ in hits if e.may_decide), None)
+        if deciding is None:
             return ProtocolAnswer(text="")
-        deciding, _ = hits[0]
+        # The consult surface anchors on the DECIDER, not the raw top
+        # hit: when a probationary import outranks every local entry,
+        # rendering hits[0] would let the import author the displayed
+        # answer while the demoted-to-deciding local entry takes the
+        # credit. Reordering keeps the surfaced answer and the credited
+        # decision the same entry; demoted hits still appear in the
+        # dated conflict block when they overlap it.
+        ordered = sorted(hits, key=lambda hit: hit[0].id != deciding.id)
         return ProtocolAnswer(
             text=deciding.answer,
             deciding_entry=deciding.id,
-            supporting_entries=[e.id for e, _ in hits[1:]],
+            supporting_entries=[e.id for e, _ in hits if e.id != deciding.id],
             annotated_text=render_consult(
-                hits, self.store.similarity, self.conflict_threshold
+                ordered, self.store.similarity, self.conflict_threshold
             ),
         )
 
@@ -210,17 +226,48 @@ class QueryProtocol:
             return ProtocolAnswer(text=text, deciding_entry=None, annotated_text=text)
         if cited:
             # Citation-based attribution: cited entries carry the credit.
-            return ProtocolAnswer(
-                text=text,
-                deciding_entry=cited[0] if len(cited) == 1 else None,
-                supporting_entries=cited if len(cited) > 1 else [],
-                annotated_text=text,
-            )
-        # No parseable citations: fall back to even spread over consulted.
+            deciding = cited[0] if len(cited) == 1 else None
+            supporting = cited if len(cited) > 1 else []
+        else:
+            # No parseable citations: fall back to even spread over
+            # everything consulted.
+            deciding = None
+            supporting = ids
+        return self._enforce_probation(text, deciding, supporting)
+
+    def _enforce_probation(
+        self, text: str, deciding: str | None, supporting: list[str]
+    ) -> ProtocolAnswer:
+        """Demote or withhold probationary provenance at the parse site.
+
+        Local mode enforces probation in retrieval, but an LLM-mode
+        answer cites entries after the text exists, so the rule applies
+        post hoc: a probationary citation demotes to supporting, and
+        when EVERY entry behind the answer is probationary the answer
+        is withheld entirely. Imported knowledge alone never drives a
+        decision and never earns from its own answer
+        (docs/threat-model.md). Living here, where citations are
+        parsed, the rule reaches every consumer of LLM-mode answers:
+        the SurvivalLoop as much as the Ledger, which re-checks in
+        ``decide`` as a backstop for protocol overrides.
+        """
+        if deciding is not None:
+            entry = self.store.get(deciding)
+            if entry is not None and not entry.may_decide:
+                supporting = [*supporting, deciding]
+                deciding = None
+        if deciding is None and supporting:
+            eligible = [
+                eid
+                for eid in supporting
+                if (e := self.store.get(eid)) is None or e.may_decide
+            ]
+            if not eligible:
+                return ProtocolAnswer(text="", deciding_entry=None, annotated_text="")
         return ProtocolAnswer(
             text=text,
-            deciding_entry=None,
-            supporting_entries=ids,
+            deciding_entry=deciding,
+            supporting_entries=supporting,
             annotated_text=text,
         )
 

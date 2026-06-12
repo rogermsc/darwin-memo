@@ -51,6 +51,38 @@ project uses [SemVer](https://semver.org/).
   Without the extra installed the subcommand exits with the exact
   `pip install "darwin-memo[mcp]"` command.
 
+- `darwin-memo import SRC DEST [--probation N]`
+  (`Ledger.import_entries`): copy another store's living entries on
+  probation. Imports arrive at spawn energy with provenance labels
+  (`imported_from`, `imported_at`), cannot be the deciding entry of
+  any answer until they graduate through N net-positive locally
+  measured settlements (default 3), never consolidate while on
+  probation, and earn at most the supporting share while riding
+  along, on the even-spread path too. A consult where every hit is
+  probationary is withheld outright. Idempotent on ids: re-importing
+  neither duplicates entries nor resurrects ones that died here.
+  `--probation 0` is the explicit trusted-bootstrap path.
+
+- `Ledger.pin` and `unpin` (`ledger pin`/`unpin` CLI): a pinned entry
+  pays upkeep and takes settlement losses, but its balance floors at
+  zero on both paths, so neither starvation nor a negative outcome
+  can bury it; consolidation never merges it and `forget` refuses it
+  until unpinned. For rare-but-critical knowledge whose payoff
+  cadence is longer than the starvation horizon. Pinned status
+  surfaces in `top` and `why`.
+
+- `SurvivalConfig.admission_window` (default 0, off): entries written
+  through `Ledger.add` start juvenile for K settlements, earn and
+  lose deciding credit at `supporting_share`, and one negative
+  deciding outcome denies admission on the spot. Bounds the
+  documented lesson price to a single settlement's damage.
+
+- `docs/threat-model.md`, linked from SECURITY.md: the settle trust
+  boundary, adversarial deltas, poisoned imports and what probation
+  does not do, the price lesson and admission gating, prompt
+  injection through lesson text, pinning as a trust statement, and
+  the explicit non-goals.
+
 ## [0.5.0] - 2026-06-12
 
 The release that unbreaks the published OpenClaw plugin: its install
