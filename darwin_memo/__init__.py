@@ -48,7 +48,7 @@ from .temporal import (
 from .testsuite_env import TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 __all__ = [
     "CONFLICT_HEADER",
