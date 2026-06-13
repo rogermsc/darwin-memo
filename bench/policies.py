@@ -21,6 +21,10 @@ each cycle:
 - random_matched: evicts the same NUMBER of entries per cycle that the
   survival arm evicted on the same seed, chosen uniformly at random.
   The sharpest control: same pruning rate, no outcome direction.
+- policy_bandit: the literature control for the AEL objection. No
+  energy: a successive-elimination bandit statistic over each entry's
+  reported decision outcomes, culling when even the optimistic
+  confidence bound says the entry wins less than half its decisions.
 
 Baselines share one driver and differ only in their victim selector;
 they track entry usage (recency needs it) but never touch energy.
@@ -28,6 +32,7 @@ they track entry usage (recency needs it) but never touch energy.
 
 from __future__ import annotations
 
+import math
 import random
 from collections import Counter
 from collections.abc import Callable
@@ -312,6 +317,63 @@ def run_quarantine(
         if on_cycle:
             on_cycle(cycle, record)
     return result
+
+
+def run_policy_bandit(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    on_cycle: OnCycle | None = None,
+    threshold: float = 0.5,
+) -> PolicyResult:
+    """The bandit control arm: confidence bounds instead of energy.
+
+    The objection this arm exists to test (the AEL line, arXiv
+    2604.21725): conserved-resource settlement is unnecessary, because
+    a simple bandit statistic over retrieval outcomes curates just as
+    well under noise. So here it is, run rather than argued. Each
+    entry is a bandit arm. Every measured task it decides is a pull
+    paying reward 1 (positive reported delta) or 0 (negative); an
+    entry is culled when even its optimistic estimate
+    ``mean + sqrt(ln(T) / (2n))`` drops below ``threshold``
+    (successive elimination with a Hoeffding radius, T = total pulls
+    recorded so far across all entries). Stdlib, deterministic, no
+    RNG anywhere.
+
+    Three structural differences from the ledger, all on purpose:
+    confidence radii forgive (one lie cannot execute a many-pull
+    entry, the bandit's version of the energy buffer); nothing
+    starves (an entry that never decides is never pulled and so never
+    culled, dead weight is immortal); and the reward reads only the
+    reported SIGN, so a wrong delete costing 3x what a right one
+    earns is invisible, putting break-even at win rate 0.5 even where
+    the value break-even is far higher. The two-pull guard exists
+    because ln(1) = 0 collapses the radius to zero and would make the
+    first failure an instant execution, which is evict_on_negative
+    k=1, not a bandit.
+    """
+    pulls: Counter[str] = Counter()
+    wins: Counter[str] = Counter()
+
+    def confidently_bad(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
+        pulls.update(blamed)
+        pulls.update(praised)
+        wins.update(praised)
+        total = sum(pulls.values())
+        if total < 2:
+            return []
+        log_total = math.log(total)
+        return [
+            e
+            for e in s.alive()
+            if pulls[e.id]
+            and wins[e.id] / pulls[e.id] + math.sqrt(log_total / (2 * pulls[e.id]))
+            < threshold
+        ]
+
+    return _run_baseline(store, env, cycles, confidently_bad, on_cycle)
 
 
 ARMS = (

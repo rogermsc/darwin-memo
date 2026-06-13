@@ -21,6 +21,8 @@ the conclusions lose; file an issue.
 | Forgiveness has a price: noise delays poison execution | noisy suite: kill cycle and kill rate under the flip model |
 | The ledger has its own failure boundary, and it is published | noisy suite: the flip sweep to 50% |
 | The mechanism transfers to a second environment family | testsuite suites: same claims, passing tests as the resource |
+| A bandit statistic is not the ledger, and where it matches, the boundary is published | bandit suite, per-seed paired against the noisy grid |
+| Conserved-resource settlement beats judge settlement | judge suite: cum delta, kill, judge_failures vs matched survival |
 
 "Poison killed" means no alive entry from the poisoned source whose
 answer reads as a positive action. Inert poisoned entries that advise
@@ -631,6 +633,222 @@ mechanism:
   corpus, and polarity reader share a hand. The paraphrase columns are
   the out-of-distribution check, and silence dominates them.
 
+## Control arms from the literature: the bandit and the judge
+
+"No judge anywhere" and "settlement must be a conserved resource" are
+differentiating claims, and a differentiating claim needs a control
+arm, not a slogan. The two arms below run the literature's strongest
+objections against the same harness. House rule, kept: both cell
+definitions and both hypotheses in this section were committed before
+either grid ran.
+
+### policy_bandit: the AEL objection, run rather than argued
+
+The objection (arXiv 2604.21725): a simple bandit over retrieval
+policies matches outcome-settled selection under noise, so the energy
+ledger is decoration. The arm: each memory entry is a bandit arm;
+every measured task it decides is a pull paying reward 1 (positive
+reported delta) or 0 (negative); an entry is culled when even its
+optimistic estimate `mean + sqrt(ln(T) / (2n))` falls below 0.5
+(successive elimination with a Hoeffding radius, T = total recorded
+pulls, and no eliminations before two pulls because ln(1) = 0 would
+collapse the radius and turn the first failure into evict k=1).
+Stdlib, deterministic, no RNG, no energy, no upkeep.
+
+Grid, pre-committed: the noisy suite's exact cells (none / flip /
+false_bad / magnitude at the same rates), seeds 0..9, 30 cycles, 12
+files per cycle, the same hash-derived worlds and flake marks as the
+committed noisy results, plus matched survival cells in the same file
+so per-seed pairing needs no cross-file surgery.
+
+Hypothesis, pre-committed: the confidence radius is real forgiveness,
+so the bandit should hold up under false_bad and flip far better than
+the strike counters and may match survival in some regimes; wherever
+it does, the boundary gets published, because the objection deserves
+an answer, not a dodge. Predicted failure modes: the bandit starves
+nothing (an entry that never decides is never pulled, so dead weight
+is immortal and final population should sit near keep_everything's);
+the reward reads the reported SIGN only, so it is magnitude-blind: in
+StorageEnv a wrong delete costs 3x what a right one earns, putting a
+decider's value break-even near win rate 0.75 while the bandit's
+sits at 0.5; and the poison kill should land cycles later than
+survival's 0-1, because confidence takes several confirmed failures
+to collapse.
+
+Results (240 runs committed in `bench/results/bandit.json`; per-seed
+pairing via `bench.report bench/results/bandit.json --paired
+policy_bandit survival`, significance via `--tests`, Holm-adjusted
+across all 12 cells):
+
+Mean true cum delta (M) / benign capability, 10 seeds per cell:
+
+| arm | false_bad 0.00 | 0.05 | 0.10 | 0.20 | 0.35 |
+|---|---|---|---|---|---|
+| policy_bandit | 11.14 / 1.00 | 11.14 / 1.00 | 11.14 / 1.00 | 11.14 / 1.00 | 11.14 / 1.00 |
+| survival | 12.59 / 1.00 | 12.59 / 1.00 | 12.23 / 0.97 | 12.23 / 0.97 | 11.00 / 0.77 |
+
+| arm | flip 0.05 | 0.10 | 0.20 | 0.35 | 0.50 |
+|---|---|---|---|---|---|
+| policy_bandit | 10.11 / 1.00 | 8.83 / 1.00 | 4.43 / 1.00 | -3.36 / 1.00 | -9.08 / 1.00 |
+| survival | 12.49 / 1.00 | 12.01 / 0.97 | 11.72 / 0.97 | 10.04 / 0.77 | 0.80 / 0.37 |
+
+The boundary, published as promised: **under asymmetric false_bad
+noise the AEL objection holds, and at 35% the bandit matches
+survival.** The bandit's false_bad and magnitude cells are per-seed
+IDENTICAL to its clean run, all 10 seeds at every rate: false_bad
+only turns wins into reported losses, a healthy decider's observed
+win rate stays far above the 0.5 elimination threshold, and the
+poison (whose true losses false_bad never touches) dies on the same
+cycle regardless. So as the noise rate climbs, survival walks down
+toward the bandit's flat line and reaches it: at false_bad 0.35 the
+cells are 11.14M [10.63, 11.65] (bandit) vs 11.00M [10.16, 11.87]
+(survival), paired diff +0.14M [-0.48, +0.76] with the bandit winning
+5 of 10 seeds (adjusted p = 0.68, a statistical tie), and the bandit
+RETAINS full benign capability (1.00 [1.00, 1.00] vs survival's 0.77
+[0.63, 0.90]) because a winner can essentially never cross the
+threshold, so it never wrongfully executes. Survival's wins at
+false_bad 0.10 and 0.20 (8/1/1) do not survive Holm either (adjusted
+p = 0.082). If your noise is one-sided and you can live with an
+uncurated population, the bandit is a legitimate tool in that regime
+and this table says so.
+
+Everywhere else the ledger wins and the pre-committed predictions
+land. Clean, magnitude, false_bad 0.05, and flip 0.05 through 0.35:
+survival 9/1/0 per cell, adjusted p = 0.047 (the Holm floor on 10
+seeds at this grid size). The mechanisms, each one predicted:
+
+- **Dead weight is immortal**, as predicted: final population 15 to
+  16 in every cell, keep_everything's neighborhood, vs survival's 3
+  to 4. Never-pulled entries can never be eliminated; the bandit has
+  no upkeep, so nothing starves.
+- **Confidence takes confirmed failures to collapse**, as predicted:
+  the clean-cell poison kill lands at median cycle 1.5 vs survival's
+  0, and damage before kill triples (-1.22M vs -0.39M). That gap, plus
+  the hoarded population, is the whole clean-cell margin (12.59M vs
+  11.14M).
+- **Symmetric noise breaks the 0.5 threshold**, the sign-blindness
+  prediction cashing out: under flip, false-good lies pay the poison
+  real reward, its observed win rate sits near the flake rate, and
+  elimination needs the OPTIMISTIC bound below 0.5. At flip 0.35 the
+  kill lands in only 4 of 10 seeds (cycles 12 to 15); at 0.50 it
+  never lands in any seed, the run bleeds to -9.08M [-10.78, -7.44],
+  keep_everything's territory (-8.84M), while survival stays the only
+  arm above zero (+0.80M [-4.91, +5.71]). The two arms fail in
+  opposite directions at 50%: the bandit keeps every benign entry
+  (1.00) and lets the poison feed forever; survival kills
+  indiscriminately (benign 0.37 [0.20, 0.53]) and stays solvent.
+  Nothing curates safely there, as the noisy suite already concluded.
+- **Magnitude blindness cost nothing on this corpus**, as the noisy
+  suite's magnitude section predicts for every sign-reader: the
+  bandit's magnitude cells equal its clean cells exactly. The 3x
+  restore-cost asymmetry (value break-even near win rate 0.75 against
+  the bandit's 0.5) shows up as the slower, costlier clean-cell kill
+  above, not as an extra magnitude penalty.
+
+Against the strike counters the bandit is what the AEL line claims:
+at false_bad 0.35 it posts 11.14M / 1.00 where evict k=1 posts 0.00M
+/ 0.00 and consecutive k=2 posts 1.08M / 0.00 (30-seed noisy table).
+The honest summary: a Hoeffding radius is real forgiveness, it is the
+strongest no-ledger arm this harness has fielded, and the regime
+where it matches the ledger is published above. What it cannot do is
+starve dead weight, kill promptly, or survive lies that pay the
+guilty; those three are exactly what conserved-resource settlement
+buys.
+
+### judge_settled: settlement by LLM verdict
+
+The differentiating claim under test: conserved-resource settlement
+beats LLM-judge settlement. arXiv 2605.12978 predicts the judge
+failure mode this arm goes looking for: continuously updated memories
+settled by judge go faulty, because the judge grades plausibility and
+prose where the ledger weighs measured consequences. The arm: the
+same driver as every baseline, but keep/cull is decided by a local
+LLM judge (Ollama, temperature 0) that sees each deciding entry's
+lesson plus the environment's own outcome descriptions for the tasks
+it decided, one batched verdict call per cycle, JSON array out.
+Unparseable or missing verdicts default to keep and are counted
+(`judge_failures`). The judge gets MORE per-event information than
+the ledger's scalar delta (the prose descriptions name what really
+happened); losing from there is the interesting result. Under
+measurement noise the corrupted detail strings name both reported and
+true deltas, so the runner refuses this arm under noise rather than
+leak ground truth.
+
+Grid, pre-committed: StorageEnv only, seeds 0..4, 12 cycles, 8 files
+per cycle, judge models llama3.2:3b and qwen3:4b, plus matched
+survival cells on the same worlds. Sized to stay under roughly 30
+minutes of total model time (requests queue behind whatever else the
+local server is doing); actual wall clock gets reported with the
+results. Opt-in tier, never CI: sampled model output is not
+deterministic, the lesson store's first entry.
+
+Hypothesis, pre-committed: survival beats judge settlement on true
+outcomes and kill behavior on the same worlds; the judge shows some
+mix of parse failures, verdict drift between models, and wall-clock
+orders of magnitude above measurement. The honest exit is stated in
+advance: if the judge matches measured settlement here, the
+differentiating claim loses its benchmark support and this section
+will say so.
+
+Results (10 runs per model committed in `bench/results/judge-llama.json`
+and `bench/results/judge-qwen.json`, 5 survival plus 5 judge_settled
+seeds each; per-seed pairing via `bench.report <file> --paired survival
+judge_settled`, significance via `--tests`). Five seeds is a small
+sample by design: each judged cycle is a model call, so the exact
+two-sided permutation test cannot return below p = 0.0625 even on a
+clean 5-0 sweep. Read these as direction and effect size, not as
+significance; nothing below clears p = 0.05, and the table says so.
+
+Per-model, mean true cum delta and benign capability vs the matched
+survival cells (the same five worlds, deterministic):
+
+| model | arm | seeds | cum delta (M) | benign correct | poison kill cycle (med) | final pop | judge wall (s, mean) |
+|---|---|---|---|---|---|---|---|
+| llama3.2:3b | survival | 5 | 2.66 [2.19, 3.10] | 1.00 | 1 | 12.8 | 0.09 |
+| llama3.2:3b | judge_settled | 5 | 1.88 [0.76, 2.96] | 0.67 | 1 | 14.0 | 87.6 |
+| qwen3:4b | survival | 5 | 2.66 [2.19, 3.10] | 1.00 | 1 | 12.8 | 0.03 |
+| qwen3:4b | judge_settled | 5 | 3.09 [2.88, 3.29] | 1.00 | 0 | 15.0 | 1,514.2 |
+
+The honest exit, stated in advance, is the one this grid lands on: the
+two local judges split. The hypothesis holds for llama3.2:3b and fails
+for qwen3:4b, so the differentiating claim does not get clean benchmark
+support at this scale.
+
+- **llama3.2:3b degrades, in the predicted direction but not
+  significantly.** Survival wins the per-seed cum-delta pairing 3 of 5
+  (3W/2T/0L, mean diff +0.78M [+0.05, +1.85], p = 0.25). The cost is
+  capability, not solvency: benign-probe correctness falls to 0.67 mean
+  (three of five seeds drop to 0.33 or 0.67 while survival holds 1.00
+  on all five), so the judge culls load-bearing benign entries on the
+  prose it reads. The arm still kills the poison every seed at the same
+  median cycle as survival. Parse failures are frequent (67 unparseable
+  or missing verdicts across the five runs, defaulted to keep), which is
+  the predicted mix.
+- **qwen3:4b does not degrade.** It slightly beats survival on cum
+  delta (3.09M vs 2.66M, 0W/2T/3L for survival, mean diff -0.43M
+  [-0.80, -0.08], p = 0.25), holds benign capability at 1.00 on every
+  seed, and kills the poison at cycle 0 in all five. On true outcomes
+  and kill behavior this judge matches or edges the ledger here, so for
+  this model the section reports no degradation rather than smoothing it
+  into the headline.
+- **The constant either way is cost.** Settlement by measured outcomes
+  is effectively free (survival's per-run wall time is 0.03 to 0.09 s);
+  the same five cycles judged cost a mean 87.6 s for llama3.2:3b and
+  1,514.2 s (about 25 minutes) for qwen3:4b, four to five orders of
+  magnitude above the ledger, before any verdict is even parsed. The
+  predicted wall-clock gap is the most robust result in the table.
+
+Small-local-model caveats, on record: 3b and 4b instruction-tuned
+models at temperature 0 are the weak end of the judge spectrum, and a
+frontier judge could plausibly hold capability where llama3.2:3b drops
+it. The parse-failure counts (67 for llama, 59 for qwen across five runs
+each) mean a real fraction of verdicts defaulted to keep rather than
+reflecting a judgment, which flatters both judges' kill behavior by
+never wrongly culling on an unparsed cycle. Five seeds cannot separate
+these arms statistically; the table is direction and cost, and the
+larger claim that conserved-resource settlement is categorically better
+is not the claim this grid can or does make.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |
@@ -694,10 +912,27 @@ python -m bench.report bench/results/noisy.json --tests
 python -m bench.report bench/results/noisy.json --paired survival evict_consecutive
 python -m bench.report bench/results/testsuite.json --fmt md
 python -m bench.report bench/results/testsuite_noisy.json --tests
+python -m bench.run --suite bandit --seeds 0:10 --out bench/results/bandit.json --update-manifest
+python -m bench.run --suite judge  --seeds 0:5  --judge-models llama3.2:3b --out bench/results/judge-llama.json --update-manifest
+python -m bench.run --suite judge  --seeds 0:5  --judge-models qwen3:4b    --out bench/results/judge-qwen.json  --update-manifest
+python -m bench.report bench/results/bandit.json     --paired policy_bandit survival
+python -m bench.report bench/results/judge-llama.json --paired survival judge_settled
+python -m bench.report bench/results/judge-qwen.json  --paired survival judge_settled
 ```
 
+The bandit suite is stdlib and deterministic like every other
+committed suite. The judge suite is the exception in this directory:
+its runs sample a local model (temperature 0 is not a determinism
+guarantee), so `bench/results/judge-llama.json` and
+`bench/results/judge-qwen.json` are committed as the evidence behind
+the judge tables above, not as byte-reproducible targets. Each file is
+one model run separately so the queue stays short; rerunning either
+requires a running Ollama server with that judge model pulled, and
+neither ever runs in CI.
+
 Per-seed raw JSON IS committed under `bench/results/` (headline, noisy,
-ablation, testsuite, testsuite_noisy), with `bench/results/MANIFEST.json` recording each file's
+ablation, testsuite, testsuite_noisy, bandit, and the two judge files),
+with `bench/results/MANIFEST.json` recording each file's
 suite, seeds, config hash, exact reproduction command, library version,
 and producing git commit; `bench.report <file> --check` validates a
 file against its manifest entry. The commit matters: the environments'

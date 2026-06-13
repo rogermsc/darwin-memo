@@ -111,6 +111,25 @@ def smoke_suite() -> list[RunSpec]:
                 label=f"env=testsuite,rate={rate:.2f}{suffix}",
             )
         )
+    # policy_bandit is stdlib and deterministic, so unlike judge_settled
+    # (sampled, never CI) its paths stay smoke-covered: one clean cell,
+    # one noisy cell.
+    specs.append(
+        RunSpec(
+            suite="smoke", arm="policy_bandit", seed=0, cycles=12, files_per_cycle=8
+        )
+    )
+    specs.append(
+        RunSpec(
+            suite="smoke",
+            arm="policy_bandit",
+            seed=0,
+            cycles=12,
+            files_per_cycle=8,
+            overrides={"flake_rate": 0.2, "noise_model": "flip"},
+            label="model=flip,rate=0.20",
+        )
+    )
     return specs
 
 
@@ -181,6 +200,66 @@ def noisy_suite(seeds: list[int]) -> list[RunSpec]:
                     label=f"model={model},rate={rate:.2f},scale=400k",
                 )
             )
+    return specs
+
+
+def bandit_suite(seeds: list[int]) -> list[RunSpec]:
+    """The AEL objection, run rather than argued (arXiv 2604.21725).
+
+    policy_bandit across the EXISTING noise grid: the same cells and
+    the same seed-derived worlds as the noisy suite, so per-seed
+    pairing against the committed noisy results is exact. Matched
+    survival cells ride along (deterministic, byte-identical to their
+    noisy-suite counterparts at the same seeds), so one file answers
+    ``--paired policy_bandit survival`` without concatenating results.
+    """
+    return [
+        RunSpec(
+            suite="bandit",
+            arm=arm,
+            seed=seed,
+            overrides={
+                "flake_rate": rate,
+                "noise_model": "flip" if model == "none" else model,
+            },
+            label=f"model={model},rate={rate:.2f}",
+        )
+        for model, rate in NOISY_CELLS
+        for arm in ("policy_bandit", "survival")
+        for seed in seeds
+    ]
+
+
+JUDGE_MODELS = ("llama3.2:3b", "qwen3:4b")
+
+
+def judge_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
+    """Opt-in: settlement by an LLM judge instead of measured outcomes.
+
+    Sampled, never CI (the lesson store's first entry). One
+    environment family, 12 cycles at 8 files: each judged cycle costs
+    one model call and requests queue behind whatever else the local
+    server is doing, so the grid is sized to keep total model time
+    small. Matched survival cells (same worlds, deterministic) ride
+    along so the judge column pairs per seed within one file.
+    """
+    specs = [
+        RunSpec(suite="judge", arm="survival", seed=seed, cycles=12, files_per_cycle=8)
+        for seed in seeds
+    ]
+    for model in models:
+        specs += [
+            RunSpec(
+                suite="judge",
+                arm="judge_settled",
+                seed=seed,
+                cycles=12,
+                files_per_cycle=8,
+                overrides={"judge_model": model},
+                label=f"judge={model}",
+            )
+            for seed in seeds
+        ]
     return specs
 
 

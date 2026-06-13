@@ -7,6 +7,11 @@ python -m bench.run --suite testsuite --seeds 0:10 \
     --out bench/results/testsuite.json
 python -m bench.run --suite testsuite_noisy --seeds 0:30 \
     --out bench/results/testsuite_noisy.json
+python -m bench.run --suite bandit   --seeds 0:10 --out bench/results/bandit.json
+python -m bench.run --suite judge --seeds 0:5 --judge-models llama3.2:3b \
+    --out bench/results/judge-llama.json
+python -m bench.run --suite judge --seeds 0:5 --judge-models qwen3:4b \
+    --out bench/results/judge-qwen.json
 python -m bench.run --suite scaling [--full]      --out bench/results/scaling.json
 python -m bench.run --suite smoke                 --out bench/results/smoke.json
 """
@@ -20,9 +25,12 @@ from pathlib import Path
 from .manifest import update_manifest
 from .runner import run_one
 from .suites import (
+    JUDGE_MODELS,
     RunSpec,
     ablation_suite,
+    bandit_suite,
     headline_suite,
+    judge_suite,
     llm_suite,
     noisy_suite,
     scaling_suite,
@@ -70,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
             "scaling",
             "smoke",
             "llm",
+            "bandit",
+            "judge",
         ],
         required=True,
     )
@@ -84,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Ollama model for --suite llm (requires a running server)",
     )
     parser.add_argument(
+        "--judge-models",
+        default=",".join(JUDGE_MODELS),
+        help="comma list of Ollama judge models for --suite judge",
+    )
+    parser.add_argument(
         "--update-manifest",
         action="store_true",
         help="record suite, seeds, config hash, and the exact command "
@@ -91,13 +106,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.suite == "llm":
-        # The preflight is a CLI concern; the suite lives with the others.
+    if args.suite in ("llm", "judge"):
+        # The preflight is a CLI concern; the suites live with the others.
         from darwin_memo import ollama_available
 
         if not ollama_available():
             print(
-                "error: --suite llm needs a running Ollama server "
+                f"error: --suite {args.suite} needs a running Ollama server "
                 "(https://ollama.com). Results are sampled, not "
                 "deterministic; this suite never runs in CI.",
             )
@@ -117,6 +132,12 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(testsuite_noisy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "llm":
         runs = _execute(llm_suite(_parse_seeds(args.seeds), args.model))
+    elif args.suite == "bandit":
+        runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "judge":
+        runs = _execute(
+            judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))
+        )
     else:
         runs = _execute(smoke_suite())
 
