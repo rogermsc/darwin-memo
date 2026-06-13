@@ -44,8 +44,8 @@ from darwin_memo import (
     decision_polarity,
     demo_corpus,
 )
-from darwin_memo.llm import parse_json_array
-from darwin_memo.protocol import _SOURCES_RE, _THINK_RE
+from darwin_memo.llm import THINK_RE, LLMClient, parse_json_array
+from darwin_memo.protocol import _SOURCES_RE
 
 from .fixtures import PARAPHRASE_PROBES, PROBES, build_headline_store
 
@@ -58,7 +58,7 @@ PROBE_TIMEOUT = 600.0
 class RecordingClient:
     """Wraps a client, keeping every raw completion for classification."""
 
-    def __init__(self, inner: OllamaClient) -> None:
+    def __init__(self, inner: LLMClient) -> None:
         self.inner = inner
         self.calls: list[dict[str, str]] = []
 
@@ -68,10 +68,27 @@ class RecordingClient:
         return raw
 
 
+CLASSIFICATION_KEYS = (
+    "sources_line",
+    "explicit_none",
+    "cited",
+    "fallback",
+    "refused",
+    "had_think_block",
+    "actionable",
+    "unattributed_action",
+)
+
+
 def classify_answer(raw_final: str, answer: Any) -> dict[str, Any]:
-    """Which attribution path did the protocol take for this answer?"""
-    had_think = bool(_THINK_RE.search(raw_final))
-    stripped = _THINK_RE.sub("", raw_final)
+    """Which attribution path did the protocol take for this answer?
+
+    ``refused`` marks answers the refuse_unparseable mitigation turned
+    into silence; with the mitigation off it is always False, and the
+    same parse failure shows up as ``fallback`` instead.
+    """
+    had_think = bool(THINK_RE.search(raw_final))
+    stripped = THINK_RE.sub("", raw_final)
     matches = list(_SOURCES_RE.finditer(stripped))
     has_sources_line = bool(matches)
     explicit_none = bool(matches) and bool(
@@ -86,14 +103,17 @@ def classify_answer(raw_final: str, answer: Any) -> dict[str, Any]:
         "explicit_none": explicit_none,
         "cited": cited,
         "fallback": not has_sources_line and has_provenance,
+        "refused": bool(getattr(answer, "refused", False)),
         "actionable": polarity is True,
         "unattributed_action": polarity is True and not has_provenance,
     }
 
 
-def probe_protocol(model: str) -> dict[str, Any]:
+def probe_protocol(model: str, max_tokens: int = 1024) -> dict[str, Any]:
     store = build_headline_store()
-    client = RecordingClient(OllamaClient(model=model, timeout=PROBE_TIMEOUT))
+    client = RecordingClient(
+        OllamaClient(model=model, timeout=PROBE_TIMEOUT, max_tokens=max_tokens)
+    )
     protocol = QueryProtocol(store, client)
 
     per_query: list[dict[str, Any]] = []
@@ -108,22 +128,15 @@ def probe_protocol(model: str) -> dict[str, Any]:
 
     n = len(per_query)
     rates = {
-        key: sum(1 for r in per_query if r[key]) / n
-        for key in (
-            "sources_line",
-            "explicit_none",
-            "cited",
-            "fallback",
-            "had_think_block",
-            "actionable",
-            "unattributed_action",
-        )
+        key: sum(1 for r in per_query if r[key]) / n for key in CLASSIFICATION_KEYS
     }
     return {"queries": n, "rates": rates, "per_query": per_query}
 
 
-def probe_encoding(model: str) -> dict[str, Any]:
-    client = RecordingClient(OllamaClient(model=model, timeout=PROBE_TIMEOUT))
+def probe_encoding(model: str, max_tokens: int = 1024) -> dict[str, Any]:
+    client = RecordingClient(
+        OllamaClient(model=model, timeout=PROBE_TIMEOUT, max_tokens=max_tokens)
+    )
     entries = ReflectionEncoder(client, max_workers=1).encode(demo_corpus())
     calls = len(client.calls)
     valid = sum(1 for c in client.calls if parse_json_array(c["raw"]))
@@ -142,21 +155,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-encoding", action="store_true", help="protocol fidelity only"
     )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=1024,
+        help="generation cap; raise for thinking models, whose reasoning "
+        "tokens count against it before any answer appears",
+    )
     args = parser.parse_args(argv)
 
     from darwin_memo import ollama_available
+    from darwin_memo.llm import ollama_model_digest
 
     if not ollama_available():
         print("error: needs a running Ollama server (https://ollama.com)")
         return 1
 
-    result: dict[str, Any] = {"model": args.model}
-    result["protocol"] = probe_protocol(args.model)
+    result: dict[str, Any] = {
+        "model": args.model,
+        # The tag is mutable; the digest names the exact weights.
+        "model_digest": ollama_model_digest(args.model),
+        "max_tokens": args.max_tokens,
+    }
+    result["protocol"] = probe_protocol(args.model, max_tokens=args.max_tokens)
     if not args.skip_encoding:
         # A model that times out or mangles the encoding prompts should
         # cost the encoding section, not the protocol numbers above.
         try:
-            result["encoding"] = probe_encoding(args.model)
+            result["encoding"] = probe_encoding(args.model, max_tokens=args.max_tokens)
         except Exception as error:
             result["encoding_error"] = str(error)
 

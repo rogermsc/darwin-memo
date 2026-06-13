@@ -17,6 +17,15 @@ credit flows to the cited entries (a single citation becomes the
 deciding entry). When citations cannot be parsed, the protocol falls
 back to spreading credit evenly across everything consulted rather
 than inventing a winner.
+
+The fallback dilutes punishment across innocents, and the LLM-mode
+benchmark measured a worse cell next to it: answers that read as an
+action while carrying no provenance, so the environment acts and
+selection has nobody to charge. ``refuse_unparseable`` (default off)
+closes the fallback path: when no SOURCES line parses, the protocol
+returns silence instead of acting on prose it cannot attribute. An
+explicit ``SOURCES: none`` is not refused; that line parsed, and the
+model's disclaimer is honored as before.
 """
 
 from __future__ import annotations
@@ -48,6 +57,10 @@ class ProtocolAnswer:
     # survival loop, environments) keep reading ``text``; surfaces that
     # show memory to a model or agent read this.
     annotated_text: str = ""
+    # True when refuse_unparseable suppressed an answer whose SOURCES
+    # line did not parse: the text the model produced was discarded and
+    # this answer is deliberate silence, not a failed retrieval.
+    refused: bool = False
 
 
 class QueryProtocol:
@@ -57,6 +70,11 @@ class QueryProtocol:
     to flag overlapping retrieval hits as conflicting advice; it reuses
     consolidation's threshold semantics (raise it toward
     ``EMBEDDING_MERGE_THRESHOLD`` over cosine retrievers).
+
+    ``refuse_unparseable`` gates the LLM-mode mitigation: when on, an
+    answer with no parseable SOURCES line becomes silence instead of
+    acting with credit spread evenly over everything consulted. Off by
+    default; local mode never consults it.
     """
 
     def __init__(
@@ -64,10 +82,12 @@ class QueryProtocol:
         store: MemoryStore,
         client: LLMClient | None = None,
         conflict_threshold: float = DEFAULT_MERGE_THRESHOLD,
+        refuse_unparseable: bool = False,
     ) -> None:
         self.store = store
         self.client = client
         self.conflict_threshold = conflict_threshold
+        self.refuse_unparseable = refuse_unparseable
 
     def answer(
         self,
@@ -229,8 +249,14 @@ class QueryProtocol:
             deciding = cited[0] if len(cited) == 1 else None
             supporting = cited if len(cited) > 1 else []
         else:
-            # No parseable citations: fall back to even spread over
-            # everything consulted.
+            # No parseable citations. With the mitigation on, refuse to
+            # act: the environment sees silence, nothing earns, nothing
+            # is blamed. Selection loses those outcomes, but it never
+            # acts on prose it cannot attribute, which is the trade the
+            # benchmark measures.
+            if self.refuse_unparseable:
+                return ProtocolAnswer(text="", refused=True)
+            # Default: fall back to even spread over everything consulted.
             deciding = None
             supporting = ids
         return self._enforce_probation(text, deciding, supporting)

@@ -119,6 +119,65 @@ def test_explicit_none_attaches_no_provenance():
     assert answer.supporting_entries == []
 
 
+def test_refuse_unparseable_turns_fallback_into_silence():
+    """The flag-gated mitigation: no parseable SOURCES line means the
+    protocol refuses to act instead of spreading credit evenly."""
+    store = seeded_store()
+    client = ScriptedClient(
+        [
+            "database policy",
+            "Databases must be retained.",  # no SOURCES line at all
+        ]
+    )
+    protocol = QueryProtocol(store, client, refuse_unparseable=True)
+    answer = protocol.answer("database policy?")
+    assert answer.text == ""
+    assert answer.refused is True
+    assert answer.deciding_entry is None
+    assert answer.supporting_entries == []
+
+
+def test_refuse_unparseable_keeps_cited_answers():
+    store = seeded_store()
+    client = ScriptedClient(
+        [
+            "database policy",
+            "Databases must be retained.\nSOURCES: [1]",
+        ]
+    )
+    protocol = QueryProtocol(store, client, refuse_unparseable=True)
+    answer = protocol.answer("database policy?")
+    assert answer.refused is False
+    assert answer.deciding_entry is not None
+    assert "retained" in answer.text
+
+
+def test_refuse_unparseable_honors_explicit_none():
+    """SOURCES: none parsed fine; the mitigation must not turn the
+    model's honest disclaimer into a refusal."""
+    store = seeded_store()
+    client = ScriptedClient(
+        [
+            "anything",
+            "Memory does not support an answer.\nSOURCES: none",
+        ]
+    )
+    protocol = QueryProtocol(store, client, refuse_unparseable=True)
+    answer = protocol.answer("capital of France?")
+    assert answer.refused is False
+    assert answer.text == "Memory does not support an answer."
+    assert answer.deciding_entry is None
+    assert answer.supporting_entries == []
+
+
+def test_refuse_unparseable_defaults_off():
+    store = seeded_store()
+    client = ScriptedClient(["database policy", "Databases must be retained."])
+    answer = QueryProtocol(store, client).answer("database policy?")
+    assert answer.refused is False
+    assert answer.supporting_entries, "default keeps the even-spread fallback"
+
+
 def test_split_citations_strips_think_blocks():
     """Reasoning models must not cite from inside their thinking."""
     raw = (

@@ -47,7 +47,9 @@ jobs:
           python -m bench.run --suite smoke --out bench/results/smoke.json
           python -m bench.report bench/results/smoke.json --check
       - name: Validate committed benchmark results against their manifest
+        # The LLM suite itself NEVER runs in CI (sampled model output is
+        # not deterministic); CI only validates the committed evidence.
         run: |
-          for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json bench/results/testsuite.json bench/results/testsuite_noisy.json bench/results/bandit.json bench/results/judge-llama.json bench/results/judge-qwen.json; do
+          for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json bench/results/testsuite.json bench/results/testsuite_noisy.json bench/results/bandit.json bench/results/judge-llama.json bench/results/judge-qwen.json bench/results/llm-llama.json bench/results/llm-qwen.json; do
             python -m bench.report "$f" --check --require-manifest
           done

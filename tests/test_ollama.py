@@ -15,6 +15,7 @@ from darwin_memo import (
     OllamaEmbedder,
     ollama_available,
 )
+from darwin_memo.llm import ollama_model_digest
 
 
 class FakeOllama(BaseHTTPRequestHandler):
@@ -23,7 +24,7 @@ class FakeOllama(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/tags":
-            self._reply({"models": [{"name": "llama3.2"}]})
+            self._reply({"models": [{"name": "llama3.2", "digest": "sha256:feedc0de"}]})
         else:
             self.send_error(404)
 
@@ -85,6 +86,26 @@ def test_client_complete_sends_chat_shape(fake_ollama):
     # generates until the context fills and presents as a timeout.
     assert payload["options"]["num_predict"] == 1024
     assert payload["messages"][0] == {"role": "system", "content": "Be terse."}
+
+
+def test_client_omits_think_by_default(fake_ollama):
+    """Servers reject the think field on models without the thinking
+    capability, so it must only be sent when explicitly set."""
+    OllamaClient(model="llama3.2", base_url=fake_ollama).complete("hi")
+    _, payload = FakeOllama.requests[-1]
+    assert "think" not in payload
+
+
+def test_client_sends_think_when_set(fake_ollama):
+    OllamaClient(model="qwen3:4b", base_url=fake_ollama, think=False).complete("hi")
+    _, payload = FakeOllama.requests[-1]
+    assert payload["think"] is False
+
+
+def test_model_digest_lookup(fake_ollama):
+    assert ollama_model_digest("llama3.2", base_url=fake_ollama) == "sha256:feedc0de"
+    assert ollama_model_digest("absent:1b", base_url=fake_ollama) is None
+    assert ollama_model_digest("llama3.2", "http://127.0.0.1:9", timeout=0.2) is None
 
 
 def test_embedder_current_endpoint(fake_ollama):
