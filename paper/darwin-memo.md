@@ -1,4 +1,4 @@
-# Conserved-Resource Selection for Agent Memory: a Retention Rule That Needs No Judge
+# Conserved-Resource Selection for Agent Memory: Cost, Leanness, and the Noise Regimes Where a Judge-Free Buffer Helps
 
 Roger Simoes
 
@@ -7,28 +7,38 @@ darwin-memo, version 0.5.1. Repository: https://github.com/rogermsc/darwin-memo
 ## Abstract
 
 An LLM agent that accumulates memories needs a rule for what to keep and
-what to forget. The common answer is a judge: a learned reward model or a
-second LLM that grades each memory and decides its fate. A judge is
-expensive to run and circular in principle, because it scores plausibility
-and prose rather than measured consequences. This report studies an
-alternative retention rule that uses no judge. Each lesson holds a balance
-of a single conserved resource. A decide / settle / tick ledger credits
-and debits those balances from the measured outcome of acting on the
-lesson, charges a fixed upkeep every cycle, and buries an entry when its
-balance starves. There is no model in the loop of the mechanism. We make
-two claims and decline a third. The mechanism claim: a conserved-resource
-balance, settled from outcomes and drained by upkeep, removes poisoned
-knowledge without any label or grader, and the property survives transfer
-to a second, structurally different environment family. The regime claim:
-we characterize where this rule wins, ties, and loses under outcome noise,
-against strike counters, a successive-elimination bandit, and a local LLM
-judge, and we publish the losses. The claim we decline: this is not a
-state-of-the-art result and is not compared to any memory leaderboard. The
-cleanest positive result is cost coupled to mechanism. The deterministic
-ledger settles in roughly 0.03 to 0.09 seconds per run while matching or
-beating an LLM judge or LLM-driven arm that costs thousands of seconds per
-run, a wall-clock gap of about four to six orders of magnitude, while
-matching or beating that arm on the conserved-resource outcome.
+what to forget. A common answer is a judge: a learned reward model or a
+second LLM that grades each memory and decides its fate. This report
+studies a deterministic, judge-free alternative and measures what it buys.
+Each lesson holds a balance of a single conserved resource. A decide /
+settle / tick ledger credits and debits those balances from the measured
+outcome of acting on the lesson, charges a fixed upkeep every cycle, and
+buries an entry when its balance starves. There is no model in the loop of
+the mechanism. We do not claim that a judge-free buffer is superior in
+general; the data here cannot establish that, and our own controls undercut
+it. We treat "no judge" as a design stance, justified by two arguments, and
+then characterize where the resulting rule actually helps.
+
+The first argument is cost. A deterministic arithmetic update settles in
+roughly 0.03 to 0.09 seconds per run, while a local LLM judge or LLM-driven
+arm doing the same per-cycle work costs roughly 88 to 17,000 seconds per
+run, three to six orders of magnitude more, and that gap holds before any
+answer is even classified. The second argument is circularity: a judge
+grades plausibility and prose, the very thing the underlying model was
+trained to produce, whereas the ledger weighs a measured consequence. The
+third contribution, and the most defensible, is an empirical regime map.
+Against discrete strike counters, a continuous outcome-settled buffer
+dominates inside a band of one-sided false-bad noise (roughly 10 to 35
+percent on StorageEnv), where its forgiveness pays. Outside that band it
+ties or loses, and we report this plainly: it ties a one-line
+evict-on-negative counter on the deterministic StorageEnv headline (0W/7T/3L,
+adjusted p = 0.5); it loses the TestSuiteEnv headline to the same counter on
+all ten seeds because that family pays nothing for refusals; it ties a
+successive-elimination bandit at false_bad 0.35; and at symmetric flip noise
+of 50 percent no arm curates safely. A separate strength is leanness:
+upkeep starves dead weight, so the population stays small where a counter
+hoards everything that never erred. Leanness is an asset on StorageEnv and a
+liability on TestSuiteEnv, and we show both.
 
 Every number in this report is read from per-seed result JSON committed
 under `bench/results/`, bound to its configuration and reproduction command
@@ -46,35 +56,45 @@ everything, a wrong lesson keeps deciding actions forever. If the store
 prunes blindly, it loses the lessons that pay. So the store needs a rule
 that decides retention from something it can trust.
 
-The dominant rule in recent agent-memory work is a judge: a learned reward
-model, a critic, or a second LLM that reads each candidate memory and
-grades whether it should be kept. A judge has two costs. The first is
-literal: running a model over every memory every cycle is slow and, on a
-hosted API, expensive. The second is structural. A judge grades
-plausibility, fluency, and surface agreement with a prompt; it does not
-observe whether acting on the memory actually helped. A confident, fluent,
-wrong lesson is exactly the kind of thing a judge keeps. Grading prose with
-a model that was trained to produce prose is circular.
+One rule in recent agent-memory work is a judge: a learned reward model, a
+critic, or a second LLM that reads each candidate memory and grades whether
+it should be kept (Section 6 places this line of work). A judge has two
+costs. The first is literal: running a model over every memory every cycle
+is slow and, on a hosted API, expensive. The second is structural. A judge
+grades plausibility, fluency, and surface agreement with a prompt; it does
+not observe whether acting on the memory actually helped. A confident,
+fluent, wrong lesson is exactly the kind of thing a judge keeps. Grading
+prose with a model that was trained to produce prose is circular.
 
-The alternative studied here removes the judge entirely. Retention is
-decided by a conserved resource. Each lesson holds a balance. Acting on a
-lesson and observing a good measured outcome credits its balance; a bad
-outcome debits it. Every cycle a fixed upkeep is charged against every
-lesson. A lesson whose balance starves is buried. The only thing the
-mechanism reads is the measured outcome of an action the agent already
-took, expressed as a single signed scalar. There is no second model, no
-learned critic, and no textual verdict anywhere in the loop. That absence
-is the differentiating property, and the rest of this report is an attempt
-to measure honestly what the absence buys and what it costs.
+We take "no judge" as a design stance, not as a demonstrated superiority.
+The retention rule studied here uses no judge: retention is decided by a
+conserved resource. Each lesson holds a balance. Acting on a lesson and
+observing a good measured outcome credits its balance; a bad outcome debits
+it. Every cycle a fixed upkeep is charged against every lesson. A lesson
+whose balance starves is buried. The only thing the mechanism reads is the
+measured outcome of an action the agent already took, expressed as a single
+signed scalar. There is no second model, no learned critic, and no textual
+verdict anywhere in the loop. Two arguments justify the stance, both
+quantified below: the cost gap of three to six orders of magnitude against an
+LLM judge or LLM-driven arm (Sections 4.5 and 4.6), and the circularity of
+grading prose with prose. Whether the absence of a judge also improves
+outcomes is an empirical question this report answers regime by regime, and
+the answer is "sometimes."
 
-We are explicit about scope. This work makes a mechanism claim and a
-noise-regime claim. It does not claim to beat any leaderboard, and the
-known agent-memory benchmarks are out of scope as targets. The contribution
-is a selection rule that needs no judge plus a characterization of when it
-wins, ties, and loses under outcome noise. The honesty about the losses is
-the point: the report runs the two strongest objections from the
-literature, a bandit and a judge, against the same harness, and publishes
-where each one matches or beats the ledger.
+We are explicit about scope. This work is a recombination of two
+well-studied ideas, aged and cost-weighted eviction and bounded-reward
+credit assignment, applied to agent memory (Section 6). It does not claim a
+new primitive and does not claim to beat any leaderboard; the known
+agent-memory benchmarks are out of scope as targets. The contributions are
+three. (1) A cost and circularity argument for avoiding an LLM judge in the
+retention loop. (2) Leanness: upkeep starves dead weight that a strike
+counter would hoard. (3) The empirical regime map, the most defensible
+contribution, of where a continuous outcome-settled buffer dominates
+discrete strike, consecutive, and quarantine counters and where it does not.
+The honesty about the losses is the point: the report runs the two strongest
+objections from the literature, a successive-elimination bandit and an LLM
+judge, against the same harness, and publishes every regime where each one
+matches or beats the ledger.
 
 ## 2. The Mechanism
 
@@ -116,7 +136,8 @@ final for retrieval but auditable: `obituary` reports why an entry died.
 **Forgiveness.** Because credit is bounded per event and balances refill by
 earning, an entry that was right ninety-nine times survives one disaster:
 the single bad outcome debits a bounded amount, and the accumulated balance
-absorbs it. This is the property a one-line strike counter (evict on the
+absorbs it. Section 2.1 gives the arithmetic so this property can be checked
+on the page. This is the property a one-line strike counter (evict on the
 first, or Kth, negative outcome) cannot express, and it is the property the
 noisy experiments below are designed to stress.
 
@@ -126,6 +147,67 @@ conserved resource. The strike counter reads only the sign of the outcome
 and has no buffer; the judge reads prose and has no measured outcome at
 all. The experiments put both alternatives on the same harness and report
 where the conserved-resource rule is matched.
+
+### 2.1 The balance update, formally
+
+The arithmetic below is read directly from the source so it can be checked
+against the code. Constants are quoted with the DEFAULT values found in
+`darwin_memo/`. Let entry `e` hold balance `b_e in [0, cap]`. The shared
+credit rule (`darwin_memo/survival.py`, `assign_credit`, lines 89 to 116)
+maps one measured resource delta to a bounded credit:
+
+    credit(delta) = g * tanh(delta / scale)
+
+where `g` is `credit_gain` (default 0.6, `SurvivalConfig.credit_gain`) and
+`scale` is `resource_scale` (the environment's normalization hint; 100,000
+bytes for `StorageEnv`, 2.0 for `TestSuiteEnv`, and 1.0 when a bare `Ledger`
+is constructed with no scale). For the deciding entry, the balance update on
+settlement, composing `MemoryStore.credit` (clips at the cap, `store.py`
+line 199) with the same-tick upkeep debit from `tick` (`charge_upkeep`,
+`store.py` lines 222 to 230), is
+
+    b_e <- clip( b_e + g * tanh(delta / scale) - upkeep , 0 , cap )
+
+with `upkeep` 0.05 (`MemoryStore.upkeep`) and `cap` 5.0 (`max_energy`). The
+clip at 0 is the burial floor: `MemoryEntry.alive` is `energy > 1e-9`
+(`types.py` line 90), so an entry is buried on the tick its balance reaches
+zero, unless it is pinned (then the balance floors at 0 and the entry
+survives) or escrowed by a pending ticket (`ledger.py` `charge_upkeep`
+`protect` set). A supporting (provenance-neighbor) entry `s` takes a smaller
+share, `supporting_share` (default 0.25, `SurvivalConfig.supporting_share`):
+
+    b_s <- clip( b_s + supporting_share * g * tanh(delta / scale) - upkeep , 0 , cap )
+
+When no single entry decided (the even-spread path, `survival.py` lines 106
+to 113), the credit `g * tanh(delta / scale)` is divided evenly across the
+supporting entries, and a probationary import among them is further scaled by
+`supporting_share`. New locally minted entries spawn at balance 1.0
+(`MemoryEntry.energy`, `types.py` line 75) and imported entries spawn on
+probation (`DEFAULT_PROBATION` 3, `ledger.py` line 58), during which they
+ride along as support but may not decide. Admission gating
+(`admission_window`, default 0, off) is the one optional knob that changes
+this arithmetic: while a locally minted entry is juvenile its deciding credit
+is capped at the supporting share, and one negative deciding delta zeroes its
+balance outright (`advance_lifecycle`, `survival.py` lines 154 to 162).
+
+The forgiveness bound follows from the equation. Because `tanh` is bounded by
+1, the most a single adverse settlement can debit a deciding entry is
+`g + upkeep = 0.6 + 0.05 = 0.65`. A healthy decider sits at the cap, 5.0, so
+in the worst case it absorbs `floor(cap / (g + upkeep)) = floor(5.0 / 0.65) =
+7` maximally adverse settlements before burial, and absorbs more when the
+debits are smaller. On `StorageEnv` the largest disposable-file deltas land
+near `tanh(delta / 100,000) approximately 0.83`, a per-event debit of
+`0.6 * 0.83 + 0.05 approximately 0.55`, so `5.0 / 0.55 approximately 9`: the
+"buffer absorbs about nine lies" claim in Section 4.2 is this number, and a
+skeptic can recompute it from `g`, `scale`, `upkeep`, and `cap` above. Two
+details are genuinely ambiguous in the source and we flag them rather than
+overstate. First, the exact count of absorbable adverse settlements depends
+on the per-event delta magnitudes a given world produces, so "about nine" is
+a representative worst case for `StorageEnv`'s disposable deltas, not a fixed
+constant. Second, the death threshold is the floating-point predicate
+`energy > 1e-9`, not an exact equality to zero, so an entry that lands at a
+tiny positive residual survives one extra tick; the `1e-9` epsilon is the
+operative threshold, not 0.
 
 ## 3. Experimental Setup
 
@@ -166,11 +248,12 @@ strike counter's best self, not a strawman.
 
 Two control arms run the literature's strongest objections rather than
 arguing against them. `policy_bandit` is a successive-elimination bandit
-(the AEL objection, arXiv 2604.21725): each entry is a bandit arm, each
-decided task is a pull paying reward 1 (positive reported delta) or 0
-(negative), and an entry is culled when its optimistic Hoeffding bound
-`mean + sqrt(ln(T) / (2n))` falls below 0.5. `judge_settled` (arXiv
-2605.12978) replaces the resource settlement with a local LLM verdict: a
+(the Agent Evolving Learning, or AEL, objection [Xu et al. 2026a], that a
+bandit over policies should match outcome-settled selection): each entry is a
+bandit arm, each decided task is a pull paying reward 1 (positive reported
+delta) or 0 (negative), and an entry is culled when its optimistic Hoeffding
+bound `mean + sqrt(ln(T) / (2n))` falls below 0.5. `judge_settled` [Zhang et
+al. 2026] replaces the resource settlement with a local LLM verdict: a
 model reads each deciding entry's lesson plus the environment's own outcome
 descriptions and returns keep or cull. A fourth arm, `survival_llm`, keeps
 the ledger but swaps the deterministic answer step for a local model, so
@@ -259,6 +342,22 @@ matches the full ledger on outcomes. What the ledger buys here is leanness
 (final population 4 versus 15) and forgiveness, and a deterministic world
 cannot show forgiveness paying. The noisy suites exercise it directly.
 
+The raw deltas above are in bytes, which makes their practical magnitude
+hard to read, so we normalize. Taking survival's clean cumulative delta
+(+12.59M) as the scale of one full curated run, the wins over the pure
+baselines are large in fraction-of-scale terms (`keep_everything` and
+`random_matched` finish underwater, a swing of roughly 1.7 of one curated
+run; `recency` trails by about 0.62; `ttl` by about 1.3), while the
+`survival_embedding` loss is small (about 0.07 of scale, +13.5M versus
++12.6M) and the `evict_on_negative` difference is zero at the median. Read
+as a rank-based effect size, the four pure-baseline comparisons are 10/10
+one-directional (the maximum separation 10 seeds allow), the embedding
+comparison is 10/10 the other way, and the counter comparison is 7 exact
+ties with 3 small losses, which is the rank signature of a tie rather than
+an edge. The leanness difference normalizes cleanly too: final population 4
+versus the counter's 15 is a 73 percent smaller resident set for the same
+outcome.
+
 ### 4.2 Noisy outcomes: where forgiveness pays, and the ledger's boundary
 
 Source: `bench/results/noisy.json` (30 seeds per cell). Under **false_bad**
@@ -274,11 +373,20 @@ cumulative delta and benign capability:
 At 5% false-bad noise survival's true outcomes are byte-identical to its
 noise-free run in all 30 seeds; at 10% and 20% they are byte-identical in
 29 of 30. A capped decider holds roughly nine lies' worth of buffer and
-refills it by earning. Against the strongest counter (consecutive), paired
-per seed on true cumulative delta, survival is 14W/16T/0L at 5% (adjusted
-p = 0.0038), 27W/3T/0L at 10%, and 30W/0T/0L at 20% and 35% (adjusted
-p = 0.0036, the Monte Carlo floor). Under false_bad survival loses no seed
-to any counter at any rate.
+refills it by earning; that "nine" is the
+`cap / (g * tanh(delta / scale) + upkeep) approximately 5.0 / 0.55`
+arithmetic from Section 2.1 for `StorageEnv`'s disposable deltas, with
+`floor(cap / (g + upkeep)) = 7` the saturated worst-case floor.
+Against the strongest counter (consecutive), paired per seed on true
+cumulative delta, survival is 14W/16T/0L at 5% (adjusted p = 0.0038),
+27W/3T/0L at 10%, and 30W/0T/0L at 20% and 35% (adjusted p = 0.0036, the
+Monte Carlo floor). Under false_bad survival loses no seed to any counter at
+any rate. The practical magnitude is large in this band: normalizing by the
+clean run (12.38M), the gap to consecutive widens from about 0.07 of one
+curated run at 5% to about 0.76 at 35% (10.47M versus 1.08M), and the gap to
+k=1 reaches roughly 0.85 of scale. The benign-capability column is already a
+fraction in [0, 1] and is the more legible effect: survival holds 0.79 to
+1.00 across the band while consecutive falls from 0.81 to 0.00.
 
 The boundary is published with the same care. Under **flip** noise the
 ledger degrades, and at 50% it fails. Survival under flip:
@@ -455,7 +563,7 @@ because the honesty is the credibility.
   The ledger's only deterministic-world advantages are leanness and
   forgiveness, and a deterministic world cannot show forgiveness paying.
 - **The bandit ties under one-sided noise.** The successive-elimination
-  bandit (the AEL objection, arXiv 2604.21725) ties survival at false_bad
+  bandit (the AEL objection [Xu et al. 2026a]) ties survival at false_bad
   0.35 (about 35%): paired diff +0.14M, 5 bandit wins to 4, adjusted
   p = 0.68, and the bandit keeps full benign capability (1.00 versus 0.77)
   while survival is degrading. The ledger wins elsewhere, but the regime
@@ -465,8 +573,8 @@ because the honesty is the credibility.
   that family pays nothing for refusals and the protector starves. Survival
   is never the best arm in any cell of the TestSuiteEnv noise grid; k=1, k=2,
   k=3, and quarantine each own a cell.
-- **The judge does not always degrade.** The local LLM judge (arXiv
-  2605.12978) degrades as predicted for llama3.2:3b (benign capability falls
+- **The judge does not always degrade.** The local LLM judge [Zhang et al.
+  2026] degrades as predicted for llama3.2:3b (benign capability falls
   to 0.67) but does not degrade for qwen3:4b at n=5 (benign 1.00, slightly
   beats survival on cum delta). The differentiating claim therefore gets no
   clean benchmark support at this scale.
@@ -502,32 +610,147 @@ across every arm is cost.
 
 ## 6. Related Work
 
-This report uses two arXiv references as the design anchors and runs them as
-control arms rather than citing them as distant context.
+darwin-memo recombines two well-studied lines, aged and cost-weighted cache
+eviction and bounded-reward credit assignment, and applies the combination to
+agent memory. Its specific contribution is the empirical regime
+characterization of Section 4 and the judge-free cost argument, not a new
+primitive. This section places the neighbors and is honest about what is
+borrowed.
 
-The judge alternative is anchored by arXiv 2605.12978, which predicts the
-failure mode the `judge_settled` arm goes looking for: continuously updated
-memories settled by a judge go faulty because the judge grades plausibility
-and prose where a conserved resource weighs measured consequences. Rather
-than argue this, the report builds the arm, gives the judge more per-event
-information than the ledger gets (the prose descriptions name what really
-happened), and reports the per-model split.
+**Cache eviction and admission.** The retention question, what to keep in a
+bounded store, is the cache-replacement question. Recency (LRU) and frequency
+(LFU) are the textbook baselines, and `recency` and `ttl` arms here are their
+direct analogs. The closer neighbor is cost-aware and learned eviction.
+GreedyDual-Size weights eviction by a per-item cost rather than access alone
+[Cao and Irani 1997], which is exactly what a conserved-resource balance does
+when the resource is bytes or passing tests. ARC self-tunes between recency
+and frequency using ghost history [Megiddo and Modha 2003], and LeCaR casts
+eviction as online regret minimization over LRU and LFU experts [Vietri et
+al. 2018], framing cache replacement as a learning problem. The upkeep-driven
+starvation in darwin-memo is an aging policy in this lineage: an entry that
+stops earning decays out, as in cost-aware eviction, with the cost read from
+measured outcomes rather than item size.
 
-The bandit alternative is anchored by arXiv 2604.21725 (the AEL objection):
-a simple bandit over retrieval policies should match outcome-settled
-selection under noise, which would make the energy ledger decoration. The
-report builds a successive-elimination bandit with a Hoeffding radius (real
-confidence-based forgiveness), and publishes the regime where the objection
-holds (one-sided false_bad noise around 35%) alongside the regimes where it
-fails (dead-weight immortality, slow kills, symmetric-noise collapse).
+**Credit assignment and bandits.** The settlement rule, distributing a
+bounded scalar reward back along the provenance that produced an outcome, is
+credit assignment. The `tanh`-bounded credit and the supporting-share
+spread to provenance neighbors are a simple instance of the eligibility-trace
+idea that decays credit across the entities responsible for a reward [Sutton
+and Barto 2018]. The control arm that most directly threatens the ledger is a
+multi-armed bandit with successive elimination: an entry is an arm, a measured
+outcome is a pull, and an arm is culled when its optimistic confidence bound
+falls below a threshold [Even-Dar et al. 2006]. We field exactly this arm with
+a Hoeffding radius and publish the regime where it matches the ledger
+(one-sided false_bad noise around 35%, Section 4.4) alongside the regimes
+where it fails: it starves nothing, kills slowly, and collapses under
+symmetric noise. The bandit framing is also the AEL objection [Xu et al.
+2026a], that a simple bandit over retrieval policies should match
+outcome-settled selection and make the ledger decoration; Section 4.4 is our
+answer, run rather than argued.
 
-The library's design lineage (external memory kept by survival selection
-rather than a reward model) is recorded in the repository's `CITATION.cff`,
-which also cites MeMo (arXiv 2605.15156) and a survival-only-reward training
-line (arXiv 2601.12310). The framing here is deliberately narrow: the bandit
-and the judge are the two strongest objections to a no-judge rule, and this
-work runs them rather than arguing against them. No memory leaderboard is
-invoked as a target, by design.
+**Agent memory.** Recent agent-memory systems manage what to remember with
+mechanisms other than a conserved resource. Generative Agents retrieve by a
+weighted sum of recency, importance, and relevance, with importance scored by
+an LLM [Park et al. 2023]. MemGPT manages a tiered context with the LLM
+paging information in and out [Packer et al. 2023]. MemoryBank applies an
+Ebbinghaus-style forgetting curve so memories decay and reinforce with time
+and significance [Zhong et al. 2024]. Mem0 extracts, consolidates, and
+retrieves salient memories for production agents [Chhikara et al. 2025], and
+A-Mem builds an evolving interlinked note network [Xu et al. 2025]. Reflexion
+keeps an episodic buffer of verbal self-reflections to improve later trials
+[Shinn et al. 2023]. darwin-memo differs in the retention signal: rather than
+an LLM-scored importance, a time-based forgetting curve, or a model-managed
+context, it keeps a balance settled from measured outcomes and drained by
+upkeep, with consolidation and pinning as hygiene. It does not compete with
+these systems on their benchmarks and makes no leaderboard claim.
+
+**LLM-as-judge.** Using a strong LLM to grade open-ended outputs is now a
+standard evaluation tool, with documented position, verbosity, and
+self-enhancement biases [Zheng et al. 2023]. The structural objection in this
+report, that a judge grades plausibility and prose rather than measured
+consequence, is the same circularity that biases line of work warns about.
+The `judge_settled` arm tests it directly, and the closest prior statement of
+the failure mode it targets is that continuously updated memories settled by
+an LLM degrade [Zhang et al. 2026]. We give the judge more per-event
+information than the ledger gets and report the per-model split (Section 4.5).
+
+**Design lineage.** The survival-selection framing, external memory kept by
+environmental viability rather than a reward model, follows MeMo [Quek et al.
+2026], which supplies the population of reflection-QA entries, and the
+survival-only-reward self-training line [Dodgson et al. 2026], which supplies
+the selection principle. The framing here is deliberately narrow: the bandit
+and the judge are the two strongest objections to a judge-free rule, and this
+work runs them rather than arguing against them.
+
+## References
+
+Pin Cao and Sandy Irani. 1997. Cost-Aware WWW Proxy Caching Algorithms. In
+Proceedings of the USENIX Symposium on Internet Technologies and Systems
+(USITS), Monterey, CA, pages 193 to 206.
+
+Prateek Chhikara, Dev Khant, Saket Aryan, Taranjeet Singh, and Deshraj Yadav.
+2025. Mem0: Building Production-Ready AI Agents with Scalable Long-Term
+Memory. arXiv:2504.19413.
+
+Jennifer Dodgson, Alfath Daryl Alhajir, Michael Joedhitya, Akira Rafhael
+Janson Pattirane, Surender Suresh Kumar, Joseph Lim, C. H. Peh, Adith Ramdas,
+and Steven Zhang Zhexu. 2026. Survival is the Only Reward: Sustainable
+Self-Training Through Environment-Mediated Selection. arXiv:2601.12310.
+
+Eyal Even-Dar, Shie Mannor, and Yishay Mansour. 2006. Action Elimination and
+Stopping Conditions for the Multi-Armed Bandit and Reinforcement Learning
+Problems. Journal of Machine Learning Research, 7, pages 1079 to 1105.
+
+Nimrod Megiddo and Dharmendra S. Modha. 2003. ARC: A Self-Tuning, Low
+Overhead Replacement Cache. In Proceedings of the 2nd USENIX Conference on
+File and Storage Technologies (FAST), San Francisco, CA, pages 115 to 130.
+
+Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir G. Patil, Ion
+Stoica, and Joseph E. Gonzalez. 2023. MemGPT: Towards LLMs as Operating
+Systems. arXiv:2310.08560.
+
+Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris,
+Percy Liang, and Michael S. Bernstein. 2023. Generative Agents: Interactive
+Simulacra of Human Behavior. In Proceedings of the 36th Annual ACM Symposium
+on User Interface Software and Technology (UIST). arXiv:2304.03442.
+
+Ryan Wei Heng Quek, Sanghyuk Lee, Alfred Wei Lun Leong, Arun Verma, Alok
+Prakash, Nancy F. Chen, Bryan Kian Hsiang Low, Daniela Rus, and Armando
+Solar-Lezama. 2026. MeMo: Memory as a Model. arXiv:2605.15156.
+
+Noah Shinn, Federico Cassano, Edward Berman, Ashwin Gopinath, Karthik
+Narasimhan, and Shunyu Yao. 2023. Reflexion: Language Agents with Verbal
+Reinforcement Learning. In Advances in Neural Information Processing Systems
+36 (NeurIPS). arXiv:2303.11366.
+
+Richard S. Sutton and Andrew G. Barto. 2018. Reinforcement Learning: An
+Introduction. Second edition. MIT Press, Cambridge, MA.
+
+Giuseppe Vietri, Liana V. Rodriguez, Wendy A. Martinez, Steven Lyons, Jason
+Liu, Raju Rangaswami, Ming Zhao, and Giri Narasimhan. 2018. Driving Cache
+Replacement with ML-based LeCaR. In Proceedings of the 10th USENIX Workshop
+on Hot Topics in Storage and File Systems (HotStorage).
+
+Wujiang Xu, Jiaojiao Han, Minghao Guo, Kai Mei, Xi Zhu, Han Zhang, and
+Dimitris N. Metaxas. 2026a. AEL: Agent Evolving Learning for Open-Ended
+Environments. arXiv:2604.21725.
+
+Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, and Yongfeng Zhang.
+2025. A-MEM: Agentic Memory for LLM Agents. arXiv:2502.12110.
+
+Dylan Zhang, Yanshan Lin, Zhengkun Wu, Yihang Sun, Bingxuan Li, Dianqi Li,
+and Hao Peng. 2026. Useful Memories Become Faulty When Continuously Updated
+by LLMs. arXiv:2605.12978.
+
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu,
+Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric P. Xing, Hao Zhang,
+Joseph E. Gonzalez, and Ion Stoica. 2023. Judging LLM-as-a-Judge with
+MT-Bench and Chatbot Arena. In Advances in Neural Information Processing
+Systems 36 (NeurIPS). arXiv:2306.05685.
+
+Wanjun Zhong, Lianghong Guo, Qiqi Gao, He Ye, and Yanlin Wang. 2024.
+MemoryBank: Enhancing Large Language Models with Long-Term Memory. In
+Proceedings of the AAAI Conference on Artificial Intelligence. arXiv:2305.10250.
 
 ## 7. Reproducibility
 
@@ -558,22 +781,29 @@ document states this and gives the exact `git checkout`.
 ## 8. Conclusion
 
 A conserved-resource balance, credited and debited from measured outcomes
-and drained by a fixed upkeep, is a retention rule for agent memory that
-needs no judge. It removes poisoned knowledge without labels, and the
-property transfers to a second environment family. Its advantage over a
-one-line strike counter is forgiveness and leanness, and the experiments
-locate that advantage precisely: under one-sided false-bad noise the ledger
-holds where every strike counter collapses, while on a family that pays
+and drained by a fixed upkeep, is a judge-free retention rule for agent
+memory. We do not claim it is superior to a judge in general; we claim it is
+cheap, lean, and helpful in a characterized band of conditions. It removes
+poisoned knowledge without labels, and the property transfers to a second
+environment family. Its advantage over a one-line strike counter is
+forgiveness and leanness, and the experiments locate that advantage
+precisely: under one-sided false-bad noise (roughly the 10 to 35 percent
+band on StorageEnv) the ledger holds where every strike counter collapses,
+while on a deterministic world the counter ties it and on a family that pays
 nothing for refusals the counter wins and the ledger's leanness becomes a
-liability. The two strongest objections from the literature, a bandit and a
-judge, were run rather than argued, and each one matches or beats the ledger
-in a published regime. None of this is a state-of-the-art claim, and none of
-it is compared to a leaderboard.
+liability. The two strongest objections from the literature, a
+successive-elimination bandit and an LLM judge, were run rather than argued,
+and each one matches or beats the ledger in a published regime: the bandit
+ties at false_bad 0.35, and one of two local judges does not degrade. None of
+this is a state-of-the-art claim, and none of it is compared to a
+leaderboard.
 
 The result that holds across every arm is cost coupled to mechanism: a
-deterministic ledger settles in roughly 0.03 to 0.09 seconds per run, four
+deterministic ledger settles in roughly 0.03 to 0.09 seconds per run, three
 to six orders of magnitude faster than an LLM judge or LLM-driven arm, while
-matching or beating that arm on the conserved-resource outcome. For an agent
+matching or beating every such arm on the conserved-resource outcome except
+the qwen3:4b judge, which edges slightly ahead at n = 5 (Section 4.5). For an
+agent
 that must decide retention every cycle over the lifetime of a deployment,
 that gap is the practical case for settling memory by a measured resource
 instead of by a model's verdict.
