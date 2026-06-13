@@ -6,8 +6,148 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-13
+
+A large release: 15 merged PRs since 0.5.0, all under the energy
+ledger's existing selection rule. The headline themes are observability
+(`top`/`why`/`audit`), a trust lifecycle for imported and pinned
+lessons, two new opt-in benchmark families (TestSuiteEnv and SWE-Bench-CL),
+control arms that answer two standing objections against the ledger
+(a Hoeffding bandit and an LLM judge), an LLM-mode arm that runs a local
+model on the per-cycle citation work, temporal retrieval surfaces, a
+Claude Code memory renderer, an OpenAI Agents SDK adapter, and the MCP
+registry listing. The benchmark evidence also reorganizes around
+independent seeds, which corrected two earlier headline claims (see
+Changed).
+
 ### Added
 
+- Memory observability (`darwin_memo/observe.py`): three read-only CLI
+  subcommands over what the engine already records. `top FILE` ranks
+  living entries by balance with kind, age, last settlement, and
+  source (human table, `--json` for machines); `why FILE ENTRY_ID`
+  prints one entry's full life story (birth tick, source, stake, every
+  settlement with delta/credit/detail/ticket, merges, current balance,
+  and for dead entries the graveyard path and cause of death);
+  `audit FILE [--since TS] [--last N]` digests the JSONL event log
+  (decisions, settlements, culls, total energy flow, top gainers and
+  losers) so a poisoned entry's rise, drain, and burial all read off
+  the trail. The Ledger now records the structured history, settle
+  per-entry credits/burials, tick culled ids, and add source/stake the
+  digest needs, backward compatibly (older plain-string notes still
+  load and render; missing fields render as unknown, not a crash). The
+  event log rotates at a configurable byte threshold (default 10 MB)
+  and the audit reader globs across rotated files. MCP gains a
+  `memory_audit` tool returning the identical digest JSON.
+- `darwin-memo settle-ci` (`darwin_memo/ci.py`): productizes CI lesson-
+  store settlement. The primary mode diffs junit XML per test id (base
+  run vs head run) and settles tickets from the transitions
+  (pass->fail regressions, fail->pass improvements, added and removed
+  tests attributed as suite changes) instead of smearing into a raw
+  pass count. Infra failures abstain: no parseable XML, zero collected
+  tests, or a collection error leaves the store untouched and exits 3,
+  killing the documented `|| echo 0` fake-delta bug. Flaky tests
+  quarantine themselves via per-test flip history in a sidecar
+  `flaky.json` and are excluded from deltas until they stabilize. Raw
+  pass-count diffing stays as the documented degraded fallback for
+  ecosystems without junit XML. The repo's own memory workflow now
+  routes through the subcommand.
+- OpenAI Agents SDK session adapter
+  (`darwin_memo/integrations/openai_agents.py`): `DarwinMemoSession`, a
+  dependency-free duck-typed implementation of the SDK's `Session`
+  protocol (`session_id` plus async `get_items`/`add_items`/`pop_item`/
+  `clear_session`, latest-N-in-chronological-order limit semantics)
+  backed by one greppable JSONL file per session id. The darwin-memo
+  value-add stays explicit opt-in: `consult()` runs `ledger.decide()`
+  and returns rendered lessons for injection, `settle()` and
+  `abandon()` delegate to the Ledger, and lesson operations persist
+  when `lesson_path` is configured so open tickets survive a process
+  restart. The adapter never invents deltas; the host measures
+  outcomes.
+- `darwin-memo render STORE -o MEMORY.md`: project top-balance
+  survivors into Claude Code's auto-memory file under both ceilings the
+  host actually loads, a hard byte budget (`--budget`, default 25kb)
+  and a hard line cap (`--max-lines`, default 200), with admission
+  measured against the fully rendered document. Deterministic: same
+  store, same arguments, byte-identical output. `--split-dir DIR`
+  writes one topic file per kind plus a budget-aware index that counts
+  only the topics it links, and a re-render deletes topic files for
+  kinds with nothing left to show, so dead lessons never linger on the
+  reading surface. A missing or empty-world store renders a minimal
+  honest file; an unreadable store (empty, truncated, locked, or not a
+  store payload) exits with a one-line error and leaves the previous
+  render untouched, so hooks and cron jobs can run it unconditionally.
+- Temporal awareness in retrieval (`darwin_memo/temporal.py`):
+  `MemoryEntry.recorded_ts` stamps creation in UTC (legacy files load
+  as "age unknown" instead of faking a date). One choke point
+  (`render_consult`, applied by the query protocol) annotates every
+  consult surface (CLI `query`, `ledger decide`, MCP `memory_query`,
+  LLM-mode snippets) with each entry's age, while acting paths
+  (survival loop, environments) keep reading the raw text so the
+  economics never see an annotation. Hits overlapping above the shared
+  `DEFAULT_MERGE_THRESHOLD` surface as a conflict group, newest first,
+  marked as overlapping advice (mechanical, no LLM judging). Opt-in
+  recency-weighted ranking (`half_life` in ticks, off by default,
+  exposed on `store.retrieve`, `protocol.answer`, `ledger.decide`,
+  `--half-life`, and MCP `memory_query`) is a pure ranking concern;
+  balances are untouched. Kind and source metadata filters narrow
+  candidates before ranking. The time dimension shapes what gets
+  surfaced, never what gets paid.
+- `darwin-memo import SRC DEST [--probation N]`
+  (`Ledger.import_entries`): copy another store's living entries on
+  probation. Imports arrive at spawn energy with provenance labels
+  (`imported_from`, `imported_at`), cannot be the deciding entry of
+  any answer until they graduate through N net-positive locally
+  measured settlements (default 3), never consolidate while on
+  probation, and earn at most the supporting share while riding
+  along, on the even-spread path too. A consult where every hit is
+  probationary is withheld outright. Idempotent on ids: re-importing
+  neither duplicates entries nor resurrects ones that died here.
+  `--probation 0` is the explicit trusted-bootstrap path.
+- `Ledger.pin` and `unpin` (`ledger pin`/`unpin` CLI): a pinned entry
+  pays upkeep and takes settlement losses, but its balance floors at
+  zero on both paths, so neither starvation nor a negative outcome
+  can bury it; consolidation never merges it and `forget` refuses it
+  until unpinned. For rare-but-critical knowledge whose payoff
+  cadence is longer than the starvation horizon. Pinned status
+  surfaces in `top` and `why`.
+- `SurvivalConfig.admission_window` (default 0, off): entries written
+  through `Ledger.add` start juvenile for K settlements, earn and
+  lose deciding credit at `supporting_share`, and one negative
+  deciding outcome denies admission on the spot. Bounds the
+  documented lesson price to a single settlement's damage.
+- Statistical rigor for the benchmark suite: seeded bootstrap 95% CIs
+  on every aggregate column, `bench.report --paired ARM_A ARM_B`
+  per-seed difference tables, and `bench.report --tests` (exact paired
+  sign-flip permutation tests vs a baseline, Holm-Bonferroni adjusted
+  across the full printed grid). Committed raw evidence
+  (`bench/results/headline.json`, `noisy.json`, `ablation.json`) is
+  bound to `bench/results/MANIFEST.json`: suite, seeds, config hash,
+  exact reproduction command, library version, and producing git
+  commit per file. CI validates each committed file against its entry
+  with `bench.report --check --require-manifest`, which fails if the
+  manifest or the entry goes missing.
+- TestSuiteEnv promoted to a full benchmark family (a second
+  environment family alongside StorageEnv, closing the
+  single-family gap the docs named their largest credibility issue).
+  `run_suite_detail` returns the set of passing test names and
+  `TEST_NAMES` derives the canonical roster from the suite source so
+  consumers cannot drift from what runs. `bench/testsuite_fixtures.py`
+  is a 20-entry corpus with deliberate redundancy (five cross-source
+  near-duplicate twin pairs the merge machinery consolidates), an
+  actively-wrong poison lesson, inert poison and ballast,
+  decision-polarity probes, and provenance-scored paraphrase probes.
+  `bench/testsuite_noise.py` models CI flakiness as flaky pass counts
+  (one-sided by construction: a red build can lie, a green one cannot).
+  The headline (eight arms) and noisy grid (rates 0.00 to 0.20) are
+  pre-committed in `docs/benchmarks.md` and the results are committed
+  (`bench/results/testsuite.json`, 8 arms x 10 seeds;
+  `testsuite_noisy.json`, 35 cells x 30 seeds). The pre-committed
+  question's number landed intact: the ledger's forgiveness beats the
+  naive strike counter at 10% flake and not below, k=3 and quarantine
+  m=3 beat the ledger across the band, and survival is never the best
+  arm in any cell. A four-cell testsuite slice rides in the CI smoke
+  suite so the family cannot rot unexercised.
 - SWE-Bench-CL learning-curve pilot harness (`bench/swebench_cl/`):
   pins one or two continual-learning sequences (dataset commit plus
   file sha256, task identity in a committed manifest), runs a model
@@ -24,20 +164,79 @@ project uses [SemVer](https://semver.org/).
   path offline and labels every report `mode="stub"`. The pilot
   protocol and its pre-committed cells live in `docs/benchmarks.md`
   before any result exists.
-- `darwin-memo render STORE -o MEMORY.md`: project top-balance
-  survivors into Claude Code's auto-memory file under both ceilings the
-  host actually loads, a hard byte budget (`--budget`, default 25kb)
-  and a hard line cap (`--max-lines`, default 200), with admission
-  measured against the fully rendered document. Deterministic: same
-  store, same arguments, byte-identical output. `--split-dir DIR`
-  writes one topic file per kind plus a budget-aware index that counts
-  only the topics it links, and a re-render deletes topic files for
-  kinds with nothing left to show, so dead lessons never linger on the
-  reading surface. A missing or empty-world store renders a minimal
-  honest file; an unreadable store (empty, truncated, locked, or not a
-  store payload) exits with a one-line error and leaves the previous
-  render untouched, so hooks and cron jobs can run it unconditionally.
-
+- `policy_bandit` control arm (`bench/policies.py`): the AEL objection
+  (arXiv 2604.21725, a simple bandit over retrieval policies matches
+  outcome-settled selection under noise) run rather than argued. Each
+  entry is a bandit arm; every decided task is a pull paying reward 1
+  (positive reported delta) or 0 (negative); an entry is culled by
+  successive elimination when even its optimistic estimate
+  `mean + sqrt(ln(T) / (2n))` (Hoeffding radius, T = total recorded
+  pulls) falls below 0.5, with no eliminations before two pulls.
+  Stdlib, deterministic, no energy, no upkeep. 240 runs are committed
+  (`bench/results/bandit.json`, manifest-bound), the boundary is
+  published as promised: under one-sided false_bad noise the bandit
+  matches survival (at 35% the paired diff is +0.14M, adjusted
+  p = 0.68, a statistical tie) and keeps full benign capability, while
+  it cannot starve dead weight (final population near keep_everything),
+  kill promptly (clean-cell poison kill at median cycle 1.5 vs
+  survival's 0), or survive symmetric flip lies that pay the guilty
+  (at flip 0.50 it bleeds to -9.08M while survival stays the only arm
+  above zero). Opt-in is via the suite; the deterministic grid is the
+  CI-safe part.
+- `judge_settled` control arm (`bench/judge.py`): settlement by LLM
+  verdict, the differentiating-claim test arXiv 2605.12978 predicts
+  (judge-graded memories go faulty because the judge weighs prose where
+  the ledger weighs measured consequences). A local LLM judge (Ollama,
+  temperature 0) sees each deciding entry's lesson plus the
+  environment's own outcome descriptions and returns one batched
+  keep/cull verdict per cycle; unparseable or missing verdicts default
+  to keep and are counted. The runner refuses this arm under
+  measurement noise rather than leak ground truth through the detail
+  strings. Five-seed grids are committed for two judges
+  (`bench/results/judge-llama.json`, `judge-qwen.json`, manifest-bound).
+  The honest exit, stated in advance, is what the grid lands on: the
+  two judges split. llama3.2:3b degrades in the predicted direction
+  (benign capability 0.67 vs survival's 1.00, 67 parse failures across
+  five runs) but not significantly; qwen3:4b does not degrade. The one
+  robust result is cost: settlement by measured outcomes runs in 0.03
+  to 0.09 s per run, the same five judged cycles cost a mean 87.6 s
+  (llama) and 1,514.2 s (qwen), four to five orders of magnitude above
+  the ledger. Opt-in, never CI; sampled model output is not
+  deterministic.
+- `survival_llm` LLM-mode arm (`bench/llm_arm.py`): swaps the
+  deterministic 3-stage protocol's answer step for a local model
+  (Ollama, temperature 0) doing the per-cycle citation and extraction
+  work, with the identical conserved-resource ledger on top, so the
+  comparison is clean (same worlds, same selection rule, one side
+  deterministic and effectively free). The `refuse_unparseable`
+  mitigation (default off) turns an answer whose SOURCES line does not
+  parse into silence (nothing earns, nothing is blamed) instead of the
+  default even-spread fallback; an explicit `SOURCES: none` still
+  parses and is honored. Committed evidence is manifest-bound with
+  exact Ollama model digests. The robust finding is cost: the ledger
+  does the same per-cycle work at roughly 12,000x (llama3.2:3b) to
+  540,000x (qwen3:4b) lower wall time (one qwen run alone is about
+  4.8 hours of model time for 120 queries). llama3.2:3b carries the
+  statistics (n=5 per setting) and the mitigation is provably inert for
+  it: it emitted a parseable SOURCES line on every answer
+  (`citation_sources_line_rate` 1.00, `citation_fallback_rate` 0.00),
+  so there was nothing to refuse and the off/on cells are a wash on
+  true outcomes (both kill the poison every seed, paired p = 0.5000).
+  qwen3:4b is committed at n=2, refuse-off only, as a cost existence-
+  proof because its full grid is wall-clock-prohibitive; its two seeds
+  disagree on sign for cum_delta, so it is reported as a direction, not
+  a result. Opt-in, never CI.
+- MCP registry listing: `server.json` lists the server on
+  `registry.modelcontextprotocol.io` as `io.github.rogermsc/darwin-memo`
+  (uvx with the `[mcp]` extra, stdio transport, the `darwin-memo-mcp`
+  entry point). The registry verifies PyPI ownership by finding an
+  `mcp-name:` marker in the package README, so the marker is in
+  `README.md` and ships with this release (PyPI 0.5.0 is immutable and
+  could not carry it retroactively). The new `mcp-publish.yml` workflow
+  validates `server.json` on PRs that touch it and publishes on
+  non-rc release tags (after waiting for the matching version on PyPI)
+  or on manual dispatch, stamping the tag version into `server.json`
+  and authenticating via GitHub OIDC with no stored secrets.
 - `darwin-memo mcp`: the main CLI now serves the MCP stdio server,
   sharing the flag set and `DARWIN_MEMO_PATH` handling of
   `darwin-memo-mcp` (which keeps working unchanged). MCP registry
@@ -50,36 +249,54 @@ project uses [SemVer](https://semver.org/).
   package argument, so machine-constructed launches start the server.
   Without the extra installed the subcommand exits with the exact
   `pip install "darwin-memo[mcp]"` command.
+- Operator documentation written from the code and the committed bench
+  evidence: `docs/tuning.md` (the load-bearing knobs, each with its
+  mechanics, symptoms in both directions, and the benchmark section
+  behind every number, plus starting points for three profiles, with
+  the evidence status of each stated plainly), `docs/api.md` (the
+  public Python surface, the temporal retrieval options, the OpenAI
+  Agents SDK adapter, raised exceptions including `StoreLockedError`,
+  the full CLI, and the eight MCP tools), `docs/store-format.md`
+  (`memory.json` field by field with load defaults, the ledger key,
+  the events JSONL and rotation, the lock and `flaky.json` sidecars,
+  and the de-facto compatibility policy), and a `docs/README.md` index.
 
-- `darwin-memo import SRC DEST [--probation N]`
-  (`Ledger.import_entries`): copy another store's living entries on
-  probation. Imports arrive at spawn energy with provenance labels
-  (`imported_from`, `imported_at`), cannot be the deciding entry of
-  any answer until they graduate through N net-positive locally
-  measured settlements (default 3), never consolidate while on
-  probation, and earn at most the supporting share while riding
-  along, on the even-spread path too. A consult where every hit is
-  probationary is withheld outright. Idempotent on ids: re-importing
-  neither duplicates entries nor resurrects ones that died here.
-  `--probation 0` is the explicit trusted-bootstrap path.
+### Changed
 
-- `Ledger.pin` and `unpin` (`ledger pin`/`unpin` CLI): a pinned entry
-  pays upkeep and takes settlement losses, but its balance floors at
-  zero on both paths, so neither starvation nor a negative outcome
-  can bury it; consolidation never merges it and `forget` refuses it
-  until unpinned. For rare-but-critical knowledge whose payoff
-  cadence is longer than the starvation horizon. Pinned status
-  surfaces in `top` and `why`.
+- BREAKING (same-seed worlds): `StorageEnv`, `VerifiableQAEnv`, and
+  `TestSuiteEnv` derive each cycle's RNG from `cycle_rng(seed, cycle)`,
+  a SHA-256 hash of the pair, instead of `random.Random(seed + cycle)`.
+  The old scheme made adjacent seeds shifted windows of one another
+  (seed 3 at cycle 5 WAS seed 4 at cycle 4), so multi-seed spreads read
+  smoother than independent draws justify. The same seed now produces a
+  different world than released 0.4.0; the committed benchmark results
+  record their producing commit in `MANIFEST.json` so the evidence
+  stays reproducible from exactly the code that made it.
+- Honest result corrections under the independent-seed re-analysis,
+  stated plainly in `docs/benchmarks.md`: the survival vs
+  `evict_on_negative` comparison in deterministic StorageEnv is now a
+  statistical tie (7 of 10 seeds byte-identical, 3 small losses,
+  adjusted p = 0.5), and no significance is claimed in either
+  direction. The earlier 50%-flip headline (survival underwater and
+  losing the paired sign test to the consecutive-strike counter) did
+  not survive the seeded re-analysis: it came from the correlated-seed
+  scheme. Under independent seeds survival stays positive on average at
+  50% flip (+1.25M, the only arm above zero) and its 50% counter
+  comparisons reach no significance, so the honest 50% claim is
+  "indistinguishable from the counters, and nothing curates safely".
+- The dogfood memory workflow (`.github/workflows/memory.yml`) now
+  consumes the published reusable action `rogermsc/darwin-memo-action@v1`
+  for install, settle, and abstention handling instead of inline
+  steps. Behavior is preserved (scale 2.0, `expire-after` 50 matching
+  the CLI, the concurrency group still serializing settlers), and the
+  repo keeps its own commit step so the PR number stays in the settle
+  message. Internal CI plumbing, no user-facing API surface.
 
-- `SurvivalConfig.admission_window` (default 0, off): entries written
-  through `Ledger.add` start juvenile for K settlements, earn and
-  lose deciding credit at `supporting_share`, and one negative
-  deciding outcome denies admission on the spot. Bounds the
-  documented lesson price to a single settlement's damage.
+### Security
 
 - `docs/threat-model.md`, linked from SECURITY.md: the settle trust
   boundary, adversarial deltas, poisoned imports and what probation
-  does not do, the price lesson and admission gating, prompt
+  does not do, the price of a lesson and admission gating, prompt
   injection through lesson text, pinning as a trust statement, and
   the explicit non-goals.
 
@@ -92,17 +309,6 @@ clobber of a store file is loud instead of silent.
 
 ### Added
 
-- Statistical rigor for the benchmark suite: seeded bootstrap 95% CIs
-  on every aggregate column, `bench.report --paired ARM_A ARM_B`
-  per-seed difference tables, and `bench.report --tests` (exact paired
-  sign-flip permutation tests vs a baseline, Holm-Bonferroni adjusted
-  across the full printed grid). Committed raw evidence
-  (`bench/results/headline.json`, `noisy.json`, `ablation.json`) is
-  bound to `bench/results/MANIFEST.json`: suite, seeds, config hash,
-  exact reproduction command, library version, and producing git
-  commit per file. CI validates each committed file against its entry
-  with `bench.report --check --require-manifest`, which fails if the
-  manifest or the entry goes missing.
 - `darwin-memo ledger FILE OP`: every Ledger operation as a CLI
   subcommand with one JSON object on stdout (decide, settle, abandon,
   add, forget, tick, stats, obituary). The scripting bridge for shell
@@ -188,16 +394,6 @@ clobber of a store file is loud instead of silent.
 
 ### Changed
 
-- BREAKING (same-seed worlds): `StorageEnv`, `VerifiableQAEnv`, and
-  `TestSuiteEnv` derive each cycle's RNG from `cycle_rng(seed, cycle)`,
-  a SHA-256 hash of the pair, instead of `random.Random(seed + cycle)`.
-  The old scheme made adjacent seeds shifted windows of one another
-  (seed 3 at cycle 5 WAS seed 4 at cycle 4), so multi-seed spreads read
-  smoother than independent draws justify. The same seed now produces a
-  different world than released 0.4.0; the next release takes at least
-  a minor version bump for this, and the committed benchmark results
-  record their producing commit in `MANIFEST.json` so the evidence
-  stays reproducible from exactly the code that made it.
 - `bench.report --check`'s poison-kill gate now exempts noisy runs:
   under measurement noise a delayed or missed kill is an honest result
   the suite exists to measure, not a CI failure.
@@ -401,7 +597,8 @@ one: its central promise now holds across process boundaries.
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/rogermsc/darwin-memo/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rogermsc/darwin-memo/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rogermsc/darwin-memo/compare/v0.2.0...v0.3.0
