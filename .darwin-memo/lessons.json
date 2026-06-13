@@ -11,11 +11,11 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.4999996329173267,
+      "energy": 1.0499992658346542,
       "born_cycle": 0,
       "recorded_ts": "",
-      "last_used_cycle": 1,
-      "uses": 1,
+      "last_used_cycle": 22,
+      "uses": 2,
       "lineage": [],
       "id": "053a99cf0a4c"
     },
@@ -26,7 +26,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 1.2499999999833233,
+      "energy": 1.1999999999833233,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 21,
@@ -41,7 +41,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.7772702943393397,
+      "energy": 0.7272702943393397,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 20,
@@ -56,7 +56,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.793088493333537,
+      "energy": 1.7430884933335369,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 21,
@@ -65,43 +65,13 @@
       "id": "52867957f4d5"
     },
     {
-      "question": "Does the poison-kill CI gate apply to noisy benchmark runs?",
-      "answer": "No. The kill gate is a noiseless-era invariant and noisy runs are exempt: a delayed or missed kill under measurement noise is an honest expected result, not a CI failure.",
-      "kind": "explicit",
-      "sources": [
-        "noisy-suite-review"
-      ],
-      "energy": 0.04999990822933151,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 1,
-      "uses": 1,
-      "lineage": [],
-      "id": "5ee2277c20ba"
-    },
-    {
-      "question": "Do new environments need extra decision_polarity markers?",
-      "answer": "Yes. The built-in vocabulary covers delete/remove and apply/keep only; a new action verb needs extra_positive and extra_negative markers or every answer reads as silence and the population starves at about spawn energy over upkeep cycles.",
-      "kind": "explicit",
-      "sources": [
-        "readme-environments"
-      ],
-      "energy": 0.049999999999999684,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 15,
-      "uses": 1,
-      "lineage": [],
-      "id": "3b61822cf5a6"
-    },
-    {
       "question": "Can multiple workflow jobs settle the memory store in parallel?",
       "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
       "kind": "explicit",
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.9163420549537173,
+      "energy": 1.8663420549537173,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 20,
@@ -140,10 +110,40 @@
       "uses": 0,
       "lineage": [],
       "id": "8388150e56d3"
+    },
+    {
+      "question": "Does the poison-kill CI gate apply to noisy benchmark runs?",
+      "answer": "No. The kill gate is a noiseless-era invariant and noisy runs are exempt: a delayed or missed kill under measurement noise is an honest expected result, not a CI failure.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": -9.177066849497262e-08,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 1,
+      "uses": 1,
+      "lineage": [],
+      "id": "5ee2277c20ba"
+    },
+    {
+      "question": "Do new environments need extra decision_polarity markers?",
+      "answer": "Yes. The built-in vocabulary covers delete/remove and apply/keep only; a new action verb needs extra_positive and extra_negative markers or every answer reads as silence and the population starves at about spawn energy over upkeep cycles.",
+      "kind": "explicit",
+      "sources": [
+        "readme-environments"
+      ],
+      "energy": -3.191891195797325e-16,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 15,
+      "uses": 1,
+      "lineage": [],
+      "id": "3b61822cf5a6"
     }
   ],
   "ledger": {
-    "tick_count": 22,
+    "tick_count": 23,
     "pending": [
       {
         "query": "Are stub-executor benchmark arms safe to validate before Docker eval images run?",
@@ -152,22 +152,33 @@
         "supporting_entries": [],
         "born_tick": 18,
         "id": "a899bb29d181"
-      },
-      {
-        "query": "Are the judge_settled LLM benchmark arm results safe to commit and validate in CI?",
-        "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).\n[age unknown; born tick 0; last settled tick 1]",
-        "deciding_entry": "053a99cf0a4c",
-        "supporting_entries": [],
-        "born_tick": 22,
-        "id": "6250a00e4b30"
       }
     ],
     "history": {
       "053a99cf0a4c": [
-        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"
+        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        {
+          "tick": 22,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "tick 22: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27467097347)",
+          "event": "settle",
+          "ticket": "6250a00e4b30",
+          "credit": 0.6,
+          "delta": 15.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27467097347"
+        }
       ],
       "5ee2277c20ba": [
-        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)"
+        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        {
+          "tick": 23,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "died at tick 23 (starved: never earned its upkeep; uses=1, last_used_tick=1)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 1,
+          "last_used_tick": 1
+        }
       ],
       "52867957f4d5": [
         "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
@@ -282,6 +293,15 @@
           "credit": 0.15,
           "delta": 37.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27430071962"
+        },
+        {
+          "tick": 23,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "died at tick 23 (starved: never earned its upkeep; uses=1, last_used_tick=15)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 1,
+          "last_used_tick": 15
         }
       ],
       "c56020e5a87a": [
