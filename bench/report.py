@@ -114,6 +114,19 @@ def aggregate(runs: list[dict[str, Any]]) -> list[dict[str, str]]:
             rows[-1]["flakes fired"] = _mean_ci(
                 [float(m.get("flakes_fired", 0)) for m in metric_sets]
             )
+        # LLM-suite runs carry attribution-path rates per seed; surface
+        # them with the same bootstrap treatment as everything else.
+        if any("citation_cited_rate" in r["metrics"] for r in runs):
+            for key, column in (
+                ("citation_cited_rate", "cited"),
+                ("citation_explicit_none_rate", "explicit none"),
+                ("citation_fallback_rate", "fallback"),
+                ("citation_refused_rate", "refused"),
+                ("citation_unattributed_action_rate", "unattr action"),
+            ):
+                rows[-1][column] = _mean_ci(
+                    [float(m.get(key, 0.0)) for m in metric_sets]
+                )
     return rows
 
 
@@ -190,10 +203,16 @@ def _world_cell(run: dict[str, Any]) -> str:
 
     The variant suffix (",k=2", ",m=3") names the arm, not the world;
     the world cell is model+rate (plus any env override like a scale).
+    ",refuse=on/off" is likewise the arm's mitigation flag, not the
+    world: stripping it pairs the LLM suite's on/off runs by seed
+    within one model cell, which is the comparison that suite exists
+    to make.
     """
     label = run.get("label") or ""
     return ",".join(
-        p for p in label.split(",") if not p.startswith(("k=", "m=", "judge="))
+        p
+        for p in label.split(",")
+        if not p.startswith(("k=", "m=", "judge=", "refuse="))
     )
 
 

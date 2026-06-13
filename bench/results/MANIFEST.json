@@ -86,6 +86,42 @@
       "darwin_memo": "0.5.0",
       "source_commit": "a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty"
     },
+    "llm-llama.json": {
+      "suite": "llm",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "runs": 10,
+      "config_hash": "sha256:8d9670fac92a1ad3d68983ce380e51a5b755c023d8694c3b2eb987d820b59e85",
+      "command": "python -m bench.run --suite llm --seeds 0:5 --model llama3.2:3b --out bench/results/llm-llama.json --update-manifest",
+      "darwin_memo": "0.5.0",
+      "source_commit": "93564dae78cd5a9a9215b8667e6560bc1d535141-dirty",
+      "models": {
+        "llama3.2:3b": "a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72"
+      },
+      "sampled": "model output; rerunning reproduces the grid, not the numbers"
+    },
+    "llm-qwen.json": {
+      "suite": "llm",
+      "seeds": [
+        0,
+        1
+      ],
+      "runs": 2,
+      "config_hash": "sha256:863e0bd04ab93f709c5a09ea03f4de144b992bde2fff1550764fbfdfaf6b9a52",
+      "command": "python -m bench.run --suite llm --seeds 0:5 --model qwen3:4b --out bench/results/llm-qwen.json --update-manifest",
+      "darwin_memo": "0.5.0",
+      "source_commit": "93564dae78cd5a9a9215b8667e6560bc1d535141-dirty",
+      "models": {
+        "qwen3:4b": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
+      },
+      "sampled": "model output; rerunning reproduces the grid, not the numbers",
+      "partial": "seeds 0-1, refuse-off only: the full n=5 grid is wall-clock-prohibitive (~4.8h per run) and was still running at assembly time"
+    },
     "noisy.json": {
       "suite": "noisy",
       "seeds": [

@@ -849,6 +849,159 @@ these arms statistically; the table is direction and cost, and the
 larger claim that conserved-resource settlement is categorically better
 is not the claim this grid can or does make.
 
+## LLM-mode: the ledger against a model doing the same citation work
+
+Every benchmark above answers each task with the deterministic 3-stage
+protocol. The survival_llm arm swaps that protocol's answer step for a
+local model (Ollama, temperature 0) and runs the identical conserved
+resource ledger on top, so the comparison is clean: same worlds, same
+selection rule, same per-cycle citation and extraction work, one side
+deterministic and effectively free, the other sampled and slow. The run
+is also a citation-fidelity sample. Every task answer takes one of the
+attribution paths `bench/citation_probe.py` classifies (cited /
+explicit_none / fallback / refused / unattributed_action), and the
+per-run rates fold into the metrics block where the bootstrap machinery
+treats them like any other per-seed value.
+
+The arm also carries the `refuse_unparseable` mitigation (default off).
+The default protocol, when no SOURCES line parses, spreads credit evenly
+over everything consulted, which dilutes blame across innocents and lets
+the environment act on prose nothing can be charged for. With the
+mitigation on, an answer whose SOURCES line does not parse becomes
+silence instead: nothing earns, nothing is blamed. An explicit
+`SOURCES: none` parses fine and is honored as before, so the mitigation
+refuses unparseable prose only.
+
+Grid, pre-committed: StorageEnv only, seeds 0..4, 20 cycles, 6 files per
+cycle, the mitigation off and on for every model. The cycle count is the
+floor that still separates a blame-driven kill from pure starvation (an
+idle entry survives on spawn energy and upkeep to roughly cycle 20), and
+6 files per cycle is the budget knob that keeps a 5-seed single-model run
+near an hour on an M-series laptop. Hybrid-reasoning families (qwen3)
+route reasoning to a field the client never reads, so with thinking left
+on the whole generation budget can go to thinking and every answer comes
+back empty; the suite pins thinking off for those families so the arm
+measures citation behavior rather than an empty-completion artifact.
+Opt-in tier, never CI: sampled model output is not deterministic.
+
+### The cost headline
+
+Settlement by the conserved-resource ledger is effectively free: the
+deterministic `survival` arm's recorded per-run wall time is 0.03 to
+0.09 s across the committed judge cells (`bench/results/judge-qwen.json`
+mean 0.032 s, `bench/results/judge-llama.json` mean 0.093 s). The same
+per-cycle work answered by a local model costs, per run:
+
+| model | runs | per-run LLM wall time (s, mean) | per-run wall range (s) |
+|---|---|---|---|
+| llama3.2:3b | 10 | 1,076.0 | 925.7 to 2,054.8 |
+| qwen3:4b | 2 | 17,182.4 | 16,983.0 to 17,381.7 |
+
+That is roughly four orders of magnitude over the ledger for llama3.2:3b
+(about 12,000x at the means) and roughly five to six for qwen3:4b (about
+540,000x; one qwen run alone is 4.8 hours of model time for 120 queries).
+The cost gap is the most robust result in this section, and it holds
+before any answer is even classified. The ledger matches the work an
+LLM-driven arm does per cycle at a fraction of the cost the LLM pays.
+
+### llama3.2:3b carries the statistics (n=5 per mitigation setting)
+
+The committed evidence is `bench/results/llm-llama.json`: 10 runs, five
+seeds with the mitigation off and five with it on, paired by seed within
+the one model cell. Five seeds is a small sample by design (each run is
+roughly 18 minutes of model time), so the exact two-sided permutation
+test cannot drop below p = 0.0625 even on a clean 5-0 sweep; read these
+as direction and effect size, and nothing here clears p = 0.05.
+
+On true outcomes the two settings are a wash. Survival_llm kills the
+actionable poison every seed under both settings (kill rate 1.00),
+median kill cycle 8 off and 14 on. Per-seed cum-delta pairing
+(`--paired survival_llm:model=llama3.2:3b,refuse=off
+survival_llm:model=llama3.2:3b,refuse=on --metric cum_delta`) is
+1W/2T/2L for off, mean diff off minus on -84,790 with bootstrap 95% CI
+[-279,600, 92,160] and exact paired p = 0.5000. The mitigation neither
+helps nor hurts solvency at this scale.
+
+The reason it makes no difference is the honest finding here:
+**llama3.2:3b emitted a parseable SOURCES line on every answer**
+(`citation_sources_line_rate` 1.00 under both settings, `citation_
+fallback_rate` 0.00), so the protocol never reached the fallback path
+the mitigation gates. With nothing to refuse, `citation_refused_rate` is
+0.00 and the unattributed-action rate is byte-identical off and on
+(`citation_unattributed_action_rate` 0.2283 both, exact paired p =
+1.0000). The mitigation is inert for a model that always attributes; it
+only bites a model that drops the SOURCES line, which is the qwen case
+below and the reason the full qwen grid was worth starting.
+
+### Citation fidelity (llama3.2:3b, off / on means, n=5 each)
+
+These are the exact metric keys present in the committed JSON, averaged
+across the five seeds per setting:
+
+| metric | off | on |
+|---|---|---|
+| `probe_harmful_safe_rate` | 1.00 | 1.00 |
+| `probe_benign_correct_rate` | 0.67 | 0.67 |
+| `probe_silence_rate` | 0.20 | 0.20 |
+| `paraphrase_harmful_safe_rate` | 1.00 | 1.00 |
+| `paraphrase_benign_grounded_rate` | 0.33 | 0.33 |
+| `paraphrase_silence_rate` | 0.80 | 0.80 |
+| `citation_sources_line_rate` | 1.00 | 1.00 |
+| `citation_cited_rate` | 0.70 | 0.70 |
+| `citation_explicit_none_rate` | 0.31 | 0.30 |
+| `citation_fallback_rate` | 0.00 | 0.00 |
+| `citation_refused_rate` | 0.00 | 0.00 |
+| `citation_unattributed_action_rate` | 0.23 | 0.23 |
+
+The model holds the safety floor (it never recommends acting on the
+harmful probe, `probe_harmful_safe_rate` and `paraphrase_harmful_safe_
+rate` both 1.00) while paying capability on benign questions
+(`probe_benign_correct_rate` 0.67, `paraphrase_benign_grounded_rate`
+0.33): it stays silent or hedges on benign paraphrases more often than it
+should. About a quarter of answers read as an action while carrying no
+parseable provenance (`citation_unattributed_action_rate` 0.23), and the
+mitigation cannot touch those here because they arrived with a SOURCES
+line that parsed but cited nothing usable rather than no line at all.
+
+### qwen3:4b: a cost existence-proof, n=2, not a statistical result
+
+`bench/results/llm-qwen.json` holds the only two qwen3:4b runs that had
+completed at assembly time: seeds 0 and 1, mitigation off only. The full
+n=5 off-and-on grid is wall-clock-prohibitive (one run is about 4.8 hours,
+17,381 s recorded for 120 queries) and was still running when this arm
+was assembled, so qwen is reported as a cost existence-proof and a
+directional signal, not as a statistical comparison. The full qwen n=5
+may be folded in later.
+
+What the two runs show: qwen3:4b is the model the mitigation was built
+for. It drops the SOURCES line far more often than llama
+(`citation_sources_line_rate` mean 0.525, `citation_fallback_rate` mean
+0.475), so nearly half its answers hit the fallback path that
+`refuse_unparseable` would convert to silence. Both runs still kill the
+actionable poison (kill cycle 19, later than llama's 8 to 14), benign
+probe correctness is 1.00 on both, and the safety floor holds
+(`probe_harmful_safe_rate` and `paraphrase_harmful_safe_rate` both 1.00).
+The two seeds split hard on cum_delta (-1,677,312 and +2,200,576), which
+is exactly why two seeds cannot settle anything and the section says so.
+Whether `refuse_unparseable` improves qwen's outcomes by refusing that
+47.5% fallback fraction is the open question the completed grid will
+answer; with the on cells absent, this arm does not claim it.
+
+### LLM-mode caveats, on the record
+
+Three points, stated plainly. First, the mitigation result is honest and
+negative for the model with statistics: llama3.2:3b always attributes, so
+`refuse_unparseable` does nothing for it, and the model that would
+exercise it (qwen3:4b) has no on-cells committed yet. Second, qwen is
+n=2, refuse-off only, and its two seeds disagree on sign for cum_delta;
+nothing about qwen here is a result, only a cost figure and a direction.
+Third, 3b and 4b instruction-tuned models at temperature 0 are the weak
+end of the spectrum, so the citation behavior measured here is a floor on
+small local models, not a statement about what a frontier model would do
+in the same protocol. The one claim this arm makes cleanly is the cost
+one: the deterministic ledger does the per-cycle work for cents on the
+hour the LLM arm spends.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |
@@ -915,23 +1068,32 @@ python -m bench.report bench/results/testsuite_noisy.json --tests
 python -m bench.run --suite bandit --seeds 0:10 --out bench/results/bandit.json --update-manifest
 python -m bench.run --suite judge  --seeds 0:5  --judge-models llama3.2:3b --out bench/results/judge-llama.json --update-manifest
 python -m bench.run --suite judge  --seeds 0:5  --judge-models qwen3:4b    --out bench/results/judge-qwen.json  --update-manifest
+python -m bench.run --suite llm --seeds 0:5 --model llama3.2:3b --out bench/results/llm-llama.json --update-manifest
+python -m bench.run --suite llm --seeds 0:5 --model qwen3:4b    --out bench/results/llm-qwen.json  --update-manifest
 python -m bench.report bench/results/bandit.json     --paired policy_bandit survival
 python -m bench.report bench/results/judge-llama.json --paired survival judge_settled
 python -m bench.report bench/results/judge-qwen.json  --paired survival judge_settled
+python -m bench.report bench/results/llm-llama.json --fmt md
+python -m bench.report bench/results/llm-llama.json --paired survival_llm:model=llama3.2:3b,refuse=off survival_llm:model=llama3.2:3b,refuse=on --metric cum_delta
+python -m bench.report bench/results/llm-qwen.json  --fmt md
 ```
 
 The bandit suite is stdlib and deterministic like every other
-committed suite. The judge suite is the exception in this directory:
-its runs sample a local model (temperature 0 is not a determinism
-guarantee), so `bench/results/judge-llama.json` and
-`bench/results/judge-qwen.json` are committed as the evidence behind
-the judge tables above, not as byte-reproducible targets. Each file is
-one model run separately so the queue stays short; rerunning either
-requires a running Ollama server with that judge model pulled, and
-neither ever runs in CI.
+committed suite. The judge and llm suites are the exceptions in this
+directory: their runs sample a local model (temperature 0 is not a
+determinism guarantee), so `bench/results/judge-llama.json`,
+`bench/results/judge-qwen.json`, `bench/results/llm-llama.json`, and
+`bench/results/llm-qwen.json` are committed as the evidence behind the
+judge and LLM-mode tables above, not as byte-reproducible targets. Each
+file is one model run separately so the queue stays short; rerunning any
+of them requires a running Ollama server with that model pulled, and
+none ever runs in CI. The committed `llm-qwen.json` is the partial qwen3:4b
+grid (seeds 0 and 1, mitigation off) that had completed when the arm was
+assembled; the full n=5 grid is hours per run and may be folded in later.
 
 Per-seed raw JSON IS committed under `bench/results/` (headline, noisy,
-ablation, testsuite, testsuite_noisy, bandit, and the two judge files),
+ablation, testsuite, testsuite_noisy, bandit, the two judge files, and
+the two llm files),
 with `bench/results/MANIFEST.json` recording each file's
 suite, seeds, config hash, exact reproduction command, library version,
 and producing git commit; `bench.report <file> --check` validates a

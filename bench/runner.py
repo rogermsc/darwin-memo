@@ -8,7 +8,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import darwin_memo
 from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig, TestSuiteEnv
@@ -45,6 +45,9 @@ from .testsuite_fixtures import (
     evaluate_testsuite_probes,
 )
 from .testsuite_noise import FlakyTestSuiteEnv
+
+if TYPE_CHECKING:
+    from .llm_arm import AuditedProtocol
 
 SCHEMA_VERSION = 1
 TAIL = 5
@@ -146,6 +149,7 @@ def run_one(
     files_per_cycle: int = 12,
     overrides: dict[str, Any] | None = None,
     suite: str = "adhoc",
+    transcript_path: Path | None = None,
 ) -> dict[str, Any]:
     overrides = dict(overrides or {})
     family = _env_family(overrides)
@@ -187,10 +191,19 @@ def run_one(
         if kill_tracker["cycle"] is None and not active_poison_alive(store):
             kill_tracker["cycle"] = cycle
 
+    # The LLM arm's protocol is built here, not in _dispatch, because
+    # the audit trail (per-answer attribution paths, raw completions)
+    # must outlive the dispatch to reach metrics and the transcript.
+    audit: AuditedProtocol | None = None
+    if arm == "survival_llm":
+        from .llm_arm import build_audited_protocol
+
+        audit = build_audited_protocol(store, overrides)
+
     start = time.perf_counter()
     try:
         result = _dispatch(
-            arm, store, env, cycles, seed, files_per_cycle, overrides, on_cycle
+            arm, store, env, cycles, seed, files_per_cycle, overrides, on_cycle, audit
         )
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -212,6 +225,19 @@ def run_one(
     extra = getattr(result, "extra_metrics", None)
     if extra:
         metrics.update(extra)
+    # The LLM arm folds its per-answer attribution-path rates the same
+    # way, and writes the raw completions out as a transcript.
+    if audit is not None:
+        from .llm_arm import citation_metrics, write_transcript
+
+        metrics.update(citation_metrics(audit.answers))
+        if transcript_path is not None:
+            write_transcript(
+                transcript_path,
+                audit.answers,
+                header={"arm": arm, "seed": seed, "config": overrides},
+                files_per_cycle=files_per_cycle,
+            )
 
     run: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -248,6 +274,7 @@ def _dispatch(
     files_per_cycle: int,
     overrides: dict[str, Any],
     on_cycle: Any,
+    audit: AuditedProtocol | None = None,
 ) -> PolicyResult:
     noisy = "flake_rate" in overrides
     if noisy and arm in ("random_matched", "survival_writes", "judge_settled"):
@@ -276,16 +303,11 @@ def _dispatch(
         return run_survival(store, env, cycles, seed, config, on_cycle)
     if arm == "survival_llm":
         # Opt-in: the full 3-stage protocol answered by a local model.
-        # Not deterministic, never in CI; this is the at-home recipe for
-        # the question the docs flag as open (does citation-based credit
-        # keep selection working under synthesis?).
-        from darwin_memo import OllamaClient, QueryProtocol
-
-        client = OllamaClient(
-            model=str(overrides.get("llm_model", "llama3.2")),
-            timeout=float(overrides.get("llm_timeout", 300.0)),
-        )
-        protocol = QueryProtocol(store, client)
+        # Not deterministic, never in CI. The audited protocol arrives
+        # from run_one so the attribution trail survives the dispatch;
+        # llm_arm.build_audited_protocol reads the llm_* overrides.
+        if audit is None:
+            raise ValueError("survival_llm needs the audited protocol")
         return run_survival(
             store,
             env,
@@ -293,7 +315,7 @@ def _dispatch(
             seed,
             _survival_config(overrides, False),
             on_cycle,
-            protocol=protocol,
+            protocol=audit,
         )
     if arm == "judge_settled":
         # Settlement by LLM verdict instead of measured outcomes: the

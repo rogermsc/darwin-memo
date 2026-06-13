@@ -12,6 +12,10 @@ python -m bench.run --suite judge --seeds 0:5 --judge-models llama3.2:3b \
     --out bench/results/judge-llama.json
 python -m bench.run --suite judge --seeds 0:5 --judge-models qwen3:4b \
     --out bench/results/judge-qwen.json
+python -m bench.run --suite llm --seeds 0:5 --model llama3.2:3b \
+    --out bench/results/llm-llama.json
+python -m bench.run --suite llm --seeds 0:5 --model qwen3:4b \
+    --out bench/results/llm-qwen.json
 python -m bench.run --suite scaling [--full]      --out bench/results/scaling.json
 python -m bench.run --suite smoke                 --out bench/results/smoke.json
 """
@@ -20,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from .manifest import update_manifest
@@ -65,6 +70,53 @@ def _execute(specs: list[RunSpec]) -> list[dict[str, object]]:
     return runs
 
 
+def _spec_stem(spec: RunSpec) -> str:
+    """Filesystem-safe name for one run's checkpoint and transcript."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", f"{spec.label}-seed{spec.seed}")
+
+
+def _execute_llm(specs: list[RunSpec], out: Path) -> list[dict[str, object]]:
+    """Like _execute, but checkpointed: each run lands on disk as it
+    finishes, and a rerun resumes from whatever already completed. An
+    LLM run is hours of model time; an interruption at seed 4 must not
+    cost seeds 0 through 3. Delete ``<out dir>/runs/`` to force a
+    fresh grid."""
+    ckpt_dir = out.parent / "runs"
+    transcript_dir = out.parent / "transcripts"
+    runs: list[dict[str, object]] = []
+    for i, spec in enumerate(specs):
+        stem = _spec_stem(spec)
+        tag = f"{spec.arm}" + (f" [{spec.label}]" if spec.label else "")
+        ckpt = ckpt_dir / f"{stem}.json"
+        if ckpt.exists():
+            result = json.loads(ckpt.read_text())
+            if (
+                result.get("arm") == spec.arm
+                and result.get("seed") == spec.seed
+                and result.get("label", "") == spec.label
+            ):
+                runs.append(result)
+                print(f"[{i + 1}/{len(specs)}] {tag} seed={spec.seed} resumed")
+                continue
+        result = run_one(
+            arm=spec.arm,
+            seed=spec.seed,
+            cycles=spec.cycles,
+            files_per_cycle=spec.files_per_cycle,
+            overrides=spec.overrides,
+            suite=spec.suite,
+            transcript_path=transcript_dir / f"{stem}.jsonl",
+        )
+        if spec.label:
+            result["label"] = spec.label
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        ckpt.write_text(json.dumps(result, indent=2))
+        runs.append(result)
+        wall = result["metrics"]["wall_time_s"]
+        print(f"[{i + 1}/{len(specs)}] {tag} seed={spec.seed} done ({wall:.0f}s)")
+    return runs
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -91,7 +143,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--model",
         default="llama3.2",
-        help="Ollama model for --suite llm (requires a running server)",
+        help="Ollama model(s) for --suite llm, comma-separated "
+        "(requires a running server)",
     )
     parser.add_argument(
         "--judge-models",
@@ -131,7 +184,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.suite == "testsuite_noisy":
         runs = _execute(testsuite_noisy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "llm":
-        runs = _execute(llm_suite(_parse_seeds(args.seeds), args.model))
+        models = [m.strip() for m in args.model.split(",") if m.strip()]
+        runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "judge":
@@ -151,11 +205,22 @@ def main(argv: list[str] | None = None) -> int:
             # scaling table stays machine-local by design.
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
+        model_part = f"--model {args.model} " if args.suite == "llm" else ""
         command = (
             f"python -m bench.run --suite {args.suite} --seeds {args.seeds} "
-            f"--out {args.out} --update-manifest"
+            f"{model_part}--out {args.out} --update-manifest"
         )
-        manifest_path = update_manifest(args.out, runs, command)
+        extra = None
+        if args.suite == "llm":
+            # Tags are mutable; the manifest pins the exact weights.
+            from darwin_memo.llm import ollama_model_digest
+
+            extra = {
+                "models": {m: ollama_model_digest(m) for m in models},
+                "sampled": "model output; rerunning reproduces the grid, "
+                "not the numbers",
+            }
+        manifest_path = update_manifest(args.out, runs, command, extra=extra)
         print(f"updated {manifest_path}")
     return 0
 

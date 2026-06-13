@@ -263,19 +263,53 @@ def judge_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
     return specs
 
 
-def llm_suite(seeds: list[int], model: str) -> list[RunSpec]:
+# Sizing, stated rather than implied: the LLM-mode pilot (docs/
+# integrations/hermes.md) ran 30 cycles at 8 files and saw llama3.2
+# kill the actionable poison at cycle 14, while spawn-energy / upkeep
+# alone cannot starve an idle entry before roughly cycle 20. 20 cycles
+# is therefore the floor that can still tell a blame-driven kill from
+# pure starvation, and 6 files per cycle is the budget knob that keeps
+# a 5-seed run of one model near an hour of wall clock on an M-series
+# laptop (~8-10 s per task, two completions each).
+LLM_CYCLES = 20
+LLM_FILES_PER_CYCLE = 6
+
+# Hybrid-reasoning families route reasoning to a separate field the
+# Ollama client never reads (see OllamaClient): with thinking left on,
+# the generation budget can go entirely to thinking and the protocol
+# sees empty answers (measured on qwen3:4b at the 1024-token default).
+# The suite pins thinking off for these families so the arm measures
+# citation behavior rather than an empty-completion artifact.
+LLM_THINK_OFF_FAMILIES = ("qwen3",)
+
+
+def _llm_overrides(model: str, refuse: bool) -> dict[str, Any]:
+    overrides: dict[str, Any] = {
+        "llm_model": model,
+        "llm_refuse_unparseable": refuse,
+    }
+    if model.startswith(LLM_THINK_OFF_FAMILIES):
+        overrides["llm_think"] = False
+    return overrides
+
+
+def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
     """Opt-in: survival with a local model answering through the full
-    3-stage protocol. Sampled, not deterministic, never run in CI."""
+    3-stage protocol, run with the refuse_unparseable mitigation off
+    and on for every model. Sampled, not deterministic, never run in
+    CI."""
     return [
         RunSpec(
             suite="llm",
             arm="survival_llm",
             seed=seed,
-            cycles=12,
-            files_per_cycle=8,
-            overrides={"llm_model": model},
-            label=f"model={model}",
+            cycles=LLM_CYCLES,
+            files_per_cycle=LLM_FILES_PER_CYCLE,
+            overrides=_llm_overrides(model, refuse),
+            label=f"model={model},refuse={'on' if refuse else 'off'}",
         )
+        for model in models
+        for refuse in (False, True)
         for seed in seeds
     ]
 

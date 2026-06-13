@@ -78,9 +78,18 @@ def config_hash(runs: list[dict[str, Any]]) -> str:
 
 
 def update_manifest(
-    results_path: Path, runs: list[dict[str, Any]], command: str
+    results_path: Path,
+    runs: list[dict[str, Any]],
+    command: str,
+    extra: dict[str, Any] | None = None,
 ) -> Path:
-    """Write or refresh this result file's entry in the sibling manifest."""
+    """Write or refresh this result file's entry in the sibling manifest.
+
+    ``extra`` carries suite-specific evidence (the LLM suite records
+    ollama model digests, so the entry names exact weights rather than
+    mutable tags). Extra fields are documentation: validation reads
+    only the identity fields it computes itself.
+    """
     manifest_path = results_path.parent / MANIFEST_NAME
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text())
@@ -99,6 +108,7 @@ def update_manifest(
         "command": command,
         "darwin_memo": versions[0] if len(versions) == 1 else versions,
         "source_commit": _git_commit(results_path.parent),
+        **(extra or {}),
     }
     manifest["files"] = dict(sorted(manifest["files"].items()))
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")

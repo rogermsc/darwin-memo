@@ -131,6 +131,29 @@ def ollama_available(base_url: str = DEFAULT_OLLAMA_URL, timeout: float = 2.0) -
         return False
 
 
+def ollama_model_digest(
+    model: str, base_url: str = DEFAULT_OLLAMA_URL, timeout: float = 5.0
+) -> str | None:
+    """Digest of a pulled model from ``/api/tags``, ``None`` when unknown.
+
+    Benchmark manifests record this so committed LLM-mode results name
+    the exact weights that produced them. Tags are mutable; the digest is
+    not.
+    """
+    try:
+        with urllib.request.urlopen(f"{base_url}/api/tags", timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    for item in data.get("models", []):
+        if item.get("name") == model or item.get("model") == model:
+            digest = item.get("digest")
+            return str(digest) if digest else None
+    return None
+
+
 class OllamaClient:
     """Local models through Ollama's native API. Zero dependencies.
 
@@ -146,6 +169,17 @@ class OllamaClient:
     generating Python code on a reflection-QA extraction prompt) will
     otherwise generate until the context window fills, which presents
     as an inexplicable timeout rather than as a bad answer.
+
+    ``think`` maps to the native API field of the same name (server
+    0.9+). On hybrid-reasoning models (qwen3 family) the server routes
+    reasoning to a separate ``thinking`` field that this client never
+    reads, so with thinking left on, a model that reasons past
+    ``max_tokens`` returns an EMPTY completion: the whole budget went
+    to thinking (measured on qwen3:4b at the 1024 default, every
+    protocol answer empty). Pass ``think=False`` for such models.
+    ``None`` omits the field entirely, which is required for models
+    without the thinking capability: the server rejects the field
+    rather than ignoring it.
     """
 
     def __init__(
@@ -155,28 +189,33 @@ class OllamaClient:
         temperature: float = 0.0,
         timeout: float = 120.0,
         max_tokens: int = 1024,
+        think: bool | None = None,
     ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.temperature = temperature
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.think = think
 
     def complete(self, prompt: str, system: str = "") -> str:
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": system or _DEFAULT_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            "options": {
+                "temperature": self.temperature,
+                "num_predict": self.max_tokens,
+            },
+        }
+        if self.think is not None:
+            payload["think"] = self.think
         result = _post_json(
             f"{self.base_url}/api/chat",
-            {
-                "model": self.model,
-                "stream": False,
-                "messages": [
-                    {"role": "system", "content": system or _DEFAULT_SYSTEM},
-                    {"role": "user", "content": prompt},
-                ],
-                "options": {
-                    "temperature": self.temperature,
-                    "num_predict": self.max_tokens,
-                },
-            },
+            payload,
             timeout=self.timeout,
         )
         message = result.get("message", {})
