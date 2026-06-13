@@ -32,6 +32,7 @@ from .policies import (
     run_evict_consecutive,
     run_evict_on_negative,
     run_keep_everything,
+    run_policy_bandit,
     run_quarantine,
     run_random_matched,
     run_recency,
@@ -205,6 +206,12 @@ def run_one(
     metrics = extract_metrics(
         result, store, kill_tracker["cycle"], wall, env=flaky, env_family=family
     )
+    # Arms may carry arm-specific observability (the judge arm's call,
+    # cull, and parse-failure counts). Folded in as extra keys, never
+    # required ones: report --check's required set stays suite-uniform.
+    extra = getattr(result, "extra_metrics", None)
+    if extra:
+        metrics.update(extra)
 
     run: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -243,13 +250,16 @@ def _dispatch(
     on_cycle: Any,
 ) -> PolicyResult:
     noisy = "flake_rate" in overrides
-    if noisy and arm in ("random_matched", "survival_writes"):
+    if noisy and arm in ("random_matched", "survival_writes", "judge_settled"):
         # random_matched's shadow run would derive its death schedule
         # from a noise-free world, silently violating "same pruning
         # rate". survival_writes folds outcome detail strings (which
         # name the true delta) back into entries and picks its best
-        # trajectory by the REPORTED delta; neither behavior is defined
-        # under measurement noise, so both are refused loudly.
+        # trajectory by the REPORTED delta. judge_settled reads outcome
+        # detail strings too, and the corrupted ones name both the
+        # reported and the true delta, ground truth no in-loop component
+        # may see. None of the three is defined under measurement noise,
+        # so all are refused loudly.
         raise ValueError(f"{arm} is not defined under measurement noise")
     if arm == "survival":
         return run_survival(
@@ -284,6 +294,30 @@ def _dispatch(
             _survival_config(overrides, False),
             on_cycle,
             protocol=protocol,
+        )
+    if arm == "judge_settled":
+        # Settlement by LLM verdict instead of measured outcomes: the
+        # literature control for "no judge anywhere". Sampled, opt-in,
+        # never CI, same tier as survival_llm. The generous timeout is
+        # queueing, not generation: a local server runs one job at a
+        # time and this request may wait behind someone else's.
+        from darwin_memo import OllamaClient
+
+        from .judge import run_judge_settled
+
+        judge = OllamaClient(
+            model=str(overrides.get("judge_model", "llama3.2:3b")),
+            timeout=float(overrides.get("judge_timeout", 600.0)),
+            max_tokens=int(overrides.get("judge_max_tokens", 2048)),
+        )
+        return run_judge_settled(store, env, cycles, judge, on_cycle)
+    if arm == "policy_bandit":
+        return run_policy_bandit(
+            store,
+            env,
+            cycles,
+            on_cycle,
+            threshold=float(overrides.get("bandit_threshold", 0.5)),
         )
     if arm == "evict_on_negative":
         return run_evict_on_negative(

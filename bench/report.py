@@ -192,7 +192,9 @@ def _world_cell(run: dict[str, Any]) -> str:
     the world cell is model+rate (plus any env override like a scale).
     """
     label = run.get("label") or ""
-    return ",".join(p for p in label.split(",") if not p.startswith(("k=", "m=")))
+    return ",".join(
+        p for p in label.split(",") if not p.startswith(("k=", "m=", "judge="))
+    )
 
 
 def paired(

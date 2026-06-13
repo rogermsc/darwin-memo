@@ -48,6 +48,6 @@ jobs:
           python -m bench.report bench/results/smoke.json --check
       - name: Validate committed benchmark results against their manifest
         run: |
-          for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json bench/results/testsuite.json bench/results/testsuite_noisy.json; do
+          for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json bench/results/testsuite.json bench/results/testsuite_noisy.json bench/results/bandit.json bench/results/judge-llama.json bench/results/judge-qwen.json; do
             python -m bench.report "$f" --check --require-manifest
           done
