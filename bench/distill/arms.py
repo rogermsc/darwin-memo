@@ -29,6 +29,7 @@ DISTILL_ARMS = (
     "distill_raw",
     "distill_survivor",
     "distill_judge",
+    "distill_judge_floor",
     "retrieval",
 )
 
@@ -90,6 +91,26 @@ def judge_set(
     store = _fresh_store(corpus)
     env = VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
     result = run_judge_settled(store, env, cycles, judge)
+    return store.alive(), dict(getattr(result, "extra_metrics", {}) or {})
+
+
+def judge_floor_set(
+    corpus: QACorpus,
+    seed: int,
+    judge_model: str,
+    cycles: int = 40,
+    per_cycle: int = 12,
+    timeout: float = 600.0,
+) -> tuple[list[MemoryEntry], dict[str, Any]]:
+    """LLM-judge-kept set, verdicts settled through the energy ledger (floor)."""
+    from darwin_memo import OllamaClient
+
+    from ..judge import run_judge_floor
+
+    judge = OllamaClient(model=judge_model, timeout=timeout, max_tokens=2048)
+    store = _fresh_store(corpus)
+    env = VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
+    result = run_judge_floor(store, env, cycles, judge)
     return store.alive(), dict(getattr(result, "extra_metrics", {}) or {})
 
 
