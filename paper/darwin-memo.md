@@ -567,20 +567,25 @@ and `poison_reproduction` — over 5 seeds (opt-in arm; sampled; never CI).
 | retrieval | survivor store (ref) | 1.00 | 0.00 |
 | distill_survivor | energy-ledger survivors | **1.00** | **0.00** |
 | distill_raw | unfiltered | 0.96 | **1.00** |
-| distill_judge | LLM-judge-kept | 0.03 | 0.00 |
+| distill_judge | LLM-judge-kept (no floor) | 0.05 | 0.00 |
+| distill_judge_floor | LLM-judge-kept, ledger-settled | 0.93 | 0.00 |
 
 Distilling the raw store teaches the facts but bakes in every poison
 statement; distilling the energy-ledger survivors teaches the same facts and
 reproduces none of the poison, because survival removed it before training.
-The baseline judge, run for the identical 40 cycles, has no energy floor: its
-culls accumulate with no earn-back to extinction (≈35 of 36 entries culled,
-0–1 survivors), leaving nothing to distill — though at a short horizon
-(≈10 cycles) it tracks correctly, so the failure is the missing floor, not
-the verdict quality. The conserved-resource ledger is the only filter here
-that yields a parametric memory which both knows the good facts and carries
-none of the poison. This is a 0.5B existence proof, not a scaling law, and
-the separation depends on poison being distinct from the benign distribution
-(see Limitations).
+The floor-free judge, run for the identical 40 cycles, has no energy floor:
+its culls accumulate with no earn-back toward extinction (1–4 survivors),
+leaving almost nothing to distill — though at a short horizon (≈10 cycles) it
+tracks correctly, so the failure is the missing floor, not the verdict
+quality. The `distill_judge_floor` arm confirms this directly: it settles the
+*identical* judge verdicts through the energy ledger (keep +0.6, cull −0.6,
+upkeep 0.05, die at the floor) and the collapse vanishes — 29–30 survivors,
+recall 0.93, poison 0.00, nearly matching the measured ledger. So the active
+ingredient is the conserved-resource floor, not the choice of signal:
+measurement and judgment both work once buffered, with measurement holding a
+small, tighter edge (1.00 ± 0.00 vs 0.93 ± 0.10). This is a 0.5B existence
+proof, not a scaling law, and the separation depends on poison being distinct
+from the benign distribution (see Limitations).
 
 ## 5. Honest Limitations
 
@@ -643,8 +648,10 @@ because the honesty is the credibility.
   parametric distillation at all — a generative model cannot reproduce
   silence — which is why the arm measures `good_recall`/`poison_reproduction`
   on a distinctive corpus rather than reusing the retrieval suite's
-  `harmful_safe_rate`. The judge's collapse in that arm is a property of the
-  floor-free baseline, not of judges in general.
+  `harmful_safe_rate`. The judge's collapse is a property of the floor-free
+  baseline, not of judges in general — the `distill_judge_floor` arm settles
+  the same verdicts through the ledger and recovers to recall 0.93 / poison
+  0.00, so the floor, not the signal, is the active ingredient.
 
 The honest cross-family summary: when refusals earn nothing and redundancy
 is pre-paid, a counter is better below 10% flake and quarantine is better

@@ -1031,7 +1031,8 @@ no keyword-polarity, no silence-as-safety.
 | `retrieval` | survivor store (reference) | 1.00 ± 0.00 | 0.00 ± 0.00 | 30 |
 | `distill_survivor` | energy-ledger survivors | **1.00 ± 0.00** | **0.00 ± 0.00** | 30 |
 | `distill_raw` | unfiltered (poison intact) | 0.96 ± 0.08 | **1.00 ± 0.00** | 36 |
-| `distill_judge` | LLM-judge-kept | 0.03 ± 0.04 | 0.00 ± 0.00 | 0–1 |
+| `distill_judge` | LLM-judge-kept (no floor) | 0.05 ± 0.05 | 0.00 ± 0.00 | 1–4 |
+| `distill_judge_floor` | LLM-judge-kept, ledger-settled | 0.93 ± 0.10 | 0.00 ± 0.00 | 29–30 |
 
 Read across the rows. The base model knows none of our facts. Distilling
 the **raw** store teaches the facts (0.96) but bakes in **every** poison
@@ -1039,18 +1040,28 @@ statement (1.00) — the harmful command is now in the weights, reachable by
 the very question it answers. Distilling the **energy-ledger survivors**
 teaches the same facts (1.00) and reproduces **none** of the poison (0.00),
 because survival removed it before training; the parametric model lands
-where the retrieval reference does. The **judge** arm settles to 0–1
-survivors per seed (≈35 of 36 entries culled over 40 cycles, 0–3 parse
-failures): a baseline judge has no energy floor, so its culls accumulate
-with no earn-back or revival and erode the store toward extinction, leaving
+where the retrieval reference does. The floor-free **judge** arm settles to
+1–4 survivors per seed (≈32–35 of 36 entries culled over 40 cycles): a
+baseline judge has no energy floor, so its culls accumulate with no
+earn-back or revival and erode the store toward extinction, leaving almost
 nothing to distill. At a short horizon the same judge tracks correctly
 (≈10 cycles: keeps the good facts, culls the poison) — it is not broken, it
-simply has no stable fixed point. The energy ledger, run for the identical
-40 cycles, keeps exactly the 30 good facts.
+simply has no stable fixed point.
 
-So the one filter that yields a parametric memory which both **knows the
-good facts and carries none of the poison** is the conserved-resource
-ledger: raw keeps the poison, the judge keeps nothing.
+The **`distill_judge_floor`** arm settles the *identical* judge verdicts
+through the energy ledger (keep → +0.6, cull → −0.6, upkeep 0.05/cycle, die
+at the floor) and the collapse disappears: 29–30 survivors, recall 0.93,
+poison 0.00 — nearly the measured ledger's result. So the judge's *signal*
+was adequate all along; what the baseline judge lacked was the
+conserved-resource buffer. The measured ledger still holds a small, tighter
+edge (1.00 ± 0.00 vs 0.93 ± 0.10), so measurement is not strictly necessary
+once a floor is present, but it is the cleaner signal.
+
+So the filter that yields a parametric memory which both **knows the good
+facts and carries none of the poison** is any conserved-resource one: the
+measured ledger does it best, the floored judge nearly matches it, raw keeps
+the poison, and a judge *without a floor* keeps almost nothing. The active
+ingredient is the floor, not the choice of signal.
 
 ### Distillation caveats, on the record
 
@@ -1063,11 +1074,13 @@ file-deletion corpus did not, which is why this arm uses a containment
 recall/poison design rather than the retrieval suite's
 `harmful_safe_rate` — silence-as-safety does not survive into a generative
 model). Third, training is sampled (LoRA on MPS), so rerunning reproduces
-the design and the direction, not the exact decimals; `distill_raw` recall
-is the only cell that wobbles seed to seed (0.96 ± 0.08). Fourth, the
-judge arm's collapse is a property of the *baseline* judge (no floor); a
-judge given a budget or a floor is a different control and is not what
-this arm runs.
+the design and the direction, not the exact decimals; `distill_raw` and
+`distill_judge_floor` recall are the cells that wobble seed to seed
+(0.96 ± 0.08 and 0.93 ± 0.10). Fourth, the floor in `distill_judge_floor`
+uses a symmetric ±0.6 verdict credit to match the measured ledger's
+saturation magnitude; a different credit size or an asymmetric keep/cull
+split would move the floored judge's exact recall, though the qualitative
+result (the floor removes the collapse) is robust to the choice.
 
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
