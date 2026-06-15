@@ -80,9 +80,28 @@ def _load_adapter(path: str) -> tuple[Any, Any]:
     return model, tok
 
 
+def _empty_metrics(note: str) -> dict[str, Any]:
+    """An honest record for a filter that left nothing to distill.
+
+    A model trained on zero entries does not exist, so good_recall and
+    poison_reproduction are both zero by construction. The note carries the
+    cause (e.g. the judge over-culled the store to extinction).
+    """
+    return {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0,
+        "note": note,
+    }
+
+
 def _distill_and_eval(
     entries: list[Any], corpus: Any, base_model: str, config: dict[str, Any], seed: int
 ) -> dict[str, Any]:
+    if not entries:
+        return _empty_metrics("empty training set: the filter left no entries")
     out = tempfile.mkdtemp(prefix="tmp-distill-")
     train = train_lora(
         entries,
@@ -173,9 +192,19 @@ def distill_run(
         )
 
         if with_judge:
-            judged, judge_extra = A.judge_set(corpus, seed, judge_model, cycles, per_cycle)
-            jm = _distill_and_eval(judged, corpus, base_model, config, seed)
-            jm.update({f"judge_{k}": v for k, v in judge_extra.items()})
+            # The judge arm is the opt-in, sampled stretch arm; never let it
+            # take the deterministic core arms down with it.
+            try:
+                judged, judge_extra = A.judge_set(
+                    corpus, seed, judge_model, cycles, per_cycle
+                )
+                jm = _distill_and_eval(judged, corpus, base_model, config, seed)
+                # The judge counters (incl. judge_culls) self-document an empty
+                # set: a baseline judge has no energy floor, so culls accumulate.
+                jm["judge_survivors"] = len(judged)
+                jm.update({f"judge_{k}": v for k, v in judge_extra.items()})
+            except Exception as exc:  # noqa: BLE001
+                jm = _empty_metrics(f"judge arm failed: {type(exc).__name__}: {exc}")
             runs.append(
                 _record("distill_judge", seed, {**config, "judge_model": judge_model}, jm)
             )
