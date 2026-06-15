@@ -202,7 +202,9 @@ def distill_run(
                 # The judge counters (incl. judge_culls) self-document an empty
                 # set: a baseline judge has no energy floor, so culls accumulate.
                 jm["judge_survivors"] = len(judged)
-                jm.update({f"judge_{k}": v for k, v in judge_extra.items()})
+                # judge_extra keys are already judge_-prefixed (judge_calls,
+                # judge_culls, ...); merge as-is, no double prefix.
+                jm.update(judge_extra)
             except Exception as exc:  # noqa: BLE001
                 jm = _empty_metrics(f"judge arm failed: {type(exc).__name__}: {exc}")
             runs.append(
