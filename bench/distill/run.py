@@ -32,7 +32,9 @@ def _meta() -> dict[str, Any]:
     }
 
 
-def _record(arm: str, seed: int, config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
+def _record(
+    arm: str, seed: int, config: dict[str, Any], metrics: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "suite": "distill",
@@ -154,7 +156,7 @@ def distill_run(
     runs: list[dict[str, Any]] = []
     for seed in seeds:
         survivors, surv_store = A.survivor_set(corpus, seed, cycles, per_cycle)
-        raw, raw_store = A.raw_set(corpus, seed, cycles, per_cycle)
+        raw, _raw_store = A.raw_set(corpus, seed, cycles, per_cycle)
 
         # base_model: untrained floor (zero training cost).
         base, btok = _load_base(base_model)
@@ -205,10 +207,12 @@ def distill_run(
                 # judge_extra keys are already judge_-prefixed (judge_calls,
                 # judge_culls, ...); merge as-is, no double prefix.
                 jm.update(judge_extra)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 jm = _empty_metrics(f"judge arm failed: {type(exc).__name__}: {exc}")
             runs.append(
-                _record("distill_judge", seed, {**config, "judge_model": judge_model}, jm)
+                _record(
+                    "distill_judge", seed, {**config, "judge_model": judge_model}, jm
+                )
             )
 
         print(

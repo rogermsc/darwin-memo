@@ -31,15 +31,21 @@ def _ids(enc: Any) -> list[int]:
     return list(enc)
 
 
-def _format(tokenizer: Any, entry: MemoryEntry, mask_prompt: bool) -> dict[str, list[int]]:
+def _format(
+    tokenizer: Any, entry: MemoryEntry, mask_prompt: bool
+) -> dict[str, list[int]]:
     """Tokenize one QA pair into input_ids + labels, masking the prompt."""
     prompt_msgs = [{"role": "user", "content": entry.question}]
-    full_msgs = prompt_msgs + [{"role": "assistant", "content": entry.answer}]
+    full_msgs = [*prompt_msgs, {"role": "assistant", "content": entry.answer}]
     prompt_ids = _ids(
-        tokenizer.apply_chat_template(prompt_msgs, tokenize=True, add_generation_prompt=True)
+        tokenizer.apply_chat_template(
+            prompt_msgs, tokenize=True, add_generation_prompt=True
+        )
     )
     full_ids = _ids(
-        tokenizer.apply_chat_template(full_msgs, tokenize=True, add_generation_prompt=False)
+        tokenizer.apply_chat_template(
+            full_msgs, tokenize=True, add_generation_prompt=False
+        )
     )
     labels = list(full_ids)
     if mask_prompt:

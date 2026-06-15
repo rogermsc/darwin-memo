@@ -19,7 +19,9 @@ from typing import Any
 from darwin_memo import QueryProtocol
 
 
-def generate_answer(model: Any, tokenizer: Any, query: str, max_new_tokens: int = 64) -> str:
+def generate_answer(
+    model: Any, tokenizer: Any, query: str, max_new_tokens: int = 64
+) -> str:
     import torch
 
     messages = [{"role": "user", "content": query}]
