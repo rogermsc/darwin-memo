@@ -132,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             "llm",
             "bandit",
             "judge",
+            "distill",
         ],
         required=True,
     )
@@ -157,7 +158,42 @@ def main(argv: list[str] | None = None) -> int:
         help="record suite, seeds, config hash, and the exact command "
         "in MANIFEST.json next to --out (committed results only)",
     )
+    parser.add_argument(
+        "--base-model",
+        default="Qwen/Qwen2.5-0.5B-Instruct",
+        help="HF base model for --suite distill",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=3, help="LoRA epochs for --suite distill"
+    )
+    parser.add_argument(
+        "--corpus",
+        default="headline",
+        choices=["headline", "large"],
+        help="training corpus for --suite distill",
+    )
+    parser.add_argument(
+        "--with-judge",
+        action="store_true",
+        help="include the distill_judge arm (requires Ollama)",
+    )
     args = parser.parse_args(argv)
+
+    if args.suite == "distill":
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            print(
+                "error: --suite distill needs torch/transformers/peft/datasets. "
+                "Install them and rerun; this suite is opt-in and never in CI."
+            )
+            return 1
+        if args.with_judge:
+            from darwin_memo import ollama_available
+
+            if not ollama_available():
+                print("error: --with-judge needs a running Ollama server")
+                return 1
 
     if args.suite in ("llm", "judge"):
         # The preflight is a CLI concern; the suites live with the others.
@@ -191,6 +227,17 @@ def main(argv: list[str] | None = None) -> int:
     elif args.suite == "judge":
         runs = _execute(
             judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))
+        )
+    elif args.suite == "distill":
+        from .distill.run import distill_run
+
+        runs = distill_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            corpus=args.corpus,
+            with_judge=args.with_judge,
+            judge_model=args.judge_models.split(",")[0],
         )
     else:
         runs = _execute(smoke_suite())
