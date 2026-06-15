@@ -189,3 +189,75 @@ def run_judge_settled(
         if on_cycle:
             on_cycle(cycle, record)
     return result
+
+
+def run_judge_floor(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    judge: LLMClient,
+    on_cycle: OnCycle | None = None,
+    credit_gain: float = 0.6,
+) -> JudgeResult:
+    """Like ``run_judge_settled``, but verdicts move energy instead of burying.
+
+    The judge's signal is identical; only the floor changes. A ``keep`` credits
+    ``+credit_gain``, a ``cull`` debits ``-credit_gain`` (symmetric, the same
+    magnitude the measured ledger reaches at tanh saturation), and every entry
+    pays upkeep each cycle. An entry dies only when its energy reaches the floor,
+    so the spawn buffer absorbs a single cull and a kept entry replenishes — the
+    conserved-resource buffer the baseline judge lacks. ``judge_culls`` counts
+    cull *verdicts*; ``CycleRecord.deaths`` counts entries the floor buried.
+    """
+    result = JudgeResult()
+    for cycle in range(cycles):
+        protocol = QueryProtocol(store)
+        delta = 0.0
+        decided: dict[str, list[tuple[str, str]]] = {}
+        for task in env.tasks(cycle):
+            answer = protocol.answer(task.prompt)
+            outcome = env.verify(task, answer.text)
+            delta += outcome.delta
+            if answer.deciding_entry and outcome.delta != 0:
+                decided.setdefault(answer.deciding_entry, []).append(
+                    (task.prompt, outcome.detail)
+                )
+            consulted = list(answer.supporting_entries)
+            if answer.deciding_entry:
+                consulted.append(answer.deciding_entry)
+            for entry_id in consulted:
+                entry = store.get(entry_id)
+                if entry is not None:
+                    entry.uses += 1
+                    entry.last_used_cycle = cycle
+
+        candidates: list[Candidate] = []
+        for entry_id, events in decided.items():
+            entry = store.get(entry_id)
+            if entry is not None:
+                candidates.append((entry, events))
+
+        if candidates:
+            prompt = judge_prompt(candidates)
+            start = time.perf_counter()
+            reply = judge.complete(prompt, system=JUDGE_SYSTEM)
+            result.judge_wall_s += time.perf_counter() - start
+            result.judge_calls += 1
+            verdicts = parse_verdicts(reply, {entry.id for entry, _ in candidates})
+            for entry, _events in candidates:
+                verdict = verdicts.get(entry.id)
+                if verdict is None:
+                    result.judge_failures += 1  # default keep, no energy change
+                elif verdict == "keep":
+                    store.credit(entry.id, credit_gain, cycle)
+                elif verdict == "cull":
+                    store.credit(entry.id, -credit_gain, cycle)
+                    result.judge_culls += 1
+
+        # The floor: upkeep drains every entry; those at <= 0 die here.
+        dead = store.charge_upkeep()
+        record = CycleRecord(cycle, len(store), len(dead), delta)
+        result.records.append(record)
+        if on_cycle:
+            on_cycle(cycle, record)
+    return result
