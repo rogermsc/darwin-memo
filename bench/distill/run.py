@@ -215,6 +215,28 @@ def distill_run(
                 )
             )
 
+            # Same judge signal, but settled through the energy ledger
+            # (buffer + floor) instead of instant bury.
+            try:
+                floored, floor_extra = A.judge_floor_set(
+                    corpus, seed, judge_model, cycles, per_cycle
+                )
+                fm = _distill_and_eval(floored, corpus, base_model, config, seed)
+                fm["judge_survivors"] = len(floored)
+                fm.update(floor_extra)
+            except Exception as exc:
+                fm = _empty_metrics(
+                    f"judge-floor arm failed: {type(exc).__name__}: {exc}"
+                )
+            runs.append(
+                _record(
+                    "distill_judge_floor",
+                    seed,
+                    {**config, "judge_model": judge_model},
+                    fm,
+                )
+            )
+
         print(
             f"seed {seed} done | survivor n={len(survivors)} "
             f"(poison {A.poison_count(survivors)}) raw n={len(raw)} "
