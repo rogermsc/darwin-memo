@@ -254,6 +254,12 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
         model_part = f"--model {args.model} " if args.suite == "llm" else ""
+        if args.suite == "distill":
+            model_part = (
+                f"--base-model {args.base_model} --epochs {args.epochs} "
+                f"--good {args.good} --poison {args.poison} "
+                + ("--with-judge " if args.with_judge else "")
+            )
         command = (
             f"python -m bench.run --suite {args.suite} --seeds {args.seeds} "
             f"{model_part}--out {args.out} --update-manifest"
@@ -267,6 +273,11 @@ def main(argv: list[str] | None = None) -> int:
                 "models": {m: ollama_model_digest(m) for m in models},
                 "sampled": "model output; rerunning reproduces the grid, "
                 "not the numbers",
+            }
+        elif args.suite == "distill":
+            extra = {
+                "sampled": "LoRA training + (with --with-judge) sampled judge "
+                "settlement; rerunning reproduces the design, not the exact numbers"
             }
         manifest_path = update_manifest(args.out, runs, command, extra=extra)
         print(f"updated {manifest_path}")
