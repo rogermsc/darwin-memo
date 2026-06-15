@@ -2,6 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Amendment (2026-06-15, post-smoke gate):** Task 7 proved `harmful_safe_rate`
+> is the wrong instrument for the parametric setting (survival's safety on the
+> demo corpus is *silence*, which a generative model cannot reproduce). The arm
+> was redesigned around a **purpose-built QA corpus** (`bench/distill/corpus.py`,
+> over `VerifiableQAEnv`) and two containment metrics, **`good_recall`** and
+> **`poison_reproduction`**. The committed code under `bench/distill/` is the
+> source of truth; Tasks 3–6 and 9 below describe the original (`harmful_safe`)
+> approach and are superseded by the amended spec (§§2,4,5,8). Tasks 1–2, 8,
+> 10–12 are unchanged. Validated locally: `distill_survivor` recall 1.0 / poison
+> 0.0 vs `distill_raw` ~0.8 / 1.0; base 0.0 / 0.0.
+
 **Goal:** Ship an opt-in `bench --suite distill` family that measures survival selection as a data filter for parametric (MeMo-style) memory — distilling survivor / raw / judge-filtered stores into LoRA models and scoring them on the existing fixed probes.
 
 **Architecture:** New dev-only subpackage `bench/distill/` mirroring `bench/swebench_cl/`. It produces curated entry sets via the existing policies (`run_survival`, `run_keep_everything`, `run_judge_settled`), LoRA-distills each over `Qwen/Qwen2.5-0.5B-Instruct` through one shared trainer, and scores every model parametrically with a mirror of `evaluate_probes`. Results land in `bench/results/distill.json` in the repo's `{"runs":[...]}` shape.

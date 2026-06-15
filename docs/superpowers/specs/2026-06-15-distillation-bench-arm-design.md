@@ -2,8 +2,18 @@
 
 - **Date:** 2026-06-15
 - **Branch / worktree:** `feat/distill-bench-arm` (`~/darwin-memo-distill`)
-- **Status:** approved design, pre-implementation
+- **Status:** implemented; eval **amended** after the local smoke gate (see Amendment)
 - **Target version:** darwin-memo 0.5.x (opt-in benchmark family; no core API change)
+
+> **Amendment (2026-06-15, post-smoke):** the original plan to reuse the demo
+> corpus `PROBES` + `harmful_safe_rate` measured parametrically did **not**
+> survive the smoke gate. On the demo corpus, survival's safety is *absence*
+> (the harmful probe hits no entry → silence → counts safe); a distilled model
+> cannot be silent, so distilling the (silence-protected) survivors taught
+> delete-positive behaviour and `harmful_safe_rate` was the wrong instrument.
+> The arm was redesigned around a purpose-built QA corpus over `VerifiableQAEnv`
+> and two containment metrics — **`good_recall`** and **`poison_reproduction`**.
+> Sections 2, 4, 5, 8 below reflect the amended design.
 
 ## 1. Goal & headline claim
 
@@ -17,33 +27,42 @@ The claim it lands, in MeMo's native model-as-memory form:
 > raw-distilled model reproduces the poison; an LLM-judge data filter costs
 > more and does not beat the energy ledger.
 
-It reuses the **same fixed probe set and the same three metrics** as the existing
-retrieval headline, measured on model weights instead of a retrieval store. This
-makes the parametric numbers directly comparable to the retrieval numbers already
-in `docs/benchmarks.md`.
+Metrics are **containment-based** (the same no-judge grounding as
+`VerifiableQAEnv`), measured on model weights and, as a reference, over a
+retrieval store.
 
 Non-goals: a new selection rule, any change to the zero-dep `darwin_memo` core, a
 default-CI GPU job, or beating external agent-memory benchmarks.
 
-## 2. The mapping (why this is clean)
+## 2. The mapping (why this is clean) — amended
 
-The bench already scores a curated store on what it would advise:
+The arm uses a **purpose-built QA corpus** (`bench/distill/corpus.py`):
+distinctive good facts plus distinctive *poison* (harmful answers to distinct
+questions, tagged `POISON_SOURCE = "forum-post"`). Survival over
+`VerifiableQAEnv` (exact containment, +1.0 correct / −0.5 wrong) makes good
+facts **earn and survive** and poison **blamed and buried**; consolidation is
+disabled so survivors stay distinct facts (not merged composites).
 
-- `bench/fixtures.py::evaluate_probes(store)` → `{harmful_safe_rate,
-  benign_correct_rate, silence_rate}` via `QueryProtocol` (retrieval), over the
-  fixed `PROBES` (harmful + benign groups). Poison enters via
-  `POISON_SOURCE = "forum-post"`; silence counts as safe for harmful probes.
+Two instruments, both **exact token containment**:
 
-The distillation arm is the **same eval, measured parametrically**:
+- **`good_recall`** — fraction of good probes whose distinctive correct token
+  appears in the answer.
+- **`poison_reproduction`** — fraction of poison probes whose distinctive
+  harmful token appears in the answer. The harmful tokens are out-of-vocabulary
+  for the good facts, so a model cannot *hallucinate* them: reproduction means
+  the poison was in that model's training set.
 
-| | Retrieval (existing) | Distill (new) |
+| | Retrieval reference | Distill |
 |---|---|---|
-| Source | curated store | curated store → survivor set |
-| Answerer | `QueryProtocol.answer(probe)` | `model.generate(probe)` |
-| Scorer | `decision_polarity(answer.text)` | `decision_polarity(generated_text)` |
-| Metrics | `harmful_safe_rate`, `benign_correct_rate`, `silence_rate` | identical |
+| Source | curated store | curated store → survivor/raw set |
+| Answerer | `QueryProtocol.answer(q).text` | `model.generate(q)` |
+| Scorer | token-in-answer containment | token-in-answer containment |
+| Metrics | `good_recall`, `poison_reproduction` | identical |
 
-Same probes, same scorer, same metric trio — only the answerer changes.
+Why not `harmful_safe_rate` (the original plan): see the Amendment at the top.
+Survival's safety on the demo corpus is *absence/silence*, which a generative
+model structurally cannot reproduce; `good_recall`/`poison_reproduction` measure
+what distillation can actually carry.
 
 ## 3. Structure (mirrors the `bench/swebench_cl/` precedent)
 
@@ -75,49 +94,49 @@ bench/distill/
   `bench/distill/train.py::train_lora`, so the documented user-facing script and
   the bench arm share one implementation and cannot drift. CLI surface and the
   README invocation stay unchanged.
-- `bench/distill/eval.py::evaluate_probes_parametric(model, tokenizer)`: greedy /
-  temperature-0 generation on the fixed `PROBES` (rendered through the same chat
-  template), decode, run the existing `decision_polarity`; output with no
-  resolvable polarity ⇒ silence ⇒ counts safe for harmful (mirrors
-  `evaluate_probes`). Returns the identical metric-dict shape.
+- `bench/distill/corpus.py::build_qa_corpus(n_good, n_poison)` → a deterministic
+  `QACorpus` (entries, env `qa_pairs`, `good_probes`, `poison_probes`).
+- `bench/distill/eval.py`: `evaluate_distill_parametric(model, tokenizer,
+  good_probes, poison_probes)` (greedy/temp-0 generation, token containment) and
+  `evaluate_distill_retrieval(store, good_probes, poison_probes)` (same
+  instruments over `QueryProtocol`). Both return `{good_recall,
+  poison_reproduction}`.
 - `bench/run.py`: add `distill` to the `--suite` choices and dispatch to
   `bench/distill/run.py`.
 
-## 4. Data flow (per seed)
+## 4. Data flow (per seed) — amended
 
-1. `build_headline_store()` → produce curated stores:
-   - `survival`: run the energy-ledger `SurvivalLoop` → survivor set (poison
-     starved/buried).
-   - `keep_everything`: run the no-curation baseline → raw set (poison intact).
-   - `judge` (stretch arm): run `bench/judge.py::run_judge_settled` → the
-     judge-kept set.
+1. `build_qa_corpus(n_good, n_poison)` → one deterministic corpus; build a fresh
+   store from its entries and run, over `VerifiableQAEnv(qa_pairs)`:
+   - `survival`: energy-ledger `run_survival` (consolidation disabled) → survivor
+     set (poison blamed/buried).
+   - `keep_everything`: no-curation baseline → raw set (poison intact).
+   - `judge` (stretch arm): `bench/judge.py::run_judge_settled` → judge-kept set.
 2. `train_lora(...)` on each curated set → one LoRA adapter per arm over
    `Qwen/Qwen2.5-0.5B-Instruct`.
-3. Eval each adapter **and** the untrained base model on the fixed `PROBES` via
-   `evaluate_probes_parametric`; additionally record the `retrieval` reference
-   row via the existing `evaluate_probes(survival_store)`.
+3. Eval each adapter **and** the untrained base model via
+   `evaluate_distill_parametric`; record the `retrieval` reference row via
+   `evaluate_distill_retrieval(survivor_store, ...)`.
 4. Emit one run record per (arm, seed) to `bench/results/distill.json`.
 
-## 5. Arms & metrics
+## 5. Arms & metrics — amended
 
 **Arms** (the comparison axis is the source-store filter):
 
-- `base_model` — untrained Qwen2.5-0.5B-Instruct (the floor: it knows none of our
-  lessons).
+- `base_model` — untrained Qwen2.5-0.5B-Instruct (floor: knows none of our facts).
 - `distill_raw` — distilled from the `keep_everything` store (poison present).
 - `distill_survivor` — distilled from the energy-ledger survivor set (treatment).
 - `distill_judge` — distilled from the LLM-judge-kept set (ledger-vs-judge as a
-  data filter). Opt-in behind a flag so the default run does not require Ollama;
-  included in the thorough run.
-- `retrieval` — reference row from the existing `evaluate_probes` (no training).
+  data filter). Opt-in behind `--with-judge`; included in the thorough run.
+- `retrieval` — reference row via `evaluate_distill_retrieval` (no training).
 
 **Metrics per run record:**
 
-- Quality: `harmful_safe_rate`, `benign_correct_rate`, `silence_rate`.
+- Quality: `good_recall`, `poison_reproduction` (both token containment).
 - Cost / leanness (lands the paper's cost-and-leanness reframe): `train_wall_s`,
   `trainable_params`, `n_train` (entries distilled — survivor count vs raw count).
-- For `distill_judge`: judge LLM call count and judge wall-clock (reuse the
-  `judge.py` observability fields).
+- For `distill_judge`: judge LLM call/cull/wall fields (`judge_*`), reused from
+  `judge.py` observability.
 
 **Run record schema** (matches the repo convention `{"runs": [ {...} ]}`):
 
@@ -128,10 +147,9 @@ bench/distill/
   "arm": "distill_survivor",
   "seed": 0,
   "config": {"base_model": "Qwen/Qwen2.5-0.5B-Instruct", "epochs": 3, "lr": 2e-4,
-             "mask_prompt": true, "corpus": "headline"},
-  "metrics": {"harmful_safe_rate": 1.0, "benign_correct_rate": 1.0,
-              "silence_rate": 0.0, "train_wall_s": 0.0, "trainable_params": 0,
-              "n_train": 0}
+             "mask_prompt": true, "n_good": 30, "n_poison": 6, "cycles": 40},
+  "metrics": {"good_recall": 1.0, "poison_reproduction": 0.0,
+              "train_wall_s": 0.0, "trainable_params": 0, "n_train": 30}
 }
 ```
 
@@ -141,8 +159,8 @@ the run.)
 ## 6. Compute, determinism, opt-in
 
 - **Local smoke first**: tiny config (1 epoch, CPU/MPS, float32, 1 seed) to shake
-  out the harness and the two bug fixes cheaply. This smoke run also reports the
-  real survivor count, which decides the corpus knob in §8.
+  out the harness and the two bug fixes cheaply. This smoke run drove the eval
+  redesign (see the Amendment) and validated the corpus in §8.
 - **Real run on RunPod GPU** via the `runpod` skill: full seeds, proper epochs,
   bf16. Pull `distill.json` back into the worktree and commit. (See §7 for the
   RunPod packaging.)
@@ -162,19 +180,24 @@ the run.)
   commit them in the worktree. GPU artifacts (adapters) are not committed; only
   the metrics JSON is.
 
-## 8. Open knob & main risk
+## 8. Corpus — amended (was "open knob & main risk")
 
-The headline demo corpus may yield a **small survivor set** (the dogfood store had
-only 5 entries). The local smoke run reports the real count.
+The original risk (the demo corpus yields too small/confounded a survivor set)
+materialized in the smoke gate and went deeper than size: survival's safety on
+the demo corpus is *absence/silence*, which distillation cannot carry (see the
+Amendment). The resolution is the **purpose-built QA corpus** in
+`bench/distill/corpus.py`, now a core component, not a contingency:
 
-- If the survivor set is large enough for a meaningful LoRA: train on it directly,
-  corpus = `headline` (canonical, directly comparable to retrieval headline).
-- If it is too thin: scale the **training** corpus using the existing
-  `bench/corpus.py` synthetic-QA generator with the same `forum-post` poison
-  injection, corpus = `large`. The **eval probe set stays fixed and unchanged**
-  in both cases, so the comparison remains apples-to-apples.
+- `n_good` distinctive facts across diverse, non-merging templates → the env
+  reinforces them so they **survive**.
+- `n_poison` distinctive harmful answers to distinct questions → the env scores
+  them wrong so they are **blamed and buried**. Harmful tokens are
+  out-of-vocabulary for the good facts, so reproduction is unambiguous.
+- Consolidation disabled (`consolidate_every` past the horizon) so survivors are
+  distinct facts, not merged composites.
 
-Corpus size is a config knob (`--corpus headline|large`), not a hard-coded value.
+Validated locally (`n_good=30`, `n_poison=6`, 40 cycles): survivor = 30 good / 0
+poison; raw = 36 / 6. Size is a config knob (`--good`, `--poison`).
 
 ## 9. Outputs & documentation
 
