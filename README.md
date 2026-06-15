@@ -419,6 +419,18 @@ To distill survivors into an actual parametric memory model (MeMo's
 native form), `training/train_memory_model.py` fine-tunes a small model
 on the surviving QA pairs with LoRA, conditioning on questions only.
 
+The `distill` benchmark arm (`python -m bench.run --suite distill`,
+opt-in, needs `torch`/`transformers`/`peft`/`datasets`) turns this into
+measured evidence: it distills the energy-ledger **survivor** set, the
+unfiltered **raw** set, and the LLM-**judge**-kept set into separate LoRA
+models and scores each by containment — `good_recall` (does the model
+recall the surviving facts?) and `poison_reproduction` (does it emit the
+buried poison?). The result is survival selection working as a data
+filter for parametric memory: the survivor-distilled model recalls the
+good facts and reproduces **none** of the poison, while the raw-distilled
+model reproduces it — because the poison was in its training set. See
+[docs/benchmarks.md](docs/benchmarks.md#parametric-memory-distillation-as-a-data-filter).
+
 ## Design notes
 
 - **Energy ledger**: entries spawn at 1.0 energy, pay 0.05 upkeep per
