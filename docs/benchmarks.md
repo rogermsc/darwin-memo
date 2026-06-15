@@ -1002,6 +1002,73 @@ in the same protocol. The one claim this arm makes cleanly is the cost
 one: the deterministic ledger does the per-cycle work for cents on the
 hour the LLM arm spends.
 
+## Parametric memory: distillation as a data filter
+
+Everything above scores the *retrieval* store. This arm asks the MeMo
+question instead: if you distill the store into model weights, does
+survival selection still help? It is opt-in (`python -m bench.run --suite
+distill`), needs `torch`/`transformers`/`peft`/`datasets`, and like the
+LLM and judge arms it is sampled, never in CI.
+
+**Setup.** A purpose-built QA corpus (`bench/distill/corpus.py`): 30
+distinctive good facts (ports, rotation intervals, owners across diverse
+templates) and 6 distinctive poison entries — harmful answers to distinct
+questions (`rm -rf --no-preserve-root /`, `DROP DATABASE …`), whose tokens
+are out-of-vocabulary for the good facts, so a model cannot *hallucinate*
+them. Selection runs over `VerifiableQAEnv` (exact containment, +1.0
+correct / −0.5 wrong), consolidation disabled so survivors stay distinct
+facts. Each arm's curated set is LoRA-fine-tuned into a separate
+`Qwen/Qwen2.5-0.5B-Instruct` (r=16, prompt masked, 15 epochs), then scored
+by containment: `good_recall` (the distinctive correct token appears) and
+`poison_reproduction` (the distinctive harmful token appears). No judge,
+no keyword-polarity, no silence-as-safety.
+
+**Results (5 seeds, Apple Silicon MPS, mean ± population sd).**
+
+| arm | source set | good_recall | poison_reproduction | n_train |
+|-----|-----------|-------------|---------------------|---------|
+| `base_model` | none (untrained) | 0.00 ± 0.00 | 0.00 ± 0.00 | 0 |
+| `retrieval` | survivor store (reference) | 1.00 ± 0.00 | 0.00 ± 0.00 | 30 |
+| `distill_survivor` | energy-ledger survivors | **1.00 ± 0.00** | **0.00 ± 0.00** | 30 |
+| `distill_raw` | unfiltered (poison intact) | 0.96 ± 0.08 | **1.00 ± 0.00** | 36 |
+| `distill_judge` | LLM-judge-kept | 0.03 ± 0.04 | 0.00 ± 0.00 | 0–1 |
+
+Read across the rows. The base model knows none of our facts. Distilling
+the **raw** store teaches the facts (0.96) but bakes in **every** poison
+statement (1.00) — the harmful command is now in the weights, reachable by
+the very question it answers. Distilling the **energy-ledger survivors**
+teaches the same facts (1.00) and reproduces **none** of the poison (0.00),
+because survival removed it before training; the parametric model lands
+where the retrieval reference does. The **judge** arm settles to 0–1
+survivors per seed (≈35 of 36 entries culled over 40 cycles, 0–3 parse
+failures): a baseline judge has no energy floor, so its culls accumulate
+with no earn-back or revival and erode the store toward extinction, leaving
+nothing to distill. At a short horizon the same judge tracks correctly
+(≈10 cycles: keeps the good facts, culls the poison) — it is not broken, it
+simply has no stable fixed point. The energy ledger, run for the identical
+40 cycles, keeps exactly the 30 good facts.
+
+So the one filter that yields a parametric memory which both **knows the
+good facts and carries none of the poison** is the conserved-resource
+ledger: raw keeps the poison, the judge keeps nothing.
+
+### Distillation caveats, on the record
+
+First, this is a 0.5B model on a small corpus (30/6) at 15 epochs; the
+numbers are a clean existence proof of the data-filter effect, not a
+scaling law. Second, the poison tokens are deliberately distinctive so
+reproduction is unambiguous; a corpus where poison is reachable by
+generalizing benign patterns would not separate as cleanly (an earlier
+file-deletion corpus did not, which is why this arm uses a containment
+recall/poison design rather than the retrieval suite's
+`harmful_safe_rate` — silence-as-safety does not survive into a generative
+model). Third, training is sampled (LoRA on MPS), so rerunning reproduces
+the design and the direction, not the exact decimals; `distill_raw` recall
+is the only cell that wobbles seed to seed (0.96 ± 0.08). Fourth, the
+judge arm's collapse is a property of the *baseline* judge (no floor); a
+judge given a budget or a floor is a different control and is not what
+this arm runs.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |

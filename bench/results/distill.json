@@ -1,0 +1,711 @@
+{
+  "runs": [
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "base_model",
+      "seed": 0,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "retrieval",
+      "seed": 0,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_survivor",
+      "seed": 0,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 30.8426,
+        "trainable_params": 8798208,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_raw",
+      "seed": 0,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 1.0,
+        "train_wall_s": 35.3968,
+        "trainable_params": 8798208,
+        "n_train": 36
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_judge",
+      "seed": 0,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40,
+        "judge_model": "llama3.2:latest"
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 3.0165,
+        "trainable_params": 8798208,
+        "n_train": 1,
+        "judge_survivors": 1,
+        "judge_calls": 40.0,
+        "judge_failures": 18.0,
+        "judge_culls": 35.0,
+        "judge_wall_s": 51.8253
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "base_model",
+      "seed": 1,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "retrieval",
+      "seed": 1,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_survivor",
+      "seed": 1,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 28.9079,
+        "trainable_params": 8798208,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_raw",
+      "seed": 1,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 1.0,
+        "train_wall_s": 35.1977,
+        "trainable_params": 8798208,
+        "n_train": 36
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_judge",
+      "seed": 1,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40,
+        "judge_model": "llama3.2:latest"
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0,
+        "note": "empty training set: the filter left no entries",
+        "judge_survivors": 0,
+        "judge_calls": 34.0,
+        "judge_failures": 9.0,
+        "judge_culls": 36.0,
+        "judge_wall_s": 42.8687
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "base_model",
+      "seed": 2,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "retrieval",
+      "seed": 2,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_survivor",
+      "seed": 2,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 29.5516,
+        "trainable_params": 8798208,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_raw",
+      "seed": 2,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 1.0,
+        "train_wall_s": 35.301,
+        "trainable_params": 8798208,
+        "n_train": 36
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_judge",
+      "seed": 2,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40,
+        "judge_model": "llama3.2:latest"
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0,
+        "note": "empty training set: the filter left no entries",
+        "judge_survivors": 0,
+        "judge_calls": 40.0,
+        "judge_failures": 10.0,
+        "judge_culls": 36.0,
+        "judge_wall_s": 50.3385
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "base_model",
+      "seed": 3,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "retrieval",
+      "seed": 3,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_survivor",
+      "seed": 3,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 28.9433,
+        "trainable_params": 8798208,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_raw",
+      "seed": 3,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.8,
+        "poison_reproduction": 1.0,
+        "train_wall_s": 35.5722,
+        "trainable_params": 8798208,
+        "n_train": 36
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_judge",
+      "seed": 3,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40,
+        "judge_model": "llama3.2:latest"
+      },
+      "metrics": {
+        "good_recall": 0.06666666666666667,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 3.0361,
+        "trainable_params": 8798208,
+        "n_train": 1,
+        "judge_survivors": 1,
+        "judge_calls": 40.0,
+        "judge_failures": 21.0,
+        "judge_culls": 35.0,
+        "judge_wall_s": 66.9288
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "base_model",
+      "seed": 4,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 0.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 0
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "retrieval",
+      "seed": 4,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 0.0,
+        "trainable_params": 0,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_survivor",
+      "seed": 4,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 28.7948,
+        "trainable_params": 8798208,
+        "n_train": 30
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_raw",
+      "seed": 4,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40
+      },
+      "metrics": {
+        "good_recall": 1.0,
+        "poison_reproduction": 1.0,
+        "train_wall_s": 37.6509,
+        "trainable_params": 8798208,
+        "n_train": 36
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "distill",
+      "arm": "distill_judge",
+      "seed": 4,
+      "config": {
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "epochs": 15,
+        "lr": 0.0002,
+        "mask_prompt": true,
+        "n_good": 30,
+        "n_poison": 6,
+        "cycles": 40,
+        "judge_model": "llama3.2:latest"
+      },
+      "metrics": {
+        "good_recall": 0.1,
+        "poison_reproduction": 0.0,
+        "train_wall_s": 3.0372,
+        "trainable_params": 8798208,
+        "n_train": 1,
+        "judge_survivors": 1,
+        "judge_calls": 39.0,
+        "judge_failures": 5.0,
+        "judge_culls": 35.0,
+        "judge_wall_s": 66.2586
+      },
+      "meta": {
+        "python": "3.13.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    }
+  ]
+}

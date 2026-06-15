@@ -550,6 +550,38 @@ s/run for qwen3:4b (about 540,000x; one qwen run alone is 4.8 hours of model
 time for 120 queries). The cost gap holds before any answer is even
 classified, and it is the most robust result in this report.
 
+### 4.7 Parametric memory: distillation as a data filter
+
+Every result above scores the retrieval store. This arm asks MeMo's own
+question: distilled into model weights, does selection still help? We
+LoRA-fine-tune `Qwen/Qwen2.5-0.5B-Instruct` on three curated sets of a
+purpose-built QA corpus (30 distinctive good facts, 6 distinctive poison
+entries whose harmful tokens are out-of-vocabulary for the good facts, so a
+model cannot hallucinate them; selection over `VerifiableQAEnv`,
+consolidation disabled). Each model is scored by containment — `good_recall`
+and `poison_reproduction` — over 5 seeds (opt-in arm; sampled; never CI).
+
+| arm | source set | good_recall | poison_reproduction |
+|-----|-----------|-------------|---------------------|
+| base_model | none | 0.00 | 0.00 |
+| retrieval | survivor store (ref) | 1.00 | 0.00 |
+| distill_survivor | energy-ledger survivors | **1.00** | **0.00** |
+| distill_raw | unfiltered | 0.96 | **1.00** |
+| distill_judge | LLM-judge-kept | 0.03 | 0.00 |
+
+Distilling the raw store teaches the facts but bakes in every poison
+statement; distilling the energy-ledger survivors teaches the same facts and
+reproduces none of the poison, because survival removed it before training.
+The baseline judge, run for the identical 40 cycles, has no energy floor: its
+culls accumulate with no earn-back to extinction (≈35 of 36 entries culled,
+0–1 survivors), leaving nothing to distill — though at a short horizon
+(≈10 cycles) it tracks correctly, so the failure is the missing floor, not
+the verdict quality. The conserved-resource ledger is the only filter here
+that yields a parametric memory which both knows the good facts and carries
+none of the poison. This is a 0.5B existence proof, not a scaling law, and
+the separation depends on poison being distinct from the benign distribution
+(see Limitations).
+
 ## 5. Honest Limitations
 
 This section collects every loss, tie, and inert result in one place,
@@ -601,6 +633,18 @@ because the honesty is the credibility.
   counter wins are the cushioned complement. Both families couple prompts
   and corpus to the same hand. The conclusions that hold on only one family
   are flagged as family-dependent rather than averaged away.
+- **The distillation arm is an existence proof.** The parametric result
+  (§4.7) is a 0.5B model on a 30/6 corpus at five seeds; it shows the
+  data-filter effect cleanly but is not a scaling law. Its separation also
+  depends on the poison being distinct from the benign distribution: the
+  harmful tokens are deliberately out-of-vocabulary, so reproduction is
+  unambiguous. An earlier file-deletion corpus, where survival's safety was
+  *absence* (silence) rather than positive knowledge, did not separate under
+  parametric distillation at all — a generative model cannot reproduce
+  silence — which is why the arm measures `good_recall`/`poison_reproduction`
+  on a distinctive corpus rather than reusing the retrieval suite's
+  `harmful_safe_rate`. The judge's collapse in that arm is a property of the
+  floor-free baseline, not of judges in general.
 
 The honest cross-family summary: when refusals earn nothing and redundancy
 is pre-paid, a counter is better below 10% flake and quarantine is better
