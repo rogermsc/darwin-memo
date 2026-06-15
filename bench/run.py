@@ -167,10 +167,10 @@ def main(argv: list[str] | None = None) -> int:
         "--epochs", type=int, default=3, help="LoRA epochs for --suite distill"
     )
     parser.add_argument(
-        "--corpus",
-        default="headline",
-        choices=["headline", "large"],
-        help="training corpus for --suite distill",
+        "--good", type=int, default=30, help="good facts in the distill QA corpus"
+    )
+    parser.add_argument(
+        "--poison", type=int, default=6, help="poison entries in the distill QA corpus"
     )
     parser.add_argument(
         "--with-judge",
@@ -235,7 +235,8 @@ def main(argv: list[str] | None = None) -> int:
             _parse_seeds(args.seeds),
             base_model=args.base_model,
             epochs=args.epochs,
-            corpus=args.corpus,
+            n_good=args.good,
+            n_poison=args.poison,
             with_judge=args.with_judge,
             judge_model=args.judge_models.split(",")[0],
         )

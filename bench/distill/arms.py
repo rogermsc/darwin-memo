@@ -1,21 +1,28 @@
 """The distill suite's data-filter arms: each yields a curated entry set.
 
 The comparison axis is the source-store filter. ``base_model`` (no training)
-and ``retrieval`` (the existing store eval) are handled in run.py; this module
-builds the three distillation sources.
+and ``retrieval`` (the store eval) are handled in run.py; this module builds the
+three distillation sources over the purpose-built QA corpus and VerifiableQAEnv.
+
+Consolidation is disabled (``consolidate_every`` past the horizon) so the
+survivor set is exactly the entries that earned their keep — distinct facts,
+not merged composites — which is what a recall dataset needs and what keeps
+the survivor/raw counts interpretable.
 """
 
 from __future__ import annotations
 
-import shutil
-import tempfile
-from pathlib import Path
 from typing import Any
 
-from darwin_memo import MemoryEntry, MemoryStore, StorageEnv, SurvivalConfig
+from darwin_memo import (
+    MemoryEntry,
+    MemoryStore,
+    SurvivalConfig,
+    VerifiableQAEnv,
+)
 
-from ..fixtures import build_headline_store
 from ..policies import run_keep_everything, run_survival
+from .corpus import POISON_SOURCE, QACorpus
 
 DISTILL_ARMS = (
     "base_model",
@@ -25,44 +32,53 @@ DISTILL_ARMS = (
     "retrieval",
 )
 
+_NO_CONSOLIDATE = 9999  # past any benchmark horizon
 
-def _curate(run_fn: Any, seed: int, files_per_cycle: int) -> MemoryStore:
-    store = build_headline_store()
-    workdir = Path(tempfile.mkdtemp(prefix="darwin-memo-distill-"))
-    try:
-        env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
-        run_fn(store, env)
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+
+def _fresh_store(corpus: QACorpus) -> MemoryStore:
+    store = MemoryStore()
+    for e in corpus.entries:
+        store.add(
+            MemoryEntry(question=e.question, answer=e.answer, sources=list(e.sources))
+        )
+    return store
+
+
+def _curate(run_fn: Any, corpus: QACorpus, seed: int, per_cycle: int) -> MemoryStore:
+    store = _fresh_store(corpus)
+    env = VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
+    run_fn(store, env)
     return store
 
 
 def survivor_set(
-    seed: int, cycles: int = 30, files_per_cycle: int = 12
+    corpus: QACorpus, seed: int, cycles: int = 40, per_cycle: int = 12
 ) -> tuple[list[MemoryEntry], MemoryStore]:
-    """Energy-ledger survivors (poison starved/buried). Returns (alive, store);
+    """Energy-ledger survivors (poison blamed/buried). Returns (alive, store);
     the store backs the ``retrieval`` reference row."""
+    config = SurvivalConfig(write_experience=False, consolidate_every=_NO_CONSOLIDATE)
     store = _curate(
-        lambda s, e: run_survival(
-            s, e, cycles, seed, SurvivalConfig(write_experience=False)
-        ),
-        seed,
-        files_per_cycle,
+        lambda s, e: run_survival(s, e, cycles, seed, config), corpus, seed, per_cycle
     )
     return store.alive(), store
 
 
-def raw_set(seed: int, cycles: int = 30, files_per_cycle: int = 12) -> list[MemoryEntry]:
-    """The unfiltered population (poison intact)."""
-    store = _curate(lambda s, e: run_keep_everything(s, e, cycles), seed, files_per_cycle)
-    return store.alive()
+def raw_set(
+    corpus: QACorpus, seed: int, cycles: int = 40, per_cycle: int = 12
+) -> tuple[list[MemoryEntry], MemoryStore]:
+    """The unfiltered population (poison intact). Returns (alive, store)."""
+    store = _curate(
+        lambda s, e: run_keep_everything(s, e, cycles), corpus, seed, per_cycle
+    )
+    return store.alive(), store
 
 
 def judge_set(
+    corpus: QACorpus,
     seed: int,
     judge_model: str,
-    cycles: int = 30,
-    files_per_cycle: int = 12,
+    cycles: int = 40,
+    per_cycle: int = 12,
     timeout: float = 600.0,
 ) -> tuple[list[MemoryEntry], dict[str, Any]]:
     """LLM-judge-kept set. Returns (alive, judge observability metrics)."""
@@ -71,11 +87,11 @@ def judge_set(
     from ..judge import run_judge_settled
 
     judge = OllamaClient(model=judge_model, timeout=timeout, max_tokens=2048)
-    store = build_headline_store()
-    workdir = Path(tempfile.mkdtemp(prefix="darwin-memo-distill-judge-"))
-    try:
-        env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
-        result = run_judge_settled(store, env, cycles, judge)
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+    store = _fresh_store(corpus)
+    env = VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
+    result = run_judge_settled(store, env, cycles, judge)
     return store.alive(), dict(getattr(result, "extra_metrics", {}) or {})
+
+
+def poison_count(entries: list[MemoryEntry]) -> int:
+    return sum(1 for e in entries if POISON_SOURCE in e.sources)
