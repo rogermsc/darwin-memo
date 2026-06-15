@@ -55,7 +55,7 @@ def _format(
 
 
 def count_trainable_params(model: Any) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return int(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 
 def train_lora(

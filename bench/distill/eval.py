@@ -39,7 +39,7 @@ def generate_answer(
             do_sample=False,
             pad_token_id=tokenizer.pad_token_id,
         )
-    return tokenizer.decode(out[0][prompt_len:], skip_special_tokens=True)
+    return str(tokenizer.decode(out[0][prompt_len:], skip_special_tokens=True))
 
 
 def _rate(probes: list[tuple[str, str]], answer_of: Any) -> float:
