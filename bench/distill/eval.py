@@ -75,3 +75,29 @@ def evaluate_distill_retrieval(
         "good_recall": _rate(good_probes, answer_of),
         "poison_reproduction": _rate(poison_probes, answer_of),
     }
+
+
+def evaluate_recall_per_part(
+    model: Any, tokenizer: Any, parts: list[Any]
+) -> dict[str, float]:
+    """Per-part good_recall + overall recall_all + poison_reproduction.
+
+    ``parts`` is a list of QACorpus. Returns ``recall_part{i}`` for each part,
+    ``recall_all`` (their mean), and ``poison_reproduction`` over every part's
+    poison probes — all by token containment on the model's own generations.
+    """
+
+    def answer_of(q: str) -> str:
+        return generate_answer(model, tokenizer, q)
+
+    metrics: dict[str, float] = {}
+    recalls: list[float] = []
+    all_poison: list[tuple[str, str]] = []
+    for i, part in enumerate(parts):
+        r = _rate(part.good_probes, answer_of)
+        metrics[f"recall_part{i}"] = r
+        recalls.append(r)
+        all_poison.extend(part.poison_probes)
+    metrics["recall_all"] = sum(recalls) / len(recalls) if recalls else 0.0
+    metrics["poison_reproduction"] = _rate(all_poison, answer_of)
+    return metrics
