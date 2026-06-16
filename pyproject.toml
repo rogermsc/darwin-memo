@@ -38,6 +38,7 @@ dependencies = []
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.50"]
 embeddings = ["sentence-transformers>=3"]
+organic = ["turbovec>=0.1", "numpy>=1.24"]
 # Floor verified empirically: 1.10.0 is the oldest release with both the
 # FastMCP `instructions` parameter and the (blocks, structured) call_tool
 # return shape the server and tests rely on.
@@ -74,6 +75,9 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["darwin_memo"]
+# The organic layer is opt-in (turbovec extra) and its ANN path cannot run in
+# default CI; it is excluded from the core coverage gate.
+omit = ["darwin_memo/organic/*"]
 
 [tool.coverage.report]
 show_missing = true
