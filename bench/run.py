@@ -133,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
             "bandit",
             "judge",
             "distill",
+            "distill_merge",
         ],
         required=True,
     )
@@ -177,9 +178,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="include the distill_judge arm (requires Ollama)",
     )
+    parser.add_argument(
+        "--parts", type=int, default=2, help="disjoint corpora for distill_merge"
+    )
     args = parser.parse_args(argv)
 
-    if args.suite == "distill":
+    if args.suite in ("distill", "distill_merge"):
         try:
             import torch  # noqa: F401
         except ImportError:
@@ -240,6 +244,17 @@ def main(argv: list[str] | None = None) -> int:
             with_judge=args.with_judge,
             judge_model=args.judge_models.split(",")[0],
         )
+    elif args.suite == "distill_merge":
+        from .distill.merge_run import merge_run
+
+        runs = merge_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            n_good=args.good,
+            n_poison=args.poison,
+            parts=args.parts,
+        )
     else:
         runs = _execute(smoke_suite())
 
@@ -254,10 +269,11 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
         model_part = f"--model {args.model} " if args.suite == "llm" else ""
-        if args.suite == "distill":
+        if args.suite in ("distill", "distill_merge"):
             model_part = (
                 f"--base-model {args.base_model} --epochs {args.epochs} "
                 f"--good {args.good} --poison {args.poison} "
+                + (f"--parts {args.parts} " if args.suite == "distill_merge" else "")
                 + ("--with-judge " if args.with_judge else "")
             )
         command = (
@@ -274,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                 "sampled": "model output; rerunning reproduces the grid, "
                 "not the numbers",
             }
-        elif args.suite == "distill":
+        elif args.suite in ("distill", "distill_merge"):
             extra = {
                 "sampled": "LoRA training + (with --with-judge) sampled judge "
                 "settlement; rerunning reproduces the design, not the exact numbers"
