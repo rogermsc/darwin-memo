@@ -135,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             "distill",
             "distill_merge",
             "distill_noisy",
+            "distill_rule",
         ],
         required=True,
     )
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.suite in ("distill", "distill_merge", "distill_noisy"):
+    if args.suite in ("distill", "distill_merge", "distill_noisy", "distill_rule"):
         try:
             import torch  # noqa: F401
         except ImportError:
@@ -274,6 +275,15 @@ def main(argv: list[str] | None = None) -> int:
             flake_rate=args.flake_rate,
             noise_model=args.noise_model,
         )
+    elif args.suite == "distill_rule":
+        from .distill.rule_run import rule_run
+
+        runs = rule_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            flake_rate=args.flake_rate,
+        )
     else:
         runs = _execute(smoke_suite())
 
@@ -288,14 +298,14 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
         model_part = f"--model {args.model} " if args.suite == "llm" else ""
-        if args.suite in ("distill", "distill_merge", "distill_noisy"):
+        if args.suite in ("distill", "distill_merge", "distill_noisy", "distill_rule"):
             model_part = (
                 f"--base-model {args.base_model} --epochs {args.epochs} "
                 f"--good {args.good} --poison {args.poison} "
                 + (f"--parts {args.parts} " if args.suite == "distill_merge" else "")
                 + (
                     f"--flake-rate {args.flake_rate} "
-                    if args.suite == "distill_noisy"
+                    if args.suite in ("distill_noisy", "distill_rule")
                     else ""
                 )
                 + ("--with-judge " if args.with_judge else "")
@@ -314,7 +324,12 @@ def main(argv: list[str] | None = None) -> int:
                 "sampled": "model output; rerunning reproduces the grid, "
                 "not the numbers",
             }
-        elif args.suite in ("distill", "distill_merge", "distill_noisy"):
+        elif args.suite in (
+            "distill",
+            "distill_merge",
+            "distill_noisy",
+            "distill_rule",
+        ):
             extra = {
                 "sampled": "LoRA training + (with --with-judge) sampled judge "
                 "settlement; rerunning reproduces the design, not the exact numbers"
