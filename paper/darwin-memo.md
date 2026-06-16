@@ -550,6 +550,70 @@ s/run for qwen3:4b (about 540,000x; one qwen run alone is 4.8 hours of model
 time for 120 queries). The cost gap holds before any answer is even
 classified, and it is the most robust result in this report.
 
+### 4.7 Parametric memory: distillation as a data filter
+
+Every result above scores the retrieval store. This arm asks MeMo's own
+question: distilled into model weights, does selection still help? We
+LoRA-fine-tune `Qwen/Qwen2.5-0.5B-Instruct` on three curated sets of a
+purpose-built QA corpus (30 distinctive good facts, 6 distinctive poison
+entries whose harmful tokens are out-of-vocabulary for the good facts, so a
+model cannot hallucinate them; selection over `VerifiableQAEnv`,
+consolidation disabled). Each model is scored by containment — `good_recall`
+and `poison_reproduction` — over 5 seeds (opt-in arm; sampled; never CI).
+
+| arm | source set | good_recall | poison_reproduction |
+|-----|-----------|-------------|---------------------|
+| base_model | none | 0.00 | 0.00 |
+| retrieval | survivor store (ref) | 1.00 | 0.00 |
+| distill_survivor | energy-ledger survivors | **1.00** | **0.00** |
+| distill_raw | unfiltered | 0.96 | **1.00** |
+| distill_judge | LLM-judge-kept (no floor) | 0.05 | 0.00 |
+| distill_judge_floor | LLM-judge-kept, ledger-settled | 0.93 | 0.00 |
+
+Distilling the raw store teaches the facts but bakes in every poison
+statement; distilling the energy-ledger survivors teaches the same facts and
+reproduces none of the poison, because survival removed it before training.
+The floor-free judge, run for the identical 40 cycles, has no energy floor:
+its culls accumulate with no earn-back toward extinction (1–4 survivors),
+leaving almost nothing to distill — though at a short horizon (≈10 cycles) it
+tracks correctly, so the failure is the missing floor, not the verdict
+quality. The `distill_judge_floor` arm confirms this directly: it settles the
+*identical* judge verdicts through the energy ledger (keep +0.6, cull −0.6,
+upkeep 0.05, die at the floor) and the collapse vanishes — 29–30 survivors,
+recall 0.93, poison 0.00, nearly matching the measured ledger. So the active
+ingredient is the conserved-resource floor, not the choice of signal:
+measurement and judgment both work once buffered, with measurement holding a
+small, tighter edge (1.00 ± 0.00 vs 0.93 ± 0.10). This is a 0.5B existence
+proof, not a scaling law, and the separation depends on poison being distinct
+from the benign distribution (see Limitations).
+
+### 4.8 Continual learning via task-vector merging
+
+The same machinery composes across corpora. We distill one survivor-filtered
+LoRA adapter per disjoint corpus (two corpora of 15 facts + 3 poison each over
+non-overlapping services) and combine the adapters with `peft`'s
+`add_weighted_adapter`, scoring recall on both parts and poison reproduction
+over both (5 seeds).
+
+| condition | recall_part0 | recall_part1 | recall_all | poison |
+|-----------|-------------|-------------|------------|--------|
+| solo_part0 | 0.97 | 0.32 | 0.65 | 0.00 |
+| solo_part1 | 0.27 | 1.00 | 0.63 | 0.00 |
+| merged_cat | 0.68 | 0.75 | 0.71 | 0.00 |
+| merged_ties | 0.73 | 0.65 | 0.69 | 0.00 |
+| merged_linear | 0.23 | 0.20 | 0.21 | 0.00 |
+| joint | 1.00 | 1.00 | 1.00 | 0.00 |
+
+A solo adapter recalls only its own corpus; merging with `cat` or `ties`
+recovers most of *both* without retraining on their union (recall_all ≈ 0.70 vs
+the solo half-knowledge ≈ 0.64), while naive `linear` summing interferes (0.21).
+The joint adapter trained on the union is the ceiling (1.00); the merged↔joint
+gap is the interference cost of composition over retraining. Poison reproduction
+stays 0.00 for every distilled and merged condition: survival filtered each
+corpus and merging introduces no new data, so the poison is absent from the
+merged weights as well. This realizes the task-vector-merging continual-learning
+story (Section 6) on survival-selected memory, again as a 0.5B existence proof.
+
 ## 5. Honest Limitations
 
 This section collects every loss, tie, and inert result in one place,
@@ -601,6 +665,20 @@ because the honesty is the credibility.
   counter wins are the cushioned complement. Both families couple prompts
   and corpus to the same hand. The conclusions that hold on only one family
   are flagged as family-dependent rather than averaged away.
+- **The distillation arm is an existence proof.** The parametric result
+  (§4.7) is a 0.5B model on a 30/6 corpus at five seeds; it shows the
+  data-filter effect cleanly but is not a scaling law. Its separation also
+  depends on the poison being distinct from the benign distribution: the
+  harmful tokens are deliberately out-of-vocabulary, so reproduction is
+  unambiguous. An earlier file-deletion corpus, where survival's safety was
+  *absence* (silence) rather than positive knowledge, did not separate under
+  parametric distillation at all — a generative model cannot reproduce
+  silence — which is why the arm measures `good_recall`/`poison_reproduction`
+  on a distinctive corpus rather than reusing the retrieval suite's
+  `harmful_safe_rate`. The judge's collapse is a property of the floor-free
+  baseline, not of judges in general — the `distill_judge_floor` arm settles
+  the same verdicts through the ledger and recovers to recall 0.93 / poison
+  0.00, so the floor, not the signal, is the active ingredient.
 
 The honest cross-family summary: when refusals earn nothing and redundancy
 is pre-paid, a counter is better below 10% flake and quarantine is better

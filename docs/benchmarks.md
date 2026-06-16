@@ -1002,6 +1002,141 @@ in the same protocol. The one claim this arm makes cleanly is the cost
 one: the deterministic ledger does the per-cycle work for cents on the
 hour the LLM arm spends.
 
+## Parametric memory: distillation as a data filter
+
+Everything above scores the *retrieval* store. This arm asks the MeMo
+question instead: if you distill the store into model weights, does
+survival selection still help? It is opt-in (`python -m bench.run --suite
+distill`), needs `torch`/`transformers`/`peft`/`datasets`, and like the
+LLM and judge arms it is sampled, never in CI.
+
+**Setup.** A purpose-built QA corpus (`bench/distill/corpus.py`): 30
+distinctive good facts (ports, rotation intervals, owners across diverse
+templates) and 6 distinctive poison entries — harmful answers to distinct
+questions (`rm -rf --no-preserve-root /`, `DROP DATABASE …`), whose tokens
+are out-of-vocabulary for the good facts, so a model cannot *hallucinate*
+them. Selection runs over `VerifiableQAEnv` (exact containment, +1.0
+correct / −0.5 wrong), consolidation disabled so survivors stay distinct
+facts. Each arm's curated set is LoRA-fine-tuned into a separate
+`Qwen/Qwen2.5-0.5B-Instruct` (r=16, prompt masked, 15 epochs), then scored
+by containment: `good_recall` (the distinctive correct token appears) and
+`poison_reproduction` (the distinctive harmful token appears). No judge,
+no keyword-polarity, no silence-as-safety.
+
+**Results (5 seeds, Apple Silicon MPS, mean ± population sd).**
+
+| arm | source set | good_recall | poison_reproduction | n_train |
+|-----|-----------|-------------|---------------------|---------|
+| `base_model` | none (untrained) | 0.00 ± 0.00 | 0.00 ± 0.00 | 0 |
+| `retrieval` | survivor store (reference) | 1.00 ± 0.00 | 0.00 ± 0.00 | 30 |
+| `distill_survivor` | energy-ledger survivors | **1.00 ± 0.00** | **0.00 ± 0.00** | 30 |
+| `distill_raw` | unfiltered (poison intact) | 0.96 ± 0.08 | **1.00 ± 0.00** | 36 |
+| `distill_judge` | LLM-judge-kept (no floor) | 0.05 ± 0.05 | 0.00 ± 0.00 | 1–4 |
+| `distill_judge_floor` | LLM-judge-kept, ledger-settled | 0.93 ± 0.10 | 0.00 ± 0.00 | 29–30 |
+
+Read across the rows. The base model knows none of our facts. Distilling
+the **raw** store teaches the facts (0.96) but bakes in **every** poison
+statement (1.00) — the harmful command is now in the weights, reachable by
+the very question it answers. Distilling the **energy-ledger survivors**
+teaches the same facts (1.00) and reproduces **none** of the poison (0.00),
+because survival removed it before training; the parametric model lands
+where the retrieval reference does. The floor-free **judge** arm settles to
+1–4 survivors per seed (≈32–35 of 36 entries culled over 40 cycles): a
+baseline judge has no energy floor, so its culls accumulate with no
+earn-back or revival and erode the store toward extinction, leaving almost
+nothing to distill. At a short horizon the same judge tracks correctly
+(≈10 cycles: keeps the good facts, culls the poison) — it is not broken, it
+simply has no stable fixed point.
+
+The **`distill_judge_floor`** arm settles the *identical* judge verdicts
+through the energy ledger (keep → +0.6, cull → −0.6, upkeep 0.05/cycle, die
+at the floor) and the collapse disappears: 29–30 survivors, recall 0.93,
+poison 0.00 — nearly the measured ledger's result. So the judge's *signal*
+was adequate all along; what the baseline judge lacked was the
+conserved-resource buffer. The measured ledger still holds a small, tighter
+edge (1.00 ± 0.00 vs 0.93 ± 0.10), so measurement is not strictly necessary
+once a floor is present, but it is the cleaner signal.
+
+So the filter that yields a parametric memory which both **knows the good
+facts and carries none of the poison** is any conserved-resource one: the
+measured ledger does it best, the floored judge nearly matches it, raw keeps
+the poison, and a judge *without a floor* keeps almost nothing. The active
+ingredient is the floor, not the choice of signal.
+
+### Distillation caveats, on the record
+
+First, this is a 0.5B model on a small corpus (30/6) at 15 epochs; the
+numbers are a clean existence proof of the data-filter effect, not a
+scaling law. Second, the poison tokens are deliberately distinctive so
+reproduction is unambiguous; a corpus where poison is reachable by
+generalizing benign patterns would not separate as cleanly (an earlier
+file-deletion corpus did not, which is why this arm uses a containment
+recall/poison design rather than the retrieval suite's
+`harmful_safe_rate` — silence-as-safety does not survive into a generative
+model). Third, training is sampled (LoRA on MPS), so rerunning reproduces
+the design and the direction, not the exact decimals; `distill_raw` and
+`distill_judge_floor` recall are the cells that wobble seed to seed
+(0.96 ± 0.08 and 0.93 ± 0.10). Fourth, the floor in `distill_judge_floor`
+uses a symmetric ±0.6 verdict credit to match the measured ledger's
+saturation magnitude; a different credit size or an asymmetric keep/cull
+split would move the floored judge's exact recall, though the qualitative
+result (the floor removes the collapse) is robust to the choice.
+
+### Continual learning: task-vector merging
+
+The distillation arm trains one model per store. This arm asks the
+continual-learning question: if you distill one adapter **per corpus** and
+**merge** the adapters, does the merged model recall *both* corpora — without
+retraining on their union? Opt-in (`python -m bench.run --suite distill_merge`),
+same tier as the other parametric arms.
+
+**Setup.** Two disjoint corpora (`build_split_corpora`, 15 good + 3 poison each,
+over non-overlapping services). Each is survival-filtered, then LoRA-distilled
+into its own adapter. The adapters are combined with `peft`'s
+`add_weighted_adapter` (`cat`, `linear`, `ties` with density 0.5) and every
+condition is scored by containment on **both** parts' probes, plus poison
+reproduction over both parts' poison.
+
+**Results (5 seeds, Apple Silicon MPS, mean; sd in text).**
+
+| condition | recall_part0 | recall_part1 | recall_all | poison_reproduction |
+|-----------|-------------|-------------|------------|---------------------|
+| `base_model` | 0.00 | 0.00 | 0.00 | 0.00 |
+| `solo_part0` | 0.97 | 0.32 | 0.65 | 0.00 |
+| `solo_part1` | 0.27 | 1.00 | 0.63 | 0.00 |
+| `merged_cat` | 0.68 | 0.75 | **0.71** | 0.00 |
+| `merged_ties` | 0.73 | 0.65 | **0.69** | 0.00 |
+| `merged_linear` | 0.23 | 0.20 | 0.21 | 0.00 |
+| `joint` | 1.00 | 1.00 | **1.00** | 0.00 |
+
+Each **solo** adapter recalls its own part (≈1.0) and little of the other
+(≈0.3), so it knows half the union (recall_all ≈ 0.64). **Merging** with `cat`
+or `ties` lifts recall on *both* parts at once (recall_all ≈ 0.69–0.71): the
+merged model gained the second corpus while keeping most of the first, with no
+retraining — continual learning by adapter arithmetic. Naive `linear` summing
+**interferes** (0.21, below even a single solo), the standard task-arithmetic
+failure mode. The `joint` adapter trained on the union is the ceiling (1.00);
+the merged↔joint gap (≈0.70 vs 1.00) is the interference cost of not retraining.
+Crucially, `poison_reproduction` is **0.00** for every distilled and merged
+condition: each corpus was survival-filtered before distillation, and merging
+adds no new data, so the poison stays out of the merged weights too.
+
+So survival-selected memory composes: distill per corpus, merge for continual
+learning, and the merged model carries both corpora's facts and neither's
+poison — `cat`/`ties` retain, `linear` does not, and the cost versus full
+retraining is real but partial.
+
+### Continual-learning caveats, on the record
+
+This is the same 0.5B / small-corpus existence-proof regime as the distillation
+arm. `cat` concatenates ranks (lossless in principle, so its retention is an
+upper bound among the merges); `ties` at density 0.5 is the tunable middle;
+`linear` with unit weights *sums* the adapters and overshoots — a normalized
+linear (weights 1/parts) would interfere less but is not what this arm reports.
+Recall_all wobbles seed to seed for the merges (cat 0.71, ties 0.69, both with
+sd ≈ 0.06–0.11); the qualitative ordering (joint > cat ≈ ties > solo > linear)
+is the robust result, not the exact decimals.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |

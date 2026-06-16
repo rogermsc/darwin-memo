@@ -132,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
             "llm",
             "bandit",
             "judge",
+            "distill",
+            "distill_merge",
         ],
         required=True,
     )
@@ -157,7 +159,45 @@ def main(argv: list[str] | None = None) -> int:
         help="record suite, seeds, config hash, and the exact command "
         "in MANIFEST.json next to --out (committed results only)",
     )
+    parser.add_argument(
+        "--base-model",
+        default="Qwen/Qwen2.5-0.5B-Instruct",
+        help="HF base model for --suite distill",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=3, help="LoRA epochs for --suite distill"
+    )
+    parser.add_argument(
+        "--good", type=int, default=30, help="good facts in the distill QA corpus"
+    )
+    parser.add_argument(
+        "--poison", type=int, default=6, help="poison entries in the distill QA corpus"
+    )
+    parser.add_argument(
+        "--with-judge",
+        action="store_true",
+        help="include the distill_judge arm (requires Ollama)",
+    )
+    parser.add_argument(
+        "--parts", type=int, default=2, help="disjoint corpora for distill_merge"
+    )
     args = parser.parse_args(argv)
+
+    if args.suite in ("distill", "distill_merge"):
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            print(
+                "error: --suite distill needs torch/transformers/peft/datasets. "
+                "Install them and rerun; this suite is opt-in and never in CI."
+            )
+            return 1
+        if args.with_judge:
+            from darwin_memo import ollama_available
+
+            if not ollama_available():
+                print("error: --with-judge needs a running Ollama server")
+                return 1
 
     if args.suite in ("llm", "judge"):
         # The preflight is a CLI concern; the suites live with the others.
@@ -192,6 +232,29 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(
             judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))
         )
+    elif args.suite == "distill":
+        from .distill.run import distill_run
+
+        runs = distill_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            n_good=args.good,
+            n_poison=args.poison,
+            with_judge=args.with_judge,
+            judge_model=args.judge_models.split(",")[0],
+        )
+    elif args.suite == "distill_merge":
+        from .distill.merge_run import merge_run
+
+        runs = merge_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            n_good=args.good,
+            n_poison=args.poison,
+            parts=args.parts,
+        )
     else:
         runs = _execute(smoke_suite())
 
@@ -206,6 +269,13 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
         model_part = f"--model {args.model} " if args.suite == "llm" else ""
+        if args.suite in ("distill", "distill_merge"):
+            model_part = (
+                f"--base-model {args.base_model} --epochs {args.epochs} "
+                f"--good {args.good} --poison {args.poison} "
+                + (f"--parts {args.parts} " if args.suite == "distill_merge" else "")
+                + ("--with-judge " if args.with_judge else "")
+            )
         command = (
             f"python -m bench.run --suite {args.suite} --seeds {args.seeds} "
             f"{model_part}--out {args.out} --update-manifest"
@@ -219,6 +289,11 @@ def main(argv: list[str] | None = None) -> int:
                 "models": {m: ollama_model_digest(m) for m in models},
                 "sampled": "model output; rerunning reproduces the grid, "
                 "not the numbers",
+            }
+        elif args.suite in ("distill", "distill_merge"):
+            extra = {
+                "sampled": "LoRA training + (with --with-judge) sampled judge "
+                "settlement; rerunning reproduces the design, not the exact numbers"
             }
         manifest_path = update_manifest(args.out, runs, command, extra=extra)
         print(f"updated {manifest_path}")

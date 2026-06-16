@@ -16,8 +16,8 @@ implementation deviates and why.
 | Step 5: cross-document synthesis (converging clues) | `encode.py`, `_CROSS_DOC_PROMPT`, `EntryKind.CROSS_DOC` | Local mode links entities that appear in two or more documents. |
 | Three-stage query protocol: grounding, entity identification, answer seeking | `protocol.py`, `QueryProtocol` | LLM mode runs all three stages. Local mode degrades to scored retrieval with provenance. |
 | Compact memory responses, constant in corpus size | `protocol.py` | Memory returns short QA snippets, never documents. |
-| Parametric memory model trained with next-token loss | `training/train_memory_model.py` | The live store is structured, see deviations below. The training script distills survivors into a small LoRA model, conditioning on questions only. |
-| Task-vector merging for continual learning | `training/train_memory_model.py` (LoRA per corpus) | One adapter per corpus is the practical analog. Merging adapters is left to the reader. |
+| Parametric memory model trained with next-token loss | `bench/distill/train.py` (`train_lora`), `training/train_memory_model.py` (CLI wrapper) | The live store is structured, see deviations below. The shared trainer distills survivors into a small LoRA model, conditioning on questions only. The `distill` benchmark arm measures the result: survivor-distilled models recall the surviving facts and reproduce none of the buried poison (`bench/distill/`, `docs/benchmarks.md`). |
+| Task-vector merging for continual learning | `bench/distill/merge_run.py` (LoRA per corpus, merged via `peft.add_weighted_adapter`) | Measured: the `distill_merge` arm distills one survivor-filtered adapter per disjoint corpus and merges them (cat/ties retain both corpora ≈ a joint-trained ceiling, linear interferes), with poison reproduction staying 0 after merge. See `docs/benchmarks.md`. |
 
 ## Survival is the Only Reward (arXiv:2601.12310)
 
@@ -37,8 +37,10 @@ implementation deviates and why.
 1. **The live memory is a structured store, not model weights.** MeMo's
    central artifact is a small fine-tuned LLM. A structured store keeps the
    core dependency-free and lets selection operate on individual entries,
-   which is what the survival mechanics need. The distillation script in
-   `training/` closes the loop for anyone who wants the parametric form.
+   which is what the survival mechanics need. The distillation trainer in
+   `bench/distill/` (and its `training/` CLI) closes the loop for anyone
+   who wants the parametric form, and the `distill` benchmark arm shows
+   the selection survives the round-trip into weights.
 2. **Retrieval is lexical by default, pluggable by design.** Smoothed IDF
    overlap with a relevance floor ships as the zero-dependency default,
    and the `Retriever` protocol in `darwin_memo/retrieval.py` accepts
