@@ -59,25 +59,26 @@ def rule_run(
 ) -> list[dict[str, Any]]:
     rc = build_rule_corpus(10, 5, 5)
     cfg = SurvivalConfig(write_experience=False, consolidate_every=_NO_CONSOLIDATE)
-    filters = {
+    filters: dict[str, Any] = {
         "survival": lambda s, e, sd: run_survival(s, e, cycles, sd, cfg),
         "evict_k1": lambda s, e, sd: run_evict_on_negative(s, e, cycles, strikes=1),
         "raw": lambda s, e, sd: run_keep_everything(s, e, cycles),
     }
+    conditions: list[tuple[str, Any]] = [
+        (
+            "clean",
+            lambda sd: VerifiableQAEnv(rc.qa_pairs, per_cycle=per_cycle, seed=sd),
+        ),
+        (
+            "flip",
+            lambda sd: FlakyQAEnv(
+                rc.qa_pairs, per_cycle=per_cycle, seed=sd, flake_rate=flake_rate
+            ),
+        ),
+    ]
     runs: list[dict[str, Any]] = []
     for seed in seeds:
-        for cond, make_env in [
-            (
-                "clean",
-                lambda sd: VerifiableQAEnv(rc.qa_pairs, per_cycle=per_cycle, seed=sd),
-            ),
-            (
-                "flip",
-                lambda sd: FlakyQAEnv(
-                    rc.qa_pairs, per_cycle=per_cycle, seed=sd, flake_rate=flake_rate
-                ),
-            ),
-        ]:
+        for cond, make_env in conditions:
             for fname, run_fn in filters.items():
                 store = _store(rc)
                 run_fn(store, make_env(seed), seed)
@@ -88,6 +89,7 @@ def rule_run(
                     "condition": cond,
                     "flake_rate": flake_rate if cond == "flip" else 0.0,
                 }
+                metrics: dict[str, Any]
                 if not alive:
                     metrics = {
                         "harm_generalization": 0.0,

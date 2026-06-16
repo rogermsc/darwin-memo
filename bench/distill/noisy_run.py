@@ -23,7 +23,7 @@ from .train import train_lora
 
 SCHEMA_VERSION = 1
 _FILTERS = ("survival", "evict_k1", "evict_consecutive", "keep_everything")
-_SETTERS = {
+_SETTERS: dict[str, Any] = {
     "survival": survivor_set,
     "evict_k1": counter_set,
     "evict_consecutive": consecutive_set,
@@ -101,6 +101,7 @@ def noisy_run(
                 alive, _store = _SETTERS[fname](
                     corpus, seed, cycles, per_cycle, env_factory=factory
                 )
+                metrics: dict[str, Any]
                 if not alive:
                     metrics = {
                         "good_recall": 0.0,
