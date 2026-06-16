@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .activation import ActivationState, detail, surface
 from .associative import (
     AssociativeGraph,
     BruteForceBackend,
@@ -9,4 +10,12 @@ from .associative import (
     store_related,
 )
 
-__all__ = ["AssociativeGraph", "BruteForceBackend", "build_graph", "store_related"]
+__all__ = [
+    "ActivationState",
+    "AssociativeGraph",
+    "BruteForceBackend",
+    "build_graph",
+    "detail",
+    "store_related",
+    "surface",
+]
