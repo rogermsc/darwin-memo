@@ -1082,6 +1082,61 @@ saturation magnitude; a different credit size or an asymmetric keep/cull
 split would move the floored judge's exact recall, though the qualitative
 result (the floor removes the collapse) is robust to the choice.
 
+### Continual learning: task-vector merging
+
+The distillation arm trains one model per store. This arm asks the
+continual-learning question: if you distill one adapter **per corpus** and
+**merge** the adapters, does the merged model recall *both* corpora — without
+retraining on their union? Opt-in (`python -m bench.run --suite distill_merge`),
+same tier as the other parametric arms.
+
+**Setup.** Two disjoint corpora (`build_split_corpora`, 15 good + 3 poison each,
+over non-overlapping services). Each is survival-filtered, then LoRA-distilled
+into its own adapter. The adapters are combined with `peft`'s
+`add_weighted_adapter` (`cat`, `linear`, `ties` with density 0.5) and every
+condition is scored by containment on **both** parts' probes, plus poison
+reproduction over both parts' poison.
+
+**Results (5 seeds, Apple Silicon MPS, mean; sd in text).**
+
+| condition | recall_part0 | recall_part1 | recall_all | poison_reproduction |
+|-----------|-------------|-------------|------------|---------------------|
+| `base_model` | 0.00 | 0.00 | 0.00 | 0.00 |
+| `solo_part0` | 0.97 | 0.32 | 0.65 | 0.00 |
+| `solo_part1` | 0.27 | 1.00 | 0.63 | 0.00 |
+| `merged_cat` | 0.68 | 0.75 | **0.71** | 0.00 |
+| `merged_ties` | 0.73 | 0.65 | **0.69** | 0.00 |
+| `merged_linear` | 0.23 | 0.20 | 0.21 | 0.00 |
+| `joint` | 1.00 | 1.00 | **1.00** | 0.00 |
+
+Each **solo** adapter recalls its own part (≈1.0) and little of the other
+(≈0.3), so it knows half the union (recall_all ≈ 0.64). **Merging** with `cat`
+or `ties` lifts recall on *both* parts at once (recall_all ≈ 0.69–0.71): the
+merged model gained the second corpus while keeping most of the first, with no
+retraining — continual learning by adapter arithmetic. Naive `linear` summing
+**interferes** (0.21, below even a single solo), the standard task-arithmetic
+failure mode. The `joint` adapter trained on the union is the ceiling (1.00);
+the merged↔joint gap (≈0.70 vs 1.00) is the interference cost of not retraining.
+Crucially, `poison_reproduction` is **0.00** for every distilled and merged
+condition: each corpus was survival-filtered before distillation, and merging
+adds no new data, so the poison stays out of the merged weights too.
+
+So survival-selected memory composes: distill per corpus, merge for continual
+learning, and the merged model carries both corpora's facts and neither's
+poison — `cat`/`ties` retain, `linear` does not, and the cost versus full
+retraining is real but partial.
+
+### Continual-learning caveats, on the record
+
+This is the same 0.5B / small-corpus existence-proof regime as the distillation
+arm. `cat` concatenates ranks (lossless in principle, so its retention is an
+upper bound among the merges); `ties` at density 0.5 is the tunable middle;
+`linear` with unit weights *sums* the adapters and overshoots — a normalized
+linear (weights 1/parts) would interfere less but is not what this arm reports.
+Recall_all wobbles seed to seed for the merges (cat 0.71, ties 0.69, both with
+sd ≈ 0.06–0.11); the qualitative ordering (joint > cat ≈ ties > solo > linear)
+is the robust result, not the exact decimals.
+
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
 | n entries | add all | retrieve x20 | charge_upkeep | consolidate |

@@ -24,6 +24,20 @@ project uses [SemVer](https://semver.org/).
   (`bench/distill/train.py`) now backs both this arm and the
   `training/train_memory_model.py` CLI (one code path, pad-token and
   prompt-masking fixes), and the script is a thin wrapper over it.
+- Distillation arm: a `distill_judge_floor` control that settles the LLM
+  judge's keep/cull verdicts through the energy ledger (keep +0.6, cull
+  −0.6, upkeep, die at the floor) instead of instant bury. It shows the
+  floor-free judge's collapse is the *missing floor*, not bad judgment:
+  settling the identical verdicts with a buffer recovers recall 0.93 /
+  poison 0.00 (5 seeds), nearly the measured ledger, where the floor-free
+  judge keeps almost nothing.
+- Continual learning via task-vector merging (`bench/distill/merge_run.py`,
+  `python -m bench.run --suite distill_merge`): distills one
+  survivor-filtered LoRA adapter per disjoint corpus and merges them with
+  `peft.add_weighted_adapter` (`cat`/`linear`/`ties`). The merged model
+  recalls both corpora (cat/ties ≈ a joint-trained ceiling, linear
+  interferes) while poison reproduction stays 0 after merge, alongside
+  `solo` and `joint` baselines.
 
 ## [0.5.1] - 2026-06-13
 

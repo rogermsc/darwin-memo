@@ -587,6 +587,33 @@ small, tighter edge (1.00 ± 0.00 vs 0.93 ± 0.10). This is a 0.5B existence
 proof, not a scaling law, and the separation depends on poison being distinct
 from the benign distribution (see Limitations).
 
+### 4.8 Continual learning via task-vector merging
+
+The same machinery composes across corpora. We distill one survivor-filtered
+LoRA adapter per disjoint corpus (two corpora of 15 facts + 3 poison each over
+non-overlapping services) and combine the adapters with `peft`'s
+`add_weighted_adapter`, scoring recall on both parts and poison reproduction
+over both (5 seeds).
+
+| condition | recall_part0 | recall_part1 | recall_all | poison |
+|-----------|-------------|-------------|------------|--------|
+| solo_part0 | 0.97 | 0.32 | 0.65 | 0.00 |
+| solo_part1 | 0.27 | 1.00 | 0.63 | 0.00 |
+| merged_cat | 0.68 | 0.75 | 0.71 | 0.00 |
+| merged_ties | 0.73 | 0.65 | 0.69 | 0.00 |
+| merged_linear | 0.23 | 0.20 | 0.21 | 0.00 |
+| joint | 1.00 | 1.00 | 1.00 | 0.00 |
+
+A solo adapter recalls only its own corpus; merging with `cat` or `ties`
+recovers most of *both* without retraining on their union (recall_all ≈ 0.70 vs
+the solo half-knowledge ≈ 0.64), while naive `linear` summing interferes (0.21).
+The joint adapter trained on the union is the ceiling (1.00); the merged↔joint
+gap is the interference cost of composition over retraining. Poison reproduction
+stays 0.00 for every distilled and merged condition: survival filtered each
+corpus and merging introduces no new data, so the poison is absent from the
+merged weights as well. This realizes the task-vector-merging continual-learning
+story (Section 6) on survival-selected memory, again as a 0.5B existence proof.
+
 ## 5. Honest Limitations
 
 This section collects every loss, tie, and inert result in one place,

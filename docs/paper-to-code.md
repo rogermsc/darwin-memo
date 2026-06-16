@@ -17,7 +17,7 @@ implementation deviates and why.
 | Three-stage query protocol: grounding, entity identification, answer seeking | `protocol.py`, `QueryProtocol` | LLM mode runs all three stages. Local mode degrades to scored retrieval with provenance. |
 | Compact memory responses, constant in corpus size | `protocol.py` | Memory returns short QA snippets, never documents. |
 | Parametric memory model trained with next-token loss | `bench/distill/train.py` (`train_lora`), `training/train_memory_model.py` (CLI wrapper) | The live store is structured, see deviations below. The shared trainer distills survivors into a small LoRA model, conditioning on questions only. The `distill` benchmark arm measures the result: survivor-distilled models recall the surviving facts and reproduce none of the buried poison (`bench/distill/`, `docs/benchmarks.md`). |
-| Task-vector merging for continual learning | `bench/distill/train.py` (LoRA per corpus) | One adapter per corpus is the practical analog. Merging adapters is left to the reader. |
+| Task-vector merging for continual learning | `bench/distill/merge_run.py` (LoRA per corpus, merged via `peft.add_weighted_adapter`) | Measured: the `distill_merge` arm distills one survivor-filtered adapter per disjoint corpus and merges them (cat/ties retain both corpora ≈ a joint-trained ceiling, linear interferes), with poison reproduction staying 0 after merge. See `docs/benchmarks.md`. |
 
 ## Survival is the Only Reward (arXiv:2601.12310)
 

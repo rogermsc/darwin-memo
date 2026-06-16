@@ -52,6 +52,22 @@
       "source_commit": "8ddc6e22ffb1aaf14e2fe92371548e9af8496014-dirty",
       "sampled": "LoRA training + (with --with-judge) sampled judge settlement; rerunning reproduces the design, not the exact numbers"
     },
+    "distill_merge.json": {
+      "suite": "distill_merge",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "runs": 35,
+      "config_hash": "sha256:162bb402b89359fad3cbe10e573d980bb6c02a28a3518f6186d33e8600bdc225",
+      "command": "python -m bench.run --suite distill_merge --seeds 0:5 --base-model Qwen/Qwen2.5-0.5B-Instruct --epochs 15 --good 15 --poison 3 --parts 2 --out bench/results/distill_merge.json --update-manifest",
+      "darwin_memo": "0.5.1",
+      "source_commit": "118327e1cb1b213664b43c20c33a4fe78c4b0048-dirty",
+      "sampled": "LoRA training + (with --with-judge) sampled judge settlement; rerunning reproduces the design, not the exact numbers"
+    },
     "headline.json": {
       "suite": "headline",
       "seeds": [
