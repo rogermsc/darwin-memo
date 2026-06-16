@@ -9,11 +9,12 @@ related memories with relevance-weighted links — all on earned/measured signal
 
 ## Status
 
-- **Phase 1 — associative graph (this release).** One vector per memory and
-  `related(id, k)` relevance-weighted neighbours.
-- Phases 2–4 (activation + lossless gist↔detail surfacing, spreading
-  activation + Hebbian reweighting, earned importance/potentiation) are
-  specced but not yet implemented.
+- **Phase 1 — associative graph.** One vector per memory and `related(id, k)`
+  relevance-weighted neighbours.
+- **Phase 2 — activation + lossless gist↔detail (this release).** A recalled
+  memory expands to full detail; an idle one shrinks to its gist.
+- Phases 3–4 (spreading activation + Hebbian reweighting, earned
+  importance/potentiation) are specced but not yet implemented.
 
 The layer is **additive and read-only with respect to survival** — it never
 touches energy. Relatedness is mechanical cosine similarity; value is still
@@ -33,6 +34,28 @@ related = store_related(store, entry_id, k=5)
 graph = build_graph(store)
 graph.related(entry_id, k=5)
 ```
+
+## Activation & surfacing (Phase 2)
+
+A fast recall-salience signal that decides how much of a memory to show: a
+recalled memory expands to full detail, an idle one shrinks to its gist. The
+detail is always retained — surfacing only chooses what to show.
+
+```python
+from darwin_memo.organic import ActivationState, surface, detail
+
+state = ActivationState()
+surface(entry, state)      # cold -> gist (the question only)
+state.bump(entry.id)       # recall raises activation to 1.0
+surface(entry, state)      # hot  -> full detail (question + answer + sources)
+state.decay()              # one idle cycle (x0.5); call per cycle
+detail(entry)              # always the full detail (explicit "remind me")
+```
+
+Activation is in-memory and ephemeral (reset on load); `bump`/`decay` are
+explicit calls you wire, like the survival loop. It gates *surfacing* only —
+never survival — and never mutates the entry. Defaults: bump→1.0, decay ×0.5,
+surface threshold 0.5.
 
 ## Backends
 

@@ -8,6 +8,12 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory Phase 2: in-memory `ActivationState` (recall-salience;
+  `bump`/`decay`/`level`) plus lossless `surface(entry, state)` / `detail(entry)`
+  — a recalled memory expands to detail, an idle one shrinks to its gist, with
+  the entry never mutated. Organic-only, core untouched; activation gates
+  surfacing, never survival.
+
 - Organic memory layer, Phase 1 (`darwin_memo.organic`, opt-in): an
   `AssociativeGraph` giving one vector per memory and `related(id, k)`
   relevance-weighted neighbours, as the substrate for a future adaptive,
