@@ -8,6 +8,15 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory layer, Phase 1 (`darwin_memo.organic`, opt-in): an
+  `AssociativeGraph` giving one vector per memory and `related(id, k)`
+  relevance-weighted neighbours, as the substrate for a future adaptive,
+  brain-like memory. Zero-dependency default (`HashingEmbedder` +
+  `BruteForceBackend` exact cosine); optional turbovec ANN backend via
+  `darwin-memo[organic]` (0.92 top-3 agreement with the exact backend).
+  Additive and read-only w.r.t. survival — relatedness is mechanical cosine,
+  value is still earned by the ledger; no judge. See `docs/organic.md`.
+
 - Distillation benchmark arm (`bench/distill/`, `python -m bench.run
   --suite distill`): an opt-in, GPU/`transformers`-required family that
   measures survival selection as a *data filter for parametric memory*.

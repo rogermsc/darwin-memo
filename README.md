@@ -387,6 +387,18 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   the module docstring names public endpoints that lie about
   history).
 
+## Organic memory (experimental, opt-in)
+
+An adaptive, brain-like layer is in progress: memories weighted by usage and
+*earned* importance, shrinking to a gist when unused and expanding to full
+detail on recall, connected by relevance-weighted links — all on
+earned/measured signals, **no judge**. Phase 1 (the associative graph) has
+landed: `darwin_memo.organic.store_related(store, entry_id, k)` returns
+relevance-weighted related memories. It is additive and read-only with respect
+to survival (relatedness is mechanical cosine; value is still earned by the
+ledger). Zero-dependency by default; `pip install darwin-memo[organic]` adds a
+turbovec ANN backend for scale. See [docs/organic.md](docs/organic.md).
+
 ## Documentation
 
 The [docs index](docs/README.md) links everything. The operator set:
