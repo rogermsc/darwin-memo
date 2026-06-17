@@ -70,3 +70,61 @@ class HebbianWeights:
                 (other,) = key - {entry_id}
                 out[other] = value
         return out
+
+
+class OrganicMemory:
+    """The moving organic memory: graph + activation + learned weights as one.
+
+    Builds an :class:`AssociativeGraph` over the store's living entries (innate
+    cosine relatedness), a fresh :class:`ActivationState` (fast recall salience),
+    and a fresh :class:`HebbianWeights` (slow learned association). A recall
+    spreads activation one hop and strengthens the links it traverses; decay
+    runs the two timescales. Surfacing/ranking only — never survival.
+    """
+
+    def __init__(
+        self,
+        store: MemoryStore,
+        embedder: Embedder | None = None,
+        backend: Backend | None = None,
+    ) -> None:
+        self.graph = build_graph(store, embedder, backend)
+        self.state = ActivationState()
+        self.hebbian = HebbianWeights()
+
+    def related(self, entry_id: str, k: int = 5) -> list[tuple[str, float]]:
+        """Effective relatedness: ``clamp01(cosine + learned)``, top-k.
+
+        Takes the cosine top-``2k`` from the innate graph plus any purely
+        learned neighbours (cosine treated as 0), overlays the learned weights,
+        re-ranks, and returns the top ``k`` (deterministic; id breaks ties).
+        """
+        cosine = dict(self.graph.related(entry_id, 2 * k))
+        learned = self.hebbian.neighbors(entry_id)
+        candidates = set(cosine) | set(learned)
+        scored = [
+            (cid, _clamp01(cosine.get(cid, 0.0) + learned.get(cid, 0.0)))
+            for cid in candidates
+        ]
+        scored.sort(key=lambda pair: (-pair[1], pair[0]))
+        return scored[:k]
+
+    def recall(
+        self, entry_id: str, k: int = 5, spread: float = SPREAD_FACTOR
+    ) -> None:
+        """The reminder: light up ``entry_id``, spread a fraction of activation
+        one hop to its effective neighbours, and strengthen each link traversed.
+        """
+        self.state.bump(entry_id)
+        for nbr, eff in self.related(entry_id, k):
+            self.state.bump(nbr, to=spread * eff)
+            self.hebbian.strengthen(entry_id, nbr)
+
+    def decay(self) -> None:
+        """One idle cycle: activation fades fast (x0.5), learned links slow (x0.9)."""
+        self.state.decay()
+        self.hebbian.decay()
+
+    def surface(self, entry: MemoryEntry) -> str:
+        """Gist when cold, full detail when this entry is activated."""
+        return _surface(entry, self.state)
