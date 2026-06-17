@@ -8,6 +8,15 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory Phase 3: spreading activation + Hebbian reweighting via a new
+  `OrganicMemory` facade (`darwin_memo.organic`). A recall spreads a fraction of
+  activation one hop to related memories and strengthens the links it traverses
+  (`HebbianWeights`, symmetric learned co-recall strengths); `related()` returns
+  the effective relatedness `clamp01(cosine + learned)`, and `decay()` runs two
+  timescales (activation ×0.5, learned links ×0.9). Additive over Phases 1–2,
+  core untouched; activation and learned weights gate surfacing/ranking only,
+  never survival — no judge, no new runtime deps.
+
 - Organic memory Phase 2: in-memory `ActivationState` (recall-salience;
   `bump`/`decay`/`level`) plus lossless `surface(entry, state)` / `detail(entry)`
   — a recalled memory expands to detail, an idle one shrinks to its gist, with
