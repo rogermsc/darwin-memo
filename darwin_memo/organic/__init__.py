@@ -9,11 +9,14 @@ from .associative import (
     build_graph,
     store_related,
 )
+from .dynamics import HebbianWeights, OrganicMemory
 
 __all__ = [
     "ActivationState",
     "AssociativeGraph",
     "BruteForceBackend",
+    "HebbianWeights",
+    "OrganicMemory",
     "build_graph",
     "detail",
     "store_related",

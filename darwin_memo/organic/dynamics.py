@@ -109,9 +109,7 @@ class OrganicMemory:
         scored.sort(key=lambda pair: (-pair[1], pair[0]))
         return scored[:k]
 
-    def recall(
-        self, entry_id: str, k: int = 5, spread: float = SPREAD_FACTOR
-    ) -> None:
+    def recall(self, entry_id: str, k: int = 5, spread: float = SPREAD_FACTOR) -> None:
         """The reminder: light up ``entry_id``, spread a fraction of activation
         one hop to its effective neighbours, and strengthen each link traversed.
         """
