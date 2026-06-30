@@ -178,6 +178,16 @@ class LessonMemory:
         )
         return entry.id
 
+    def seed_poison(self, entries: list[MemoryEntry]) -> None:
+        """Add poison lessons to the store.
+
+        Poison lessons are designed to contaminate the store with
+        incorrect guidance that defenders the buggy behavior. They are
+        used to test whether survival selection can identify and cull them.
+        """
+        for e in entries:
+            self.store.add(e)
+
     def tick(self, tick: int) -> dict[str, int]:
         """Upkeep, deaths, periodic consolidation. No-op for memory_off."""
         if self.arm.inject == "none" or self.arm.curation != "survival":
@@ -245,6 +255,7 @@ def run_sequence(
     code_context_chars: int = 0,
     code_cache_dir: Path | None = None,
     code_max_files: int = 5,
+    seed_poison: bool = False,
 ) -> list[dict[str, Any]]:
     """The pilot loop. Returns one run record per task, in order.
 
@@ -255,6 +266,9 @@ def run_sequence(
     """
     arm = ARMS[arm_name]
     memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
+    if seed_poison and arm.inject != "none":
+        from .poison import poison_lessons
+        memory.seed_poison(poison_lessons(tasks[:max_tasks]))
     model: Completer = completer or ChatEndpoint(endpoint)
     cache = code_cache_dir or (Path.cwd() / ".swebench-repos")
     runs: list[dict[str, Any]] = []
