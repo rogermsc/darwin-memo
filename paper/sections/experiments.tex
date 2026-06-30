@@ -174,11 +174,15 @@ second-half-minus-first-half improvement of \texttt{memory\_on} over
 
 The dataset is pinned by an exact (commit, sha256) pair; the loader
 refuses any file whose hash differs. As of this writing the pin
-re-verifies against live upstream, the two pilot sequences hold (pytest,
-19 tasks; astropy, 22 tasks), and the full pipeline---manifest load, hash
-verification, strict task join, model call, diff extraction, settlement,
-lesson minting, and schema-valid output---has been validated end-to-end
-on a local model with the stub executor. \todo{Run the docker-evaluated
-pilot (3 seeds $\times$ 2 sequences, frontier endpoint) and report the
-per-position resolve-rate and settlement-delta curves here. This is the
-single highest-leverage result still outstanding.}
+re-verifies against live upstream, and the two pilot sequences hold
+(pytest, 19 tasks; astropy, 22 tasks). The full pipeline is validated
+end-to-end \emph{including the real evaluation}: on an Apple-Silicon host
+under \texttt{linux/amd64} emulation, a docker-executed instance built the
+official SWE-bench image, ran the suite (108/108 pass-to-pass tests
+executed), correctly settled an unresolved submission at base behavior,
+and wrote schema-valid output, at roughly one minute of wall time per
+pytest instance. What remains is not plumbing but a scored run with a
+capable model. \todo{Run the docker-evaluated pilot (3 seeds $\times$ 2
+sequences, frontier endpoint) and report the per-position resolve-rate and
+settlement-delta curves here. This is the single highest-leverage result
+still outstanding; the harness is ready.}

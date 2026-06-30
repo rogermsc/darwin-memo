@@ -1385,6 +1385,34 @@ What actually ran, stated plainly:
   about 2k prompt + 1k completion tokens per call), so a 5-seed pilot
   is tens of dollars.
 
+### Real-evaluation validation, 2026-06-30 (Apple Silicon, Docker up, 1.4 TB free)
+
+The 2026-06-12 entry stopped at the disk guard on an 8 GB-free machine.
+On a host with Docker running and 1.4 TB free, the real docker path now
+runs end to end, and this is recorded as the leg the earlier note could
+not reach:
+
+- Dataset pin re-verified against live upstream (sha256 unchanged from
+  the 2026-06-12 check); pilot sequences intact (pytest 19, astropy 22).
+- `linux/amd64` emulation confirmed working (an emulated container runs
+  on the aarch64 host).
+- One docker-executed instance (`pytest-dev__pytest-5262`, arm
+  `memory_on`, answers from a local llama3.2): `eval.mode == "docker"`,
+  `env_ready` true, the official SWE-bench image built and the suite ran
+  (`p2p_passed` 108/108), the weak model's diff failed to apply, and the
+  unresolved submission settled at base behavior (`delta` 0.0) exactly as
+  designed. Wall time about 61 s for this pytest instance (heavier repos
+  and a cold image pull cost more). Schema-valid run JSON written.
+
+So the only thing between here and the pre-committed cells is a scored
+run with a capable model: the harness, the docker eval, the settlement,
+and the manifest binding are all exercised. The model choice is the open
+decision (a local 3-4B model resolves ~0 and yields a flat, uninformative
+curve; a frontier endpoint is needed for a measurable learning curve),
+and on Apple Silicon under emulation a full multi-seed run is an
+overnight-scale job, so a linux x86_64 runner remains the recommended
+venue.
+
 ### Reproduce (pilot)
 
 ```bash
