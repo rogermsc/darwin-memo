@@ -27,6 +27,7 @@ from typing import Any, Protocol
 import darwin_memo
 from darwin_memo import (
     EntryKind,
+    LexicalRetriever,
     MemoryEntry,
     MemoryStore,
     SurvivalConfig,
@@ -48,6 +49,14 @@ SUITE = "swebench_cl_pilot"
 # so the credit formula runs at unit scale.
 RESOURCE_SCALE = 1.0
 MAX_PROMPT_CHARS = 6000
+# Lessons are retrieved as CONTEXT (top-k by relevance), not as decisions,
+# so the default coverage floor (0.25 of the query's IDF mass) is the wrong
+# gate here: a one-sentence lesson can never cover a quarter of a full
+# problem-statement query, so the floor silently injected nothing (every
+# task, every arm) and made memory_on identical to memory_off. A floor of
+# 0 means "rank all alive lessons by overlap and take the top k", which is
+# the right semantics for retrieving context to condition on.
+LESSON_MIN_COVERAGE = 0.0
 
 SYSTEM_PROMPT = (
     "You are an expert software engineer fixing a reported issue in an "
@@ -98,7 +107,7 @@ class LessonMemory:
     def __init__(self, arm: ArmSpec, seed: int, config: SurvivalConfig) -> None:
         self.arm = arm
         self.config = config
-        self.store = MemoryStore()
+        self.store = MemoryStore(retriever=LexicalRetriever(LESSON_MIN_COVERAGE))
         self._rng = random.Random(seed)
 
     def select(self, query: str, k: int) -> Injection:
