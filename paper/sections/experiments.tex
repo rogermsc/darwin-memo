@@ -176,13 +176,23 @@ The dataset is pinned by an exact (commit, sha256) pair; the loader
 refuses any file whose hash differs. As of this writing the pin
 re-verifies against live upstream, and the two pilot sequences hold
 (pytest, 19 tasks; astropy, 22 tasks). The full pipeline is validated
-end-to-end \emph{including the real evaluation}: on an Apple-Silicon host
-under \texttt{linux/amd64} emulation, a docker-executed instance built the
-official SWE-bench image, ran the suite (108/108 pass-to-pass tests
-executed), correctly settled an unresolved submission at base behavior,
-and wrote schema-valid output, at roughly one minute of wall time per
-pytest instance. What remains is not plumbing but a scored run with a
-capable model. \todo{Run the docker-evaluated pilot (3 seeds $\times$ 2
-sequences, frontier endpoint) and report the per-position resolve-rate and
-settlement-delta curves here. This is the single highest-leverage result
-still outstanding; the harness is ready.}
+end-to-end \emph{including the real evaluation}, and it resolves real
+issues. A minimal prompt (problem statement only) resolves $\approx 0$ for
+any model, for two structural reasons: the model never sees the code, and
+it cannot compute correct diff hunk line numbers. The run configuration
+that produces a curve adds two stdlib pieces, disclosed as a deviation
+from the minimal pre-registered prompt: \emph{(i)} BM25 retrieval of the
+repository's source files at the task's base commit against the issue text
+(no oracle---the gold patch is never read; the query is issue-only and
+identical across arms, so arms still differ only in lesson memory), and
+\emph{(ii)} a search/replace edit format from which the harness computes
+the diff with \texttt{difflib}, so hunk line numbers are correct by
+construction. With these, gpt-4.1 resolves \texttt{pytest-dev\_\_pytest-5262}
+end-to-end in the official docker harness under \texttt{linux/amd64}
+emulation (BM25 retrieved the correct file from the issue text alone; the
+edit applied; fail-to-pass 1/1, pass-to-pass 108/108); the same task under
+the minimal prompt produced an unappliable diff. \todo{Report the scored
+per-position resolve-rate and settlement-delta curves (memory\_on vs
+memory\_off vs random\_matched, $\ge 3$ seeds, both sequences). A seed-0
+pytest first cut is running; this is the single highest-leverage result
+still outstanding, and the harness now resolves real issues.}

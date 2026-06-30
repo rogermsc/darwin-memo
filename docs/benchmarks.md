@@ -1413,6 +1413,42 @@ and on Apple Silicon under emulation a full multi-seed run is an
 overnight-scale job, so a linux x86_64 runner remains the recommended
 venue.
 
+### Level 1b: BM25 retrieval + search/replace edits (the setting that resolves)
+
+The pre-committed pilot prompt is deliberately minimal: problem statement
+plus retrieved lessons, no source code. That setting resolves ~0 issues
+for any model, frontier or local, for a structural reason rather than a
+model-quality one: the model is asked to write a unified diff against
+files it has never seen, and (separately) cannot compute correct
+``@@`` hunk line numbers even when it knows the fix. A learning curve
+cannot exist where every arm resolves zero, so the run config that
+actually produces a curve adds two stdlib, opt-in pieces, disclosed here
+as a deviation from the minimal pre-committed prompt:
+
+- **BM25 file retrieval** (`code_retrieval.py`, enabled by
+  `--code-context-chars N`): fetch the repository at the task's
+  ``base_commit`` (GitHub archive tarball, cached by sha) and BM25-rank
+  its ``.py`` files against the ISSUE TEXT, injecting the top files into
+  the prompt. No oracle: the gold patch is never read. The retrieval
+  query is issue-only and identical across arms, so the arms still differ
+  only in their lesson memory, and the memory_on-vs-random_matched
+  comparison stays clean. (Oracle file localization was deliberately
+  rejected for this reason; BM25 is the more faithful, no-leakage choice.)
+- **Search/replace edits** (`edits.py`): the model emits SEARCH/REPLACE
+  blocks against the shown files rather than a diff; the harness applies
+  them to the fetched text and computes the unified diff with `difflib`,
+  so hunk line numbers are correct by construction and the patch applies.
+
+Validated end-to-end on `pytest-dev__pytest-5262` (gpt-4.1, docker eval,
+x86 emulation, 2026-06-30): BM25 retrieved the correct file
+(`src/_pytest/capture.py`) from the issue text alone, the model's one
+SEARCH/REPLACE edit applied, the difflib patch applied cleanly, and the
+instance RESOLVED (fail-to-pass 1/1, pass-to-pass 108/108, delta 1.0).
+The identical task under the blind prompt produced an unappliable diff
+(delta 0). So the pilot now resolves real issues, which is the
+precondition for a learning curve; the scored multi-seed cells remain to
+be filled.
+
 ### Reproduce (pilot)
 
 ```bash
