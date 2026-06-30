@@ -88,6 +88,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         k=args.k,
         max_tasks=args.max_tasks,
         max_prompt_chars=args.max_prompt_chars,
+        code_context_chars=args.code_context_chars,
+        code_cache_dir=args.code_cache_dir,
+        code_max_files=args.code_max_files,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))
@@ -130,6 +133,20 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--k", type=int, default=3)
     run.add_argument("--max-tasks", type=int, default=None)
     run.add_argument("--max-prompt-chars", type=int, default=MAX_PROMPT_CHARS)
+    run.add_argument(
+        "--code-context-chars",
+        type=int,
+        default=0,
+        help="BM25-retrieved source-file context budget (chars); 0 = blind "
+        "(problem statement only, the original pilot setting)",
+    )
+    run.add_argument("--code-max-files", type=int, default=5)
+    run.add_argument(
+        "--code-cache-dir",
+        type=Path,
+        default=None,
+        help="where to cache fetched repo trees (default ./.swebench-repos)",
+    )
     run.add_argument("--base-url", default=DEFAULT_BASE_URL)
     run.add_argument("--model", default="llama3.2")
     run.add_argument(

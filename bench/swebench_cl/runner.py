@@ -21,6 +21,7 @@ import random
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 import darwin_memo
@@ -34,7 +35,9 @@ from darwin_memo import (
 )
 
 from .arms import ARMS, ArmSpec, token_count
+from .code_retrieval import code_context as retrieve_code_context
 from .dataset import TaskRecord
+from .edits import EDIT_FORMAT_INSTRUCTIONS, edits_to_patch
 from .executor import EvalReport, delta_from_eval
 from .lessons import mint_lesson
 from .model import ChatEndpoint, EndpointConfig, extract_patch, extract_reflection
@@ -48,8 +51,8 @@ MAX_PROMPT_CHARS = 6000
 
 SYSTEM_PROMPT = (
     "You are an expert software engineer fixing a reported issue in an "
-    "open-source repository. Reply with a unified diff patch inside a "
-    "```diff fence. After the patch, add exactly one line starting with "
+    "open-source repository. Follow the output format the task specifies "
+    "exactly. After your edit, add exactly one line starting with "
     "REFLECTION: stating, in one sentence, what about this codebase or "
     "approach a future attempt should know."
 )
@@ -183,7 +186,12 @@ def retrieval_query(task: TaskRecord) -> str:
     return f"{task.repo} {task.problem_statement}"
 
 
-def build_prompt(task: TaskRecord, injection: Injection, max_prompt_chars: int) -> str:
+def build_prompt(
+    task: TaskRecord,
+    injection: Injection,
+    max_prompt_chars: int,
+    code_context: str = "",
+) -> str:
     parts = []
     if injection.entries:
         lines = "\n".join(f"- {_lesson_text(e)}" for e in injection.entries)
@@ -194,9 +202,17 @@ def build_prompt(task: TaskRecord, injection: Injection, max_prompt_chars: int) 
     parts.append(
         f"Repository: {task.repo}\n"
         f"Task: {task.instance_id}\n\n"
-        f"Issue:\n{statement}\n\n"
-        "Produce the patch now."
+        f"Issue:\n{statement}"
     )
+    if code_context:
+        parts.append(
+            "Relevant repository files at the current commit (retrieved by "
+            "BM25 over the issue text; the file the issue concerns is likely "
+            "among them):\n\n" + code_context
+        )
+        parts.append(EDIT_FORMAT_INSTRUCTIONS)
+    else:
+        parts.append("Produce the patch now.")
     return "\n\n".join(parts)
 
 
@@ -211,18 +227,53 @@ def run_sequence(
     max_tasks: int | None = None,
     max_prompt_chars: int = MAX_PROMPT_CHARS,
     completer: Completer | None = None,
+    code_context_chars: int = 0,
+    code_cache_dir: Path | None = None,
+    code_max_files: int = 5,
 ) -> list[dict[str, Any]]:
-    """The pilot loop. Returns one run record per task, in order."""
+    """The pilot loop. Returns one run record per task, in order.
+
+    When ``code_context_chars > 0`` the prompt also carries BM25-retrieved
+    source files from the repo at the task's base commit (the Level-1b
+    setting); the retrieval query is the issue text, identical across
+    arms, so only the lesson memory differs between arms.
+    """
     arm = ARMS[arm_name]
     memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
     model: Completer = completer or ChatEndpoint(endpoint)
+    cache = code_cache_dir or (Path.cwd() / ".swebench-repos")
     runs: list[dict[str, Any]] = []
     for tick, task in enumerate(tasks[:max_tasks], start=1):
         start = time.perf_counter()
         injection = memory.select(retrieval_query(task), k=k)
-        prompt = build_prompt(task, injection, max_prompt_chars)
+        code_ctx, code_files, code_originals = "", [], {}
+        if code_context_chars > 0:
+            try:
+                code_ctx, code_files, code_originals = retrieve_code_context(
+                    task.repo,
+                    task.base_commit,
+                    retrieval_query(task),
+                    cache,
+                    code_context_chars,
+                    code_max_files,
+                )
+            except Exception as error:  # retrieval must never crash a run
+                print(
+                    f"  warn: code retrieval failed for {task.instance_id}: "
+                    f"{type(error).__name__}: {error}",
+                    file=sys.stderr,
+                )
+        prompt = build_prompt(task, injection, max_prompt_chars, code_context=code_ctx)
         response = model.complete(prompt, system=SYSTEM_PROMPT)
-        patch = extract_patch(response)
+        if code_context_chars > 0:
+            # Edit-based path: the model emits SEARCH/REPLACE blocks and we
+            # compute the diff, so hunk line numbers are always correct.
+            patch, edits_applied, edits_failed = edits_to_patch(
+                code_originals, response
+            )
+        else:
+            patch = extract_patch(response)
+            edits_applied = edits_failed = 0
         reflection = extract_reflection(response)
         report = executor.evaluate(task, patch)
         delta = delta_from_eval(report)
@@ -249,6 +300,8 @@ def run_sequence(
                     "executor": executor.mode,
                     "k": k,
                     "max_prompt_chars": max_prompt_chars,
+                    "code_context_chars": code_context_chars,
+                    "retrieved_files": code_files,
                 },
                 "lessons": {
                     "injected": [e.id for e in injection.entries],
@@ -261,6 +314,8 @@ def run_sequence(
                     "prompt_chars": len(prompt),
                     "response_chars": len(response),
                     "patch_chars": len(patch),
+                    "edits_applied": edits_applied,
+                    "edits_failed": edits_failed,
                     "reflection": reflection[:280],
                 },
                 "eval": report.to_dict(),
