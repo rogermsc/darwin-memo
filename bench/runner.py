@@ -36,6 +36,7 @@ from .policies import (
     run_quarantine,
     run_random_matched,
     run_recency,
+    run_salience_matched,
     run_survival,
     run_ttl,
 )
@@ -277,10 +278,16 @@ def _dispatch(
     audit: AuditedProtocol | None = None,
 ) -> PolicyResult:
     noisy = "flake_rate" in overrides
-    if noisy and arm in ("random_matched", "survival_writes", "judge_settled"):
-        # random_matched's shadow run would derive its death schedule
-        # from a noise-free world, silently violating "same pruning
-        # rate". survival_writes folds outcome detail strings (which
+    if noisy and arm in (
+        "random_matched",
+        "salience_matched",
+        "survival_writes",
+        "judge_settled",
+    ):
+        # random_matched's (and salience_matched's) shadow run would
+        # derive its death schedule from a noise-free world, silently
+        # violating "same pruning rate". survival_writes folds outcome
+        # detail strings (which
         # name the true delta) back into entries and picks its best
         # trajectory by the REPORTED delta. judge_settled reads outcome
         # detail strings too, and the corrupted ones name both the
@@ -366,6 +373,12 @@ def _dispatch(
     if arm == "random_matched":
         schedule = _death_schedule_for(seed, cycles, files_per_cycle, overrides)
         return run_random_matched(store, env, cycles, seed, schedule, on_cycle=on_cycle)
+    if arm == "salience_matched":
+        # External-literature control: same eviction budget as survival
+        # (the shadow death schedule), victims chosen by a Generative
+        # Agents-style salience score instead of at random or by outcome.
+        schedule = _death_schedule_for(seed, cycles, files_per_cycle, overrides)
+        return run_salience_matched(store, env, cycles, schedule, on_cycle=on_cycle)
     raise ValueError(f"unknown arm: {arm}")
 
 

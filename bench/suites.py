@@ -29,6 +29,22 @@ def headline_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+# The external-baseline comparison, kept in its own file so the committed
+# headline.json stays byte-stable. All three arms hold the eviction RATE
+# fixed at survival's per-cycle death counts and differ only in WHO dies:
+# at random, by a hand-designed salience score (Generative Agents-style),
+# or by the conserved-resource energy ledger.
+SALIENCE_ARMS = ("survival", "random_matched", "salience_matched")
+
+
+def salience_suite(seeds: list[int]) -> list[RunSpec]:
+    return [
+        RunSpec(suite="salience", arm=arm, seed=seed)
+        for arm in SALIENCE_ARMS
+        for seed in seeds
+    ]
+
+
 # One knob at a time, survival arm only, defaults marked in the report.
 ABLATION_GRID: dict[str, list[Any]] = {
     "upkeep": [0.01, 0.05, 0.1, 0.2],
@@ -117,6 +133,14 @@ def smoke_suite() -> list[RunSpec]:
     specs.append(
         RunSpec(
             suite="smoke", arm="policy_bandit", seed=0, cycles=12, files_per_cycle=8
+        )
+    )
+    # salience_matched is stdlib and deterministic (it runs a shadow
+    # survival for its budget, like random_matched), so it stays
+    # smoke-covered to keep the code path from rotting in CI.
+    specs.append(
+        RunSpec(
+            suite="smoke", arm="salience_matched", seed=0, cycles=12, files_per_cycle=8
         )
     )
     specs.append(

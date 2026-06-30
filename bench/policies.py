@@ -376,6 +376,67 @@ def run_policy_bandit(
     return _run_baseline(store, env, cycles, confidently_bad, on_cycle)
 
 
+def run_salience_matched(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    death_schedule: list[int],
+    on_cycle: OnCycle | None = None,
+    recency_decay: float = 0.95,
+    recency_weight: float = 1.0,
+    importance_weight: float = 1.0,
+) -> PolicyResult:
+    """A hand-designed salience score as the victim-selection rule.
+
+    This is the external-literature control. random_matched holds the
+    eviction RATE fixed (survival's per-cycle death counts) and picks
+    victims at random; this arm holds the same rate fixed and picks
+    victims by the recency+importance core of the Generative Agents
+    memory model (Park et al., 2023), so the headline table isolates a
+    single variable across three arms: the rule that chooses WHO dies
+    is random (random_matched), a hand-designed salience score
+    (this arm), or a conserved-resource energy ledger (survival).
+
+        salience(e) = recency_weight  * recency_decay ** idle(e)
+                    + importance_weight * uses(e) / max_uses
+
+    idle(e) is cycles since the entry last decided or supported a task
+    (Generative Agents' recency term, exponentially decayed), and
+    uses(e)/max_uses is its consultation frequency, a LABEL-FREE stand-in
+    for GA's importance term. Two honest deviations, both forced by the
+    deterministic-and-in-CI contract this arm keeps (no arm that samples
+    a model runs in CI): GA rates importance with an LLM poignancy score
+    (1-10), which a deterministic arm cannot call, so frequency proxies
+    it; and GA's third term, query-conditioned relevance, is omitted
+    because retention is not conditioned on a single query. The
+    lowest-salience alive entries are evicted to fill each cycle's
+    budget; ties keep store order, so the arm is fully deterministic
+    with no RNG. If this hand-designed score curated as well as measured
+    outcomes, the energy ledger would be decoration; the headline table
+    reports whether it does.
+    """
+
+    def least_salient(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
+        budget = death_schedule[cycle] if cycle < len(death_schedule) else 0
+        alive = s.alive()
+        if budget <= 0 or not alive:
+            return []
+        max_uses = max((e.uses for e in alive), default=0) or 1
+
+        def salience(e: MemoryEntry) -> float:
+            idle = max(cycle - max(e.last_used_cycle, e.born_cycle), 0)
+            recency = recency_decay**idle
+            importance = e.uses / max_uses
+            return recency_weight * recency + importance_weight * importance
+
+        ranked = sorted(alive, key=salience)  # ascending: least salient first
+        return ranked[: min(budget, len(alive))]
+
+    return _run_baseline(store, env, cycles, least_salient, on_cycle)
+
+
 ARMS = (
     "survival",
     "survival_writes",
