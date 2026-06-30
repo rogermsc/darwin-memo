@@ -142,7 +142,16 @@ class LessonMemory:
 
     def settle(self, injection: Injection, delta: float, tick: int) -> list[str]:
         """Credit the injected lessons with the measured outcome."""
-        if not self.arm.settle or not injection.entries:
+        if not injection.entries:
+            return []
+        if self.arm.curation == "evict_negative":
+            if delta < 0:
+                for e in injection.entries:
+                    self.store.bury(e.id)
+            return []
+        if self.arm.curation == "keep_all":
+            return []
+        if not self.arm.settle:
             return []
         applied = assign_credit(
             self.store,
@@ -153,7 +162,7 @@ class LessonMemory:
             self.config,
             tick,
         )
-        return [entry_id for entry_id, _ in applied]
+        return [eid for eid, _ in applied]
 
     def mint(self, question: str, answer: str, source: str, tick: int) -> str | None:
         if not self.arm.mint:
@@ -171,15 +180,12 @@ class LessonMemory:
 
     def tick(self, tick: int) -> dict[str, int]:
         """Upkeep, deaths, periodic consolidation. No-op for memory_off."""
-        if self.arm.inject == "none":
+        if self.arm.inject == "none" or self.arm.curation != "survival":
             return {"deaths": 0, "merges": 0}
         dead = self.store.charge_upkeep()
         merges = 0
-        every = self.config.consolidate_every
-        if every and tick % every == 0:
-            merges = consolidate(
-                self.store, tick, threshold=self.config.merge_threshold
-            )
+        if self.config.consolidate_every and tick % self.config.consolidate_every == 0:
+            merges = consolidate(self.store, tick, threshold=self.config.merge_threshold)
         return {"deaths": len(dead), "merges": merges}
 
 

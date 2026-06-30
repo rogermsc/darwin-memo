@@ -32,14 +32,17 @@ class ArmSpec:
     inject: str  # "retrieved" | "none" | "random_matched"
     mint: bool  # mint a lesson from each task's trajectory
     settle: bool  # settle injected lessons with the eval outcome
+    curation: str = "survival"  # "survival" | "keep_all" | "evict_negative"
 
 
 ARMS: dict[str, ArmSpec] = {
-    "memory_on": ArmSpec(name="memory_on", inject="retrieved", mint=True, settle=True),
+    "memory_on": ArmSpec(name="memory_on", inject="retrieved", mint=True, settle=True, curation="survival"),
     "memory_off": ArmSpec(name="memory_off", inject="none", mint=False, settle=False),
     "random_matched": ArmSpec(
         name="random_matched", inject="random_matched", mint=True, settle=True
     ),
+    "keep_everything": ArmSpec(name="keep_everything", inject="retrieved", mint=True, settle=False, curation="keep_all"),
+    "evict_on_negative": ArmSpec(name="evict_on_negative", inject="retrieved", mint=True, settle=True, curation="evict_negative"),
 }
 
 
