@@ -17,6 +17,7 @@ python -m bench.flaky_select.sweep [--pool PATH] [--n N] [--seeds a:b] [--out PA
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import sys
@@ -34,6 +35,16 @@ DEFAULT_P_FN = (0.0, 0.1, 0.2, 0.35)
 DEFAULT_P_FP = (0.0, 0.1, 0.2)
 DEFAULT_N = 5
 DEFAULT_SEEDS = range(10)  # 0..9
+
+
+def _cell_seed(seed: int, rule: str, p_fn: float, p_fp: float) -> int:
+    """Derive a stable (cross-process) RNG seed for a sweep cell.
+
+    Uses hashlib instead of Python's builtin hash() to ensure reproducibility
+    across separate processes (builtin hash is randomized by PYTHONHASHSEED).
+    """
+    key = f"{seed}|{rule}|{p_fn}|{p_fp}".encode()
+    return int.from_bytes(hashlib.sha256(key).digest()[:8], "big")
 
 
 def run_sweep(
@@ -74,8 +85,8 @@ def run_sweep(
         seed_scores: list[dict] = []
 
         for seed in seeds:
-            # Deterministic RNG per (seed, rule, p_fn, p_fp) — hash to int
-            cell_seed = hash((int(seed), rule, round(p_fn, 6), round(p_fp, 6))) & 0xFFFFFFFF
+            # Deterministic RNG per (seed, rule, p_fn, p_fp) — stable cross-process seed
+            cell_seed = _cell_seed(int(seed), rule, round(p_fn, 6), round(p_fp, 6))
             rng = random.Random(cell_seed)
 
             kept: list[bool] = []
