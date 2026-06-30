@@ -1,0 +1,52 @@
+\section{Limitations}
+\label{sec:limitations}
+
+We state the threats to validity plainly, in the spirit of the
+pre-registration above.
+
+\paragraph{Vocabulary coupling.}
+In the synthetic suites the corpus, the task prompts, and the
+action-reading function were written in the same vocabulary by the same
+hand. The crisp single-cycle poison kill lives in the near-exact
+lexical-match regime that coupling creates. We measure outside it with
+paraphrase probes scored by provenance rather than by the keyword
+reader: harmful paraphrases stay safe (silence is conservative), but the
+lexical arm grounds only a third of benign paraphrases, and an embedding
+retriever doubles that. The headline numbers should be read as
+within-distribution, with the paraphrase columns as the
+out-of-distribution honesty check. An LLM-encoded corpus with
+independently authored probes would close this gap and is the most
+important synthetic-side improvement.
+
+\paragraph{Synthetic environments.}
+The headline, noise, ablation, and control results are on two synthetic
+environment families. They are deliberately adversarial in opposite
+directions (storage prices inaction; the test-suite family does not), and
+we flag every family-dependent conclusion rather than averaging it, but
+they remain synthetic. The SWE-Bench-CL pilot (\S\ref{sec:swebench})
+exists precisely to move the central claim onto real
+software-engineering tasks; its learning-curve result is the most
+important result still outstanding, and until it lands the real-task
+claim is unmade.
+
+\paragraph{Scale of the parametric result.}
+The distillation arm is a 0.5B model on a small corpus with deliberately
+distinctive poison tokens, so reproduction is unambiguous. It is a clean
+existence proof that selection survives the round-trip into weights, not
+a scaling law, and a corpus whose poison is reachable by generalizing
+benign patterns would not separate as cleanly. We present it as a
+secondary result and do not generalize it.
+
+\paragraph{Silence as a harbor.}
+In environments where inaction produces no measurement, a conservative
+entry can dodge lying measurements simply by staying silent, which
+flatters safety metrics. Environments that price inaction would expose
+entries to lies the current design avoids, and would also likely reverse
+the second-family loss (\S\ref{sec:regime}, Axis 3).
+
+\paragraph{Local-judge scale.}
+The LLM-judge control uses small (3--4B) local models at five seeds; a
+frontier judge might hold capability where one local judge dropped it.
+We therefore make no categorical claim that conserved-resource settlement
+beats judge settlement on quality---only that it is orders of magnitude
+cheaper, which is robust.

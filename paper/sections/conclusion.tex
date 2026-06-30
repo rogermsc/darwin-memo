@@ -1,0 +1,27 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We asked whether agent memory can curate itself without a model in the
+loop, and answered: on tasks with a conserved, measurable resource, yes.
+\textsc{darwin-memo} makes each memory entry pay energy upkeep and earn it
+back only from measured outcomes along its provenance, so useless entries
+starve, harmful ones are executed by the damage they cause, and
+near-duplicates consolidate---with no reward model, no LLM judge, and no
+human curation, at settlement cost four to six orders of magnitude below
+an LLM curator. Rather than claim universal superiority, which our own
+experiments refute, we contributed a \emph{regime map}: across two
+environment families, ablations, one-sided and symmetric noise sweeps,
+and literature controls (a retrieval bandit, an LLM judge, and a
+Generative-Agents-style salience score), we located precisely where
+conserved-resource selection dominates and where a one-line heuristic, a
+confidence bandit, or a quarantine policy matches or beats it. The
+properties that hold across the whole map---starving dead weight, killing
+actionable poison within a cycle, tolerating one-sided lying
+measurements, needing no labels, and costing almost nothing---are the
+case for the mechanism, and the boundaries we publish are the case for
+honesty about it. The open frontier is the real-task learning curve on
+SWE-Bench-CL, whose harness we have validated end-to-end; that result
+will decide whether the regime map transfers from instrumented
+environments to the software-engineering tasks the mechanism was designed
+for. All code, per-seed data, and pre-registered protocols are released
+under a permissive license with manifest-checked reproducibility.

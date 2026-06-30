@@ -1,0 +1,84 @@
+% darwin-memo: arXiv preprint skeleton.
+% Compiles with: pdflatex main && bibtex main && pdflatex main && pdflatex main
+% Neutral preprint style (article); swap to a venue style (neurips/icml/colm)
+% by replacing the class + geometry block only. No exotic packages.
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+
+\newcommand{\todo}[1]{\textcolor{red}{[\textbf{TODO:} #1]}}
+\newcommand{\resscale}{\sigma}      % resource scale
+\newcommand{\credit}{g}             % credit gain
+\newcommand{\upkeep}{u}             % upkeep
+\newcommand{\Emax}{E_{\max}}        % energy cap
+
+\title{\textbf{Memory That Must Earn Its Keep:\\
+Conserved-Resource Selection for Self-Curating Agent Memory}}
+
+\author{
+  Roger Sim\~oes\\
+  \texttt{roger@wearegoodai.com}\\
+  Good AI
+  % \and add co-authors here
+}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+External memory lets a frozen language-model agent accumulate knowledge
+without retraining, but every such system must decide what to keep. The
+dominant answer is a \emph{model in the loop}: an LLM rates, rewrites, or
+judges memories, or a learned reward model scores them. We show that on
+tasks with a \emph{conserved, measurable resource}---disk bytes, passing
+tests, resolved issues---the curator can be removed entirely. We present
+\textsc{darwin-memo}, in which each memory entry pays an energy upkeep
+every cycle and earns energy back only when the environment measures a
+positive outcome along its provenance. Useless entries starve; poisoned
+entries that drive harmful actions are executed by the damage they cause;
+near-duplicates consolidate. There is no reward model, no LLM judge, and
+no human curation anywhere, and settlement is therefore essentially free.
+Our contribution is not that this beats every alternative---it does not,
+and we report where it loses. It is a \emph{regime map}: across two
+environment families, ablations, measurement-noise sweeps, and control
+arms reconstructed from the literature (a Thompson-sampling retrieval
+bandit, an LLM-judge settler, and a hand-designed salience score), we
+characterize precisely when conserved-resource selection dominates and
+where a one-line heuristic or a confidence bandit matches or beats it.
+The differentiators that survive every comparison are sharp: it starves
+dead weight, kills actionable poison within one cycle, tolerates lying
+measurements that defeat strike counters, requires no labels, and settles
+$10^4$--$10^6$ times more cheaply than an LLM judge or generator. Every
+number is produced by a stdlib-only harness with pre-registered
+hypotheses, seed-level bootstrap intervals, paired permutation tests, and
+committed per-seed data validated against its manifest in CI.
+\todo{fold in the SWE-Bench-CL learning-curve result once run.}
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/regime}
+\input{sections/limitations}
+\input{sections/conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

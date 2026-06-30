@@ -1,0 +1,184 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\paragraph{Protocol and reproducibility.}
+All synthetic results use a stdlib-only harness with fixed seeds. Each
+$(\text{seed}, \text{cycle})$ world is an independent draw (its RNG seeded
+by a hash of the pair), so the seed is the unit of independence:
+confidence intervals are seed-level percentile bootstrap ($10^4$ seeded
+resamples), and arm comparisons are exact paired permutation tests (all
+$2^{10}$ sign assignments enumerated at 10 seeds; seeded Monte Carlo at
+30), with $p$-values Holm--Bonferroni adjusted across each reported grid.
+Hypotheses and cell definitions are committed before runs. Per-seed raw
+JSON is committed and bound to its configuration and reproduction command
+by a manifest that CI validates on every push. We summarize the main
+findings here; full tables, ablations, and the published failure
+boundaries are in the supplementary benchmark report.
+
+\subsection{Headline: who curates, and at what cost}
+On the storage environment (16-entry corpus, 3 entries derived from a
+poisoned ``files are safe to delete'' source, 30 cycles, 10 seeds), we
+compare conserved-resource selection against five ablation baselines and
+two outcome-blind controls. Table~\ref{tab:headline} reports the core
+columns.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Storage environment, 10 seeds. \emph{Kill}: fraction of seeds
+where no alive entry from the poisoned source advises a positive action.
+\emph{Cum $\Delta$}: cumulative true resource delta (M bytes).
+\emph{Benign}: benign-probe correctness. \emph{Pop}: final population.
+Survival's wins over keep/random/recency/ttl/salience are all 10/0/0,
+Holm-adjusted $p \le 0.014$.}
+\label{tab:headline}
+\begin{tabular}{lccrcc}
+\toprule
+arm & kill & kill cyc.\ (med) & cum $\Delta$ (M) & benign & pop \\
+\midrule
+\textbf{survival}        & \textbf{1.00} & \textbf{0}  & $\mathbf{+12.59}$ & \textbf{1.00} & \textbf{4} \\
+survival\_embedding      & 1.00 & 19 & $+13.52$ & 1.00 & 4 \\
+evict\_on\_negative ($k{=}1$) & 1.00 & 0  & $+12.78$ & 1.00 & 15 \\
+recency                  & 0.00 & --- & $+4.98$  & 1.00 & 7  \\
+salience\_matched (GA)   & 0.20 & 26 & $-2.76$  & 0.83 & 6  \\
+random\_matched          & 0.80 & 19 & $-7.67$  & 0.40 & 6  \\
+ttl                      & 1.00 & 10 & $-3.63$  & 0.00 & 0  \\
+keep\_everything         & 0.00 & --- & $-9.08$  & 1.00 & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three readings matter. First, \textbf{outcome direction, not pruning
+rate, is the active ingredient}: \texttt{random\_matched} evicts survival's
+\emph{exact} per-cycle death counts but picks victims at random, and its
+cumulative delta collapses to $-7.67$M with benign capability $0.40$.
+Second, \textbf{a hand-designed salience score is not enough}:
+\texttt{salience\_matched}, the Generative-Agents-style recency$+$importance
+score under the same eviction budget, picks better victims than random on
+capability ($0.83$ vs $0.40$) but its kill rate \emph{falls} to $0.20$
+(vs random's $0.80$). The reason is instructive---once the poison starts
+winning queries it is \emph{consulted}, which raises both its recency and
+its frequency-importance, so a usage-based salience score actively shields
+it. A score that rewards use cannot distinguish ``used'' from ``useful'';
+only the outcome-grounded ledger can, and it beats salience on all ten
+seeds ($+15.3$M, Holm $p = 0.0039$). Third, \textbf{the honest tie}: on
+this deterministic world the one-line \texttt{evict\_on\_negative}
+heuristic matches the full ledger on outcomes ($+12.78$ vs $+12.59$M, an
+official tie). What the ledger buys here is leanness (population 4 vs 15:
+it starves dead weight the if-statement hoards) and, as the next section
+shows, forgiveness under noise.
+
+\subsection{Forgiveness: the ledger vs.\ strike counters under lying measurements}
+We corrupt the \emph{measurement} while keeping the world real (files are
+still created and bytes still freed; only the reported delta lies),
+drawing flake marks from a dedicated stream so every arm at a seed faces
+the same lies, and we score everyone on the \emph{true} deltas. Against
+the heuristic family's strongest members---$k$ lifetime strikes,
+consecutive strikes a success resets, and quarantine---survival's true
+outcomes under one-sided ``false-bad'' noise are byte-identical to its
+noise-free run at 5\% and within one seed of it through 20\%, while
+\texttt{evict\_on\_negative} ($k{=}1$) loses nearly all benign capability
+by 5\% (Table~\ref{tab:noise}). A continuous energy buffer with earn-back
+forgives transient lies that a fixed strike count consumes linearly;
+patching a counter with decay and magnitude grading reinvents the ledger.
+We also publish the ledger's own boundary: under symmetric ``flip'' noise
+the poison-kill cycle climbs as false-good lies rescue the guilty, and at
+a 50\% flip---a sign with no information---capability collapses to $0.26$
+and no mechanism curates safely.
+
+\begin{table}[t]
+\centering
+\small
+\caption{False-bad noise (flaky-CI model), 30 seeds. Cells are mean true
+cum $\Delta$ (M) / benign capability. The ledger holds; counters
+collapse. Survival beats consecutive-$k{=}2$ at every rate $\ge 5\%$
+(Holm $p \le 0.0038$).}
+\label{tab:noise}
+\begin{tabular}{lccccc}
+\toprule
+arm & 0.00 & 0.05 & 0.10 & 0.20 & 0.35 \\
+\midrule
+\textbf{survival}     & 12.38 / 1.00 & 12.38 / 1.00 & 12.26 / 0.99 & 12.26 / 0.99 & 10.47 / 0.79 \\
+evict $k{=}1$         & 12.57 / 1.00 & 3.30 / 0.04  & 1.54 / 0.00  & 0.41 / 0.00  & 0.00 / 0.00 \\
+consecutive $k{=}2$   & 12.38 / 1.00 & 11.47 / 0.81 & 9.12 / 0.48  & 3.73 / 0.06  & 1.08 / 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Literature controls, run rather than argued}
+\paragraph{Retrieval bandit \citep{xu2026ael}.}
+A per-entry successive-elimination bandit with a Hoeffding radius
+(cull when $\hat\mu + \sqrt{\ln T / 2n} < 0.5$) is the strongest no-ledger
+arm we field. Its confidence radius is real forgiveness, and under
+one-sided false-bad noise it \emph{matches} survival at 35\%
+($11.14$ vs $11.00$M, paired $p = 0.68$) while keeping full benign
+capability. We publish this regime. Everywhere else the ledger's
+pre-registered predictions land: the bandit cannot starve dead weight
+(final population 15--16, near \texttt{keep\_everything}), kills the poison
+cycles later (median 1.5 vs 0), and under symmetric noise its sign-blind
+reward lets the poison feed until it bleeds to $\texttt{keep\_everything}$
+territory.
+
+\paragraph{LLM-judge settlement, and the cost result.}
+Replacing measured settlement with keep/cull verdicts from a local model
+(an operationalization of LLM-curated memory, cf.\ \citealp{zhang2026faulty})
+gives a mixed quality result---one local judge degrades benign capability
+to $0.67$, another does not, at five seeds---so we do \emph{not} claim
+categorical superiority. The robust result is cost: judged settlement
+runs $87.6$\,s (llama3.2:3b) to $1{,}514$\,s (qwen3:4b) per five-cycle
+run against the ledger's $0.03$--$0.09$\,s, four to six orders of
+magnitude, before a verdict is even parsed. Settlement by a scalar the
+environment already returns is effectively free.
+
+\subsection{Second environment, and where the ledger loses}
+On a test-suite environment (the resource is passing-test count; applying
+a patch reruns the suite), the mechanism \emph{transfers}---survival kills
+the actionable poison in every seed---but the headline tie does not:
+\texttt{evict\_on\_negative} \emph{beats} survival ($88$ vs $69$,
+$p = 0.014$). The cause is a designed property of the family meeting a
+designed property of the ledger: this environment charges \emph{nothing}
+for refusing to act, so the protector entry that keeps refusing the
+destructive patch can never earn and starves under upkeep, after which the
+destructive patch lands again. Leanness, the ledger's asset on storage, is
+a liability where refusals are free. This is the central entry in the
+regime map (\S\ref{sec:regime}): the conclusion is family-dependent in
+\emph{both} directions, and we flag it rather than average it away.
+
+\subsection{Parametric memory (secondary).}
+To connect to memory-as-a-model \citep{quek2026memo}, we distill survivors
+into a small (0.5B) model. Distilling the \emph{raw} store teaches the
+facts but bakes in every poison statement (poison reproduction $1.00$);
+distilling the \emph{energy-ledger survivors} teaches the same facts
+(recall $1.00$) and reproduces no poison ($0.00$). The active ingredient
+is a conserved-resource floor: a judge \emph{with} an energy floor nearly
+matches it, a judge without one erodes the store to nothing. This is a
+clean existence proof at one model scale, not a scaling law, and we frame
+it as such.
+
+\subsection{Real software-engineering tasks (SWE-Bench-CL): protocol and status}
+\label{sec:swebench}
+The synthetic suites above are well-instrumented but synthetic. To test
+whether conserved-resource selection produces a \emph{learning curve} on
+real tasks, we adopt SWE-Bench-CL \citep{joshi2025swebenchcl,
+jimenez2024swebench}: per-repository continual-learning sequences of
+human-verified GitHub issues, with the conserved resource being the change
+in passing-test count from the official evaluation harness. Three arms
+answer the same tasks through the same endpoint and executor:
+\texttt{memory\_on} (relevance-retrieved lessons, minted and settled by
+eval outcome), \texttt{memory\_off}, and \texttt{random\_matched}
+(uniformly random lessons under the same token budget). The decisive
+control is \texttt{random\_matched}: beating \texttt{memory\_off} alone
+could be a token-budget effect, so the learning-curve claim is the
+second-half-minus-first-half improvement of \texttt{memory\_on} over
+\texttt{random\_matched} on at least three seeds per sequence.
+
+The dataset is pinned by an exact (commit, sha256) pair; the loader
+refuses any file whose hash differs. As of this writing the pin
+re-verifies against live upstream, the two pilot sequences hold (pytest,
+19 tasks; astropy, 22 tasks), and the full pipeline---manifest load, hash
+verification, strict task join, model call, diff extraction, settlement,
+lesson minting, and schema-valid output---has been validated end-to-end
+on a local model with the stub executor. \todo{Run the docker-evaluated
+pilot (3 seeds $\times$ 2 sequences, frontier endpoint) and report the
+per-position resolve-rate and settlement-delta curves here. This is the
+single highest-leverage result still outstanding.}

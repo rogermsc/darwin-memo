@@ -1,0 +1,73 @@
+\section{The Regime Map: When Conserved-Resource Selection Wins}
+\label{sec:regime}
+
+The experiments refuse a one-line verdict, and that refusal is the
+contribution. Conserved-resource selection is not universally best; it is
+best in a specific, characterizable regime, and worse outside it. Stating
+that regime precisely is more useful---and more defensible---than a claim
+that the ledger dominates, which our own tables would falsify. We
+synthesize the findings into four axes.
+
+\paragraph{Axis 1: Is there a conserved resource at all?}
+This is the gating precondition, not a tuning choice. The mechanism
+applies only where settlement can be a conserved, physically measured
+quantity: bytes freed, tests passed, issues resolved, spend capped.
+Where the only available signal is a model scoring an answer---chat
+preference, open-ended QA quality, ``helpfulness''---there is no conserved
+resource pushing back, upkeep would starve the long tail of
+correct-but-rarely-used knowledge, and the mechanism is the wrong tool by
+construction. We scope this out explicitly: systems like
+mem0/Zep/Letta serve that market and \textsc{darwin-memo} deliberately
+does not.
+
+\paragraph{Axis 2: Do measurements lie?}
+When measurements are truthful and deterministic, a one-line
+``evict-on-negative'' heuristic \emph{ties} the full ledger on outcomes
+(Table~\ref{tab:headline}); the ledger's extra machinery buys only
+leanness there. As measurements become noisy, the picture splits by
+\emph{shape}. Under one-sided false-bad noise (good actions sometimes
+misreport as bad---the flaky-CI case), the ledger's bounded-credit buffer
+with earn-back is decisively better than any fixed strike counter
+(Table~\ref{tab:noise}), and matches an optimistic confidence bandit only
+at high rates. Under symmetric noise that also rewards the guilty, every
+mechanism has a failure boundary; we locate the ledger's at roughly one
+lie in three and publish it. The honest rule: \emph{if your measurements
+never lie and you do not need leanness, the if-statement is the right
+tool}; the ledger earns its complexity exactly when measurements are
+noisy in a one-sided way, which is the common CI failure mode.
+
+\paragraph{Axis 3: Are refusals measured?}
+This axis decides the second-environment reversal. The ledger's leanness
+is an asset when inaction produces a measurable outcome (storage: keeping
+a file is measured) and a liability when refusing to act is free
+(test-suite: a skipped patch runs no suite, so a protective entry that
+keeps refusing a destructive change can never earn and starves). Where
+refusals are unpriced, a mechanism that never removes entries (a strike
+counter, or the bandit) outlasts the ledger because its protector refuses
+forever. The design implication is concrete: pair conserved-resource
+selection with an environment that prices inaction (e.g.\ a
+reverted-incident counter that pays a blocked bad change), or with a
+quarantine-style cooldown, and the reversal is expected to close. We do
+not claim it; the environment that would show it is future work.
+
+\paragraph{Axis 4: What do you need besides correctness?}
+Three needs select the ledger regardless of the above, because no other
+mechanism we tested provides them. \emph{Leanness}: only the energy
+ledger starves never-consulted entries; counters and the bandit hoard
+them (population 15--16 vs 4). \emph{Promptness}: the ledger kills
+actionable poison within one cycle, where the bandit needs several
+confirmed failures and recency never kills it. \emph{Cost}: settlement by
+a conserved scalar is $10^4$--$10^6\times$ cheaper than an LLM judge or
+generator, with no API dependency and no determinism loss.
+
+\paragraph{Summary.}
+Conserved-resource selection is the right curator when (1) a conserved
+resource exists, (2) measurements are noisy in a one-sided way, (3)
+inaction is priced or paired with recovery, and (4) leanness, prompt
+removal of harmful entries, label-free operation, or near-zero settlement
+cost are required. Outside that region a one-line heuristic, a confidence
+bandit, or a quarantine policy can match or beat it, and we have shown
+exactly where. The mechanism's deepest property is the one that holds
+across the entire map: because settlement is a conserved quantity the
+environment already produces, there is no proxy to optimize against, and
+nothing to hack.
