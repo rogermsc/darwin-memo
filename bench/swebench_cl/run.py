@@ -91,6 +91,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         code_context_chars=args.code_context_chars,
         code_cache_dir=args.code_cache_dir,
         code_max_files=args.code_max_files,
+        seed_poison=args.seed_poison,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))
@@ -159,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--disk-floor-gb", type=float, default=DISK_FLOOR_GB)
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--update-manifest", action="store_true")
+    run.add_argument("--seed-poison", action="store_true",
+                    help="seed the memory store with poison lessons before evaluation")
     run.set_defaults(fn=_cmd_run)
 
     args = parser.parse_args(argv)
