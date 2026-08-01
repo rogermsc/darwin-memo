@@ -37,6 +37,26 @@ a scaling law, and a corpus whose poison is reachable by generalizing
 benign patterns would not separate as cleanly. We present it as a
 secondary result and do not generalize it.
 
+\paragraph{The filter control is a reconstruction.}
+The write-time detector in \S\ref{sec:memsec} is a keyword and
+authority-marker rule we wrote, not a port of any published system. We
+give it the shape the published filters have and report its TPR/FPR in
+every row so its behaviour is visible rather than assumed, but a trained
+classifier would land elsewhere on the weak-signal class: the literature
+reports $31.6\%$ there, not the $0\%$ our reconstruction achieves. The
+claim the experiment supports is directional---content inspection
+degrades sharply on payloads written to look ordinary, where consequence
+does not---and not a numerical comparison against any named filter.
+
+\paragraph{Consolidation is a laundering surface.}
+Our own merge machinery carried a poisoned fragment to the end of every
+seed in one cell by pooling it with a correct entry that earns
+(\S\ref{sec:memsec}). The surviving text advises no action, so nothing
+punishes it, but it remains retrievable inside a well-fed entry. Any
+mechanism that consolidates memories inherits this channel, and we have
+not evaluated the obvious fix (refusing to merge across trust
+boundaries).
+
 \paragraph{Silence as a harbor.}
 In environments where inaction produces no measurement, a conservative
 entry can dodge lying measurements simply by staying silent, which

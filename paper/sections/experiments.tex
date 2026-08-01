@@ -105,6 +105,89 @@ consecutive $k{=}2$   & 12.38 / 1.00 & 11.47 / 0.81 & 9.12 / 0.48  & 3.73 / 0.06
 \end{tabular}
 \end{table}
 
+\subsection{Where each defence catches each attack}
+\label{sec:memsec}
+The memory-security literature defends memory before any consequence
+exists: at write (does this text look malicious?) and at retrieval
+(should this be injected?). Both read content, and the systematic study
+of memory poisoning reports the cost---content detectors average
+$63.6\%$ true-positive rate on strong-signal payloads and $31.6\%$ on
+weak-signal ones, payloads written to read like ordinary operational
+facts \citep{mpbench2026}. We run that split on our own harness rather
+than arguing it, with three attack classes and a reconstructed
+write-time filter as the control.
+
+The classes differ only where they must. \emph{Explicit} (strong signal)
+wraps the packaged poison's actionable claim, verbatim, in imperative
+override and claimed authority, so any outcome difference is
+attributable to the surface and not to the payload.
+\emph{Policy-conformant} (weak signal) is the packaged poison unchanged:
+a plausible operational fact---these files are redundant copies---in the
+register of a real runbook. \emph{Inert} advises no action at all: it is
+the dormant case, and the honest limit of outcome-grounded revocation,
+since an entry that never acts can never be caught by consequence. The
+filter is a reconstruction, not a port, and we give it the charitable
+form: it screens whole documents before encoding, so it sees the payload
+as delivered rather than the fragments an encoder later makes of it.
+
+The result (Table~\ref{tab:memsec}) is a clean division of labour, and
+it includes a loss. On the strong-signal class the filter is simply
+better than we are: it blocks at write for zero damage, where the ledger
+must let the entry act once and pays $-0.39$M before revoking it.
+Prevention beats revocation whenever detection works. On the
+weak-signal class the filter is \emph{byte-identical to no defence at
+all}---TPR $0.00$, $-12.1$M of damage, the poison alive at cycle 30---and
+the ledger turns the same run into $+12.6$M, a $21.7$M swing on the class
+that content inspection cannot see. On the inert class nothing detects
+anything, and only the ledger removes the payload, by starvation at a
+median cycle 19; every other arm carries all three poisoned entries to
+the end of the run. Starvation, not detection, is the answer to dormant
+poison, and no filter has it.
+
+\paragraph{Consolidation launders a poisoned fragment.}
+One cell does not come out clean, and it is ours. Under
+\texttt{explicit}$+$\texttt{ledger} a single poisoned entry survives all
+30 cycles on all 10 seeds with energy \emph{above} its spawn value. It
+is a consolidation artifact: the merge machinery absorbed the
+authority-claim fragment into an entry that also carries the true
+platform-notes content, and the merged entry earns because its useful
+half answers correctly. The poisoned text advises no action, so nothing
+punishes it, and it stays retrievable inside a well-fed entry. This is
+the compaction-driven write channel \citep{mpbench2026} appearing inside
+our own mechanism: consolidation is a poison-laundering surface, and any
+system that merges memories inherits it. We report it rather than tune
+it away; a merge that refuses to pool entries across trust boundaries is
+the obvious fix and we have not evaluated one.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Attack class $\times$ where the defence sits, 10 seeds. Harm and
+cum $\Delta$ in M of true bytes; starve cycle is when the last poisoned
+entry of any kind is gone. The filter wins the strong-signal row; it is
+identical to no defence on the weak-signal row; only the ledger empties
+the store of dormant poison.}
+\label{tab:memsec}
+\begin{tabular}{llccccc}
+\toprule
+attack & defence & filter TPR & harm & cum $\Delta$ & starve & alive@30 \\
+\midrule
+\multirow{2}{*}{explicit}
+ & filter        & 1.00 & \textbf{0.00} & \textbf{13.52} & 0 & 0 \\
+ & ledger        & 1.00 & $-$0.39 & 12.59 & never & 1 \\
+\midrule
+\multirow{3}{*}{policy-conformant}
+ & none          & 0.00 & $-$12.11 & $-$9.08 & never & 3 \\
+ & filter        & 0.00 & $-$12.11 & $-$9.08 & never & 3 \\
+ & ledger        & 0.00 & \textbf{$-$0.39} & \textbf{12.59} & 19 & 0 \\
+\midrule
+\multirow{2}{*}{inert (dormant)}
+ & filter        & 0.00 & 0.00 & 13.52 & never & 3 \\
+ & ledger        & 0.00 & 0.00 & 13.52 & \textbf{19} & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Curation-targeted attack: denial of memory}
 \label{sec:adversary}
 Every curation mechanism is itself an attack surface, and the

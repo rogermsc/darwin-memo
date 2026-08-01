@@ -9,6 +9,7 @@ from typing import Any
 from darwin_memo import MemoryStore, consolidate
 
 from .corpus import synthetic_entries, synthetic_queries
+from .memsec import ATTACK_CLASSES
 from .policies import ARMS
 
 
@@ -264,6 +265,41 @@ def adversary_suite(seeds: list[int]) -> list[RunSpec]:
         )
         for budget in ADVERSARY_BUDGETS
         for arm, extra, suffix in ADVERSARY_VARIANTS
+        for seed in seeds
+    ]
+
+
+# Attack classes crossed with where the defence sits: at write (content
+# filter), at consequence (the ledger), both, or nowhere.
+MEMSEC_DEFENCES: list[tuple[str, dict[str, Any], str]] = [
+    ("keep_everything", {}, "none"),
+    ("keep_everything", {"content_filter": True}, "filter"),
+    ("survival", {}, "ledger"),
+    ("survival", {"content_filter": True}, "filter+ledger"),
+]
+
+
+def memsec_suite(seeds: list[int]) -> list[RunSpec]:
+    """Where does each defence catch each attack class?
+
+    The pre-registered expectation, written before the runs: the filter
+    catches the strong-signal class at write and is blind to the
+    weak-signal one, reproducing the 2:1 detection gap the literature
+    reports; the ledger catches both at consequence but only once they
+    act; and neither detects the inert class, which only upkeep removes.
+    If the filter turns out to catch the weak-signal payload here, the
+    reconstruction is too strong and the comparison is void.
+    """
+    return [
+        RunSpec(
+            suite="memsec",
+            arm=arm,
+            seed=seed,
+            overrides={"attack": attack, **extra},
+            label=f"attack={attack},defence={where}",
+        )
+        for attack in ATTACK_CLASSES
+        for arm, extra, where in MEMSEC_DEFENCES
         for seed in seeds
     ]
 

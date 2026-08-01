@@ -375,6 +375,97 @@ curve's shape.
   means differ slightly from headline means. Exact per-seed parity at
   rate 0.00 is pinned by a unit test instead.
 
+## Attack classes: where each defence catches each attack
+
+```
+python -m bench.run --suite memsec --seeds 0:10 \
+    --out bench/results/memsec.json --update-manifest
+```
+
+The published defences read *content*, at write or at retrieval, before
+any consequence exists. The reported cost of that is a 2:1 detection gap
+between payloads that announce themselves and payloads written to read
+like ordinary ops facts. `bench/memsec.py` runs the split here: three
+attack classes, and a reconstructed write-time filter as the control.
+
+- `explicit` (strong signal) — the packaged poison's actionable claim
+  **verbatim**, wrapped in imperative override and claimed authority. The
+  classes differ only in the wrapper, so any outcome difference is the
+  surface's doing, not the payload's.
+- `policy_conformant` (weak signal) — the packaged demo poison,
+  unchanged. A plausible operational fact in a runbook's register.
+- `inert` (dormant) — advises no action at all. Nothing can attribute an
+  outcome to it, which makes it the honest limit of outcome-grounded
+  revocation.
+
+The filter screens whole **documents** before encoding — the charitable
+reading of a real detector, which sees the payload as delivered rather
+than the fragments an encoder makes of it. Filtering fragments instead
+would flatter us: on `explicit` it drops 5 of 7 poisoned entries and the
+one that actually advises the harmful action is not among them.
+
+10 seeds. Harm and cum delta in M of true bytes:
+
+| attack | defence | filter TPR | harm before kill | cum delta | starve cycle | poison alive @30 |
+|---|---|---|---|---|---|---|
+| explicit | none | 1.00 | -12.11 | -9.08 | never | 7 |
+| explicit | **filter** | 1.00 | **0.00** | **13.52** | 0 | 0 |
+| explicit | ledger | 1.00 | -0.39 | 12.59 | never | 1 |
+| explicit | filter+ledger | 1.00 | 0.00 | 13.52 | 0 | 0 |
+| policy_conformant | none | 0.00 | -12.11 | -9.08 | never | 3 |
+| policy_conformant | filter | 0.00 | -12.11 | -9.08 | never | 3 |
+| policy_conformant | **ledger** | 0.00 | **-0.39** | **12.59** | 19 | 0 |
+| policy_conformant | filter+ledger | 0.00 | -0.39 | 12.59 | 19 | 0 |
+| inert | none | 0.00 | 0.00 | 13.52 | never | 3 |
+| inert | filter | 0.00 | 0.00 | 13.52 | never | 3 |
+| inert | **ledger** | 0.00 | 0.00 | 13.52 | **19** | **0** |
+
+Three findings, one of them a loss:
+
+- **The filter beats the ledger on the strong-signal class.** It blocks
+  at write for zero damage; the ledger has to let the entry act once and
+  pays -0.39M before revoking. Prevention beats revocation wherever
+  detection works, and that is worth saying plainly.
+- **On the weak-signal class the filter is byte-identical to no defence**
+  (TPR 0.00, -12.11M, poison alive at cycle 30) while the ledger ends
+  +12.59M. A 21.7M swing on the class content inspection cannot see.
+- **Only the ledger empties the store of dormant poison**, by starvation
+  at median cycle 19. Filter and no-defence both carry all three inert
+  entries to the end. Starvation is the answer to dormant poison; no
+  detector has it.
+
+### The consolidation leak, on the record
+
+Under `explicit` + `ledger` one poisoned entry survives all 30 cycles on
+all 10 seeds, with energy *above* its spawn value. It is a consolidation
+artifact: the merge machinery absorbed the authority-claim fragment into
+an entry that also carries the true platform-notes content, and the
+merged entry earns because its useful half answers correctly. The
+poisoned text advises nothing, so nothing punishes it, and it stays
+retrievable inside a well-fed entry.
+
+This is the compaction-driven write channel appearing inside our own
+mechanism. Consolidation is a poison-laundering surface and any system
+that merges memories inherits it. Not tuned away: a merge that refuses
+to pool entries across trust boundaries is the obvious fix, and it is
+not evaluated here.
+
+### Caveats, on the record
+
+- The filter is a **reconstruction**, a keyword and authority-marker
+  detector, not a port of any published system. It is built to have the
+  shape those systems have (fires on imperative override and claimed
+  authority, blind to a calm false statement of fact). Its TPR/FPR on
+  this corpus is reported in every row so the reconstruction's own
+  behaviour is visible rather than assumed. A trained classifier would
+  land somewhere else on the weak-signal class, and the 31.6% the
+  literature reports is not 0%.
+- One attack per corpus, so the document-level FPR is coarse (3 docs).
+- `poison_killed`/`poison_kill_cycle` track only the poison that ADVISES
+  ACTION, which reads as "already dead at cycle 0" for the inert class.
+  That is why `poison_starve_cycle` and `poison_alive_final` exist;
+  reading the inert row off the kill columns alone would be wrong.
+
 ## Curation-targeted attack: denial of memory
 
 ```

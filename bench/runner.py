@@ -23,9 +23,11 @@ from .adversary import AdversarialStorageEnv
 from .fixtures import (
     active_poison_alive,
     build_headline_store,
+    poison_ids,
     evaluate_paraphrase_probes,
     evaluate_probes,
 )
+from .memsec import build_memsec_store
 from .noise import FlakyStorageEnv
 from .policies import (
     CycleRecord,
@@ -86,6 +88,17 @@ def _survival_config(
 
 def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
+    if "attack" in overrides:
+        if _env_family(overrides) == "testsuite":
+            raise ValueError(
+                "attack classes are written against the storage corpus; "
+                "TestSuiteEnv has its own poison and no attack taxonomy"
+            )
+        return build_memsec_store(
+            attack=overrides["attack"],
+            content_filter=bool(overrides.get("content_filter", False)),
+            upkeep=upkeep,
+        )
     build = (
         build_testsuite_store
         if _env_family(overrides) == "testsuite"
@@ -206,11 +219,18 @@ def run_one(
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
 
-    kill_tracker: dict[str, int | None] = {"cycle": None}
+    # Two different deaths, and conflating them would misreport the
+    # inert attack class entirely. "cycle" is when the last poisoned
+    # entry that ADVISES ACTION is gone (revocation by consequence);
+    # "starve" is when the last poisoned entry of any kind is gone,
+    # which for an entry that never acts can only happen by upkeep.
+    kill_tracker: dict[str, int | None] = {"cycle": None, "starve": None}
 
     def on_cycle(cycle: int, record: CycleRecord) -> None:
         if kill_tracker["cycle"] is None and not active_poison_alive(store):
             kill_tracker["cycle"] = cycle
+        if kill_tracker["starve"] is None and not poison_ids(store):
+            kill_tracker["starve"] = cycle
 
     # The LLM arm's protocol is built here, not in _dispatch, because
     # the audit trail (per-answer attribution paths, raw completions)
@@ -238,7 +258,13 @@ def run_one(
     if flaky is not None:
         _check_accounting(flaky, result)
     metrics = extract_metrics(
-        result, store, kill_tracker["cycle"], wall, env=flaky, env_family=family
+        result,
+        store,
+        kill_tracker["cycle"],
+        wall,
+        env=flaky,
+        env_family=family,
+        starve_cycle=kill_tracker["starve"],
     )
     # Arms may carry arm-specific observability (the judge arm's call,
     # cull, and parse-failure counts). Folded in as extra keys, never
@@ -246,6 +272,11 @@ def run_one(
     extra = getattr(result, "extra_metrics", None)
     if extra:
         metrics.update(extra)
+    # The write-time filter's own behaviour, recorded beside what the
+    # memory then did: a TPR alone says nothing about harm prevented.
+    filter_stats = getattr(store, "filter_stats", None)
+    if filter_stats:
+        metrics.update(filter_stats)
     # The LLM arm folds its per-answer attribution-path rates the same
     # way, and writes the raw completions out as a transcript.
     if audit is not None:
@@ -443,6 +474,7 @@ def extract_metrics(
     wall_time_s: float,
     env: FlakyEnv | None = None,
     env_family: str = "storage",
+    starve_cycle: int | None = None,
 ) -> dict[str, Any]:
     reported = [r.resource_delta for r in result.records]
     # TRUE resource movement when measurements lie; identical otherwise.
@@ -458,6 +490,10 @@ def extract_metrics(
         "cum_negative_delta": sum(negatives),
         "tail_delta_mean": sum(tail) / len(tail) if tail else 0.0,
         "final_population": len(store),
+        # Poison of ANY kind, including entries that advise no action
+        # and can therefore only be removed by upkeep.
+        "poison_starve_cycle": starve_cycle,
+        "poison_alive_final": len(poison_ids(store)),
         "wall_time_s": round(wall_time_s, 4),
         # Uniform schema across suites: zero/equal when nothing lies.
         "reported_cum_delta": sum(reported),

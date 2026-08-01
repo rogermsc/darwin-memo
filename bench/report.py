@@ -178,7 +178,10 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     # Noise-validity canary: keep_everything never reads outcomes, so
     # its TRUE cum delta must be identical across every noise rate and
     # model at a fixed (seed, cycles, files). Drift = harness bug.
-    canary: dict[tuple[str, int, int, int], set[float]] = {}
+    # The attack class and the write-time filter are NOT noise: they
+    # change which entries exist, so they belong in the key rather than
+    # inside a set the canary expects to be a singleton.
+    canary: dict[tuple[str, int, int, int, str, bool], set[float]] = {}
     for r in runs:
         if r["arm"] == "keep_everything":
             cfg = r.get("config", {})
@@ -187,6 +190,8 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
                 r["seed"],
                 cfg.get("cycles", 0),
                 cfg.get("files_per_cycle", 0),
+                str(cfg.get("attack", "")),
+                bool(cfg.get("content_filter", False)),
             )
             canary.setdefault(key, set()).add(r["metrics"]["cum_delta"])
     for key, values in canary.items():
