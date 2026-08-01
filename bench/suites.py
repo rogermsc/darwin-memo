@@ -227,6 +227,47 @@ def noisy_suite(seeds: list[int]) -> list[RunSpec]:
     return specs
 
 
+# The curation-targeted threat model (bench/adversary.py): the same
+# mechanisms as the noise grid, attacked instead of merely lied to.
+# Budget 0 reproduces the deterministic headline tie in-suite and is
+# the canary that the wrapper adds no behaviour when unfunded.
+ADVERSARY_BUDGETS: tuple[int, ...] = (0, 1, 2, 4, 8)
+
+ADVERSARY_VARIANTS: list[tuple[str, dict[str, Any], str]] = [
+    ("survival", {}, ""),
+    ("evict_on_negative", {"strikes": 1}, ",k=1"),
+    ("evict_on_negative", {"strikes": 3}, ",k=3"),
+    ("evict_consecutive", {"strikes": 2}, ",k=2"),
+    ("quarantine", {"suspend": 3}, ",m=3"),
+    ("policy_bandit", {}, ""),
+    ("keep_everything", {}, ""),  # true-delta canary: attack-invariant
+]
+
+
+def adversary_suite(seeds: list[int]) -> list[RunSpec]:
+    """Denial-of-memory: who survives an attacker aiming at the curator?
+
+    Read the two halves together. ``probe_benign_correct_rate`` is the
+    defender's retained capability (the collateral-damage axis that
+    MemSecBench reports as its Forget-stage bottleneck), and
+    ``poison_killed``/``poison_kill_cycle`` say whether the attacker
+    also managed to keep its own entry alive. A mechanism that scores
+    well on one and badly on the other has not defended anything.
+    """
+    return [
+        RunSpec(
+            suite="adversary",
+            arm=arm,
+            seed=seed,
+            overrides={"lie_budget": budget, **extra},
+            label=f"budget={budget}{suffix}",
+        )
+        for budget in ADVERSARY_BUDGETS
+        for arm, extra, suffix in ADVERSARY_VARIANTS
+        for seed in seeds
+    ]
+
+
 def bandit_suite(seeds: list[int]) -> list[RunSpec]:
     """The AEL objection, run rather than argued (arXiv 2604.21725).
 

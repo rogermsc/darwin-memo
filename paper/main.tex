@@ -63,7 +63,14 @@ where a one-line heuristic or a confidence bandit matches or beats it.
 The differentiators that survive every comparison are sharp: it starves
 dead weight, kills actionable poison within one cycle, tolerates lying
 measurements that defeat strike counters, requires no labels, and settles
-$10^4$--$10^6$ times more cheaply than an LLM judge or generator. Every
+$10^4$--$10^6$ times more cheaply than an LLM judge or generator. We
+also define a threat model the memory-security literature has not---the
+\emph{curation-targeted attack}, where the adversary corrupts the signal
+the curator decides on in order to starve the defender's benign
+memory---and show that one corrupted measurement per cycle destroys the
+benign capability of every strike counter and quarantine policy we test,
+on all 30 seeds, at no cost to the ledger, whose own boundary we locate
+and publish. Every
 number is produced by a stdlib-only harness with pre-registered
 hypotheses, seed-level bootstrap intervals, paired permutation tests, and
 committed per-seed data validated against its manifest in CI.

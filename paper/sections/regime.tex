@@ -36,6 +36,20 @@ never lie and you do not need leanness, the if-statement is the right
 tool}; the ledger earns its complexity exactly when measurements are
 noisy in a one-sided way, which is the common CI failure mode.
 
+\paragraph{Axis 2b: Do measurements lie \emph{on purpose}?}
+The sharpest version of Axis 2 is adversarial rather than stochastic. If
+an attacker can corrupt the signal the curator decides on, it can turn
+the defence into a weapon and starve the benign entries that stand in
+its way (\S\ref{sec:adversary}). Here the separation is not a matter of
+degree: at one corrupted measurement per cycle every strike counter and
+the quarantine policy lose all benign capability---\texttt{evict\_on\_%
+negative} after three lies---while the ledger loses none, on all 30
+seeds. The bounded-credit buffer stops being ornamental the moment the
+noise has an author. The boundary is published too: past roughly one
+corrupted measurement in six per cycle the ledger falls as well, and
+above that only mechanisms that never delete retain capability, which
+they do by never defending.
+
 \paragraph{Axis 3: Are refusals measured?}
 This axis decides the second-environment reversal. The ledger's leanness
 is an asset when inaction produces a measurable outcome (storage: keeping
@@ -62,7 +76,8 @@ generator, with no API dependency and no determinism loss.
 
 \paragraph{Summary.}
 Conserved-resource selection is the right curator when (1) a conserved
-resource exists, (2) measurements are noisy in a one-sided way, (3)
+resource exists, (2) measurements are noisy in a one-sided way or
+corrupted by an adversary, (3)
 inaction is priced or paired with recovery, and (4) leanness, prompt
 removal of harmful entries, label-free operation, or near-zero settlement
 cost are required. Outside that region a one-line heuristic, a confidence

@@ -76,9 +76,13 @@ The properties that survive every comparison in our study are:
   \item \textbf{It kills actionable poison promptly}---within one
   cycle---where a confidence bandit needs several confirmed failures and
   a recency policy never kills it at all.
-  \item \textbf{It tolerates lying measurements.} A continuous energy
-  buffer with earn-back forgives transient false signals that linearly
-  consume any strike counter.
+  \item \textbf{It tolerates lying measurements}, including adversarial
+  ones. A continuous energy buffer with earn-back forgives transient
+  false signals that linearly consume any strike counter, and it is the
+  only mechanism we test that withstands an attacker aiming at the
+  curator itself rather than at the memory---one corrupted measurement
+  per cycle destroys every counter's benign capability and costs the
+  ledger nothing.
   \item \textbf{It needs no labels and no judge}, and so settles
   $10^4$--$10^6\times$ more cheaply than an LLM-judge or LLM-generator
   arm doing the same per-cycle work.
@@ -96,8 +100,13 @@ tests, and committed per-seed data validated against a manifest in CI
 \citep{xu2026ael}, an LLM-judge settler, and a Generative-Agents-style
 salience score \citep{park2023generative}---run on the same harness
 rather than argued about.
-(4) The regime map itself (\S\ref{sec:regime}): an honest, boundary-aware
+(4) A threat model the memory-security literature has not defined---the
+\emph{curation-targeted attack}, in which the adversary corrupts the
+signal a curator decides on in order to starve the defender's benign
+memory---together with the first measurement of how existing curation
+mechanisms fare under it (\S\ref{sec:adversary}).
+(5) The regime map itself (\S\ref{sec:regime}): an honest, boundary-aware
 statement of where the mechanism wins, ties, and loses, including
-published failure boundaries under measurement noise.
+published failure boundaries under measurement noise and attack.
 \todo{(5) a SWE-Bench-CL learning-curve result on real software-engineering
 tasks; harness validated, protocol pre-registered (\S\ref{sec:experiments}).}

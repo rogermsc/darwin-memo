@@ -375,6 +375,93 @@ curve's shape.
   means differ slightly from headline means. Exact per-seed parity at
   rate 0.00 is pinned by a unit test instead.
 
+## Curation-targeted attack: denial of memory
+
+```
+python -m bench.run --suite adversary --seeds 0:30 \
+    --out bench/results/adversary.json --update-manifest
+python -m bench.report bench/results/adversary.json \
+    --tests --baseline survival --metric probe_benign_correct_rate
+```
+
+The noise suite asks what happens when measurements lie by accident.
+This one asks what happens when they lie *on purpose*. Every curation
+mechanism decides which entries live, so an attacker who can corrupt the
+deciding signal can weaponise the curator: blame the benign entries that
+stand in its way, pay the poisoned one it planted. `bench/adversary.py`
+keeps the world truthful and fixed (same seed, same files, same true
+deltas) and flips the *reported* sign on up to `lie_budget` measured
+tasks per cycle, spending greedily. The attacker sees only the sign of
+the true delta — never the store, the provenance, or which entry decided
+— so it is strictly weaker than one with store access.
+
+Mean true cum delta (M) / benign capability, 30 seeds:
+
+| arm | b=0 | b=1 | b=2 | b=4 | b=8 |
+|---|---|---|---|---|---|
+| **survival** | 12.38 / 1.00 | **12.30 / 1.00** | **11.66 / 0.99** | 1.12 / 0.06 | -21.10 / 0.00 |
+| evict k=1 | 12.57 / 1.00 | 0.23 / 0.00 | -0.08 / 0.00 | -2.03 / 0.00 | -16.54 / 0.00 |
+| evict k=3 | 12.10 / 1.00 | 2.07 / 0.00 | 0.53 / 0.00 | -2.03 / 0.00 | -21.32 / 0.00 |
+| consecutive k=2 | 12.38 / 1.00 | 9.37 / 0.52 | 1.05 / 0.00 | -6.51 / 0.00 | -20.06 / 0.00 |
+| quarantine m=3 | 5.12 / 1.00 | -2.08 / 0.21 | -3.59 / 0.12 | -6.33 / 0.03 | -14.79 / 0.01 |
+| policy_bandit | 10.86 / 1.00 | 9.39 / 1.00 | 5.23 / 1.00 | -7.75 / 1.00 | -19.38 / 0.00 |
+| keep_everything | -8.84 / 1.00 | -8.84 / 1.00 | -8.84 / 1.00 | -8.84 / 1.00 | -8.84 / 1.00 |
+
+Poison-kill rate / final population, same cells:
+
+| arm | b=0 | b=1 | b=2 | b=4 | b=8 |
+|---|---|---|---|---|---|
+| **survival** | 1.00 / 4.0 | 1.00 / 4.0 | 1.00 / 4.0 | 0.97 / 1.5 | 0.00 / 4.0 |
+| evict k=1 | 1.00 / 15.0 | 1.00 / 12.0 | 1.00 / 12.0 | 0.97 / 12.0 | 0.23 / 12.8 |
+| consecutive k=2 | 1.00 / 15.0 | 1.00 / 13.6 | 1.00 / 12.0 | 0.80 / 12.2 | 0.07 / 12.9 |
+| quarantine m=3 | 1.00 / 15.0 | 1.00 / 12.6 | 1.00 / 12.4 | 1.00 / 12.3 | 0.80 / 12.9 |
+| policy_bandit | 1.00 / 15.0 | 1.00 / 15.0 | 0.97 / 15.0 | 0.07 / 15.9 | 0.00 / 13.0 |
+| keep_everything | 0.00 / 16.0 | 0.00 / 16.0 | 0.00 / 16.0 | 0.00 / 16.0 | 0.00 / 16.0 |
+
+Survival beats every counter on benign capability at b=1 and b=2 on
+**all 30 seeds**, Holm-adjusted p = 0.0015 across the 30-comparison
+grid. At b>=4 the comparison reverses and `keep_everything`/`policy_bandit`
+beat survival (also p = 0.0015) — read that row with the kill rate next
+to it.
+
+### What the two halves mean together
+
+- **Benign capability alone is not a defence score.** `keep_everything`
+  scores 1.00 at every budget because it never deletes anything; it also
+  never kills the poison and runs 8.8M bytes underwater the whole time.
+  `policy_bandit` holds 1.00 through b=4 the same way, and its kill rate
+  falls to 0.07 while it goes 7.75M underwater. A mechanism that defends
+  nothing looks perfectly safe on the retention axis.
+- **The counters are cheap to attack.** `evict_on_negative` k=1 fires
+  only ~3 lies before losing all benign capability: once its good
+  entries are gone it stops acting, and an adversary stops paying for a
+  defence that has already fallen. Survival absorbed 30 fired lies at
+  b=1 and 60 at b=2 for no loss.
+- **b=0 is the canary.** At budget 0 the wrapper adds exactly zero
+  behaviour: every metric is byte-identical to the unattacked run, which
+  is what makes the rest of the column attributable to the attack rather
+  than to the harness.
+
+### Caveats, on the record
+
+- The attacker is sign-only and budget-greedy. A provenance-reading
+  attacker that targets a *named* entry is strictly stronger and is not
+  run here; it would widen these gaps, not close them, but the claim
+  stated is only about the sign-only case.
+- `flakes_fired` is endogenous to the arm here even more than under
+  random noise, because the adversary spends budget only on measured
+  tasks. Cross-arm comparison at matched *capacity* (the budget) is what
+  the table shows; matched *fired-lie* comparison is the stricter test
+  and survival wins that one by construction, having absorbed ~10x the
+  lies at b=1.
+- Same single-family dependence as everything above: `StorageEnv` only.
+  The adversary is not implemented for `TestSuiteEnv` and the runner
+  refuses `lie_budget` there rather than silently ignoring it.
+- `random_matched`, `salience_matched`, `survival_writes` and
+  `judge_settled` are refused under attack for the same reasons they are
+  refused under noise (shadow schedules from an unattacked world;
+  in-loop components reading detail strings that name the truth).
+
 ## Second environment family: TestSuiteEnv
 
 Everything above runs on `StorageEnv`, and the caveats have named that

@@ -19,6 +19,7 @@ from darwin_memo.retrieval import (
     LexicalRetriever,
 )
 
+from .adversary import AdversarialStorageEnv
 from .fixtures import (
     active_poison_alive,
     build_headline_store,
@@ -53,10 +54,11 @@ if TYPE_CHECKING:
 SCHEMA_VERSION = 1
 TAIL = 5
 
-# Both noise wrappers expose the same accounting surface (true vs
-# reported per-cycle deltas, fired-lie counters, the distortion sum),
-# so everything downstream of env construction treats them as one type.
-FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv
+# Both noise wrappers and the adversary expose the same accounting
+# surface (true vs reported per-cycle deltas, fired-lie counters, the
+# distortion sum), so everything downstream of env construction treats
+# them as one type.
+FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv | AdversarialStorageEnv
 
 
 def _env_family(overrides: dict[str, Any]) -> str:
@@ -163,6 +165,11 @@ def run_one(
                 "noise_model is a StorageEnv knob; TestSuiteEnv has one "
                 "noise model (flaky pass counts), selected by flake_rate"
             )
+        if "lie_budget" in overrides:
+            raise ValueError(
+                "lie_budget is a StorageEnv knob; the curation-targeted "
+                "adversary is not implemented for TestSuiteEnv"
+            )
         defects = int(overrides.get("defects_per_cycle", 3))
         if "flake_rate" in overrides:
             env = FlakyTestSuiteEnv(
@@ -173,6 +180,19 @@ def run_one(
             )
         else:
             env = TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed)
+    elif "lie_budget" in overrides:
+        if "flake_rate" in overrides:
+            raise ValueError(
+                "lie_budget and flake_rate are two different threat models "
+                "(adaptive adversary vs random noise); running both at once "
+                "would attribute the result to neither"
+            )
+        env = AdversarialStorageEnv(
+            root=workdir,
+            files_per_cycle=files_per_cycle,
+            seed=seed,
+            lie_budget=overrides["lie_budget"],
+        )
     elif "flake_rate" in overrides:
         env = FlakyStorageEnv(
             root=workdir,
@@ -214,7 +234,7 @@ def run_one(
     # outcome metrics are computed from the TRUE resource movement: the
     # benchmark scores what actually happened to the disk, exactly the
     # position of a system whose CI sometimes lies to it.
-    flaky = env if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)) else None
+    flaky = env if isinstance(env, FlakyEnv) else None
     if flaky is not None:
         _check_accounting(flaky, result)
     metrics = extract_metrics(
@@ -261,7 +281,7 @@ def run_one(
             "darwin_memo": darwin_memo.__version__,
         },
     }
-    if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)):
+    if isinstance(env, FlakyEnv):
         run["per_cycle_true_delta"] = list(env.true_deltas)
     return run
 
@@ -277,7 +297,11 @@ def _dispatch(
     on_cycle: Any,
     audit: AuditedProtocol | None = None,
 ) -> PolicyResult:
-    noisy = "flake_rate" in overrides
+    # The adversary lies about measurements too, so every arm that is
+    # undefined under noise is undefined under attack for the same
+    # reasons: a shadow schedule derived from an unattacked world, or an
+    # in-loop component reading detail strings that name the truth.
+    noisy = "flake_rate" in overrides or "lie_budget" in overrides
     if noisy and arm in (
         "random_matched",
         "salience_matched",

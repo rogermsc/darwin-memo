@@ -8,6 +8,8 @@ python -m bench.run --suite testsuite --seeds 0:10 \
 python -m bench.run --suite testsuite_noisy --seeds 0:30 \
     --out bench/results/testsuite_noisy.json
 python -m bench.run --suite bandit   --seeds 0:10 --out bench/results/bandit.json
+python -m bench.run --suite adversary --seeds 0:10 \
+    --out bench/results/adversary.json
 python -m bench.run --suite judge --seeds 0:5 --judge-models llama3.2:3b \
     --out bench/results/judge-llama.json
 python -m bench.run --suite judge --seeds 0:5 --judge-models qwen3:4b \
@@ -33,6 +35,7 @@ from .suites import (
     JUDGE_MODELS,
     RunSpec,
     ablation_suite,
+    adversary_suite,
     bandit_suite,
     headline_suite,
     judge_suite,
@@ -133,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             "salience",
             "llm",
             "bandit",
+            "adversary",
             "judge",
             "distill",
             "distill_merge",
@@ -228,6 +232,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.suite == "llm":
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
+    elif args.suite == "adversary":
+        runs = _execute(adversary_suite(_parse_seeds(args.seeds)))
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "salience":
