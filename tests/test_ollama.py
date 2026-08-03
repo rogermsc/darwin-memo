@@ -24,7 +24,11 @@ class FakeOllama(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/tags":
-            self._reply({"models": [{"name": "llama3.2", "digest": "sha256:feedc0de"}]})
+            # Ollama reports a bare pull as ":latest"; the fake said
+            # "llama3.2" and hid a real lookup miss for years.
+            self._reply(
+                {"models": [{"name": "llama3.2:latest", "digest": "sha256:feedc0de"}]}
+            )
         else:
             self.send_error(404)
 
@@ -103,7 +107,15 @@ def test_client_sends_think_when_set(fake_ollama):
 
 
 def test_model_digest_lookup(fake_ollama):
+    # A bare name must resolve against the ":latest" the server reports,
+    # or the manifest records null for a model that is pulled and running.
     assert ollama_model_digest("llama3.2", base_url=fake_ollama) == "sha256:feedc0de"
+    assert (
+        ollama_model_digest("llama3.2:latest", base_url=fake_ollama)
+        == "sha256:feedc0de"
+    )
+    # An explicit tag stays explicit: it must not fall back to :latest.
+    assert ollama_model_digest("llama3.2:3b", base_url=fake_ollama) is None
     assert ollama_model_digest("absent:1b", base_url=fake_ollama) is None
     assert ollama_model_digest("llama3.2", "http://127.0.0.1:9", timeout=0.2) is None
 
