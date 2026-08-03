@@ -29,6 +29,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+from bench.manifest import MANIFEST_NAME
 from bench.stats import bootstrap_ci, paired_permutation_pvalue
 
 Run = dict[str, Any]
@@ -45,8 +46,15 @@ def load_runs(path: Path) -> list[Run]:
 
 
 def load_dir(directory: Path) -> list[Run]:
-    """Every cell in a results directory, concatenated."""
-    files = sorted(directory.glob("*.json"))
+    """Every cell in a results directory, concatenated.
+
+    The sibling manifest lives in the same directory and is not a cell;
+    each docker cell binds itself there as it lands, so it is always
+    present once anything has run.
+    """
+    files = sorted(
+        path for path in directory.glob("*.json") if path.name != MANIFEST_NAME
+    )
     if not files:
         raise ValueError(f"{directory}: no result files")
     return [run for path in files for run in load_runs(path)]
@@ -90,6 +98,14 @@ def learning_delta(runs: Sequence[Run]) -> float:
     An odd number of tasks drops the middle one so the halves are the
     same size; an unequal split would let a single task's outcome move
     the statistic differently depending on which side it landed on.
+
+    This number is NOT interpretable on its own. SWE-Bench-CL sequences
+    are curricula ordered by increasing difficulty, so the second half is
+    harder by construction and every arm posts a negative delta whether
+    or not it learned anything. Only the arm-minus-control difference
+    means something, because both arms walk the same ordering and the
+    difficulty gradient cancels. That is what ``compare`` returns and
+    what the claim is pre-registered on.
     """
     ordered = _ordered(runs)
     half = len(ordered) // 2

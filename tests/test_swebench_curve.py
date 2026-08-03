@@ -160,3 +160,29 @@ def test_arm_summary_reports_final_population_not_first():
     assert row["final_population"] == 4
     assert row["tasks"] == 2
     assert row["cells"] == 1
+
+
+def test_load_dir_ignores_the_sibling_manifest(tmp_path):
+    # Docker cells bind themselves to MANIFEST.json in the same directory,
+    # so it is always present once anything has run; it is not a cell and
+    # has no "runs" key to read.
+    import json
+
+    from bench.swebench_cl.curve import load_dir
+
+    (tmp_path / "MANIFEST.json").write_text(
+        json.dumps({"schema_version": 1, "files": {}})
+    )
+    (tmp_path / "memory_on-seq-seed0.json").write_text(
+        json.dumps({"runs": cell("memory_on", 0, [True, False])})
+    )
+    runs = load_dir(tmp_path)
+    assert len(runs) == 2
+    assert {r["arm"] for r in runs} == {"memory_on"}
+
+
+def test_load_dir_refuses_an_empty_directory(tmp_path):
+    from bench.swebench_cl.curve import load_dir
+
+    with pytest.raises(ValueError, match="no result files"):
+        load_dir(tmp_path)

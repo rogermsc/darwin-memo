@@ -455,6 +455,14 @@ learning-curve claim is the second-half-minus-first-half improvement of
 \texttt{memory\_on} over \texttt{random\_matched} on at least three
 seeds per sequence.
 
+That difference, and not either arm's own second-half-minus-first-half
+figure, is the quantity. These sequences are \emph{curricula} ordered by
+increasing difficulty, so the second half is harder by construction and
+every arm posts a negative within-arm delta whether or not it learned
+anything. Both arms walk the identical ordering, so the difficulty
+gradient cancels in the paired difference; reading an arm's raw delta as
+a learning signal would be reading the curriculum instead.
+
 The dataset is pinned by an exact (commit, sha256) pair; the loader
 refuses any file whose hash differs. As of this writing the pin
 re-verifies against live upstream, and the two pilot sequences hold
