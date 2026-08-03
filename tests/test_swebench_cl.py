@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from bench.manifest import manifest_failures, update_manifest
+from bench.report import check
 from bench.swebench_cl.arms import ARMS
 from bench.swebench_cl.dataset import (
     DatasetPin,
@@ -839,3 +840,50 @@ def test_cli_refuses_update_manifest_for_non_docker_runs(tmp_path, capsys):
     assert rc == 2
     assert "refusing --update-manifest" in capsys.readouterr().err
     assert not (tmp_path / "out.json").exists()  # refused before running
+
+
+def make_swebench_run(**overrides: Any) -> dict[str, Any]:
+    run = {
+        "schema_version": 1,
+        "suite": "swebench_cl_pilot",
+        "arm": "memory_on",
+        "seed": 0,
+        "sequence": "pytest-dev_pytest_sequence",
+        "instance_id": "pytest-dev__pytest-5262",
+        "order": 1,
+        "metrics": {"delta": 1.0, "resolved": True, "wall_time_s": 65.8},
+    }
+    run.update(overrides)
+    return run
+
+
+def test_check_accepts_swebench_records_without_storage_metrics():
+    # The pilot records one task, not one population run; asking it for
+    # flake counters and paraphrase probes would make its evidence
+    # permanently unvalidatable.
+    assert check([make_swebench_run()]) == []
+
+
+def test_check_still_demands_the_full_set_from_storage_suites():
+    storage = {
+        "schema_version": 1,
+        "suite": "storage",
+        "arm": "survival",
+        "seed": 0,
+        "metrics": {"wall_time_s": 1.0},
+    }
+    failures = check([storage])
+    assert any("missing metrics" in f for f in failures)
+
+
+def test_check_demands_swebench_identity_fields():
+    # Without these the curve cannot pair a world or order a curriculum.
+    run = make_swebench_run()
+    del run["sequence"]
+    failures = check([run])
+    assert any("missing identity fields" in f and "sequence" in f for f in failures)
+
+
+def test_check_demands_swebench_wall_time():
+    run = make_swebench_run(metrics={"delta": 0.0, "resolved": False, "wall_time_s": 0})
+    assert any("wall_time_s" in f for f in check([run]))

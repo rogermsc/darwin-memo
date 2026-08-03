@@ -34,6 +34,15 @@ _REQUIRED_METRIC_KEYS = {
     "paraphrase_silence_rate",
 }
 
+# The SWE-Bench-CL pilot is a different experiment on the same evidence
+# plumbing: one record per task rather than per run, scored by the
+# official harness. It carries none of the storage suites' population
+# metrics and should not be asked to. Its own required set is small and
+# is what the learning curve is computed from.
+_SWEBENCH_SUITE = "swebench_cl_pilot"
+_SWEBENCH_REQUIRED_METRIC_KEYS = {"delta", "resolved", "wall_time_s"}
+_SWEBENCH_REQUIRED_KEYS = {"arm", "seed", "sequence", "instance_id", "order"}
+
 
 def _is_noisy(run: dict[str, Any]) -> bool:
     return bool(run.get("config", {}).get("flake_rate", 0))
@@ -155,19 +164,40 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     failures: list[str] = []
     if not runs:
         return ["no runs in file"]
+    swebench = all(run.get("suite") == _SWEBENCH_SUITE for run in runs)
+    required = _SWEBENCH_REQUIRED_METRIC_KEYS if swebench else _REQUIRED_METRIC_KEYS
     for i, run in enumerate(runs):
         if run.get("schema_version") != 1:
             failures.append(f"run {i}: bad schema_version")
-        missing = _REQUIRED_METRIC_KEYS - set(run.get("metrics", {}))
+        missing = required - set(run.get("metrics", {}))
         if missing:
             failures.append(f"run {i}: missing metrics {sorted(missing)}")
         if run.get("metrics", {}).get("wall_time_s", 0) <= 0:
             failures.append(f"run {i}: wall_time_s not recorded")
+        if swebench:
+            absent = _SWEBENCH_REQUIRED_KEYS - set(run)
+            if absent:
+                failures.append(f"run {i}: missing identity fields {sorted(absent)}")
+
+    if swebench:
+        # The population invariants below are storage-suite physics and
+        # have no meaning here; the curve's own checks live in
+        # bench.swebench_cl.curve, which refuses unpaired worlds.
+        return failures
 
     # The poison-kill gate is a noiseless-era invariant: under
     # measurement noise, delayed or missed kills are an honest, expected
     # result the suite exists to measure, so noisy runs are exempt.
-    survival = [r for r in runs if r["arm"] == "survival" and not _is_noisy(r)]
+    # A run missing the key was already reported above; skip it here so
+    # check() reports every failure it found instead of raising on the
+    # first malformed record.
+    survival = [
+        r
+        for r in runs
+        if r.get("arm") == "survival"
+        and not _is_noisy(r)
+        and "poison_killed" in r.get("metrics", {})
+    ]
     if survival:
         kills = sum(r["metrics"]["poison_killed"] for r in survival)
         if kills * 3 < len(survival) * 2:  # at least 2 of 3
