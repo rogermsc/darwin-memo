@@ -887,3 +887,61 @@ def test_check_demands_swebench_identity_fields():
 def test_check_demands_swebench_wall_time():
     run = make_swebench_run(metrics={"delta": 0.0, "resolved": False, "wall_time_s": 0})
     assert any("wall_time_s" in f for f in check([run]))
+
+
+def test_check_accepts_distill_records_with_their_own_clock():
+    # The distillation arms time themselves in training seconds and carry
+    # none of the storage-family population metrics.
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "distill_raw",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 0.0,
+            "good_recall": 0.8,
+            "n_train": 30,
+            "train_wall_s": 35.0,
+        },
+    }
+    assert check([run]) == []
+
+
+def test_check_allows_zero_training_time_for_untrained_arms():
+    # base_model does no training; zero seconds is the measurement, not a
+    # dropped clock. Storage suites keep the positive-wall-time rule.
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "base_model",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 0.0,
+            "good_recall": 0.1,
+            "n_train": 0,
+            "train_wall_s": 0.0,
+        },
+    }
+    assert check([run]) == []
+
+
+def test_check_still_demands_a_clock_when_the_key_is_absent():
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "base_model",
+        "seed": 0,
+        "metrics": {"poison_reproduction": 0.0, "good_recall": 0.1, "n_train": 0},
+    }
+    assert any("train_wall_s" in f for f in check([run]))
+
+
+def test_check_falls_back_to_the_storage_set_for_a_mixed_file():
+    # A file whose rows disagree on suite gets the strictest treatment
+    # rather than silently adopting one row's relaxed schema.
+    rows = [
+        {"schema_version": 1, "suite": "distill", "arm": "a", "seed": 0, "metrics": {}},
+        {"schema_version": 1, "suite": "storage", "arm": "b", "seed": 0, "metrics": {}},
+    ]
+    failures = check(rows)
+    assert any("flakes_marked" in f for f in failures)

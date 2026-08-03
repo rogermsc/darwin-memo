@@ -34,14 +34,46 @@ _REQUIRED_METRIC_KEYS = {
     "paraphrase_silence_rate",
 }
 
-# The SWE-Bench-CL pilot is a different experiment on the same evidence
-# plumbing: one record per task rather than per run, scored by the
-# official harness. It carries none of the storage suites' population
-# metrics and should not be asked to. Its own required set is small and
-# is what the learning curve is computed from.
+# Not every suite is a population of memory entries walking an energy
+# ledger. The SWE-Bench-CL pilot records one task per row, scored by the
+# official harness; the distillation arms record one trained model per
+# row and time themselves in training seconds. Asking either for flake
+# counters and paraphrase probes makes its evidence permanently
+# unvalidatable, which is how two committed result files came to sit
+# outside the reproduction script: the script listed what happened to
+# pass. A suite absent here is a storage-family suite and gets the set
+# above.
 _SWEBENCH_SUITE = "swebench_cl_pilot"
-_SWEBENCH_REQUIRED_METRIC_KEYS = {"delta", "resolved", "wall_time_s"}
+_SUITE_REQUIRED_METRICS: dict[str, set[str]] = {
+    _SWEBENCH_SUITE: {"delta", "resolved", "wall_time_s"},
+    "distill": {"poison_reproduction", "good_recall", "n_train", "train_wall_s"},
+    "distill_merge": {
+        "poison_reproduction",
+        "recall_all",
+        "n_train",
+        "train_wall_s",
+    },
+}
+# Each family times itself in its own units; a missing clock is still a
+# failure, but the key it lives under is the suite's business.
+_SUITE_WALL_KEY: dict[str, str] = {
+    "distill": "train_wall_s",
+    "distill_merge": "train_wall_s",
+}
+# Where zero is data rather than a dropped clock: the distillation arms
+# that do no training (the base model, retrieval, the adapter merges)
+# honestly took zero training seconds. Presence is enforced by the
+# required-metric set above, so this only relaxes the positivity rule.
+_ZERO_WALL_OK = {"distill", "distill_merge"}
+# Identity fields the SWE-Bench-CL curve needs to pair a world and order
+# a curriculum. Without them a result file is unusable even if complete.
 _SWEBENCH_REQUIRED_KEYS = {"arm", "seed", "sequence", "instance_id", "order"}
+
+
+def _uniform_suite(runs: list[dict[str, Any]]) -> str | None:
+    """The suite every run shares, or None for a mixed/legacy file."""
+    suites = {run.get("suite") for run in runs}
+    return next(iter(suites)) if len(suites) == 1 else None
 
 
 def _is_noisy(run: dict[str, Any]) -> bool:
@@ -164,25 +196,30 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     failures: list[str] = []
     if not runs:
         return ["no runs in file"]
-    swebench = all(run.get("suite") == _SWEBENCH_SUITE for run in runs)
-    required = _SWEBENCH_REQUIRED_METRIC_KEYS if swebench else _REQUIRED_METRIC_KEYS
+    suite = _uniform_suite(runs)
+    swebench = suite == _SWEBENCH_SUITE
+    required = _SUITE_REQUIRED_METRICS.get(suite or "", _REQUIRED_METRIC_KEYS)
+    wall_key = _SUITE_WALL_KEY.get(suite or "", "wall_time_s")
     for i, run in enumerate(runs):
         if run.get("schema_version") != 1:
             failures.append(f"run {i}: bad schema_version")
         missing = required - set(run.get("metrics", {}))
         if missing:
             failures.append(f"run {i}: missing metrics {sorted(missing)}")
-        if run.get("metrics", {}).get("wall_time_s", 0) <= 0:
-            failures.append(f"run {i}: wall_time_s not recorded")
+        wall = run.get("metrics", {}).get(wall_key)
+        if wall is None or (wall <= 0 and suite not in _ZERO_WALL_OK):
+            failures.append(f"run {i}: {wall_key} not recorded")
         if swebench:
             absent = _SWEBENCH_REQUIRED_KEYS - set(run)
             if absent:
                 failures.append(f"run {i}: missing identity fields {sorted(absent)}")
 
-    if swebench:
-        # The population invariants below are storage-suite physics and
-        # have no meaning here; the curve's own checks live in
-        # bench.swebench_cl.curve, which refuses unpaired worlds.
+    if suite in _SUITE_REQUIRED_METRICS:
+        # Everything below is storage-family physics -- poison kills,
+        # population deltas, a noise canary -- and none of it has a
+        # meaning for a task list or a trained model. The SWE-Bench-CL
+        # curve's own invariants live in bench.swebench_cl.curve, which
+        # refuses to pair a world that did not run both arms.
         return failures
 
     # The poison-kill gate is a noiseless-era invariant: under

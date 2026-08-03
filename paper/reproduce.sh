@@ -67,6 +67,10 @@ echo
 # reproduction command, library version, and producing git commit.
 # --check --require-manifest fails if a file has no manifest entry, so a
 # deleted binding fails loudly rather than passing silently.
+# Every committed result file, not a subset. An earlier version of this
+# list omitted the distillation arms, which happened to be the two files
+# --check could not validate: the script's coverage had been shaped
+# around what passed. Adding a result file here is part of committing it.
 RESULTS=(
   headline.json
   noisy.json
@@ -74,10 +78,17 @@ RESULTS=(
   testsuite.json
   testsuite_noisy.json
   bandit.json
+  memsec.json
+  adversary.json
+  salience.json
+  distill.json
+  distill_merge.json
   judge-llama.json
   judge-qwen.json
   llm-llama.json
   llm-qwen.json
+  wef-llama32.json
+  wef-llama32-counter.json
 )
 
 echo "-- verifying committed results against MANIFEST.json (offline) --"
