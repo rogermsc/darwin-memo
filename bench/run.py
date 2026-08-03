@@ -47,6 +47,7 @@ from .suites import (
     salience_suite,
     scaling_suite,
     smoke_suite,
+    wef_suite,
 )
 from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
 
@@ -141,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             "bandit",
             "adversary",
             "memsec",
+            "wef",
             "judge",
             "distill",
             "distill_merge",
@@ -209,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("error: --with-judge needs a running Ollama server")
                 return 1
 
-    if args.suite in ("llm", "judge"):
+    if args.suite in ("llm", "judge", "wef"):
         # The preflight is a CLI concern; the suites live with the others.
         from darwin_memo import ollama_available
 
@@ -236,6 +238,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.suite == "llm":
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
+    elif args.suite == "wef":
+        models = [m.strip() for m in args.model.split(",") if m.strip()]
+        runs = _execute(wef_suite(_parse_seeds(args.seeds), models))
     elif args.suite == "memsec":
         runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
     elif args.suite == "adversary":
@@ -284,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
             # scaling table stays machine-local by design.
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
-        model_part = f"--model {args.model} " if args.suite == "llm" else ""
+        model_part = f"--model {args.model} " if args.suite in ("llm", "wef") else ""
         if args.suite in ("distill", "distill_merge"):
             model_part = (
                 f"--base-model {args.base_model} --epochs {args.epochs} "
@@ -297,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{model_part}--out {args.out} --update-manifest"
         )
         extra = None
-        if args.suite == "llm":
+        if args.suite in ("llm", "wef"):
             # Tags are mutable; the manifest pins the exact weights.
             from darwin_memo.llm import ollama_model_digest
 

@@ -23,9 +23,9 @@ from .adversary import AdversarialStorageEnv
 from .fixtures import (
     active_poison_alive,
     build_headline_store,
-    poison_ids,
     evaluate_paraphrase_probes,
     evaluate_probes,
+    poison_ids,
 )
 from .memsec import build_memsec_store
 from .noise import FlakyStorageEnv
@@ -218,6 +218,10 @@ def run_one(
         env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
+    if arm in ("survival_llm", "keep_everything_llm") and "attack" in overrides:
+        from .wef import LlmReadingEnv
+
+        env = LlmReadingEnv(env)  # type: ignore[assignment]
 
     # Two different deaths, and conflating them would misreport the
     # inert attack class entirely. "cycle" is when the last poisoned
@@ -236,10 +240,18 @@ def run_one(
     # the audit trail (per-answer attribution paths, raw completions)
     # must outlive the dispatch to reach metrics and the transcript.
     audit: AuditedProtocol | None = None
-    if arm == "survival_llm":
-        from .llm_arm import build_audited_protocol
+    if arm in ("survival_llm", "keep_everything_llm"):
+        if "attack" in overrides:
+            # The W/E/F variant additionally records, per answer, whether
+            # the poison was retrieved and whether the MODEL's own
+            # citation adopted it.
+            from .wef import build_wef_protocol
 
-        audit = build_audited_protocol(store, overrides)
+            audit = build_wef_protocol(store, overrides, poison_ids(store))
+        else:
+            from .llm_arm import build_audited_protocol
+
+            audit = build_audited_protocol(store, overrides)
 
     start = time.perf_counter()
     try:
@@ -283,6 +295,22 @@ def run_one(
         from .llm_arm import citation_metrics, write_transcript
 
         metrics.update(citation_metrics(audit.answers))
+        from .wef import WefProtocol, wef_metrics
+
+        if isinstance(audit, WefProtocol):
+            metrics.update(
+                wef_metrics(
+                    audit,
+                    store,
+                    poison=audit.poison,
+                    true_deltas=list(env.true_deltas)
+                    if isinstance(env, FlakyEnv)
+                    else [r.resource_delta for r in result.records],
+                    benign_rate=float(metrics["probe_benign_correct_rate"]),
+                    persisted=kill_tracker["starve"] is None
+                    or kill_tracker["starve"] > 0,
+                )
+            )
         if transcript_path is not None:
             write_transcript(
                 transcript_path,
@@ -421,6 +449,12 @@ def _dispatch(
         )
     if arm == "keep_everything":
         return run_keep_everything(store, env, cycles, on_cycle)
+    if arm == "keep_everything_llm":
+        # The no-curation control in LLM mode: same model, same
+        # protocol, nothing ever removed.
+        if audit is None:
+            raise ValueError("keep_everything_llm needs the audited protocol")
+        return run_keep_everything(store, env, cycles, on_cycle, protocol=audit)
     if arm == "ttl":
         return run_ttl(store, env, cycles, on_cycle=on_cycle)
     if arm == "recency":

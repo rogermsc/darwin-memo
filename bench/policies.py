@@ -75,7 +75,10 @@ class PolicyResult:
 
 
 def _baseline_task_loop(
-    store: MemoryStore, env: Environment, cycle: int
+    store: MemoryStore,
+    env: Environment,
+    cycle: int,
+    protocol: QueryProtocol | None = None,
 ) -> tuple[float, Counter[str], Counter[str]]:
     """Answer and act exactly like the survival loop, minus the ledger.
 
@@ -85,7 +88,7 @@ def _baseline_task_loop(
     consecutive-strikes variant forgives on). Both read the REPORTED
     outcome, exactly like the heuristics they feed would in production.
     """
-    protocol = QueryProtocol(store)
+    protocol = protocol if protocol is not None else QueryProtocol(store)
     delta = 0.0
     blamed: Counter[str] = Counter()
     praised: Counter[str] = Counter()
@@ -115,11 +118,12 @@ def _run_baseline(
     cycles: int,
     select_victims: VictimSelector,
     on_cycle: OnCycle | None = None,
+    protocol: QueryProtocol | None = None,
 ) -> PolicyResult:
     """One driver for every baseline; policies are victim selectors."""
     result = PolicyResult()
     for cycle in range(cycles):
-        delta, blamed, praised = _baseline_task_loop(store, env, cycle)
+        delta, blamed, praised = _baseline_task_loop(store, env, cycle, protocol)
         victims = select_victims(store, cycle, blamed, praised)
         for entry in victims:
             store.bury(entry.id)
@@ -160,8 +164,14 @@ def run_keep_everything(
     env: Environment,
     cycles: int,
     on_cycle: OnCycle | None = None,
+    protocol: QueryProtocol | None = None,
 ) -> PolicyResult:
-    return _run_baseline(store, env, cycles, lambda s, c, b, p: [], on_cycle)
+    """No curation at all; with ``protocol`` set, the same model answers.
+
+    The LLM variant exists so the Forget stage has a control under the
+    SAME model: F1/F2 for a store nothing ever removes from.
+    """
+    return _run_baseline(store, env, cycles, lambda s, c, b, p: [], on_cycle, protocol)
 
 
 def run_ttl(

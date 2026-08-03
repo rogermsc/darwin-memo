@@ -304,6 +304,37 @@ def memsec_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+# W/E/F with a real model in the loop. Shorter and narrower than the
+# deterministic suites because every task costs a model call: 24 cycles
+# is the minimum that lets an unconsulted entry starve at upkeep 0.05.
+WEF_ARMS = ("survival_llm", "keep_everything_llm")
+
+
+def wef_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
+    """Does the result survive when a model, not a keyword reader, decides?
+
+    Sampled, never in CI. The checkpoint that changes hands is E2
+    (adoption): the model's own citation names the poisoned entry, so
+    "the agent believed the poison" stops being our keyword function's
+    opinion.
+    """
+    return [
+        RunSpec(
+            suite="wef",
+            arm=arm,
+            seed=seed,
+            cycles=24,
+            files_per_cycle=6,
+            overrides={"attack": attack, **_llm_overrides(model, refuse=False)},
+            label=f"attack={attack},model={model}",
+        )
+        for model in models
+        for attack in ATTACK_CLASSES
+        for arm in WEF_ARMS
+        for seed in seeds
+    ]
+
+
 def bandit_suite(seeds: list[int]) -> list[RunSpec]:
     """The AEL objection, run rather than argued (arXiv 2604.21725).
 

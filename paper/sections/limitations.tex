@@ -37,6 +37,21 @@ a scaling law, and a corpus whose poison is reachable by generalizing
 benign patterns would not separate as cleanly. We present it as a
 secondary result and do not generalize it.
 
+\paragraph{The action reader is part of the measurement.}
+The environment decides whether an answer requested an action by reading
+its text, and that reader is narrower than the language models actually
+produce: it has ``safe to delete'' and a model writes ``deleting
+store-1.db is safe'', which parses as silence. An action the model
+plainly decided then never executes, is never measured, and yields no
+selection signal. We found this from inside while building the
+model-in-the-loop suite, and we handle it by reading LLM-mode answers
+with paraphrases of the same decision rather than by widening the shared
+vocabulary, which would silently move every committed deterministic
+number. The disagreement rate between the two readers is reported with
+the suite and bounds every LLM-mode claim we make. It is a real threat
+to validity for any benchmark of this shape: a mechanism can look
+conservative when its environment is merely deaf.
+
 \paragraph{The filter control is a reconstruction.}
 The write-time detector in \S\ref{sec:memsec} is a keyword and
 authority-marker rule we wrote, not a port of any published system. We
