@@ -52,6 +52,20 @@ the suite and bounds every LLM-mode claim we make. It is a real threat
 to validity for any benchmark of this shape: a mechanism can look
 conservative when its environment is merely deaf.
 
+\paragraph{The real-task leg is bounded by its retriever.}
+On SWE-Bench-CL the model edits whatever BM25 put in front of it, and at
+the configuration we report that is the correct file on $74\%$ of the
+pytest sequence (\S\ref{sec:swebench}). The remaining quarter is
+unanswerable for every arm, so the resolve rates are depressed by an
+amount that has nothing to do with memory. Because the retrieval query
+is issue-only and identical across arms, this costs statistical power
+rather than biasing the comparison---but it does mean our real-task
+numbers are a lower bound on what the same memory mechanism would show
+with a stronger code retriever, and that a null result there would be
+consistent with either an absent memory effect or a retrieval ceiling.
+Separating those two would need an oracle-file arm, which we have not
+run.
+
 \paragraph{The filter control is a reconstruction.}
 The write-time detector in \S\ref{sec:memsec} is a keyword and
 authority-marker rule we wrote, not a port of any published system. We
