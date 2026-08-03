@@ -160,8 +160,11 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--disk-floor-gb", type=float, default=DISK_FLOOR_GB)
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--update-manifest", action="store_true")
-    run.add_argument("--seed-poison", action="store_true",
-                    help="seed the memory store with poison lessons before evaluation")
+    run.add_argument(
+        "--seed-poison",
+        action="store_true",
+        help="seed the memory store with poison lessons before evaluation",
+    )
     run.set_defaults(fn=_cmd_run)
 
     args = parser.parse_args(argv)

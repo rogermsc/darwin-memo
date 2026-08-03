@@ -28,8 +28,8 @@ import json
 import shutil
 import subprocess
 import sys
-import time
 import tempfile
+import time
 import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field

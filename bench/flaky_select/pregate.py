@@ -68,7 +68,9 @@ def _dominates(a: dict, b: dict, eps: float = 1e-9) -> bool:
 
 
 def run_pregate(
-    n: int = 5, n_candidates: int = 2000, true_pos_frac: float = 0.5,
+    n: int = 5,
+    n_candidates: int = 2000,
+    true_pos_frac: float = 0.5,
     seeds: list[int] | None = None,
 ) -> list[dict]:
     seeds = seeds if seeds is not None else list(range(10))
@@ -78,7 +80,9 @@ def run_pregate(
         # threshold-k family
         thr = []
         for k in range(1, n + 1):
-            sc = _avg_scores(labels, lambda seq, k=k: sum(seq) >= k, n, p_fn, p_fp, seeds)
+            sc = _avg_scores(
+                labels, lambda seq, k=k: sum(seq) >= k, n, p_fn, p_fp, seeds
+            )
             sc["k"] = k
             thr.append(sc)
         # survival family
@@ -87,23 +91,38 @@ def run_pregate(
             for cg in GAIN_GRID:
                 sc = _avg_scores(
                     labels,
-                    lambda seq, sp=sp, cg=cg: keep(seq, "survival", credit_gain=cg, spawn=sp),
-                    n, p_fn, p_fp, seeds,
+                    lambda seq, sp=sp, cg=cg: keep(
+                        seq, "survival", credit_gain=cg, spawn=sp
+                    ),
+                    n,
+                    p_fn,
+                    p_fp,
+                    seeds,
                 )
                 sc["spawn"], sc["credit_gain"] = sp, cg
                 surv.append(sc)
         # Does survival's frontier dominate-or-match EVERY threshold-k point?
         dominated = [any(_dominates(s, t) for s in surv) for t in thr]
-        rows.append({
-            "p_fn": p_fn, "p_fp": p_fp,
-            "best_f1_threshold": max(t["f1"] for t in thr),
-            "best_f1_survival": max(s["f1"] for s in surv),
-            "threshold_pts": [{"k": t["k"], "precision": round(t["precision"], 3),
-                               "recall": round(t["recall"], 3), "f1": round(t["f1"], 3)} for t in thr],
-            "survival_dominates_all_threshold": all(dominated),
-            "n_threshold_dominated": sum(dominated),
-            "n_threshold_total": len(thr),
-        })
+        rows.append(
+            {
+                "p_fn": p_fn,
+                "p_fp": p_fp,
+                "best_f1_threshold": max(t["f1"] for t in thr),
+                "best_f1_survival": max(s["f1"] for s in surv),
+                "threshold_pts": [
+                    {
+                        "k": t["k"],
+                        "precision": round(t["precision"], 3),
+                        "recall": round(t["recall"], 3),
+                        "f1": round(t["f1"], 3),
+                    }
+                    for t in thr
+                ],
+                "survival_dominates_all_threshold": all(dominated),
+                "n_threshold_dominated": sum(dominated),
+                "n_threshold_total": len(thr),
+            }
+        )
     return rows
 
 
@@ -115,20 +134,37 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     a, b = (int(x) for x in args.seeds.split(":"))
     rows = run_pregate(n=args.n, seeds=list(range(a, b)))
-    print(f"\nPre-gate: survival(buffer-swept) frontier vs threshold-k family, N={args.n}\n")
-    print(f"{'p_fn':>5}{'p_fp':>6}{'bestF1_thr':>11}{'bestF1_surv':>12}{'surv≥thr?':>10}{'dom k':>8}")
+    print(
+        f"\nPre-gate: survival(buffer-swept) frontier vs threshold-k "
+        f"family, N={args.n}\n"
+    )
+    print(
+        f"{'p_fn':>5}{'p_fp':>6}{'bestF1_thr':>11}{'bestF1_surv':>12}"
+        f"{'surv>=thr?':>10}{'dom k':>8}"
+    )
     for r in rows:
         verdict = "YES" if r["survival_dominates_all_threshold"] else "no"
-        print(f"{r['p_fn']:>5}{r['p_fp']:>6}{r['best_f1_threshold']:>11.3f}"
-              f"{r['best_f1_survival']:>12.3f}{verdict:>10}"
-              f"{str(r['n_threshold_dominated'])+'/'+str(r['n_threshold_total']):>8}")
+        print(
+            f"{r['p_fn']:>5}{r['p_fp']:>6}{r['best_f1_threshold']:>11.3f}"
+            f"{r['best_f1_survival']:>12.3f}{verdict:>10}"
+            f"{str(r['n_threshold_dominated']) + '/' + str(r['n_threshold_total']):>8}"
+        )
     dominates_all = all(r["survival_dominates_all_threshold"] for r in rows)
-    better_f1 = sum(1 for r in rows if r["best_f1_survival"] > r["best_f1_threshold"] + 1e-6)
-    print(f"\nVERDICT: survival frontier dominates threshold-k in "
-          f"{sum(r['survival_dominates_all_threshold'] for r in rows)}/{len(rows)} cells; "
-          f"best-F1 strictly higher in {better_f1}/{len(rows)} cells.")
-    print("PRE-GATE:", "PASS (survival frontier ahead)" if (dominates_all or better_f1 >= len(rows) - 1)
-          else "NO-GO (threshold-k matches/beats survival synthetically)")
+    better_f1 = sum(
+        1 for r in rows if r["best_f1_survival"] > r["best_f1_threshold"] + 1e-6
+    )
+    print(
+        f"\nVERDICT: survival frontier dominates threshold-k in "
+        f"{sum(r['survival_dominates_all_threshold'] for r in rows)}"
+        f"/{len(rows)} cells; "
+        f"best-F1 strictly higher in {better_f1}/{len(rows)} cells."
+    )
+    print(
+        "PRE-GATE:",
+        "PASS (survival frontier ahead)"
+        if (dominates_all or better_f1 >= len(rows) - 1)
+        else "NO-GO (threshold-k matches/beats survival synthetically)",
+    )
     if args.out:
         args.out.write_text(json.dumps(rows, indent=2))
     return 0

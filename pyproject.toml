@@ -82,7 +82,13 @@ fail_under = 80
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-extend-exclude = ["training"]
+# Markdown is excluded because ruff >= 0.16 formats Python inside fenced
+# blocks, and prose code samples are aligned for reading, not for the
+# formatter: it moves a continuation comment under a long line to column
+# zero, where it reads as a separate statement. Documentation examples
+# are checked by running them (the CI examples step), not by reformatting
+# them in place.
+extend-exclude = ["training", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]

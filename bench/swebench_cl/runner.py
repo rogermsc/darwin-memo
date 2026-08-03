@@ -195,7 +195,9 @@ class LessonMemory:
         dead = self.store.charge_upkeep()
         merges = 0
         if self.config.consolidate_every and tick % self.config.consolidate_every == 0:
-            merges = consolidate(self.store, tick, threshold=self.config.merge_threshold)
+            merges = consolidate(
+                self.store, tick, threshold=self.config.merge_threshold
+            )
         return {"deaths": len(dead), "merges": merges}
 
 
@@ -225,9 +227,7 @@ def build_prompt(
         )
     statement = task.problem_statement[:max_prompt_chars]
     parts.append(
-        f"Repository: {task.repo}\n"
-        f"Task: {task.instance_id}\n\n"
-        f"Issue:\n{statement}"
+        f"Repository: {task.repo}\nTask: {task.instance_id}\n\nIssue:\n{statement}"
     )
     if code_context:
         parts.append(
@@ -268,6 +268,7 @@ def run_sequence(
     memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
     if seed_poison and arm.inject != "none":
         from .poison import poison_lessons
+
         memory.seed_poison(poison_lessons(tasks[:max_tasks]))
     model: Completer = completer or ChatEndpoint(endpoint)
     cache = code_cache_dir or (Path.cwd() / ".swebench-repos")
@@ -275,7 +276,9 @@ def run_sequence(
     for tick, task in enumerate(tasks[:max_tasks], start=1):
         start = time.perf_counter()
         injection = memory.select(retrieval_query(task), k=k)
-        code_ctx, code_files, code_originals = "", [], {}
+        code_ctx: str = ""
+        code_files: list[str] = []
+        code_originals: dict[str, str] = {}
         if code_context_chars > 0:
             try:
                 code_ctx, code_files, code_originals = retrieve_code_context(

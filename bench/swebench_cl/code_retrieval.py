@@ -128,9 +128,7 @@ def bm25_rank(docs: list[_Doc], query: str) -> list[tuple[_Doc, float]]:
     for d in docs:
         df.update(d.tokens.keys())
     q_terms = set(tokenize(query))
-    idf = {
-        t: math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5)) for t in q_terms if df[t]
-    }
+    idf = {t: math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5)) for t in q_terms if df[t]}
     scored: list[tuple[_Doc, float]] = []
     for d in docs:
         score = 0.0

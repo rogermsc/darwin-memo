@@ -33,7 +33,11 @@ def _touched_files(gold_patch: str) -> list[str]:
     Parses unified diff format: lines starting with "--- a/" indicate
     the file path in the old version.
     """
-    return [l[6:].strip() for l in gold_patch.splitlines() if l.startswith("--- a/")]
+    return [
+        line[6:].strip()
+        for line in gold_patch.splitlines()
+        if line.startswith("--- a/")
+    ]
 
 
 def poison_lessons(tasks: list[TaskRecord]) -> list[MemoryEntry]:

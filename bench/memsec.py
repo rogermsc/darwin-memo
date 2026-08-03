@@ -98,16 +98,13 @@ def attack_corpus(attack: str) -> list[Document]:
     """The demo corpus with its poisoned document swapped for ``attack``."""
     if attack not in ATTACK_CLASSES:
         raise ValueError(
-            f"unknown attack class {attack!r}; expected one of "
-            f"{tuple(ATTACK_CLASSES)}"
+            f"unknown attack class {attack!r}; expected one of {tuple(ATTACK_CLASSES)}"
         )
     replacement = ATTACK_CLASSES[attack]
     if replacement is None:
         return demo_corpus()
     return [
-        Document(doc_id=d.doc_id, text=replacement)
-        if d.doc_id == POISON_DOC_ID
-        else d
+        Document(doc_id=d.doc_id, text=replacement) if d.doc_id == POISON_DOC_ID else d
         for d in demo_corpus()
     ]
 

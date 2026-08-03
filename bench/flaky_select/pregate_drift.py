@@ -56,10 +56,7 @@ WINDOWS = [3, 5, 9, 15]
 DECAY_RHO = [0.7, 0.85, 0.95]
 DECAY_THR = [-1.0, 0.0, 1.0, 2.0]
 LEDGER = [  # (spawn, gain, upkeep)
-    (s, g, u)
-    for s in (0.5, 1.0, 2.0)
-    for g in (0.4, 0.8)
-    for u in (0.05, 0.15, 0.4)
+    (s, g, u) for s in (0.5, 1.0, 2.0) for g in (0.4, 0.8) for u in (0.05, 0.15, 0.4)
 ]
 
 
@@ -93,7 +90,10 @@ def _simulate(flip: float, obs: float, noise: float, rng: random.Random):
 
 
 def _score_rule(frames, update, decide):
-    """Run a stateful rule over all cycles; score P/R/F1 of kept-vs-good after burn-in."""
+    """Run a stateful rule over all cycles.
+
+    Scores P/R/F1 of kept-vs-good after burn-in.
+    """
     state: dict = {}
     tp = kept = pos = 0
     for t, (truth, obs_row) in enumerate(frames):
@@ -123,6 +123,7 @@ def _cumulative(thr):
             return
         st.setdefault(u, 0)
         st[u] += 1 if o else -1
+
     return update, (lambda st, u: st.get(u, 0) >= thr)
 
 
@@ -131,21 +132,25 @@ def _window(W):
         if u is None:
             return
         st.setdefault(u, deque(maxlen=W)).append(o)
+
     def decide(st, u):
         dq = st.get(u)
         return bool(dq) and sum(dq) >= math.ceil(len(dq) / 2)
+
     return update, decide
 
 
 def _decayed(rho, thr):
     """Leaky-integrator / EWMA-style accumulator: +/-1 per obs, *rho per cycle.
     The proper drift-aware sufficient statistic and the ledger's linear twin."""
+
     def update(st, u, o):
         if u is None:
             for k in st:
                 st[k] *= rho
             return
         st[u] = st.get(u, 0.0) + (1.0 if o else -1.0)
+
     return update, (lambda st, u: st.get(u, 0.0) > thr)
 
 
@@ -158,6 +163,7 @@ def _ledger(spawn, gain, upkeep):
         e = st.get(u, spawn)
         e += gain * math.tanh(1.0 if o else -1.0)
         st[u] = max(0.0, min(CAP, e))
+
     return update, (lambda st, u: st.get(u, spawn) > FLOOR)
 
 
@@ -166,10 +172,14 @@ def run(seeds):
     for flip, obs, noise in CELLS:
         best = {"cumulative": 0.0, "window": 0.0, "decayed": 0.0, "ledger": 0.0}
         for s in seeds:
-            frames = _simulate(flip, obs, noise, random.Random(_seed(s, flip, obs, noise)))
+            frames = _simulate(
+                flip, obs, noise, random.Random(_seed(s, flip, obs, noise))
+            )
             for thr in CUM_THR:
                 up, dec = _cumulative(thr)
-                best["cumulative"] = max(best["cumulative"], _score_rule(frames, up, dec))
+                best["cumulative"] = max(
+                    best["cumulative"], _score_rule(frames, up, dec)
+                )
             for W in WINDOWS:
                 up, dec = _window(W)
                 best["window"] = max(best["window"], _score_rule(frames, up, dec))
@@ -190,19 +200,33 @@ def main(argv=None):
     args = ap.parse_args(argv)
     a, b = (int(x) for x in args.seeds.split(":"))
     rows = run(list(range(a, b)))
-    print(f"\nDrift pre-gate: best-F1 per rule family (swept), {CYCLES} cycles, {P_UNITS} units\n")
-    print(f"{'flip':>6}{'obs':>6}{'noise':>7}{'cumul':>8}{'window':>8}{'decayed':>9}{'ledger':>8}{'ledger>both?':>13}")
+    print(
+        f"\nDrift pre-gate: best-F1 per rule family (swept), {CYCLES} cycles, "
+        f"{P_UNITS} units\n"
+    )
+    print(
+        f"{'flip':>6}{'obs':>6}{'noise':>7}{'cumul':>8}{'window':>8}{'decayed':>9}{'ledger':>8}{'ledger>both?':>13}"
+    )
     wins = 0
     for r in rows:
         strongest_baseline = max(r["cumulative"], r["window"], r["decayed"])
         better = r["ledger"] > strongest_baseline + 1e-3
         wins += better
-        print(f"{r['flip']:>6}{r['obs']:>6}{r['noise']:>7}{r['cumulative']:>8.3f}"
-              f"{r['window']:>8.3f}{r['decayed']:>9.3f}{r['ledger']:>8.3f}{('YES' if better else 'no'):>13}")
-    print(f"\nVERDICT: ledger best-F1 beats the STRONGEST baseline (incl. decayed/EWMA) "
-          f"in {wins}/{len(rows)} cells.")
-    print("DRIFT PRE-GATE:", "PASS (ledger beats even the EWMA twin)" if wins >= len(rows) - 1
-          else "NO-GO (a decayed/EWMA count matches the ledger — no real edge)")
+        print(
+            f"{r['flip']:>6}{r['obs']:>6}{r['noise']:>7}{r['cumulative']:>8.3f}"
+            f"{r['window']:>8.3f}{r['decayed']:>9.3f}{r['ledger']:>8.3f}"
+            f"{('YES' if better else 'no'):>13}"
+        )
+    print(
+        f"\nVERDICT: ledger best-F1 beats the STRONGEST baseline (incl. decayed/EWMA) "
+        f"in {wins}/{len(rows)} cells."
+    )
+    print(
+        "DRIFT PRE-GATE:",
+        "PASS (ledger beats even the EWMA twin)"
+        if wins >= len(rows) - 1
+        else "NO-GO (a decayed/EWMA count matches the ledger — no real edge)",
+    )
     return 0
 
 

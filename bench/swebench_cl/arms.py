@@ -1,8 +1,10 @@
-"""The pilot's three arms, defined in code so a run cannot improvise.
+"""The pilot's arms, defined in code so a run cannot improvise.
 
 Every arm answers the same tasks through the same endpoint and the
-same executor. They differ only in what memory the model sees and how
-the store is settled afterwards:
+same executor. They differ on two axes: what memory the model sees,
+and how the store is curated afterwards.
+
+The memory axis isolates whether SELECTION matters:
 
 - ``memory_on``: lessons are retrieved by relevance, the per-task test
   outcome settles credit along the retrieval provenance, and a lesson
@@ -17,6 +19,20 @@ the store is settled afterwards:
   spent on that task. Same memory quantity, same credit magnitude, no
   outcome-directed selection. If memory_on does not beat this arm,
   the learning curve is a token-budget effect, not a memory effect.
+
+The curation axis isolates whether the ENERGY LEDGER matters, holding
+retrieval fixed at relevance. Both of these inject exactly what
+memory_on injects, so any difference is the curation policy alone:
+
+- ``keep_everything``: never settle, never charge upkeep, never remove.
+  The null control -- it says what a defence has to beat.
+- ``evict_on_negative``: bury every injected lesson whenever the task's
+  measured outcome was negative. No energy, no forgiveness, no
+  starvation of the useless. The one-line if-statement that the storage
+  and W/E/F benches both found ties or beats the ledger on revoking
+  harm, and which the ledger only separates from where upkeep is
+  priced. If memory_on does not beat this arm, the result belongs to
+  curating at all rather than to the ledger.
 """
 
 from __future__ import annotations
@@ -36,13 +52,25 @@ class ArmSpec:
 
 
 ARMS: dict[str, ArmSpec] = {
-    "memory_on": ArmSpec(name="memory_on", inject="retrieved", mint=True, settle=True, curation="survival"),
+    "memory_on": ArmSpec(name="memory_on", inject="retrieved", mint=True, settle=True),
     "memory_off": ArmSpec(name="memory_off", inject="none", mint=False, settle=False),
     "random_matched": ArmSpec(
         name="random_matched", inject="random_matched", mint=True, settle=True
     ),
-    "keep_everything": ArmSpec(name="keep_everything", inject="retrieved", mint=True, settle=False, curation="keep_all"),
-    "evict_on_negative": ArmSpec(name="evict_on_negative", inject="retrieved", mint=True, settle=True, curation="evict_negative"),
+    "keep_everything": ArmSpec(
+        name="keep_everything",
+        inject="retrieved",
+        mint=True,
+        settle=False,
+        curation="keep_all",
+    ),
+    "evict_on_negative": ArmSpec(
+        name="evict_on_negative",
+        inject="retrieved",
+        mint=True,
+        settle=True,
+        curation="evict_negative",
+    ),
 }
 
 

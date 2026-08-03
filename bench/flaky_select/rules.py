@@ -1,11 +1,20 @@
 from __future__ import annotations
+
 import math
+
 from darwin_memo import MemoryEntry, MemoryStore, SurvivalConfig, assign_credit
 
 RULES = ("single_run", "any_pass", "majority_vote", "survival")
 
-def keep(reported: list[bool], rule: str, *, credit_gain: float = 0.6,
-         spawn: float = 1.0, scale: float = 1.0) -> bool:
+
+def keep(
+    reported: list[bool],
+    rule: str,
+    *,
+    credit_gain: float = 0.6,
+    spawn: float = 1.0,
+    scale: float = 1.0,
+) -> bool:
     if not reported:
         return False
     if rule == "single_run":

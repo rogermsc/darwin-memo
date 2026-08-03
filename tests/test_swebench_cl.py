@@ -230,14 +230,37 @@ def test_committed_pilot_manifest_is_internally_consistent():
 # ---------------------------------------------------------------------------
 
 
-def test_exactly_three_arms_with_pinned_semantics():
-    assert set(ARMS) == {"memory_on", "memory_off", "random_matched"}
+def test_exactly_five_arms_with_pinned_semantics():
+    """Two axes, pinned so a run cannot improvise an arm into existence.
+
+    The memory axis (what the model sees) and the curation axis (what
+    happens to the store afterwards). The curation arms must inject
+    EXACTLY what memory_on injects, or a difference between them stops
+    being about the curation policy.
+    """
+    assert set(ARMS) == {
+        "memory_on",
+        "memory_off",
+        "random_matched",
+        "keep_everything",
+        "evict_on_negative",
+    }
+    # Memory axis.
     assert ARMS["memory_on"].inject == "retrieved"
     assert ARMS["memory_on"].mint and ARMS["memory_on"].settle
+    assert ARMS["memory_on"].curation == "survival"
     assert ARMS["memory_off"].inject == "none"
     assert not ARMS["memory_off"].mint and not ARMS["memory_off"].settle
     assert ARMS["random_matched"].inject == "random_matched"
     assert ARMS["random_matched"].mint and ARMS["random_matched"].settle
+    assert ARMS["random_matched"].curation == "survival"
+    # Curation axis: retrieval held fixed at what memory_on does.
+    assert ARMS["keep_everything"].inject == "retrieved"
+    assert ARMS["keep_everything"].curation == "keep_all"
+    assert not ARMS["keep_everything"].settle
+    assert ARMS["evict_on_negative"].inject == "retrieved"
+    assert ARMS["evict_on_negative"].curation == "evict_negative"
+    assert ARMS["evict_on_negative"].mint and ARMS["evict_on_negative"].settle
 
 
 def test_random_matched_spends_at_most_the_retrieval_budget():
@@ -356,7 +379,13 @@ def test_chat_endpoint_failures_are_loud(monkeypatch):
 def test_chat_endpoint_read_timeout_is_loud(monkeypatch):
     """A timeout during the response read arrives as a bare
     ``TimeoutError`` (connect timeouts come wrapped in URLError); it
-    must surface as EndpointError, never escape as something else."""
+    must surface as EndpointError, never escape as something else.
+
+    A read timeout is transient, so it is retried and then reported as
+    exhaustion. What this pins is that the cause survives into the
+    message: an EndpointError that does not say what went wrong is not
+    loud, it is just a different silence.
+    """
     from bench.swebench_cl.model import EndpointError
 
     class StallingResponse:
@@ -372,9 +401,13 @@ def test_chat_endpoint_read_timeout_is_loud(monkeypatch):
     monkeypatch.setattr(
         "urllib.request.urlopen", lambda request, timeout=0: StallingResponse()
     )
+    # The retry backoff is real seconds and buys this test nothing.
+    monkeypatch.setattr("bench.swebench_cl.model.time.sleep", lambda _: None)
     endpoint = ChatEndpoint(EndpointConfig())
-    with pytest.raises(EndpointError, match="timed out reading"):
+    with pytest.raises(EndpointError, match="timed out") as caught:
         endpoint.complete("prompt")
+    assert "attempts" in str(caught.value), "the retry exhaustion must be visible"
+    assert isinstance(caught.value.__cause__, TimeoutError)
 
 
 def test_extract_patch_from_fence_and_bare_and_none():
