@@ -79,8 +79,14 @@ def _execute(specs: list[RunSpec]) -> list[dict[str, object]]:
 
 
 def _spec_stem(spec: RunSpec) -> str:
-    """Filesystem-safe name for one run's checkpoint and transcript."""
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", f"{spec.label}-seed{spec.seed}")
+    """Filesystem-safe name for one run's checkpoint and transcript.
+
+    The arm is part of the name. It did not need to be while the llm
+    suite was the only caller, because that suite has one arm; a
+    multi-arm suite without it has every arm writing the same stem, so
+    the transcripts overwrite each other and resume never hits.
+    """
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", f"{spec.arm}-{spec.label}-seed{spec.seed}")
 
 
 def _execute_llm(specs: list[RunSpec], out: Path) -> list[dict[str, object]]:
@@ -239,8 +245,11 @@ def main(argv: list[str] | None = None) -> int:
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
     elif args.suite == "wef":
+        # Checkpointed like the llm suite, and for the same reason: the
+        # grid is hours of model time and an interrupt at run 20 must
+        # not cost the first nineteen.
         models = [m.strip() for m in args.model.split(",") if m.strip()]
-        runs = _execute(wef_suite(_parse_seeds(args.seeds), models))
+        runs = _execute_llm(wef_suite(_parse_seeds(args.seeds), models), args.out)
     elif args.suite == "memsec":
         runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
     elif args.suite == "adversary":

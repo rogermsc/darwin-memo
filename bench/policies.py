@@ -235,6 +235,7 @@ def run_evict_on_negative(
     cycles: int,
     on_cycle: OnCycle | None = None,
     strikes: int = 1,
+    protocol: QueryProtocol | None = None,
 ) -> PolicyResult:
     """The if-statement baseline: evict any entry whose decisions have
     produced ``strikes`` negative outcomes, lifetime. At the default of
@@ -254,7 +255,7 @@ def run_evict_on_negative(
         lifetime.update(blamed)
         return [e for e in s.alive() if lifetime[e.id] >= strikes]
 
-    return _run_baseline(store, env, cycles, the_blamed, on_cycle)
+    return _run_baseline(store, env, cycles, the_blamed, on_cycle, protocol)
 
 
 def run_evict_consecutive(

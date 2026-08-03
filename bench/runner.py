@@ -56,6 +56,11 @@ if TYPE_CHECKING:
 SCHEMA_VERSION = 1
 TAIL = 5
 
+# Arms that answer through a real model. One list, because an arm added
+# to the protocol check but not the env check would run with the bare
+# action reader and silently score the model's phrasing as silence.
+LLM_LOOP_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
+
 # Both noise wrappers and the adversary expose the same accounting
 # surface (true vs reported per-cycle deltas, fired-lie counters, the
 # distortion sum), so everything downstream of env construction treats
@@ -218,7 +223,7 @@ def run_one(
         env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
-    if arm in ("survival_llm", "keep_everything_llm") and "attack" in overrides:
+    if arm in LLM_LOOP_ARMS and "attack" in overrides:
         from .wef import LlmReadingEnv
 
         env = LlmReadingEnv(env)  # type: ignore[assignment]
@@ -240,7 +245,7 @@ def run_one(
     # the audit trail (per-answer attribution paths, raw completions)
     # must outlive the dispatch to reach metrics and the transcript.
     audit: AuditedProtocol | None = None
-    if arm in ("survival_llm", "keep_everything_llm"):
+    if arm in LLM_LOOP_ARMS:
         if "attack" in overrides:
             # The W/E/F variant additionally records, per answer, whether
             # the poison was retrieved and whether the MODEL's own
@@ -434,6 +439,20 @@ def _dispatch(
     if arm == "evict_on_negative":
         return run_evict_on_negative(
             store, env, cycles, on_cycle, strikes=int(overrides.get("strikes", 1))
+        )
+    if arm == "evict_on_negative_llm":
+        # The if-statement baseline under the SAME model as survival_llm.
+        # Without it the suite only shows that a defence beats no
+        # defence, which is not a claim about the ledger.
+        if audit is None:
+            raise ValueError("evict_on_negative_llm needs the audited protocol")
+        return run_evict_on_negative(
+            store,
+            env,
+            cycles,
+            on_cycle,
+            strikes=int(overrides.get("strikes", 1)),
+            protocol=audit,
         )
     if arm == "evict_consecutive":
         return run_evict_consecutive(

@@ -307,7 +307,7 @@ def memsec_suite(seeds: list[int]) -> list[RunSpec]:
 # W/E/F with a real model in the loop. Shorter and narrower than the
 # deterministic suites because every task costs a model call: 24 cycles
 # is the minimum that lets an unconsulted entry starve at upkeep 0.05.
-WEF_ARMS = ("survival_llm", "keep_everything_llm")
+WEF_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
 
 
 def wef_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:

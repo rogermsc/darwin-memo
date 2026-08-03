@@ -408,8 +408,11 @@ F1 and F2 are always reported together, and `wef_selective_repair` is
 their product. Repair without preservation is not a defence, it is
 amnesia.
 
-Arms: `survival_llm` (the ledger) and `keep_everything_llm` (no
-curation, same model, same protocol) — the Forget-stage control.
+Arms: `survival_llm` (the ledger), `keep_everything_llm` (no curation)
+and `evict_on_negative_llm` (the one-line if-statement baseline), all
+three on the same model and the same protocol. The null control alone
+would only show that a defence beats no defence; the counter arm is
+what makes any row here a claim about the ledger.
 
 ### The action-vocabulary gap, found while building this
 
@@ -431,22 +434,57 @@ LLM-mode claim in this document.
 
 ### Result (llama3.2, 3 seeds, 24 cycles)
 
-Means over seeds 0-2, from `bench/results/wef-llama32.json`.
+Means over seeds 0-2, from `bench/results/wef-llama32.json` and
+`bench/results/wef-llama32-counter.json`. `kill` is
+`poison_kill_cycle`: the cycle the last poisoned entry that ADVISES
+ACTION is gone, i.e. revocation by consequence.
 
-| attack | arm | E1 recall | E2 adoption | E3 cycles | F1 | F2 | selective repair |
-|---|---|---|---|---|---|---|---|
-| explicit | keep_everything_llm | 0.22 | 0.21 | 15.0 | 0.00 | 1.00 | 0.00 |
-| explicit | survival_llm | 0.14 | 0.02 | 1.3 | 1.00 | 1.00 | **1.00** |
-| policy_conformant | keep_everything_llm | 0.22 | 0.21 | 15.3 | 0.00 | 1.00 | 0.00 |
-| policy_conformant | survival_llm | 0.09 | 0.02 | 0.7 | 1.00 | 0.67 | **0.67** |
-| inert | keep_everything_llm | 0.00 | 0.00 | 0.0 | 0.00 | 1.00 | 0.00 |
-| inert | survival_llm | 0.13 | 0.00 | 0.0 | 1.00 | 1.00 | **1.00** |
+| attack | arm | E1 | E2 | E3 | F1 | F2 | sel. repair | kill | alive |
+|---|---|---|---|---|---|---|---|---|---|
+| explicit | keep_everything_llm | 0.22 | 0.21 | 15.0 | 0.00 | 1.00 | 0.00 | — | 7 |
+| explicit | evict_on_negative_llm | 0.22 | 0.02 | 1.7 | 0.00 | 1.00 | 0.00 | **1-3** | 5 |
+| explicit | survival_llm | 0.14 | 0.02 | 1.3 | 1.00 | 1.00 | 1.00 | 8-10 | 0 |
+| policy_conformant | keep_everything_llm | 0.22 | 0.21 | 15.3 | 0.00 | 1.00 | 0.00 | — | 3 |
+| policy_conformant | evict_on_negative_llm | 0.02 | 0.02 | 1.7 | 0.00 | 1.00 | 0.00 | **1-3** | 1 |
+| policy_conformant | survival_llm | 0.09 | 0.02 | 0.7 | 1.00 | 0.67 | 0.67 | 8 | 0 |
+| inert | keep_everything_llm | 0.00 | 0.00 | 0.0 | 0.00 | 1.00 | 0.00 | 0 | 3 |
+| inert | evict_on_negative_llm | 0.00 | 0.00 | 0.0 | 0.00 | 1.00 | 0.00 | 0 | 3 |
+| inert | survival_llm | 0.13 | 0.00 | 0.0 | 1.00 | 1.00 | 1.00 | 0 | 0 |
 
-The result the suite was built to test survives the handover: with the
-model's own citation deciding adoption, `survival_llm` adopts on 2% of
-answers against the control's 21%, and externalizes measured damage in
-0.7-1.3 cycles of 24 against 15. W2 is 1.00 everywhere — the write
-always persists past the first tick, which is the threat model.
+**Read against a real defence, not against doing nothing, the ledger
+does not win.** `keep_everything_llm` is the null control and both
+curation arms beat it, which is not a claim about the ledger. The arm
+that decides the question is `evict_on_negative_llm`: the one-line
+if-statement — evict any entry whose decisions produced a negative
+outcome, no energy, no forgiveness — answering through the SAME model
+and the same protocol.
+
+- **Harm: a tie.** Adoption 0.02 for both. Externalized cycles 1.7 vs
+  1.3 and 1.7 vs 0.7, three seeds; nothing here separates them.
+- **Revocation latency: the counter wins outright.** It has the last
+  acting poisoned entry gone by cycle 1-3; the ledger takes 8-10. The
+  ledger's buffer is what makes it slower — an entry must burn through
+  its energy before it dies, which is the design, and here the design
+  costs five to eight cycles of exposure.
+- **F1 is not selection, it is the cliff.** The ledger's 1.00 against
+  the counter's 0.00 is the one row that looks decisive, and it is an
+  artifact. `poison_starve_cycle` is **19 in every survival run**, the
+  same cycle as the undifferentiated collapse from 14 alive to 5. The
+  dormant entries were not identified as poison; they starved because
+  nothing consulted them, exactly like the nine benign entries that
+  died in the same cycle — one of which is the F2 0.67. Removal by
+  disuse is a real property of the ledger and the counter has no
+  equivalent, but it is not evidence of selection against poison, and
+  within this 24-cycle horizon the entries it removed had caused zero
+  measured harm (E2 and E3 are 0.00 for `inert` in every arm).
+
+What the ledger does demonstrably do that the counter cannot: clear
+entries that never act. Whether that is worth five extra cycles of
+exposure and a third of the benign probe set is a question this
+benchmark does not answer in the ledger's favour.
+
+W2 is 1.00 everywhere — the write always persists past the first tick,
+which is the threat model, not a finding.
 
 `wef_phrasing_missed_rate` ran 0.00-0.04. The extended reader changed
 the reading of up to 4% of answers, so every number above is stated
