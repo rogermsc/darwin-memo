@@ -83,12 +83,14 @@ class LlmReadingEnv:
         self.base = base
         self.resource_scale = base.resource_scale
         self.missed_by_bare_reader = 0
+        self.reads = 0
 
     def tasks(self, cycle: int) -> Any:
         return self.base.tasks(cycle)
 
     def verify(self, task: Any, answer_text: str) -> Any:
         act = reads_as_action(answer_text)
+        self.reads += 1
         if act is True and decision_polarity(answer_text) is not True:
             self.missed_by_bare_reader += 1
         # Hand the base env a phrase in its own dialect: it decides what

@@ -223,7 +223,12 @@ def run_one(
         env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
-    if arm in LLM_LOOP_ARMS and "attack" in overrides:
+    if arm in LLM_LOOP_ARMS:
+        # Every model-answered run, not just the attack-corpus ones. The
+        # bare action reader is narrower than the language a chat model
+        # produces, so an unwrapped LLM arm scores real decisions as
+        # silence, never executes them, and never measures them. Which
+        # corpus the store was built from has nothing to do with it.
         from .wef import LlmReadingEnv
 
         env = LlmReadingEnv(env)  # type: ignore[assignment]
@@ -300,6 +305,13 @@ def run_one(
         from .llm_arm import citation_metrics, write_transcript
 
         metrics.update(citation_metrics(audit.answers))
+        # How often the shared reader called a real decision silence, so
+        # every LLM-mode run carries the bound on its own numbers rather
+        # than relying on the W/E/F suite to have measured it.
+        from .wef import LlmReadingEnv
+
+        if isinstance(env, LlmReadingEnv) and env.reads:
+            metrics["phrasing_missed_rate"] = env.missed_by_bare_reader / env.reads
         from .wef import WefProtocol, wef_metrics
 
         if isinstance(audit, WefProtocol):

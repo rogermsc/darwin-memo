@@ -426,11 +426,18 @@ def _llm_overrides(model: str, refuse: bool) -> dict[str, Any]:
 
 
 def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
-    """Opt-in: survival with a local model answering through the full
-    3-stage protocol, run with the refuse_unparseable mitigation off
-    and on for every model. Sampled, not deterministic, never run in
-    CI."""
-    return [
+    """Opt-in: the curation arms with a local model answering through the
+    full 3-stage protocol. Sampled, not deterministic, never in CI.
+
+    The refuse_unparseable mitigation is swept for the ledger, which is
+    the arm the mitigation was written for. The two controls run once
+    each: they exist to say whether a number belongs to the LEDGER or
+    merely to curating at all, and that question does not need the
+    mitigation crossed into it. Before they existed this suite had a
+    single arm and therefore no baseline, so nothing in it was a claim
+    about the ledger.
+    """
+    ledger = [
         RunSpec(
             suite="llm",
             arm="survival_llm",
@@ -444,6 +451,21 @@ def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
         for refuse in (False, True)
         for seed in seeds
     ]
+    controls = [
+        RunSpec(
+            suite="llm",
+            arm=arm,
+            seed=seed,
+            cycles=LLM_CYCLES,
+            files_per_cycle=LLM_FILES_PER_CYCLE,
+            overrides=_llm_overrides(model, False),
+            label=f"model={model},refuse=off",
+        )
+        for model in models
+        for arm in ("keep_everything_llm", "evict_on_negative_llm")
+        for seed in seeds
+    ]
+    return ledger + controls
 
 
 # ---------------------------------------------------------------------------

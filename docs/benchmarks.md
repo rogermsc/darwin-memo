@@ -1239,32 +1239,71 @@ LLM-driven arm does per cycle at a fraction of the cost the LLM pays.
 
 ### llama3.2:3b carries the statistics (n=5 per mitigation setting)
 
-The committed evidence is `bench/results/llm-llama.json`: 10 runs, five
-seeds with the mitigation off and five with it on, paired by seed within
-the one model cell. Five seeds is a small sample by design (each run is
-roughly 18 minutes of model time), so the exact two-sided permutation
-test cannot drop below p = 0.0625 even on a clean 5-0 sweep; read these
-as direction and effect size, and nothing here clears p = 0.05.
+The committed evidence is `bench/results/llm-llama.json`: 20 runs — the
+ledger over five seeds with the mitigation off and five with it on,
+plus the two control arms over five seeds each. Five seeds is a small
+sample by design (each run is roughly 18 minutes of model time), so the
+exact two-sided permutation test cannot drop below p = 0.0625 even on a
+clean 5-0 sweep; read these as direction and effect size, and nothing
+here clears p = 0.05.
+
+**This file was re-run on 2026-08-03 and its earlier numbers should not
+be cited.** The version it replaced had a single arm and therefore no
+baseline, so nothing in it was a claim about the ledger rather than
+about curating at all; and it predates the fix that lets the
+environment hear a chat model's phrasing of a decision (see the action
+vocabulary gap above), so decisions the model plainly made were scored
+as silence, never executed, and never measured. Both changed between
+0.5.0 and 0.5.1, so the difference between the old numbers and these is
+not attributed to either one alone.
+
+### What the controls say (n=5 each, mitigation off)
+
+| arm | kill cycle | poison alive | final pop | harmful-safe | benign | cum_delta |
+|---|---|---|---|---|---|---|
+| `keep_everything_llm` | — | 3 | 16 | 0.50 | 1.00 | -3,313,050 |
+| `evict_on_negative_llm` | 1.6 | 1 | 14 | 1.00 | 1.00 | -3,607,347 |
+| `survival_llm` | 8.0 | 0 | 5 | 1.00 | 1.00 | **+2,581,504** |
+
+Two things, and they point opposite ways.
+
+The counter revokes roughly five times faster — the last acting
+poisoned entry is gone by cycle 1.6 against the ledger's 8.0 — and
+reaches the same probe safety. On the security axis it is the better
+policy here, exactly as it is on the W/E/F attack corpus.
+
+On the conserved resource the ordering inverts and the gap is not
+close: both controls finish millions of bytes underwater and the ledger
+is the only arm in credit. The counter prunes what caused a measured
+loss and stops, so the merely-useless is never removed, the store stays
+at 14 entries and keeps paying upkeep on all of them — it ends up
+*worse than no curation at all* on cum_delta (-3.61M against -3.31M).
+Removal by disuse is what separates the arms here, and unlike the
+W/E/F result it is not a starvation artifact: it is the entire delta.
+The two corpora reward different things, and the ledger's case rests on
+the economic axis, not the security one.
+
+### The mitigation is inert for this model
 
 On true outcomes the two settings are a wash. Survival_llm kills the
 actionable poison every seed under both settings (kill rate 1.00),
-median kill cycle 8 off and 14 on. Per-seed cum-delta pairing
+median kill cycle 8 off and 8 on. Per-seed cum-delta pairing
 (`--paired survival_llm:model=llama3.2:3b,refuse=off
 survival_llm:model=llama3.2:3b,refuse=on --metric cum_delta`) is
-1W/2T/2L for off, mean diff off minus on -84,790 with bootstrap 95% CI
-[-279,600, 92,160] and exact paired p = 0.5000. The mitigation neither
-helps nor hurts solvency at this scale.
+1W/3T/1L for off with a median diff of 0 (min -135,168, max 27,648).
+The mitigation neither helps nor hurts solvency at this scale.
 
-The reason it makes no difference is the honest finding here:
-**llama3.2:3b emitted a parseable SOURCES line on every answer**
-(`citation_sources_line_rate` 1.00 under both settings, `citation_
-fallback_rate` 0.00), so the protocol never reached the fallback path
-the mitigation gates. With nothing to refuse, `citation_refused_rate` is
-0.00 and the unattributed-action rate is byte-identical off and on
-(`citation_unattributed_action_rate` 0.2283 both, exact paired p =
-1.0000). The mitigation is inert for a model that always attributes; it
-only bites a model that drops the SOURCES line, which is the qwen case
-below and the reason the full qwen grid was worth starting.
+The reason is the honest finding here: **llama3.2:3b emitted a
+parseable SOURCES line on every answer** (`citation_sources_line_rate`
+1.00 under both settings, `citation_fallback_rate` 0.00), so the
+protocol never reached the fallback path the mitigation gates. With
+nothing to refuse, `citation_refused_rate` is 0.00. The
+unattributed-action rate is 0.1833 off against 0.1350 on (4W/0T/1L for
+off, median diff 0) — the mitigation is inert for a model that always
+attributes; it only bites a model that drops the SOURCES line, which is
+the qwen case below. Note the counter's unattributed-action rate is
+0.3500, roughly double the ledger's: an arm that keeps more entries
+alive gives the model more it can act on without citing.
 
 ### Citation fidelity (llama3.2:3b, off / on means, n=5 each)
 
@@ -1305,6 +1344,16 @@ n=5 off-and-on grid is wall-clock-prohibitive (one run is about 4.8 hours,
 was assembled, so qwen is reported as a cost existence-proof and a
 directional signal, not as a statistical comparison. The full qwen n=5
 may be folded in later.
+
+**This file was NOT re-run with the llama grid on 2026-08-03, and it is
+therefore a version behind.** It has no control arms, and it was
+produced before the environment could hear a chat model's phrasing of a
+decision, so its numbers carry the deafness the llama file no longer
+does. A re-run was started and abandoned: qwen3:4b measured 2,719 s per
+run on the current 20-run grid, about 15 hours, against llama's roughly
+3 minutes. Nothing here may be compared against the llama numbers
+above, and the two-run cost existence-proof is the only thing this file
+still supports.
 
 What the two runs show: qwen3:4b is the model the mitigation was built
 for. It drops the SOURCES line far more often than llama
