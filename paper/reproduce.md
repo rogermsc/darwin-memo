@@ -90,6 +90,18 @@ Run it from the repository root (the directory that contains `bench/`).
 
 ### 1. Environment and install
 
+darwin-memo requires Python 3.10 or newer. `python3` is 3.9 on a stock
+macOS and on several LTS distributions; point the script at a newer
+interpreter rather than the default:
+
+```bash
+PYTHON=python3.12 bash paper/reproduce.sh
+```
+
+The script checks this first and says so plainly. Skipping the check
+produces a pip resolution error that reads like a broken package instead
+of an old interpreter.
+
 ```bash
 python3 -m venv .venv-reproduce
 source .venv-reproduce/bin/activate

@@ -35,6 +35,32 @@ echo "== darwin-memo report reproduction (offline manifest verification) =="
 echo "repository root: $ROOT"
 echo
 
+# --- 0: the interpreter, checked before anything is built ---------------
+#
+# darwin-memo requires Python >= 3.10, and `python3` is 3.9 on a stock
+# macOS and on several LTS distributions. Without this check the failure
+# arrives much later as a pip resolution error reading "darwin-memo==0.5.1
+# not installable from PyPI in this environment", which describes a broken
+# package rather than an old interpreter and is exactly the wrong thing to
+# tell someone verifying our evidence.
+if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+  found="$("$PY" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])' 2>/dev/null || echo unknown)"
+  cat >&2 <<EOF
+ERROR: darwin-memo requires Python 3.10 or newer; '$PY' is $found.
+
+This is an interpreter problem, not a packaging one. Point the script at a
+newer interpreter:
+
+    PYTHON=python3.12 bash paper/reproduce.sh
+
+On macOS, /usr/bin/python3 is the system 3.9; a Homebrew or python.org
+install provides python3.10+ under its own name.
+EOF
+  exit 1
+fi
+echo "interpreter: $PY ($("$PY" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])'))"
+echo
+
 # --- 1 + 2: environment and pinned install ------------------------------
 #
 # The v0.5.1 tag is cut at release time. If it is not yet on PyPI, install
