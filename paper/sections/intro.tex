@@ -73,9 +73,15 @@ The properties that survive every comparison in our study are:
   \item \textbf{It starves dead weight.} The energy ledger is the only
   mechanism we test that removes never-consulted entries; heuristics and
   the bandit hoard them indefinitely.
-  \item \textbf{It kills actionable poison promptly}---within one
-  cycle---where a confidence bandit needs several confirmed failures and
-  a recency policy never kills it at all.
+  \item \textbf{It removes poisoned entries completely}, acting and
+  dormant alike. In the deterministic suites it kills actionable poison
+  within one cycle, where a confidence bandit needs several confirmed
+  failures and a recency policy never kills it at all. That speed does
+  not survive a model in the loop: a one-line eviction counter revokes
+  in one to three cycles against the ledger's eight to ten
+  (\S\ref{sec:wef}). What the ledger retains there is completeness---it
+  is the only arm that ends with no poisoned entry alive---and it pays
+  for it in latency.
   \item \textbf{It tolerates lying measurements}, including adversarial
   ones. A continuous energy buffer with earn-back forgives transient
   false signals that linearly consume any strike counter, and it is the

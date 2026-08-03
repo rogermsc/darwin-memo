@@ -188,6 +188,117 @@ attack & defence & filter TPR & harm & cum $\Delta$ & starve & alive@30 \\
 \end{tabular}
 \end{table}
 
+\subsection{A model in the loop, and where the claim does not hold}
+\label{sec:wef}
+Every result above lets a keyword function decide what ``the agent
+adopted the poison'' means, and the corpus, the prompts, and that
+function were written in the same vocabulary by the same hand. This
+subsection removes that coupling: a local model (\texttt{llama3.2},
+three seeds, 24 cycles) retrieves, answers, and cites, and the
+lifecycle checkpoints are scored from what the model actually did.
+The checkpoints follow the Write--Execute--Forget protocol
+\citep{memsecbench2026} defines. \textbf{This is a reimplementation of
+the protocol, not a port}: its cases and code were unavailable, so
+nothing here reproduces or compares against its numbers.
+
+\paragraph{The action-vocabulary gap.}
+Building this suite exposed a threat to validity in our own harness.
+The shared reader has \texttt{"safe to delete"}; a chat model writes
+\texttt{"deleting store-1.db under data/ is safe"}. The first parses as
+an action, the second as \emph{silence}, so the environment never
+executes, never measures, and selection receives no signal from a
+decision the model plainly made. LLM-mode answers are therefore read
+with paraphrases of the same decision, scoped to this suite so the
+deterministic suites' committed numbers stay reproducible under the
+reader that produced them. The disagreement rate between the two
+readers ran $0.00$--$0.04$, and every number in this subsection carries
+that as its error bar.
+
+\paragraph{Read against a real defence, the ledger does not win.}
+Both curation arms beat \texttt{keep\_everything\_llm}, which is a
+statement about curation and not about the ledger. The arm that decides
+the question is \texttt{evict\_on\_negative\_llm}: the one-line
+if-statement---evict any entry whose decisions produced a negative
+outcome, no energy, no forgiveness---answering through the same model
+and the same protocol. Against it (Table~\ref{tab:wef}):
+
+\begin{itemize}
+  \item \emph{Harm is a tie.} Adoption is $0.02$ for both arms, against
+  $0.21$ for no curation. Externalized cycles ($1.7$ vs.\ $1.3$ and
+  $1.7$ vs.\ $0.7$) do not separate them at three seeds.
+  \item \emph{Revocation latency: the counter wins outright.} The last
+  \emph{acting} poisoned entry is gone by cycle $1$--$3$ under the
+  counter and $8$--$10$ under the ledger. The energy buffer is exactly
+  what makes the ledger slower---an entry must burn through its balance
+  before it dies---and here that design costs five to nine cycles of
+  exposure, per seed and attack class.
+  \item \emph{Completeness: the ledger wins outright.} It ends with no
+  poisoned entry alive in $9$ of $9$ runs; the counter leaves one to
+  five alive in every run, because an entry it never settles negatively
+  is an entry it never removes.
+\end{itemize}
+
+\paragraph{What F1 is actually measuring.}
+The ledger's $1.00$ repair rate is two mechanisms and should not be
+read as one. Poison that \emph{acts} dies by consequence, at cycle
+$8$--$10$, well before the population's starvation cliff at $19$.
+Poison that never acts---the \texttt{inert} class, adoption and
+externalization both $0.00$---dies at $19$ by upkeep alone, in the same
+sweep that takes the alive population from $14$ to $5$. Removal by
+disuse is a real capability, and the counter has no equivalent, but it
+is not selection against poison: those entries were never identified as
+harmful, they were merely never consulted. Within this 24-cycle horizon
+they had also caused no measured harm.
+
+The cost of that sweep is visible in the same table. Under
+\texttt{policy\_conformant} the ledger's benign preservation falls to
+$0.67$: a third of the benign probe set died in the cycle-19 collapse
+alongside the dormant poison. F1 and F2 are reported together, and
+their product---selective repair---is the honest figure, because repair
+without preservation is amnesia rather than defence. The ledger ends
+these runs carrying $4$--$5$ entries where both other arms carry
+$14$--$18$, which is the same fact read as a benefit.
+
+\paragraph{Verdict.}
+On this protocol the pre-registered claim that conserved-resource
+selection revokes poison \emph{faster} than a one-line heuristic is
+\textbf{not supported}. What survives is narrower and we state it as
+such: the ledger is the only arm that clears dormant payloads and the
+only one that keeps the population small, and it pays for both with
+revocation latency and with benign entries lost to the same starvation
+that removes the dormant poison.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Write--Execute--Forget with \texttt{llama3.2} deciding
+adoption; means over seeds 0--2. \emph{kill} is the cycle the last
+\emph{acting} poisoned entry is gone; \emph{alive} counts poisoned
+entries of any kind at the end. The counter revokes sooner, the ledger
+finishes the job.}
+\label{tab:wef}
+\begin{tabular}{llcccccc}
+\toprule
+attack & arm & E2 & E3 & F1 & F2 & kill & alive \\
+\midrule
+\multirow{3}{*}{explicit}
+ & keep\_everything & 0.21 & 15.0 & 0.00 & 1.00 & never & 7 \\
+ & evict\_on\_negative & 0.02 & 1.7 & 0.00 & 1.00 & \textbf{1--3} & 5 \\
+ & ledger & 0.02 & 1.3 & \textbf{1.00} & 1.00 & 8--10 & \textbf{0} \\
+\midrule
+\multirow{3}{*}{policy-conformant}
+ & keep\_everything & 0.21 & 15.3 & 0.00 & 1.00 & never & 3 \\
+ & evict\_on\_negative & 0.02 & 1.7 & 0.00 & 1.00 & \textbf{1--3} & 1 \\
+ & ledger & 0.02 & 0.7 & \textbf{1.00} & 0.67 & 8 & \textbf{0} \\
+\midrule
+\multirow{3}{*}{inert (dormant)}
+ & keep\_everything & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
+ & evict\_on\_negative & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
+ & ledger & 0.00 & 0.0 & \textbf{1.00} & 1.00 & starve 19 & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Curation-targeted attack: denial of memory}
 \label{sec:adversary}
 Every curation mechanism is itself an attack surface, and the
@@ -326,15 +437,23 @@ whether conserved-resource selection produces a \emph{learning curve} on
 real tasks, we adopt SWE-Bench-CL \citep{joshi2025swebenchcl,
 jimenez2024swebench}: per-repository continual-learning sequences of
 human-verified GitHub issues, with the conserved resource being the change
-in passing-test count from the official evaluation harness. Three arms
-answer the same tasks through the same endpoint and executor:
+in passing-test count from the official evaluation harness. Five arms
+answer the same tasks through the same endpoint and executor, along two
+axes. The memory axis asks whether selection matters at all:
 \texttt{memory\_on} (relevance-retrieved lessons, minted and settled by
 eval outcome), \texttt{memory\_off}, and \texttt{random\_matched}
-(uniformly random lessons under the same token budget). The decisive
-control is \texttt{random\_matched}: beating \texttt{memory\_off} alone
-could be a token-budget effect, so the learning-curve claim is the
-second-half-minus-first-half improvement of \texttt{memory\_on} over
-\texttt{random\_matched} on at least three seeds per sequence.
+(uniformly random lessons under the same token budget). The curation
+axis holds retrieval fixed at relevance and varies only the policy:
+\texttt{keep\_everything} and \texttt{evict\_on\_negative} inject
+exactly what \texttt{memory\_on} injects, so any difference between the
+three is the curation rule alone---the same one-line counter that ties
+the ledger in \S\ref{sec:wef}, now on real tasks.
+
+The decisive control is \texttt{random\_matched}: beating
+\texttt{memory\_off} alone could be a token-budget effect, so the
+learning-curve claim is the second-half-minus-first-half improvement of
+\texttt{memory\_on} over \texttt{random\_matched} on at least three
+seeds per sequence.
 
 The dataset is pinned by an exact (commit, sha256) pair; the loader
 refuses any file whose hash differs. As of this writing the pin

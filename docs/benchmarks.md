@@ -465,23 +465,32 @@ and the same protocol.
   acting poisoned entry gone by cycle 1-3; the ledger takes 8-10. The
   ledger's buffer is what makes it slower — an entry must burn through
   its energy before it dies, which is the design, and here the design
-  costs five to eight cycles of exposure.
-- **F1 is not selection, it is the cliff.** The ledger's 1.00 against
-  the counter's 0.00 is the one row that looks decisive, and it is an
-  artifact. `poison_starve_cycle` is **19 in every survival run**, the
-  same cycle as the undifferentiated collapse from 14 alive to 5. The
+  costs five to nine cycles of exposure, per seed and attack class.
+- **F1 is two mechanisms, and only one of them is selection.** The
+  ledger's 1.00 against the counter's 0.00 is the one row that looks
+  decisive, and it has to be read in halves. Poison that **acts** dies
+  by consequence: `poison_kill_cycle` is 8-10 under `explicit` and 8
+  under `policy_conformant`, well before the population's starvation
+  cliff. Poison that **never acts** dies by upkeep alone —
+  `poison_starve_cycle` is 19 in all six survival runs that have one
+  (the three `explicit` runs have no non-acting poison to starve), the
+  same cycle as the undifferentiated collapse from 14 alive to 5. Those
   dormant entries were not identified as poison; they starved because
   nothing consulted them, exactly like the nine benign entries that
   died in the same cycle — one of which is the F2 0.67. Removal by
   disuse is a real property of the ledger and the counter has no
-  equivalent, but it is not evidence of selection against poison, and
-  within this 24-cycle horizon the entries it removed had caused zero
-  measured harm (E2 and E3 are 0.00 for `inert` in every arm).
+  equivalent, but for the dormant class it is not evidence of selection
+  against poison, and within this 24-cycle horizon those entries had
+  caused zero measured harm (E2 and E3 are 0.00 for `inert` in every
+  arm).
 
-What the ledger does demonstrably do that the counter cannot: clear
-entries that never act. Whether that is worth five extra cycles of
-exposure and a third of the benign probe set is a question this
-benchmark does not answer in the ledger's favour.
+What the ledger does demonstrably do that the counter cannot: finish
+the job. It ends with no poisoned entry alive in 9 of 9 runs, acting or
+dormant, where the counter leaves 1-5 alive in every run — an entry it
+never settles negatively is an entry it never removes. Whether that
+completeness is worth five to nine extra cycles of exposure and a
+third of the benign probe set is the trade this benchmark puts on the
+table; it does not answer it in the ledger's favour.
 
 W2 is 1.00 everywhere — the write always persists past the first tick,
 which is the threat model, not a finding.
