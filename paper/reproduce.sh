@@ -143,4 +143,12 @@ cost per run is shown so the wall-clock price is known before starting:
   (qwen3:4b) the ledger's per-run wall time. None of these arms ever runs
   in CI. This script does NOT run them; regenerate them yourself only with
   a local model server, knowing the cost above.
+
+Needs Docker, a frontier API key, and about half a day (this script runs
+none of it; see paper/reproduce.md section 5):
+
+  bench/results/swebench_cl/   5 arms x 2 sequences x 3 seeds, ~55 s/task,
+                               ~10 h and ~$100 of API for the full matrix.
+                               Resumable: python -m bench.swebench_cl.matrix
+                               skips cells whose output already exists.
 NOTE
