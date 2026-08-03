@@ -300,12 +300,12 @@ def run_sequence(
         if code_context_chars > 0:
             # Edit-based path: the model emits SEARCH/REPLACE blocks and we
             # compute the diff, so hunk line numbers are always correct.
-            patch, edits_applied, edits_failed = edits_to_patch(
+            patch, edits_applied, edits_failed, edits_relaxed = edits_to_patch(
                 code_originals, response
             )
         else:
             patch = extract_patch(response)
-            edits_applied = edits_failed = 0
+            edits_applied = edits_failed = edits_relaxed = 0
         reflection = extract_reflection(response)
         report = executor.evaluate(task, patch)
         delta = delta_from_eval(report)
@@ -348,6 +348,10 @@ def run_sequence(
                     "patch_chars": len(patch),
                     "edits_applied": edits_applied,
                     "edits_failed": edits_failed,
+                    # How many of `applied` needed the whitespace-tolerant
+                    # retry: the fallback's contribution, never hidden
+                    # inside the success count.
+                    "edits_relaxed": edits_relaxed,
                     "reflection": reflection[:280],
                 },
                 "eval": report.to_dict(),

@@ -118,9 +118,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-tokens", type=int, default=4096)
     # Non-zero by default and deliberately so: at 0 the model never sees
     # the repository and resolves ~0 on every arm, which is a flat matrix
-    # that costs the same forty hours to produce as a real one.
-    p.add_argument("--code-context-chars", type=int, default=60000)
-    p.add_argument("--code-max-files", type=int, default=5)
+    # that costs the same wall-clock to produce as a real one.
+    #
+    # The size is set by measured retrieval recall, not by taste. BM25
+    # puts the file the gold patch edits in front of the model on 37% of
+    # the pytest sequence at 60k/5 files, 74% at 300k/10, and 89% at
+    # 600k/20. Below that the arms are mostly being scored on which
+    # tasks BM25 happened to serve, since a file the model never sees is
+    # a task no arm can solve. The retrieval query is issue-only and
+    # identical across arms, so this sets how many tasks are answerable
+    # at all, never which arm answers them.
+    p.add_argument("--code-context-chars", type=int, default=300000)
+    p.add_argument("--code-max-files", type=int, default=10)
     p.add_argument("--timeout", type=float, default=600.0)
     p.add_argument("--max-tasks", type=int, default=None)
     p.add_argument("--seed-poison", action="store_true")
