@@ -4,6 +4,27 @@
 We state the threats to validity plainly, in the spirit of the
 pre-registration above.
 
+\paragraph{Outside the adversarial regime, the mechanism may be
+unnecessary.}
+We state the strongest argument against this paper because our own data
+makes it. Three independent tests failed to find an advantage for the
+energy ledger where no adversary is present. Pre-registered gates on
+trajectory selection found it matched or beaten by a threshold counter
+under i.i.d.\ noise, by a buffer frontier, and by a tuned EWMA under
+drift. With a real model deciding adoption, a one-line eviction counter
+revokes poison sooner (\S\ref{sec:wef}). On real software-engineering
+tasks it shows no learning-curve advantage over a token-matched random
+control, with the no-memory arm scoring highest of five
+(\S\ref{sec:swebench}). Each has a local explanation---estimation
+quality was never the claim, latency is the price of a buffer, the
+benchmark's sequences are shorter than the mechanism's time
+constant---and we give those explanations where they belong. But a
+reader is entitled to the pattern rather than three separate
+mitigations: absent an attacker, what we have demonstrated is leanness
+and cost, not accuracy. The adversarial result is the one that survived
+every attempt to find a cheaper substitute, and it is the claim we
+would defend if forced to keep only one.
+
 \paragraph{Vocabulary coupling.}
 In the synthetic suites the corpus, the task prompts, and the
 action-reading function were written in the same vocabulary by the same

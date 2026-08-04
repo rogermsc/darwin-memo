@@ -26,8 +26,9 @@
 \newcommand{\upkeep}{u}             % upkeep
 \newcommand{\Emax}{E_{\max}}        % energy cap
 
-\title{\textbf{Memory That Must Earn Its Keep:\\
-Conserved-Resource Selection for Self-Curating Agent Memory}}
+\title{\textbf{Attacking the Curator:\\
+Curation-Targeted Attacks on Agent Memory,\\
+and What Survives Them}}
 
 \author{
   Roger Sim\~oes\\
@@ -42,43 +43,39 @@ Conserved-Resource Selection for Self-Curating Agent Memory}}
 \maketitle
 
 \begin{abstract}
-External memory lets a frozen language-model agent accumulate knowledge
-without retraining, but every such system must decide what to keep. The
-dominant answer is a \emph{model in the loop}: an LLM rates, rewrites, or
-judges memories, or a learned reward model scores them. We show that on
-tasks with a \emph{conserved, measurable resource}---disk bytes, passing
-tests, resolved issues---the curator can be removed entirely. We present
-\textsc{darwin-memo}, in which each memory entry pays an energy upkeep
-every cycle and earns energy back only when the environment measures a
-positive outcome along its provenance. Useless entries starve; poisoned
-entries that drive harmful actions are executed by the damage they cause;
-near-duplicates consolidate. There is no reward model, no LLM judge, and
-no human curation anywhere, and settlement is therefore essentially free.
-Our contribution is not that this beats every alternative---it does not,
-and we report where it loses. It is a \emph{regime map}: across two
-environment families, ablations, measurement-noise sweeps, and control
-arms reconstructed from the literature (a Thompson-sampling retrieval
-bandit, an LLM-judge settler, and a hand-designed salience score), we
-characterize precisely when conserved-resource selection dominates and
-where a one-line heuristic or a confidence bandit matches or beats it.
-The differentiators that survive every comparison are sharp: it starves
-dead weight, kills actionable poison within one cycle, tolerates lying
-measurements that defeat strike counters, requires no labels, and settles
-$10^4$--$10^6$ times more cheaply than an LLM judge or generator. We
-also define a threat model the memory-security literature has not---the
-\emph{curation-targeted attack}, where the adversary corrupts the signal
-the curator decides on in order to starve the defender's benign
-memory---and show that one corrupted measurement per cycle destroys the
-benign capability of every strike counter and quarantine policy we test,
-on all 30 seeds, at no cost to the ledger, whose own boundary we locate
-and publish. Every
-number is produced by a stdlib-only harness with pre-registered
-hypotheses, seed-level bootstrap intervals, paired permutation tests, and
-committed per-seed data validated against its manifest in CI. On real
-software-engineering tasks the mechanism shows no advantage over a
-token-matched random control, and we report why: SWE-Bench-CL's
-sequences are shorter than the ledger's own starvation horizon, so the
-removal its edge depends on never happens.
+Agent memory that only grows is eventually dominated by stale and
+poisoned entries, so every practical system curates. Every curator
+decides on some signal---a classifier's verdict, a judge's rating, a
+measured outcome---and the memory-security literature defends that store
+at \emph{write} (does this text look malicious?) and at \emph{retrieval}
+(should this be injected?). We ask a question it has not: what happens
+when the adversary attacks the deciding signal itself. We define the
+\emph{curation-targeted attack}, in which an adversary injects no poison
+at all and instead corrupts settlement so that the defence starves the
+defender's own memory---denial of memory---and measure six curation
+mechanisms against it at five attack budgets over 30 seeds.
+The separation is sharp and so is its boundary. At one corrupted
+measurement per cycle, every strike counter and quarantine policy we
+test loses most or all benign capability---an evict-on-negative
+counter loses all of it---while a bounded-credit energy ledger loses
+none and retains $99.4\%$ of its unattacked outcome. A
+Thompson-sampling bandit also keeps capability, but only by never
+removing anything: it hoards dead weight and its poison-kill rate falls
+to $0.07$ by four lies per cycle. Retention is not defence. The ledger's
+own failure boundary lies between two and four lies per cycle and we
+publish it rather than stopping at the win.
+The ledger we defend with is \textsc{darwin-memo}, in which each entry
+pays energy upkeep and earns only from a conserved resource the
+environment already measures---no reward model, no judge, no labels.
+We are equally precise about where it is unnecessary. Absent an
+adversary a one-line heuristic ties it on outcomes, a confidence bandit
+matches it under one-sided noise, and on real software-engineering tasks
+it shows no advantage over a token-matched random control. We give the
+regime map that says which tool to use when, and report every one of
+those losses. Every number comes from a stdlib-only harness with
+pre-registered hypotheses, seed-level bootstrap intervals, exact paired
+permutation tests, and committed per-seed data validated against its
+manifest in CI.
 \end{abstract}
 
 \input{sections/intro}

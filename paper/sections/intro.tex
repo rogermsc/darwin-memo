@@ -27,8 +27,26 @@ can be gamed---the reward-hacking and semantic-drift failure mode that
 self-training systems are known to fall into when no external criterion
 anchors quality \citep{dodgson2026survival}.
 
-This paper asks what happens when the curator is removed entirely. Our
-starting observation is that a large and practically important class of
+\paragraph{The curator is an attack surface, and nobody has attacked it.}
+Whatever plays the curator---a classifier, a judge, a heuristic, a
+ledger---it decides on some signal, and that signal is reachable by an
+adversary. The memory-security literature defends the store at
+\emph{write} (does this text look malicious?) and at \emph{retrieval}
+(should this entry be injected?) \citep{mpbench2026, memsecbench2026},
+and both read content. Neither asks what happens when the input to the
+\emph{deciding rule} is corrupted. The consequence is not that poison
+survives; it is worse. A defence that removes entries on bad evidence,
+fed bad evidence, removes the defender's own working memory. The
+adversary need inject nothing at all, and the more decisively a
+mechanism curates the more thoroughly it destroys the store it protects.
+We call this a \emph{curation-targeted attack}, and its denial-of-memory
+case is, to our knowledge, undefined and unmeasured.
+
+This paper defines it, measures six curation mechanisms under it, and
+reports which survive. Doing so requires a curator whose deciding signal
+is not a model's opinion, so we also ask what happens when the curator
+is removed entirely. Our starting observation is that a large and
+practically important class of
 agent tasks comes with a \emph{conserved, physically measurable resource}
 that already settles the question of value without anyone grading
 anything. A storage-management agent frees or wastes real bytes. A coding
@@ -56,67 +74,71 @@ reward model, no LLM judge, and no human curation anywhere, and because
 settlement is a scalar the environment already returns, it is essentially
 free.
 
+\paragraph{The result, and its boundary.}
+Under attack the mechanisms separate cleanly (\S\ref{sec:adversary}). At
+one corrupted measurement per cycle the ledger keeps all of its benign
+capability and $99.4\%$ of its unattacked outcome while absorbing thirty
+fired lies; an evict-on-negative counter loses \emph{all} benign
+capability, a two-strike counter half of it, and a quarantine policy
+four fifths, on all 30 seeds (Holm-adjusted $p = 0.0015$). What makes
+the difference is a bounded credit buffer with earn-back: a lie costs
+energy an entry can win back, where a counter spends a life it cannot.
+A Thompson-sampling bandit also keeps its capability, but by never
+removing anything---it hoards dead weight and its poison-kill rate falls
+to $0.07$ by four lies per cycle. Retention is not defence. The ledger
+is not exempt either, and we publish its boundary rather than stopping
+at the win: between two and four lies per cycle it falls too, and past
+that only mechanisms that never delete retain capability, which they do
+by never defending.
+
 \paragraph{What we claim, and what we do not.}
 It would be easy, and wrong, to claim that conserved-resource selection
-dominates all alternatives. It does not. On a deterministic environment
-a one-line heuristic---``evict whatever just caused a negative
-outcome''---matches the full energy ledger on outcomes; in a second
-environment family that charges nothing for refusing to act, a strike
-counter beats it below a noise threshold and a quarantine policy beats it
-above; and a Thompson-sampling retrieval bandit reconstructed from
-\citet{xu2026ael} matches it under one-sided noise. We report all of
-these. Our contribution is the \emph{regime map}: a precise account,
-backed by pre-registered experiments, of \emph{when} conserved-resource
-selection is the right tool and where cheaper or different mechanisms win.
-The properties that survive every comparison in our study are:
-\begin{enumerate}
-  \item \textbf{It starves dead weight.} The energy ledger is the only
-  mechanism we test that removes never-consulted entries; heuristics and
-  the bandit hoard them indefinitely.
-  \item \textbf{It removes poisoned entries completely}, acting and
-  dormant alike. In the deterministic suites it kills actionable poison
-  within one cycle, where a confidence bandit needs several confirmed
-  failures and a recency policy never kills it at all. That speed does
-  not survive a model in the loop: a one-line eviction counter revokes
-  in one to three cycles against the ledger's eight to ten
-  (\S\ref{sec:wef}). What the ledger retains there is completeness---it
-  is the only arm that ends with no poisoned entry alive---and it pays
-  for it in latency.
-  \item \textbf{It tolerates lying measurements}, including adversarial
-  ones. A continuous energy buffer with earn-back forgives transient
-  false signals that linearly consume any strike counter, and it is the
-  only mechanism we test that withstands an attacker aiming at the
-  curator itself rather than at the memory---one corrupted measurement
-  per cycle destroys every counter's benign capability and costs the
-  ledger nothing.
-  \item \textbf{It needs no labels and no judge}, and so settles
-  $10^4$--$10^6\times$ more cheaply than an LLM-judge or LLM-generator
-  arm doing the same per-cycle work.
-\end{enumerate}
+dominates all alternatives. It does not, and the failures are not
+marginal. On a deterministic environment a one-line heuristic---``evict
+whatever just caused a negative outcome''---matches the full energy
+ledger on outcomes; with a real model deciding adoption that same
+one-liner revokes poison five to nine cycles \emph{sooner}
+(\S\ref{sec:wef}); in a second environment family that charges nothing
+for refusing to act, a strike counter beats the ledger below a noise
+threshold and a quarantine policy beats it above; a Thompson-sampling
+retrieval bandit reconstructed from \citet{xu2026ael} matches it under
+one-sided noise; and on real software-engineering tasks it shows no
+learning-curve advantage over a token-matched random control
+(\S\ref{sec:swebench}). We report all of these, and the honest summary
+is narrow: \emph{outside an adversarial regime, the ledger's extra
+machinery buys leanness and little else.} Our second contribution is
+therefore the \emph{regime map}: a precise, pre-registered account of
+which curator to reach for when, including the four axes on which a
+simpler mechanism is the correct choice.
 
 \paragraph{Contributions.}
-(1) A label-free, judge-free memory-curation mechanism that grounds
-survival in a conserved environmental resource, with credit assignment
-along provenance and a formal description (\S\ref{sec:method}).
-(2) A reproducible, stdlib-only evaluation harness with pre-registered
-hypotheses, seed-level bootstrap intervals, exact paired permutation
-tests, and committed per-seed data validated against a manifest in CI
-(\S\ref{sec:experiments}).
-(3) Control arms reconstructed from the literature---a retrieval bandit
+(1) \textbf{A threat model the memory-security literature has not
+defined}: the \emph{curation-targeted attack}, in which the adversary
+injects no poison and instead corrupts the signal a curator decides on,
+turning the defence into the instrument that starves the defender's
+benign memory (\S\ref{sec:adversary}).
+(2) \textbf{The first measurement of how curation mechanisms fare under
+it}---six mechanisms at five attack budgets over 30 seeds---establishing
+that a bounded credit buffer with earn-back is what separates the
+survivors, that retention without removal is not a defence, and that
+every mechanism including ours has a boundary, which we locate and
+publish.
+(3) A label-free, judge-free curation mechanism that grounds survival in
+a conserved environmental resource, with credit assignment along
+provenance and a formal description (\S\ref{sec:method}).
+(4) The regime map (\S\ref{sec:regime}): a boundary-aware statement of
+where this mechanism wins, ties, and loses, including the axes on which
+a one-line heuristic is the correct choice.
+(5) Control arms reconstructed from the literature---a retrieval bandit
 \citep{xu2026ael}, an LLM-judge settler, and a Generative-Agents-style
 salience score \citep{park2023generative}---run on the same harness
 rather than argued about.
-(4) A threat model the memory-security literature has not defined---the
-\emph{curation-targeted attack}, in which the adversary corrupts the
-signal a curator decides on in order to starve the defender's benign
-memory---together with the first measurement of how existing curation
-mechanisms fare under it (\S\ref{sec:adversary}).
-(5) The regime map itself (\S\ref{sec:regime}): an honest, boundary-aware
-statement of where the mechanism wins, ties, and loses, including
-published failure boundaries under measurement noise and attack.
-(6) A negative result on real software-engineering tasks, reported with
-its cause: on SWE-Bench-CL the mechanism shows no learning-curve
-advantage over a token-matched random control ($p = 0.50$), and the
-sequences available in that benchmark are shorter than the ledger's own
-starvation horizon, so the removal that the synthetic suites credit for
-its edge cannot occur (\S\ref{sec:swebench}).
+(6) Two negative results reported with their causes: with a real model
+deciding adoption a one-line counter revokes poison sooner than the
+ledger (\S\ref{sec:wef}), and on SWE-Bench-CL the mechanism shows no
+learning-curve advantage over a token-matched random control
+($p = 0.50$) on sequences shorter than its own starvation horizon
+(\S\ref{sec:swebench}).
+(7) A reproducible, stdlib-only harness with pre-registered hypotheses,
+seed-level bootstrap intervals, exact paired permutation tests, and
+committed per-seed data validated against a manifest in CI.

@@ -105,6 +105,90 @@ consecutive $k{=}2$   & 12.38 / 1.00 & 11.47 / 0.81 & 9.12 / 0.48  & 3.73 / 0.06
 \end{tabular}
 \end{table}
 
+\subsection{Curation-targeted attack: denial of memory}
+\label{sec:adversary}
+Every curation mechanism is itself an attack surface, and the
+memory-security literature has not modelled it. Write-time filters,
+retrieval sanitizers, and outcome settlement all decide which entries
+live, so an adversary who can perturb the deciding signal can weaponize
+the curator: make it delete the benign entries standing in the way and
+keep the poisoned one it planted. We call this a
+\emph{curation-targeted attack}, and its denial-of-memory case is, to
+our knowledge, unmeasured.
+
+The noise suite is the wrong instrument for it by construction: its lies
+are a property of the world, drawn before any arm acts, precisely so
+that comparison under \emph{random} noise stays fair. An adversary is
+not random. We keep the world truthful and fixed (same seed, same files,
+same true deltas) and make only the measurement adaptive: when the true
+delta is positive---a benign entry just earned---report $-$true, so the
+entry that did the right thing is blamed for a disaster; when it is
+negative, report $-$true again, so the poison that just caused damage is
+paid. The attacker is resource-bounded at $b$ lies per cycle, spent
+greedily, which turns the threat model into a curve rather than an
+assertion. It observes only the \emph{sign} of the true delta---never
+the store, the provenance, or which entry decided---so it is strictly
+weaker than an attacker with store access, and the defence numbers are
+not flattered by an implausibly blind opponent. At $b{=}0$ the wrapper
+adds exactly zero behaviour and reproduces the deterministic headline
+tie in-suite, which is the canary that the attack, not the harness, is
+what moves the numbers.
+
+The result is a sharp separation with an equally sharp boundary
+(Table~\ref{tab:adversary}). At one lie per cycle the ledger retains
+\emph{all} benign capability and $99.4\%$ of its unattacked outcome
+while absorbing 30 fired lies. Every strike and quarantine heuristic
+loses most or all of it at the same budget: \texttt{evict\_on\_negative}
+($k{=}1$) loses \emph{all} of it, destroyed by \emph{three} lies; a
+consecutive-$k{=}2$ counter keeps $0.52$ and quarantine $0.21$, and both
+are at $0.12$ or below by $b{=}2$. The ledger wins on all 30 seeds at
+$b{\in}\{1,2\}$
+against every counter (Holm $p = 0.0015$). Two asymmetries deserve
+naming. First, cheapness of attack: the counters fire so few lies
+because once their benign memory is gone they stop acting, and an
+adversary stops paying for a defence that has already fallen---the
+ledger absorbed ten times the attack for no loss. Second, retention is
+not defence: the bandit and \texttt{keep\_everything} hold benign
+capability at $1.00$ through $b{=}4$ only by never removing anything,
+and their poison-kill rate collapses to $0.07$ and $0.00$ while they run
+millions of bytes underwater. Read the two halves jointly or a mechanism
+that defends nothing looks safe.
+
+We publish the ledger's own boundary rather than stopping at the win.
+Between two and four lies per cycle it breaks---at $b{=}4$ benign
+capability falls to $0.06$ and the population starves to $1.5$
+entries---and past that point the never-deleting arms beat it on
+retention (Holm $p = 0.0015$ in the other direction) while still killing
+no poison. The honest statement is a regime, not a victory: the energy
+ledger is the only mechanism we test that survives a curation-targeted
+adversary at all, and it survives it up to roughly one corrupted
+measurement in six per cycle.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Curation-targeted adversary at $b$ lies per cycle, 30 seeds.
+Cells are mean true cum $\Delta$ (M) / benign capability. $b{=}0$ is the
+in-suite reproduction of the deterministic tie. Survival beats every
+counter at $b{\in}\{1,2\}$ on all 30 seeds (Holm $p = 0.0015$); at
+$b{\ge}4$ it has fallen, and the arms that still show capability are
+those that never delete (poison-kill rate in prose).}
+\label{tab:adversary}
+\begin{tabular}{lccccc}
+\toprule
+arm & $b{=}0$ & $b{=}1$ & $b{=}2$ & $b{=}4$ & $b{=}8$ \\
+\midrule
+\textbf{survival}     & 12.38 / 1.00 & \textbf{12.30 / 1.00} & \textbf{11.66 / 0.99} & 1.12 / 0.06 & $-$21.10 / 0.00 \\
+evict $k{=}1$         & 12.57 / 1.00 & 0.23 / 0.00  & $-$0.08 / 0.00 & $-$2.03 / 0.00 & $-$16.54 / 0.00 \\
+evict $k{=}3$         & 12.10 / 1.00 & 2.07 / 0.00  & 0.53 / 0.00    & $-$2.03 / 0.00 & $-$21.32 / 0.00 \\
+consecutive $k{=}2$   & 12.38 / 1.00 & 9.37 / 0.52  & 1.05 / 0.00    & $-$6.51 / 0.00 & $-$20.06 / 0.00 \\
+quarantine $m{=}3$    & 5.12 / 1.00  & $-$2.08 / 0.21 & $-$3.59 / 0.12 & $-$6.33 / 0.03 & $-$14.79 / 0.01 \\
+bandit                & 10.86 / 1.00 & 9.39 / 1.00  & 5.23 / 1.00    & $-$7.75 / 1.00 & $-$19.38 / 0.00 \\
+keep\_everything      & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
@@ -295,87 +379,6 @@ attack & arm & E2 & E3 & F1 & F2 & kill & alive \\
  & keep\_everything & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
  & evict\_on\_negative & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
  & ledger & 0.00 & 0.0 & \textbf{1.00} & 1.00 & starve 19 & \textbf{0} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Curation-targeted attack: denial of memory}
-\label{sec:adversary}
-Every curation mechanism is itself an attack surface, and the
-memory-security literature has not modelled it. Write-time filters,
-retrieval sanitizers, and outcome settlement all decide which entries
-live, so an adversary who can perturb the deciding signal can weaponize
-the curator: make it delete the benign entries standing in the way and
-keep the poisoned one it planted. We call this a
-\emph{curation-targeted attack}, and its denial-of-memory case is, to
-our knowledge, unmeasured.
-
-The noise suite is the wrong instrument for it by construction: its lies
-are a property of the world, drawn before any arm acts, precisely so
-that comparison under \emph{random} noise stays fair. An adversary is
-not random. We keep the world truthful and fixed (same seed, same files,
-same true deltas) and make only the measurement adaptive: when the true
-delta is positive---a benign entry just earned---report $-$true, so the
-entry that did the right thing is blamed for a disaster; when it is
-negative, report $-$true again, so the poison that just caused damage is
-paid. The attacker is resource-bounded at $b$ lies per cycle, spent
-greedily, which turns the threat model into a curve rather than an
-assertion. It observes only the \emph{sign} of the true delta---never
-the store, the provenance, or which entry decided---so it is strictly
-weaker than an attacker with store access, and the defence numbers are
-not flattered by an implausibly blind opponent. At $b{=}0$ the wrapper
-adds exactly zero behaviour and reproduces the deterministic headline
-tie in-suite, which is the canary that the attack, not the harness, is
-what moves the numbers.
-
-The result is a sharp separation with an equally sharp boundary
-(Table~\ref{tab:adversary}). At one lie per cycle the ledger retains
-\emph{all} benign capability and $99.4\%$ of its unattacked outcome
-while absorbing 30 fired lies; every strike and quarantine heuristic
-loses all of it, and \texttt{evict\_on\_negative} ($k{=}1$) is destroyed
-by \emph{three}. The ledger wins on all 30 seeds at $b{\in}\{1,2\}$
-against every counter (Holm $p = 0.0015$). Two asymmetries deserve
-naming. First, cheapness of attack: the counters fire so few lies
-because once their benign memory is gone they stop acting, and an
-adversary stops paying for a defence that has already fallen---the
-ledger absorbed ten times the attack for no loss. Second, retention is
-not defence: the bandit and \texttt{keep\_everything} hold benign
-capability at $1.00$ through $b{=}4$ only by never removing anything,
-and their poison-kill rate collapses to $0.07$ and $0.00$ while they run
-millions of bytes underwater. Read the two halves jointly or a mechanism
-that defends nothing looks safe.
-
-We publish the ledger's own boundary rather than stopping at the win.
-Between two and four lies per cycle it breaks---at $b{=}4$ benign
-capability falls to $0.06$ and the population starves to $1.5$
-entries---and past that point the never-deleting arms beat it on
-retention (Holm $p = 0.0015$ in the other direction) while still killing
-no poison. The honest statement is a regime, not a victory: the energy
-ledger is the only mechanism we test that survives a curation-targeted
-adversary at all, and it survives it up to roughly one corrupted
-measurement in six per cycle.
-
-\begin{table}[t]
-\centering
-\small
-\caption{Curation-targeted adversary at $b$ lies per cycle, 30 seeds.
-Cells are mean true cum $\Delta$ (M) / benign capability. $b{=}0$ is the
-in-suite reproduction of the deterministic tie. Survival beats every
-counter at $b{\in}\{1,2\}$ on all 30 seeds (Holm $p = 0.0015$); at
-$b{\ge}4$ it has fallen, and the arms that still show capability are
-those that never delete (poison-kill rate in prose).}
-\label{tab:adversary}
-\begin{tabular}{lccccc}
-\toprule
-arm & $b{=}0$ & $b{=}1$ & $b{=}2$ & $b{=}4$ & $b{=}8$ \\
-\midrule
-\textbf{survival}     & 12.38 / 1.00 & \textbf{12.30 / 1.00} & \textbf{11.66 / 0.99} & 1.12 / 0.06 & $-$21.10 / 0.00 \\
-evict $k{=}1$         & 12.57 / 1.00 & 0.23 / 0.00  & $-$0.08 / 0.00 & $-$2.03 / 0.00 & $-$16.54 / 0.00 \\
-evict $k{=}3$         & 12.10 / 1.00 & 2.07 / 0.00  & 0.53 / 0.00    & $-$2.03 / 0.00 & $-$21.32 / 0.00 \\
-consecutive $k{=}2$   & 12.38 / 1.00 & 9.37 / 0.52  & 1.05 / 0.00    & $-$6.51 / 0.00 & $-$20.06 / 0.00 \\
-quarantine $m{=}3$    & 5.12 / 1.00  & $-$2.08 / 0.21 & $-$3.59 / 0.12 & $-$6.33 / 0.03 & $-$14.79 / 0.01 \\
-bandit                & 10.86 / 1.00 & 9.39 / 1.00  & 5.23 / 1.00    & $-$7.75 / 1.00 & $-$19.38 / 0.00 \\
-keep\_everything      & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
