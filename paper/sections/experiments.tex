@@ -528,10 +528,12 @@ silent here.
 An entry spawns with $1.0$ energy and pays $0.05$ upkeep per cycle, so an
 entry that never earns starves after exactly $20$ cycles. These sequences
 are $19$ and $22$ tasks---the two shortest of the eight in SWE-Bench-CL,
-which range to $50$. Across the entire matrix, $246$ lessons were minted
-and $10$ starved: none whatsoever on pytest, and five each for
-\texttt{memory\_on} and \texttt{random\_matched} at the tail of astropy,
-where the first-born entries finally cross zero. With nothing starving,
+which range to $50$. Only two of the five arms charge upkeep at all
+(\texttt{memory\_on} and \texttt{random\_matched}; \texttt{keep\_%
+everything} and \texttt{evict\_on\_negative} remove by policy or not at
+all), and across the $246$ lessons those two minted, $10$ ever starved:
+none whatsoever on pytest, and five each at the tail of astropy, where
+the first-born entries finally cross zero. With nothing starving,
 the energy ledger \emph{is} \texttt{keep\_everything} plus settlement,
 and the two arms tie because on this benchmark they are the same policy.
 
