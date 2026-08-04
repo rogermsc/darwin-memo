@@ -49,7 +49,10 @@ def test_cli_encode_missing_file(tmp_path, capsys):
 
 
 def test_mcp_server_full_cycle(tmp_path):
-    pytest.importorskip("mcp")
+    # Guard the module build_server actually imports, not the top-level
+    # package: mcp 2.0.0 ships "mcp" while removing this submodule, so
+    # guarding on "mcp" lets the test run and die inside build_server.
+    pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 
     from darwin_memo.mcp_server import build_server
