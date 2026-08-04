@@ -52,6 +52,25 @@ the suite and bounds every LLM-mode claim we make. It is a real threat
 to validity for any benchmark of this shape: a mechanism can look
 conservative when its environment is merely deaf.
 
+\paragraph{Three replicates, and what the seed does not control.}
+In the deterministic suites a seed fixes the entire world, so a paired
+test compares two policies inside one realization. That is not true of
+the real-task leg. The pilot's seed feeds exactly one generator---the
+lesson choice in \texttt{random\_matched}---and the endpoint is called at
+temperature $0$ with no seed parameter, so for every other arm the three
+``seeds'' are three draws of endpoint nondeterminism rather than
+controlled replicates. \texttt{memory\_off}, which holds no store at all
+and therefore varies across seeds by sampling alone, resolved $7$, $10$,
+and $9$ of the 19 pytest tasks: about $8$ points of resolve-rate standard
+deviation on an identical configuration. Pairing on (sequence, seed)
+still controls the task sequence and its ordering, which is worth having,
+but it does not control the sampling. At three replicates and that
+variance, only a large memory effect clears the noise, and any null we
+report on real tasks should be read as underpowered rather than as
+evidence of absence. Passing the endpoint's seed parameter, where the
+provider offers one, and raising the replicate count are both cheap and
+are the first things to do before this leg is treated as settled.
+
 \paragraph{The real-task leg is bounded by its retriever.}
 On SWE-Bench-CL the model edits whatever BM25 put in front of it, and at
 the configuration we report that is the correct file on $74\%$ of the
