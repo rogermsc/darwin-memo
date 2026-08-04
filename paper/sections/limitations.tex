@@ -18,16 +18,28 @@ out-of-distribution honesty check. An LLM-encoded corpus with
 independently authored probes would close this gap and is the most
 important synthetic-side improvement.
 
-\paragraph{Synthetic environments.}
+\paragraph{Synthetic environments, and a real-task leg that came back null.}
 The headline, noise, ablation, and control results are on two synthetic
 environment families. They are deliberately adversarial in opposite
 directions (storage prices inaction; the test-suite family does not), and
 we flag every family-dependent conclusion rather than averaging it, but
-they remain synthetic. The SWE-Bench-CL pilot (\S\ref{sec:swebench})
-exists precisely to move the central claim onto real
-software-engineering tasks; its learning-curve result is the most
-important result still outstanding, and until it lands the real-task
-claim is unmade.
+they remain synthetic. The SWE-Bench-CL leg (\S\ref{sec:swebench}) exists
+to move the central claim onto real software-engineering tasks, and it
+did not support it: no learning-curve advantage over a token-matched
+random control, $p = 0.50$ over six paired worlds, with the no-memory arm
+scoring highest of the five.
+
+We attribute that to the benchmark rather than to the mechanism, and the
+attribution is arithmetic rather than interpretation---the sequences are
+$19$ and $22$ tasks against a $20$-cycle starvation horizon, and $10$ of
+$246$ minted lessons ever died---but it remains an attribution we made
+after seeing the result, which is the weakest kind. The pre-registered
+prediction was a positive effect and we did not get one. The honest
+status is that conserved-resource selection is unvalidated on real tasks,
+and that a longer-sequence run is what would settle it; that run is
+pinned but not yet done. Two further limits below (retrieval recall,
+replicate count) would each depress a real effect, so this null should
+not be read as an upper bound on the mechanism either.
 
 \paragraph{Scale of the parametric result.}
 The distillation arm is a 0.5B model on a small corpus with deliberately

@@ -508,5 +508,61 @@ by the retriever and never by any arm; the retrieval query is issue-only
 and identical across arms, so recall sets how many tasks are answerable
 and never which arm answers them.
 
-\todo{Report the scored per-position resolve-rate and settlement-delta
-curves across all five arms, 3 seeds, both sequences.}
+\paragraph{Result: no learning-curve effect, and the reason is arithmetic.}
+The full matrix is five arms over both sequences at three seeds: 615
+tasks, every one scored by the official docker harness, no failed cells.
+The pre-registered comparison does not hold. \texttt{memory\_on} improves
+on \texttt{random\_matched} by $+0.052$ of second-half-minus-first-half
+resolve rate, paired over six worlds, $95\%$ CI $[-0.037, +0.141]$,
+permutation $p = 0.50$ (Table~\ref{tab:swebench}). The interval contains
+zero and the point estimate is a fifth of the within-arm sampling
+standard deviation. We report this as a null, not as a trend.
+
+Two features of the table matter more than the $p$-value.
+\texttt{memory\_off}, which carries no store at all, has the highest
+resolve rate of any arm ($0.358$); and \texttt{memory\_on} is level with
+\texttt{keep\_everything} to three decimals ($0.325$). The second of
+those is not a coincidence, and it explains why the curation axis is
+silent here.
+
+An entry spawns with $1.0$ energy and pays $0.05$ upkeep per cycle, so an
+entry that never earns starves after exactly $20$ cycles. These sequences
+are $19$ and $22$ tasks---the two shortest of the eight in SWE-Bench-CL,
+which range to $50$. Across the entire matrix, $246$ lessons were minted
+and $10$ starved: none whatsoever on pytest, and five each for
+\texttt{memory\_on} and \texttt{random\_matched} at the tail of astropy,
+where the first-born entries finally cross zero. With nothing starving,
+the energy ledger \emph{is} \texttt{keep\_everything} plus settlement,
+and the two arms tie because on this benchmark they are the same policy.
+
+This is a scoping result rather than a defeat, and it is the one the
+storage and W/E/F suites predict: the ledger's demonstrated edge is
+removal---of dead weight by upkeep, of poison by consequence---and a
+horizon shorter than the mechanism's own time constant cannot show
+removal. It also indicts the pilot's own design: we pinned the two
+sequences on which the mechanism under test could not act. A run over
+\texttt{django} and \texttt{sympy} ($50$ tasks each, $2.5\times$ the
+horizon) is pinned in \texttt{manifests/long.json} and is the experiment
+this section should have been.
+
+\begin{table}[t]
+\centering
+\small
+\caption{SWE-Bench-CL, five arms $\times$ two sequences $\times$ three
+seeds, gpt-4.1, official docker evaluation. \emph{2nd$-$1st} is the
+within-arm learning delta, negative for every arm because the sequences
+are difficulty-ordered curricula; only the arm-minus-control difference
+is interpretable. \emph{pop} is the surviving lesson count at the end.}
+\label{tab:swebench}
+\begin{tabular}{lccccc}
+\toprule
+arm & tasks & resolve & 2nd$-$1st & harm & pop \\
+\midrule
+\texttt{memory\_off}       & 123 & \textbf{0.358} & $-$0.606 & $-$5.9 & 0.0 \\
+\texttt{random\_matched}   & 123 & 0.333 & $-$0.588 & $-$7.9 & 19.7 \\
+\texttt{memory\_on}        & 123 & 0.325 & $-$0.535 & $-$7.1 & 19.3 \\
+\texttt{keep\_everything}  & 123 & 0.325 & $-$0.572 & $-$6.6 & 20.5 \\
+\texttt{evict\_on\_negative} & 123 & 0.301 & $-$0.554 & $-$6.2 & 11.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
