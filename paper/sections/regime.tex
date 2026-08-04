@@ -64,25 +64,45 @@ reverted-incident counter that pays a blocked bad change), or with a
 quarantine-style cooldown, and the reversal is expected to close. We do
 not claim it; the environment that would show it is future work.
 
-\paragraph{Axis 4: What do you need besides correctness?}
+\paragraph{Axis 4: Is the horizon longer than the time constant?}
+The mechanism has a clock, and it is the first thing to check. An entry
+spawns with $1.0$ energy and pays $0.05$ upkeep, so removal by disuse
+takes $20$ cycles; nothing the ledger does that a simpler policy does not
+can appear before then. Our own real-task leg violated this and we did
+not notice until it returned a null: SWE-Bench-CL's two pinned sequences
+are $19$ and $22$ tasks, $10$ of $246$ minted lessons ever starved, and
+\texttt{memory\_on} tied \texttt{keep\_everything} to three decimals
+because on that horizon they are the same policy
+(\S\ref{sec:swebench}). The rule is blunt: if the deployment is shorter
+than a few multiples of $\textrm{spawn}/\textrm{upkeep}$, use the
+if-statement---the ledger cannot yet have done anything else---or raise
+upkeep so the time constant fits the horizon.
+
+\paragraph{Axis 5: What do you need besides correctness?}
 Three needs select the ledger regardless of the above, because no other
 mechanism we tested provides them. \emph{Leanness}: only the energy
 ledger starves never-consulted entries; counters and the bandit hoard
-them (population 15--16 vs 4). \emph{Promptness}: the ledger kills
-actionable poison within one cycle, where the bandit needs several
-confirmed failures and recency never kills it. \emph{Cost}: settlement by
-a conserved scalar is $10^4$--$10^6\times$ cheaper than an LLM judge or
-generator, with no API dependency and no determinism loss.
+them (population 15--16 vs 4). \emph{Completeness}: the ledger is the
+only arm that ends with no poisoned entry alive, acting or dormant. Note
+this is completeness and not speed---in the deterministic suites it kills
+actionable poison within one cycle, but with a real model deciding
+adoption a one-line counter revokes five to nine cycles sooner and the
+ledger's advantage is that it finishes the job
+(\S\ref{sec:wef}). \emph{Cost}: settlement by a conserved scalar is
+$10^4$--$10^6\times$ cheaper than an LLM judge or generator, with no API
+dependency and no determinism loss.
 
 \paragraph{Summary.}
 Conserved-resource selection is the right curator when (1) a conserved
 resource exists, (2) measurements are noisy in a one-sided way or
-corrupted by an adversary, (3)
-inaction is priced or paired with recovery, and (4) leanness, prompt
-removal of harmful entries, label-free operation, or near-zero settlement
-cost are required. Outside that region a one-line heuristic, a confidence
-bandit, or a quarantine policy can match or beat it, and we have shown
-exactly where. The mechanism's deepest property is the one that holds
+corrupted by an adversary, (3) inaction is priced or paired with
+recovery, (4) the deployment runs for several multiples of the upkeep
+time constant, and (5) leanness, complete removal of harmful entries,
+label-free operation, or near-zero settlement cost are required. Outside
+that region a one-line heuristic, a confidence bandit, or a quarantine
+policy can match or beat it, and we have shown exactly where---including
+on the one real-task benchmark we ran, where condition (4) failed and the
+ledger was indistinguishable from keeping everything. The mechanism's deepest property is the one that holds
 across the entire map: because settlement is a conserved quantity the
 environment already produces, there is no proxy to optimize against, and
 nothing to hack.
