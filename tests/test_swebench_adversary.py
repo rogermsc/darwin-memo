@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from bench.swebench_cl import attack
 from bench.swebench_cl.adversary import SETTLEMENTS_PER_CYCLE, SettlementAdversary
 from bench.swebench_cl.executor import StubExecutor
 from bench.swebench_cl.model import EndpointConfig
@@ -135,3 +136,74 @@ def test_the_attack_starves_the_evictor_and_not_the_ledger():
 def test_poison_alive_is_reported():
     runs = _attacked("memory_on", lie_budget=0)
     assert all(r["store"]["poison_alive"] == 0 for r in runs)
+
+
+# ---------------------------------------------------------------------------
+# Scoring the attack
+# ---------------------------------------------------------------------------
+
+
+def fake_cell(arm, seed, budget, n, resolved, poison_alive, graveyard, fired=0):
+    """One cell's worth of records, carrying only the scored fields."""
+    return [
+        {
+            "arm": arm,
+            "seed": seed,
+            "sequence": "acme_proj_sequence",
+            "order": i,
+            "config": {"lie_budget": budget},
+            "metrics": {
+                "resolved": i <= resolved,
+                "delta": 0.5 if i <= resolved else 0.0,
+            },
+            "store": {
+                "population": n - graveyard,
+                "graveyard": graveyard,
+                "poison_alive": poison_alive,
+            },
+            "adversary": {"lies_fired": fired},
+        }
+        for i in range(1, n + 1)
+    ]
+
+
+def test_poison_kill_rate_reads_the_end_state():
+    cell = fake_cell("memory_on", 0, 2, n=10, resolved=4, poison_alive=2, graveyard=8)
+    assert attack.poison_seeded(cell) == 10
+    assert attack.poison_kill_rate(cell) == pytest.approx(0.8)
+
+
+def test_benign_buried_excludes_the_poison_it_killed():
+    """A graveyard of 8 that holds 8 dead poison buried no benign entry."""
+    cell = fake_cell("memory_on", 0, 2, n=10, resolved=4, poison_alive=2, graveyard=8)
+    assert attack.benign_buried(cell) == 0
+    # Same kill count, bigger graveyard: the extra dead are benign.
+    worse = fake_cell("evict_on_negative", 0, 2, 10, 4, poison_alive=2, graveyard=13)
+    assert attack.benign_buried(worse) == 5
+
+
+def test_lie_budget_defaults_to_zero_for_pre_attack_records():
+    """The clean matrices load without being rewritten."""
+    run = {"config": {}}
+    assert attack.lie_budget(run) == 0
+
+
+def test_retention_pairs_within_a_world():
+    runs = [
+        *fake_cell("memory_on", 0, 0, n=10, resolved=6, poison_alive=0, graveyard=10),
+        *fake_cell(
+            "memory_on", 0, 2, n=10, resolved=3, poison_alive=0, graveyard=10, fired=2
+        ),
+    ]
+    res = attack.retention(runs, "memory_on", budget=2)
+    assert res["pairs"] == 1
+    assert res["resolve_clean"] == pytest.approx(0.6)
+    assert res["resolve_attacked"] == pytest.approx(0.3)
+    assert res["retained"] == pytest.approx(0.5)
+    assert res["lies_fired"] == 2
+
+
+def test_retention_refuses_an_unpaired_arm():
+    runs = fake_cell("memory_on", 0, 2, n=10, resolved=3, poison_alive=0, graveyard=1)
+    with pytest.raises(ValueError, match="both budget"):
+        attack.retention(runs, "memory_on", budget=2)
