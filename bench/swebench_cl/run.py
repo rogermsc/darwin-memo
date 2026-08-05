@@ -92,6 +92,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         code_cache_dir=args.code_cache_dir,
         code_max_files=args.code_max_files,
         seed_poison=args.seed_poison,
+        lie_budget=args.lie_budget,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))
@@ -104,8 +105,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         command = (
             f"python -m bench.swebench_cl.run run --manifest {args.manifest} "
             f"--dataset <pinned> --sequence {args.sequence} --arm {args.arm} "
-            f"--executor {args.executor} --seed {args.seed} --out {args.out} "
-            "--update-manifest"
+            f"--executor {args.executor} --seed {args.seed} "
+            f"--lie-budget {args.lie_budget} "
+            + ("--seed-poison " if args.seed_poison else "")
+            + f"--out {args.out} --update-manifest"
         )
         manifest_path = update_manifest(args.out, runs, command)
         print(f"updated {manifest_path}")
@@ -164,6 +167,14 @@ def main(argv: list[str] | None = None) -> int:
         "--seed-poison",
         action="store_true",
         help="seed the memory store with poison lessons before evaluation",
+    )
+    run.add_argument(
+        "--lie-budget",
+        type=int,
+        default=0,
+        help="curation-targeted attack: corrupted settlements per 12 measured "
+        "ones (0 = no adversary). Capability is still scored on the true "
+        "harness outcome; only the curator is lied to.",
     )
     run.set_defaults(fn=_cmd_run)
 

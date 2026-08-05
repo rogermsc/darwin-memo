@@ -739,6 +739,7 @@ RUN_KEYS = {
     "eval",
     "metrics",
     "store",
+    "adversary",
     "meta",
 }
 

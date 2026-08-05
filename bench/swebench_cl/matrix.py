@@ -31,14 +31,20 @@ from .dataset import PILOT_SEQUENCES
 DEFAULT_SEEDS = (0, 1, 2)
 
 
-def cell_path(out_dir: Path, arm: str, sequence: str, seed: int) -> Path:
+def cell_path(
+    out_dir: Path, arm: str, sequence: str, seed: int, lie_budget: int = 0
+) -> Path:
     """Where one combination's records live.
 
     The arm is in the name because every axis of the matrix has to be
     recoverable from the filename alone: a resume that collided two
-    arms on one path would silently skip work it never did.
+    arms on one path would silently skip work it never did. The attack
+    budget joins it for the same reason, and is omitted at 0 so the
+    unattacked matrices already on disk keep resuming under their
+    existing names.
     """
-    return out_dir / f"{arm}-{sequence}-seed{seed}.json"
+    suffix = f"-b{lie_budget}" if lie_budget else ""
+    return out_dir / f"{arm}-{sequence}-seed{seed}{suffix}.json"
 
 
 def cells(
@@ -82,7 +88,9 @@ def run_cmd(args: argparse.Namespace, arm: str, sequence: str, seed: int) -> lis
         "--timeout",
         str(args.timeout),
         "--out",
-        str(cell_path(args.out_dir, arm, sequence, seed)),
+        str(cell_path(args.out_dir, arm, sequence, seed, args.lie_budget)),
+        "--lie-budget",
+        str(args.lie_budget),
     ]
     if args.executor == "docker":
         # Committed evidence binds itself: each cell refreshes its entry
@@ -134,6 +142,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-tasks", type=int, default=None)
     p.add_argument("--seed-poison", action="store_true")
     p.add_argument(
+        "--lie-budget",
+        type=int,
+        default=0,
+        help="curation-targeted attack budget: corrupted settlements per 12 "
+        "measured ones, applied to every cell (0 = no adversary)",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="print what would run (and what resume would skip) and stop",
@@ -151,13 +166,15 @@ def main(argv: list[str] | None = None) -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     plan = cells(tuple(args.arms), tuple(args.sequences), tuple(args.seeds))
-    todo = [c for c in plan if not cell_path(args.out_dir, *c).exists()]
+    todo = [
+        c for c in plan if not cell_path(args.out_dir, *c, args.lie_budget).exists()
+    ]
     done = len(plan) - len(todo)
     print(f"matrix: {len(plan)} cells, {done} already written, {len(todo)} to run")
 
     if args.dry_run:
         for arm, sequence, seed in plan:
-            path = cell_path(args.out_dir, arm, sequence, seed)
+            path = cell_path(args.out_dir, arm, sequence, seed, args.lie_budget)
             print(f"  {'skip' if path.exists() else 'run '}  {path}")
         return 0
 

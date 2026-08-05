@@ -35,6 +35,7 @@ from darwin_memo import (
     consolidate,
 )
 
+from .adversary import SettlementAdversary
 from .arms import ARMS, ArmSpec, token_count
 from .code_retrieval import code_context as retrieve_code_context
 from .dataset import TaskRecord
@@ -42,6 +43,7 @@ from .edits import EDIT_FORMAT_INSTRUCTIONS, edits_to_patch
 from .executor import EvalReport, delta_from_eval
 from .lessons import mint_lesson
 from .model import ChatEndpoint, EndpointConfig, extract_patch, extract_reflection
+from .poison import POISON_SOURCE_PREFIX
 
 SCHEMA_VERSION = 1
 SUITE = "swebench_cl_pilot"
@@ -188,6 +190,19 @@ class LessonMemory:
         for e in entries:
             self.store.add(e)
 
+    def poison_alive(self) -> int:
+        """Seeded poison lessons still retrievable.
+
+        The defence half of the adversarial measurement: an arm that
+        keeps capability by never removing anything is not defending,
+        and this is the column that says so.
+        """
+        return sum(
+            1
+            for e in self.store.alive()
+            if any(s.startswith(POISON_SOURCE_PREFIX) for s in e.sources)
+        )
+
     def tick(self, tick: int) -> dict[str, int]:
         """Upkeep, deaths, periodic consolidation. No-op for memory_off."""
         if self.arm.inject == "none" or self.arm.curation != "survival":
@@ -256,6 +271,7 @@ def run_sequence(
     code_cache_dir: Path | None = None,
     code_max_files: int = 5,
     seed_poison: bool = False,
+    lie_budget: int = 0,
 ) -> list[dict[str, Any]]:
     """The pilot loop. Returns one run record per task, in order.
 
@@ -263,8 +279,16 @@ def run_sequence(
     source files from the repo at the task's base commit (the Level-1b
     setting); the retrieval query is the issue text, identical across
     arms, so only the lesson memory differs between arms.
+
+    ``lie_budget > 0`` mounts the curation-targeted attack
+    (:mod:`.adversary`): the curator settles on a corrupted signal while
+    ``metrics`` keeps the harness's true numbers, so capability is scored
+    against reality no matter what the curator was told. At 0 the
+    adversary is constructed but never fires, and the loop is byte-for-byte
+    the unattacked one.
     """
     arm = ARMS[arm_name]
+    adversary = SettlementAdversary(lie_budget)
     memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
     if seed_poison and arm.inject != "none":
         from .poison import poison_lessons
@@ -309,7 +333,10 @@ def run_sequence(
         reflection = extract_reflection(response)
         report = executor.evaluate(task, patch)
         delta = delta_from_eval(report)
-        credited = memory.settle(injection, delta, tick)
+        # The curator decides on `reported`; everything scored downstream
+        # reads `delta`, which is what the harness actually measured.
+        reported = adversary.report(delta)
+        credited = memory.settle(injection, reported, tick)
         question, answer = mint_lesson(task, patch, reflection, report)
         minted = memory.mint(
             question, answer, source=f"swebench_cl:{task.instance_id}", tick=tick
@@ -334,6 +361,12 @@ def run_sequence(
                     "max_prompt_chars": max_prompt_chars,
                     "code_context_chars": code_context_chars,
                     "retrieved_files": code_files,
+                    # Both belong to the record rather than the filename:
+                    # an unattacked poisoned cell is otherwise byte-identical
+                    # in shape to a clean one, and only the directory would
+                    # say which world it came from.
+                    "seed_poison": seed_poison,
+                    "lie_budget": lie_budget,
                 },
                 "lessons": {
                     "injected": [e.id for e in injection.entries],
@@ -366,6 +399,12 @@ def run_sequence(
                     "total_energy": round(memory.store.total_energy(), 4),
                     "deaths_this_tick": upkeep["deaths"],
                     "merges_this_tick": upkeep["merges"],
+                    "poison_alive": memory.poison_alive(),
+                },
+                "adversary": {
+                    "reported_delta": round(reported, 6),
+                    "lied": reported != delta,
+                    **adversary.stats(),
                 },
                 "meta": {
                     "python": platform.python_version(),

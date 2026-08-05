@@ -1,0 +1,137 @@
+"""The curation-targeted attack on the SWE-Bench-CL loop.
+
+Two properties carry the experiment. The budget has to bound the attack
+at the rate it claims, and the lie has to reach the curator without ever
+reaching the score -- if a corrupted measurement leaked into
+``metrics.delta``, every downstream analysis would be scoring the
+adversary's story instead of the harness's.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from bench.swebench_cl.adversary import SETTLEMENTS_PER_CYCLE, SettlementAdversary
+from bench.swebench_cl.executor import StubExecutor
+from bench.swebench_cl.model import EndpointConfig
+from bench.swebench_cl.runner import run_sequence
+
+from .test_swebench_cl import GOLD_PATCH, FakeCompleter, make_task
+
+
+def test_zero_budget_is_the_identity():
+    a = SettlementAdversary(0)
+    for d in (0.5, -0.5, 0.0, 1.0):
+        assert a.report(d) == d
+    assert a.fired == 0
+    assert a.distortion == 0.0
+
+
+def test_negative_budget_refused():
+    with pytest.raises(ValueError):
+        SettlementAdversary(-1)
+
+
+def test_silence_is_never_lied_about():
+    """A patch that failed to apply is not a measurement."""
+    a = SettlementAdversary(4)
+    for _ in range(10):
+        assert a.report(0.0) == 0.0
+    assert a.measured == 0
+    assert a.fired == 0
+
+
+def test_budget_bounds_lies_per_cycle():
+    a = SettlementAdversary(2)
+    reports = [a.report(0.5) for _ in range(SETTLEMENTS_PER_CYCLE * 3)]
+    assert a.fired == 6  # two per cycle, three cycles
+    assert reports[:2] == [-0.5, -0.5]  # spent greedily at the cycle head
+    assert reports[2:SETTLEMENTS_PER_CYCLE] == [0.5] * (SETTLEMENTS_PER_CYCLE - 2)
+    assert reports[SETTLEMENTS_PER_CYCLE] == -0.5  # budget refreshes
+
+
+def test_cycle_counts_settlements_not_ticks():
+    """Unmeasured tasks must not consume or refresh the budget."""
+    a = SettlementAdversary(1)
+    assert a.report(0.5) == -0.5  # cycle 0, budget spent
+    for _ in range(50):
+        a.report(0.0)  # 50 failed applies in between
+    assert a.report(0.5) == 0.5  # still cycle 0: no free refresh
+    assert a.fired == 1
+
+
+def test_both_lie_directions_are_counted():
+    a = SettlementAdversary(2)
+    assert a.report(0.4) == -0.4  # a real fix blamed for a regression
+    assert a.report(-0.4) == 0.4  # real damage paid for
+    assert (a.false_bad, a.false_good) == (1, 1)
+    assert a.distortion == pytest.approx(0.0)  # they cancel; the harm does not
+
+
+def test_accounting_identity_holds():
+    """reported == true + distortion, summed over the run."""
+    a = SettlementAdversary(3)
+    trues = [0.5, -0.25, 0.75, 0.0, -1.0, 0.125, 0.5]
+    reported = [a.report(d) for d in trues]
+    assert sum(reported) == pytest.approx(sum(trues) + a.distortion)
+
+
+def _attacked(arm: str, lie_budget: int, n_tasks: int = 4):
+    response = f"```diff\n{GOLD_PATCH}```\nREFLECTION: gold."
+    tasks = [
+        make_task(instance_id=f"acme__proj-{i}", order=i) for i in range(1, n_tasks + 1)
+    ]
+    return run_sequence(
+        tasks,
+        sequence_id="acme_proj_sequence",
+        arm_name=arm,
+        endpoint=EndpointConfig(model="fake"),
+        executor=StubExecutor(),
+        seed=0,
+        completer=FakeCompleter([response]),
+        lie_budget=lie_budget,
+    )
+
+
+def test_the_lie_settles_but_never_scores():
+    """The separation the whole experiment rests on.
+
+    Every task here resolves against the stub executor, so the true
+    delta is positive throughout and the adversary reports it as damage.
+    ``metrics`` must still describe the world.
+    """
+    runs = _attacked("memory_on", lie_budget=12)
+    for run in runs:
+        assert run["metrics"]["delta"] > 0, "the harness's true measurement"
+        assert run["metrics"]["resolved"] is True
+        assert run["adversary"]["reported_delta"] < 0, "what the curator was told"
+        assert run["adversary"]["lied"] is True
+    assert runs[-1]["adversary"]["false_bad"] == len(runs)
+    assert runs[-1]["adversary"]["false_good"] == 0
+
+
+def test_unattacked_runs_report_the_truth():
+    runs = _attacked("memory_on", lie_budget=0)
+    for run in runs:
+        assert run["adversary"]["reported_delta"] == run["metrics"]["delta"]
+        assert run["adversary"]["lied"] is False
+        assert run["adversary"]["lies_fired"] == 0
+
+
+def test_the_attack_starves_the_evictor_and_not_the_ledger():
+    """Denial of memory, on the real-task loop.
+
+    ``evict_on_negative`` buries every injected lesson the moment it is
+    told the outcome was bad, so a lying measurement empties its store
+    of exactly the lessons that worked. The ledger charges energy the
+    same lessons can earn back, so they survive the same lie.
+    """
+    evictor = _attacked("evict_on_negative", lie_budget=12)
+    ledger = _attacked("memory_on", lie_budget=12)
+    assert evictor[-1]["store"]["graveyard"] > 0, "benign lessons buried by a lie"
+    assert ledger[-1]["store"]["population"] > evictor[-1]["store"]["population"]
+
+
+def test_poison_alive_is_reported():
+    runs = _attacked("memory_on", lie_budget=0)
+    assert all(r["store"]["poison_alive"] == 0 for r in runs)
