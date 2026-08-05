@@ -50,17 +50,32 @@ did not support it: no learning-curve advantage over a token-matched
 random control, $p = 0.50$ over six paired worlds, with the no-memory arm
 scoring highest of the five.
 
-We attribute that to the benchmark rather than to the mechanism, and the
-attribution is arithmetic rather than interpretation---the sequences are
-$19$ and $22$ tasks against a $20$-cycle starvation horizon, and $10$ of
-$246$ lessons minted by the arms that charge upkeep ever died---but it
-remains an attribution we made
-after seeing the result, which is the weakest kind. The pre-registered
-prediction was a positive effect and we did not get one. The honest
-status is that conserved-resource selection is unvalidated on real tasks,
-and that a longer-sequence run is what would settle it; that run is
-pinned but not yet done. Two further limits below (retrieval recall,
-replicate count) would each depress a real effect, so this null should
+We first attributed that to the benchmark rather than the mechanism: the
+pilot's sequences are $19$ and $22$ tasks against a $20$-cycle
+starvation horizon, and only $10$ of the $246$ lessons minted by
+upkeep-charging arms ever died, so the removal the ledger depends on
+could not occur. The attribution was arithmetic rather than
+interpretation, but it was still made after seeing the result, which is
+the weakest kind---so we tested it. A second matrix over \texttt{django}
+and \texttt{sympy}, $50$ tasks each at $2.5\times$ the horizon, moved
+starvation from $4\%$ of minted lessons to $52\%$ ($155$ of $300$) and
+held the population at $24$ where \texttt{keep\_everything} reaches
+$50$.
+
+\emph{The excuse did not survive its own test.} With removal fully
+active the comparison is $+0.027$ $[-0.020, +0.073]$, $p = 0.50$; on
+\texttt{django} alone, where per-seed variance is smallest, it is
+$-0.013$ with $p = 1.0000$. Halving the store changed capability by
+nothing measurable, and \texttt{memory\_off} again scored highest. Across
+four sequences and $2{,}115$ evaluated tasks, no memory arm has beaten
+no memory at all. We therefore retract the benchmark explanation as a
+defence of the mechanism and keep it only as a description of the pilot.
+The honest status is that conserved-resource selection improves
+\emph{leanness} on real tasks---demonstrably, half the store for equal
+capability---and that its effect on task outcomes is unvalidated and, on
+the evidence we have, plausibly zero. Two further limits below
+(retrieval recall, replicate count) would each depress a real effect, so
+this null should
 not be read as an upper bound on the mechanism either.
 
 \paragraph{Scale of the parametric result.}

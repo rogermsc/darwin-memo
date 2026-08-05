@@ -540,15 +540,35 @@ the first-born entries finally cross zero. With nothing starving,
 the energy ledger \emph{is} \texttt{keep\_everything} plus settlement,
 and the two arms tie because on this benchmark they are the same policy.
 
-This is a scoping result rather than a defeat, and it is the one the
-storage and W/E/F suites predict: the ledger's demonstrated edge is
-removal---of dead weight by upkeep, of poison by consequence---and a
-horizon shorter than the mechanism's own time constant cannot show
-removal. It also indicts the pilot's own design: we pinned the two
-sequences on which the mechanism under test could not act. A run over
-\texttt{django} and \texttt{sympy} ($50$ tasks each, $2.5\times$ the
-horizon) is pinned in \texttt{manifests/long.json} and is the experiment
-this section should have been.
+That explanation is testable, so we tested it rather than resting on it.
+
+\paragraph{The long matrix: the excuse does not survive its own test.}
+We re-ran the full design over \texttt{django} and \texttt{sympy}, $50$
+tasks each and $2.5\times$ the horizon: another 30 cells, $1{,}500$
+tasks, no failed cells (Table~\ref{tab:swebench-long}). The mechanism
+half of the prediction held exactly. Starvation moved from $4\%$ of
+minted lessons to $52\%$---$155$ of $300$ under \texttt{memory\_on}, at
+a steady $21$--$23$ per cell---and the surviving population held at $24$
+where \texttt{keep\_everything} climbs to the full $50$. Leanness, the
+one property that survived every earlier comparison, is demonstrated on
+real tasks here for the first time: half the store, and the deaths begin
+at position $20$ where the arithmetic says they must.
+
+The capability half did not hold. With removal fully active the
+pre-registered comparison is $+0.027$ $[-0.020, +0.073]$, permutation
+$p = 0.50$; on \texttt{django} alone, where per-seed variance is
+smallest ($23,23,23$ for \texttt{memory\_off}), it is $-0.013$ with
+$p = 1.0000$. Halving the store changed measured capability by nothing,
+and \texttt{memory\_off} is again the highest-scoring arm ($0.360$).
+Across all four sequences and $2{,}115$ evaluated tasks, no memory arm
+has beaten no memory at all.
+
+We therefore retract the benchmark explanation as a defence of the
+mechanism and keep it only as a description of the pilot. What the two
+matrices jointly establish is narrower than what we set out to show and
+more useful than a second ambiguous null: on real software-engineering
+tasks conserved-resource selection buys \emph{leanness} at no measured
+cost in capability, and buys no measured capability either.
 
 \begin{table}[t]
 \centering
@@ -568,6 +588,31 @@ arm & tasks & resolve & 2nd$-$1st & harm & pop \\
 \texttt{memory\_on}        & 123 & 0.325 & $-$0.535 & $-$7.1 & 19.3 \\
 \texttt{keep\_everything}  & 123 & 0.325 & $-$0.572 & $-$6.6 & 20.5 \\
 \texttt{evict\_on\_negative} & 123 & 0.301 & $-$0.554 & $-$6.2 & 11.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\caption{The long matrix: \texttt{django} and \texttt{sympy}, $50$ tasks
+each at $2.5\times$ the starvation horizon, five arms $\times$ three
+seeds, $1{,}500$ tasks. Removal is now active---\texttt{memory\_on}
+starves $52\%$ of what it mints and holds $24$ entries where
+\texttt{keep\_everything} holds $50$---and the resolve rate still does
+not move. \texttt{random\_matched} starves identically because it
+inherits the same curation policy; the arms differ in which lessons are
+injected, not in whether they are curated.}
+\label{tab:swebench-long}
+\begin{tabular}{lccccc}
+\toprule
+arm & tasks & resolve & 2nd$-$1st & harm & pop \\
+\midrule
+\texttt{memory\_off}       & 300 & \textbf{0.360} & $-$0.093 & $-$49.1 & 0.0 \\
+\texttt{memory\_on}        & 300 & 0.350 & $-$0.087 & $-$45.6 & \textbf{24.0} \\
+\texttt{random\_matched}   & 300 & 0.350 & $-$0.113 & $-$42.4 & 24.0 \\
+\texttt{keep\_everything}  & 300 & 0.343 & $-$0.100 & $-$50.2 & 50.0 \\
+\texttt{evict\_on\_negative} & 300 & 0.323 & $-$0.033 & $-$47.5 & 24.2 \\
 \bottomrule
 \end{tabular}
 \end{table}
