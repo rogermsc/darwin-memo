@@ -1,0 +1,4647 @@
+{
+  "runs": [
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-9296",
+      "order": 1,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/pagination/tests.py",
+          "django/core/paginator.py",
+          "django/contrib/admin/templatetags/admin_list.py",
+          "django/views/generic/list.py",
+          "django/http/multipartparser.py",
+          "docs/conf.py",
+          "django/core/management/base.py",
+          "django/db/models/sql/query.py",
+          "django/utils/cache.py",
+          "django/template/defaulttags.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "605bdf2d9b86",
+          "babf9bef9202",
+          "1b52d00133cb"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "5daef383500c"
+      },
+      "model": {
+        "prompt_chars": 281314,
+        "response_chars": 564,
+        "patch_chars": 319,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The Paginator class is intentionally iterable over its pages, and this is a safe, non-breaking enhancement that matches Python conventions."
+      },
+      "eval": {
+        "instance_id": "django__django-9296",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 20,
+        "p2p_total": 20,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-9296/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.3646
+      },
+      "store": {
+        "population": 48,
+        "graveyard": 3,
+        "total_energy": 48.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 1,
+        "lies_fired": 1,
+        "false_bad": 1,
+        "false_good": 0,
+        "distortion": -2.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-10097",
+      "order": 2,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/utils/http.py",
+          "django/utils/cache.py",
+          "django/contrib/auth/password_validation.py",
+          "tests/auth_tests/test_views.py",
+          "tests/auth_tests/test_forms.py",
+          "django/test/testcases.py",
+          "django/utils/html.py",
+          "django/middleware/csrf.py",
+          "django/http/request.py",
+          "tests/test_client_regress/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "166c9a2f4626",
+          "7a52b3db4605",
+          "84540470ba96"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "f5dfd6ab2a9a"
+      },
+      "model": {
+        "prompt_chars": 305148,
+        "response_chars": 9654,
+        "patch_chars": 1425,
+        "edits_applied": 5,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "The URLValidator fix requires a helper in utils/http.py to parse and check the username/password for unencoded forbidden characters, and the validator must call it before regex validation."
+      },
+      "eval": {
+        "instance_id": "django__django-10097",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 438,
+        "p2p_passed": 0,
+        "p2p_total": 1432,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-10097/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 64.4273
+      },
+      "store": {
+        "population": 49,
+        "graveyard": 3,
+        "total_energy": 49.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 2,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-10880",
+      "order": 3,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/sql/query.py",
+          "django/db/models/sql/compiler.py",
+          "django/db/backends/base/features.py",
+          "tests/aggregation_regress/tests.py",
+          "tests/queries/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "7ec896501b09",
+          "c4275c8c05b9",
+          "69b5f634bc9a"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "175ac14bf538"
+      },
+      "model": {
+        "prompt_chars": 302820,
+        "response_chars": 1530,
+        "patch_chars": 623,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The SQL compiler must be careful to ensure proper spacing between SQL keywords and expressions, especially when combining DISTINCT with CASE/WHEN constructs, as missing spaces can cause syntax errors across different database backends."
+      },
+      "eval": {
+        "instance_id": "django__django-10880",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 55,
+        "p2p_total": 55,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-10880/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 73.6779
+      },
+      "store": {
+        "population": 50,
+        "graveyard": 3,
+        "total_energy": 50.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 2,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-10914",
+      "order": 4,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/conf/global_settings.py",
+          "django/core/files/uploadedfile.py",
+          "tests/file_storage/tests.py",
+          "tests/files/tests.py",
+          "django/core/files/storage.py",
+          "django/core/files/uploadhandler.py",
+          "tests/file_uploads/tests.py",
+          "django/http/multipartparser.py",
+          "django/core/management/base.py",
+          "docs/conf.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4a4826b61524",
+          "5daef383500c",
+          "175ac14bf538"
+        ],
+        "tokens": 165,
+        "budget_tokens": 165,
+        "credited": [],
+        "minted": "141a1f1698c0"
+      },
+      "model": {
+        "prompt_chars": 188359,
+        "response_chars": 656,
+        "patch_chars": 484,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The default file upload permissions should be explicitly set to 0o644 to ensure consistent and expected behavior across platforms and upload handlers."
+      },
+      "eval": {
+        "instance_id": "django__django-10914",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 98,
+        "p2p_total": 98,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-10914/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 61.6211
+      },
+      "store": {
+        "population": 51,
+        "graveyard": 3,
+        "total_energy": 51.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-10999",
+      "order": 5,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/utils/dateparse.py",
+          "tests/utils_tests/test_dateparse.py",
+          "tests/utils_tests/test_duration.py",
+          "django/conf/global_settings.py",
+          "django/utils/dateformat.py",
+          "django/utils/http.py",
+          "django/utils/duration.py",
+          "tests/humanize_tests/tests.py",
+          "django/db/backends/utils.py",
+          "django/utils/timesince.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "f5dfd6ab2a9a",
+          "175ac14bf538",
+          "166c9a2f4626"
+        ],
+        "tokens": 173,
+        "budget_tokens": 173,
+        "credited": [],
+        "minted": "96176cd0e1bc"
+      },
+      "model": {
+        "prompt_chars": 95207,
+        "response_chars": 760,
+        "patch_chars": 368,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The duration parsing regex is subtle and must handle negative values in all time components, so changes should be carefully tested against a wide range of negative and positive duration strings."
+      },
+      "eval": {
+        "instance_id": "django__django-10999",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 10,
+        "p2p_total": 10,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-10999/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 52.63
+      },
+      "store": {
+        "population": 52,
+        "graveyard": 3,
+        "total_energy": 52.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11066",
+      "order": 6,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/migrations/test_commands.py",
+          "django/db/backends/base/base.py",
+          "django/core/management/base.py",
+          "django/contrib/contenttypes/management/__init__.py",
+          "django/test/testcases.py",
+          "django/core/management/commands/migrate.py",
+          "tests/select_for_update/tests.py",
+          "django/db/backends/base/creation.py",
+          "django/db/backends/sqlite3/schema.py",
+          "django/db/backends/mysql/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "667f34b3a3b8",
+          "7a52b3db4605",
+          "141a1f1698c0"
+        ],
+        "tokens": 181,
+        "budget_tokens": 181,
+        "credited": [],
+        "minted": "a503e0993990"
+      },
+      "model": {
+        "prompt_chars": 273818,
+        "response_chars": 921,
+        "patch_chars": 567,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When saving models in migrations or management code, always specify the correct database using the `using` argument to ensure compatibility with custom routers and non-default databases."
+      },
+      "eval": {
+        "instance_id": "django__django-11066",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 3,
+        "p2p_total": 3,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11066/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 55.5151
+      },
+      "store": {
+        "population": 53,
+        "graveyard": 3,
+        "total_energy": 53.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 4,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11099",
+      "order": 7,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/auth_tests/test_validators.py",
+          "django/contrib/auth/models.py",
+          "django/middleware/csrf.py",
+          "tests/auth_tests/test_forms.py",
+          "django/forms/fields.py",
+          "tests/auth_tests/test_management.py",
+          "django/contrib/auth/password_validation.py",
+          "django/contrib/auth/forms.py",
+          "django/utils/http.py",
+          "django/contrib/auth/management/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "f5dfd6ab2a9a",
+          "96176cd0e1bc",
+          "5daef383500c"
+        ],
+        "tokens": 143,
+        "budget_tokens": 143,
+        "credited": [],
+        "minted": "7748d38810cc"
+      },
+      "model": {
+        "prompt_chars": 206642,
+        "response_chars": 1555,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When using regexes for validation in Django, prefer \\A and \\Z over ^ and $ to avoid Python's $ matching a trailing newline."
+      },
+      "eval": {
+        "instance_id": "django__django-11099",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 3,
+        "p2p_passed": 19,
+        "p2p_total": 19,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 6.1238
+      },
+      "store": {
+        "population": 54,
+        "graveyard": 3,
+        "total_energy": 54.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 4,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11119",
+      "order": 8,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/template/base.py",
+          "django/template/defaulttags.py",
+          "django/db/models/fields/files.py",
+          "django/template/loader_tags.py",
+          "django/contrib/admin/options.py",
+          "django/test/testcases.py",
+          "tests/template_tests/test_callables.py",
+          "django/test/client.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "5daef383500c",
+          "f5dfd6ab2a9a",
+          "a503e0993990"
+        ],
+        "tokens": 137,
+        "budget_tokens": 137,
+        "credited": [],
+        "minted": "445e331b3e51"
+      },
+      "model": {
+        "prompt_chars": 302243,
+        "response_chars": 3859,
+        "patch_chars": 0,
+        "edits_applied": 1,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "The Django template Engine's render_to_string() must explicitly pass the engine's autoescape setting to the Context to ensure correct escaping behavior."
+      },
+      "eval": {
+        "instance_id": "django__django-11119",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 7,
+        "p2p_total": 7,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 9.213
+      },
+      "store": {
+        "population": 55,
+        "graveyard": 3,
+        "total_energy": 55.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 4,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11133",
+      "order": 9,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/http/response.py",
+          "django/test/client.py",
+          "django/http/multipartparser.py",
+          "django/db/models/fields/files.py",
+          "django/db/backends/sqlite3/schema.py",
+          "django/db/backends/oracle/base.py",
+          "django/db/backends/base/features.py",
+          "django/core/files/uploadhandler.py",
+          "tests/cache/tests.py",
+          "django/db/backends/sqlite3/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "445e331b3e51",
+          "a503e0993990",
+          "7ec896501b09"
+        ],
+        "tokens": 156,
+        "budget_tokens": 156,
+        "credited": [],
+        "minted": "28d11ba8727d"
+      },
+      "model": {
+        "prompt_chars": 271068,
+        "response_chars": 1831,
+        "patch_chars": 425,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When handling HTTP response content, always explicitly convert memoryview objects to bytes to ensure consistent behavior across database backends."
+      },
+      "eval": {
+        "instance_id": "django__django-11133",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 64,
+        "p2p_total": 64,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11133/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 56.0047
+      },
+      "store": {
+        "population": 56,
+        "graveyard": 3,
+        "total_energy": 56.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 5,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11163",
+      "order": 10,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "docs/conf.py",
+          "django/utils/http.py",
+          "django/forms/models.py",
+          "django/db/models/fields/files.py",
+          "tests/model_forms/tests.py",
+          "django/db/models/fields/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "7a52b3db4605",
+          "84540470ba96",
+          "642f1118a85c"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "29fee609c4eb"
+      },
+      "model": {
+        "prompt_chars": 302936,
+        "response_chars": 2036,
+        "patch_chars": 403,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The distinction between fields=None and fields=[] is important for Django's model_to_dict and similar APIs, as [] means \"no fields\" while None means \"all fields\"."
+      },
+      "eval": {
+        "instance_id": "django__django-11163",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 141,
+        "p2p_total": 141,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11163/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 67.798
+      },
+      "store": {
+        "population": 57,
+        "graveyard": 3,
+        "total_energy": 57.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 6,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11179",
+      "order": 11,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/deletion.py",
+          "tests/delete_regress/tests.py",
+          "django/db/models/query.py",
+          "django/contrib/admin/options.py",
+          "tests/delete/tests.py",
+          "django/db/models/fields/related_descriptors.py",
+          "django/db/models/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "29fee609c4eb",
+          "141a1f1698c0",
+          "7748d38810cc"
+        ],
+        "tokens": 131,
+        "budget_tokens": 131,
+        "credited": [],
+        "minted": "537070e6647b"
+      },
+      "model": {
+        "prompt_chars": 302051,
+        "response_chars": 6508,
+        "patch_chars": 1257,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The fast-delete optimization path must also clear the PK on the instance after deletion, just like the general path, to ensure consistent post-delete state."
+      },
+      "eval": {
+        "instance_id": "django__django-11179",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 40,
+        "p2p_total": 40,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11179/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 60.1458
+      },
+      "store": {
+        "population": 58,
+        "graveyard": 3,
+        "total_energy": 58.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 7,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11239",
+      "order": 12,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/dbshell/test_mysql.py",
+          "django/db/backends/mysql/client.py",
+          "django/db/backends/postgresql/base.py",
+          "django/core/mail/backends/smtp.py",
+          "django/test/testcases.py",
+          "django/conf/global_settings.py",
+          "django/db/backends/oracle/base.py",
+          "django/db/backends/base/features.py",
+          "django/http/request.py",
+          "django/core/servers/basehttp.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "7ec896501b09",
+          "ee6f47a2b2db",
+          "a503e0993990"
+        ],
+        "tokens": 185,
+        "budget_tokens": 185,
+        "credited": [],
+        "minted": "0e477831dc47"
+      },
+      "model": {
+        "prompt_chars": 171843,
+        "response_chars": 5785,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 2,
+        "edits_relaxed": 0,
+        "reflection": "The dbshell command for PostgreSQL uses environment variables for SSL parameters, so tests should check both command-line args and environment variable effects."
+      },
+      "eval": {
+        "instance_id": "django__django-11239",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 5,
+        "p2p_total": 5,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 16.1003
+      },
+      "store": {
+        "population": 59,
+        "graveyard": 3,
+        "total_energy": 59.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 7,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11299",
+      "order": 13,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/sqlite3/schema.py",
+          "tests/migrations/test_operations.py",
+          "tests/schema/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "29fee609c4eb",
+          "175ac14bf538",
+          "a503e0993990"
+        ],
+        "tokens": 147,
+        "budget_tokens": 147,
+        "credited": [],
+        "minted": "2a48e1b8a009"
+      },
+      "model": {
+        "prompt_chars": 304970,
+        "response_chars": 16540,
+        "patch_chars": 2333,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When remaking tables for schema changes on SQLite, ensure that CheckConstraint expressions do not include table-qualified column names, as this breaks migrations that use temporary table names."
+      },
+      "eval": {
+        "instance_id": "django__django-11299",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 103,
+        "p2p_total": 103,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11299/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 69.3227
+      },
+      "store": {
+        "population": 60,
+        "graveyard": 3,
+        "total_energy": 60.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 7,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11433",
+      "order": 14,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/model_forms/tests.py",
+          "django/db/models/fields/files.py",
+          "django/forms/forms.py",
+          "django/forms/models.py",
+          "django/conf/global_settings.py",
+          "django/test/client.py",
+          "django/http/request.py",
+          "django/forms/fields.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "141a1f1698c0",
+          "29fee609c4eb",
+          "5daef383500c"
+        ],
+        "tokens": 129,
+        "budget_tokens": 129,
+        "credited": [],
+        "minted": "e5c67d9ec52e"
+      },
+      "model": {
+        "prompt_chars": 302388,
+        "response_chars": 2853,
+        "patch_chars": 785,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The original construct_instance logic skipped assigning cleaned_data for fields omitted from POST data but with model defaults, which prevented cleaned_data from overriding model defaults; this fix ensures cleaned_data always takes precedence."
+      },
+      "eval": {
+        "instance_id": "django__django-11433",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 138,
+        "p2p_total": 142,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11433/report.json"
+      },
+      "metrics": {
+        "delta": -0.028169,
+        "resolved": false,
+        "wall_time_s": 55.6918
+      },
+      "store": {
+        "population": 58,
+        "graveyard": 6,
+        "total_energy": 58.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -0.028169,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11451",
+      "order": 15,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/contrib/auth/backends.py",
+          "tests/auth_tests/test_auth_backends.py",
+          "django/contrib/auth/models.py",
+          "django/db/models/sql/query.py",
+          "tests/auth_tests/test_models.py",
+          "django/db/models/query.py",
+          "django/contrib/auth/forms.py",
+          "django/contrib/auth/__init__.py",
+          "tests/backends/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "a503e0993990",
+          "f5dfd6ab2a9a"
+        ],
+        "tokens": 151,
+        "budget_tokens": 151,
+        "credited": [],
+        "minted": "c78d5d35af83"
+      },
+      "model": {
+        "prompt_chars": 304045,
+        "response_chars": 1645,
+        "patch_chars": 575,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When customizing authentication backends, always check for None credentials early to avoid unnecessary database queries and password hasher invocations."
+      },
+      "eval": {
+        "instance_id": "django__django-11451",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 6,
+        "f2p_total": 6,
+        "p2p_passed": 45,
+        "p2p_total": 45,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11451/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.1644
+      },
+      "store": {
+        "population": 59,
+        "graveyard": 6,
+        "total_energy": 59.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 9,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11490",
+      "order": 16,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/queries/test_qs_combinators.py",
+          "tests/queries/tests.py",
+          "tests/gis_tests/relatedapp/tests.py",
+          "django/db/models/query.py",
+          "tests/filtered_relation/tests.py",
+          "tests/aggregation_regress/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "96176cd0e1bc",
+          "2a48e1b8a009",
+          "c78d5d35af83"
+        ],
+        "tokens": 142,
+        "budget_tokens": 142,
+        "credited": [],
+        "minted": "c21d18000746"
+      },
+      "model": {
+        "prompt_chars": 302354,
+        "response_chars": 4837,
+        "patch_chars": 1379,
+        "edits_applied": 3,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The Django ORM's combinator queries (union/intersection/difference) require careful handling of values()/values_list() so that each evaluation can specify its own columns, and this must be reset on the underlying query when chaining."
+      },
+      "eval": {
+        "instance_id": "django__django-11490",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 19,
+        "p2p_total": 23,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11490/report.json"
+      },
+      "metrics": {
+        "delta": -0.173913,
+        "resolved": false,
+        "wall_time_s": 57.5735
+      },
+      "store": {
+        "population": 57,
+        "graveyard": 9,
+        "total_energy": 57.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -0.173913,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 10,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11555",
+      "order": 17,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/sql/compiler.py",
+          "django/db/models/sql/query.py",
+          "django/db/models/query.py",
+          "django/core/management/commands/inspectdb.py",
+          "django/db/models/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "28d11ba8727d",
+          "c21d18000746"
+        ],
+        "tokens": 148,
+        "budget_tokens": 148,
+        "credited": [],
+        "minted": "6fb570a2230a"
+      },
+      "model": {
+        "prompt_chars": 302718,
+        "response_chars": 1293,
+        "patch_chars": 434,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When working with order_by and Meta.ordering, always ensure that code handling ordering fields can accept both strings and expression objects, especially in multi-table inheritance scenarios."
+      },
+      "eval": {
+        "instance_id": "django__django-11555",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 26,
+        "p2p_total": 26,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11555/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 54.5541
+      },
+      "store": {
+        "population": 58,
+        "graveyard": 9,
+        "total_energy": 58.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 10,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11603",
+      "order": 18,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/backends/sqlite/tests.py",
+          "tests/aggregation_regress/tests.py",
+          "tests/aggregation/tests.py",
+          "django/db/models/aggregates.py",
+          "django/db/models/sql/query.py",
+          "django/db/backends/sqlite3/operations.py",
+          "docs/conf.py",
+          "tests/expressions_window/tests.py",
+          "django/db/models/fields/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "537070e6647b",
+          "175ac14bf538",
+          "445e331b3e51"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "c77caa3b025e"
+      },
+      "model": {
+        "prompt_chars": 302281,
+        "response_chars": 1075,
+        "patch_chars": 710,
+        "edits_applied": 3,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When adding DISTINCT support to aggregates, ensure the allow_distinct attribute is set on each relevant aggregate class."
+      },
+      "eval": {
+        "instance_id": "django__django-11603",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 58,
+        "p2p_total": 58,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11603/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 56.7105
+      },
+      "store": {
+        "population": 59,
+        "graveyard": 9,
+        "total_energy": 59.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 11,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11820",
+      "order": 19,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/invalid_models_tests/test_models.py",
+          "django/db/models/base.py",
+          "django/contrib/admin/checks.py",
+          "tests/admin_checks/tests.py",
+          "tests/queryset_pickle/tests.py",
+          "tests/admin_changelist/tests.py",
+          "django/db/models/sql/compiler.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6fb570a2230a",
+          "537070e6647b",
+          "7a52b3db4605"
+        ],
+        "tokens": 161,
+        "budget_tokens": 161,
+        "credited": [],
+        "minted": "ea02a9779047"
+      },
+      "model": {
+        "prompt_chars": 302441,
+        "response_chars": 2243,
+        "patch_chars": 974,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The Django model checks for ordering must special-case __pk as a valid related lookup, as it is a documented shortcut for the related model's primary key."
+      },
+      "eval": {
+        "instance_id": "django__django-11820",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 1,
+        "f2p_total": 2,
+        "p2p_passed": 61,
+        "p2p_total": 61,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11820/report.json"
+      },
+      "metrics": {
+        "delta": 0.5,
+        "resolved": false,
+        "wall_time_s": 55.7633
+      },
+      "store": {
+        "population": 60,
+        "graveyard": 9,
+        "total_energy": 60.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.5,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11880",
+      "order": 20,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/forms/models.py",
+          "django/db/models/fields/__init__.py",
+          "django/test/testcases.py",
+          "django/contrib/admin/options.py",
+          "django/db/models/query.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "666ca4d7127f",
+          "c77caa3b025e",
+          "8cde63b22f0e"
+        ],
+        "tokens": 176,
+        "budget_tokens": 176,
+        "credited": [],
+        "minted": "06e461f17e33"
+      },
+      "model": {
+        "prompt_chars": 303256,
+        "response_chars": 728,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When implementing __deepcopy__ for mutable attributes, ensure all mutable sub-attributes (like error_messages) are deepcopied to avoid shared state between field instances."
+      },
+      "eval": {
+        "instance_id": "django__django-11880",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 114,
+        "p2p_total": 114,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 6.2801
+      },
+      "store": {
+        "population": 61,
+        "graveyard": 9,
+        "total_energy": 61.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11951",
+      "order": 21,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/query.py",
+          "django/db/backends/oracle/base.py",
+          "django/contrib/auth/password_validation.py",
+          "django/db/backends/base/operations.py",
+          "django/db/backends/oracle/operations.py",
+          "django/db/models/deletion.py",
+          "docs/conf.py",
+          "django/db/models/sql/compiler.py",
+          "tests/bulk_create/tests.py",
+          "django/db/models/fields/files.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "14fdff16f8ad",
+          "16190fe28358",
+          "4c5f63773a5a"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "e2b6e9cfb361"
+      },
+      "model": {
+        "prompt_chars": 297750,
+        "response_chars": 8142,
+        "patch_chars": 1511,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The batch_size for bulk_create must always be capped by the backend's compatible batch size, and this logic must be applied separately for objects with and without PKs, as the set of fields may differ."
+      },
+      "eval": {
+        "instance_id": "django__django-11951",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 21,
+        "p2p_total": 21,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11951/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 65.0465
+      },
+      "store": {
+        "population": 62,
+        "graveyard": 9,
+        "total_energy": 62.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-11964",
+      "order": 22,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/core/management/base.py",
+          "django/db/models/fields/__init__.py",
+          "tests/get_or_create/tests.py",
+          "tests/test_utils/tests.py",
+          "django/test/testcases.py",
+          "tests/model_forms/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "6fb570a2230a",
+          "e2b6e9cfb361"
+        ],
+        "tokens": 158,
+        "budget_tokens": 158,
+        "credited": [],
+        "minted": "3360cfd83b6d"
+      },
+      "model": {
+        "prompt_chars": 304343,
+        "response_chars": 1727,
+        "patch_chars": 894,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When using Django model fields with choices based on Enum, always ensure to_python returns the primitive value, not the Enum instance, to avoid type mismatches and serialization issues."
+      },
+      "eval": {
+        "instance_id": "django__django-11964",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 15,
+        "p2p_total": 15,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-11964/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 54.3522
+      },
+      "store": {
+        "population": 63,
+        "graveyard": 9,
+        "total_energy": 63.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12125",
+      "order": 23,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/fields/__init__.py",
+          "tests/migrations/test_commands.py",
+          "django/db/models/base.py",
+          "tests/migrations/test_autodetector.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "e2b6e9cfb361",
+          "6fb570a2230a",
+          "ea02a9779047"
+        ],
+        "tokens": 151,
+        "budget_tokens": 151,
+        "credited": [],
+        "minted": "9e8a971a06ae"
+      },
+      "model": {
+        "prompt_chars": 303494,
+        "response_chars": 2035,
+        "patch_chars": 588,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When serializing field classes for migrations, always use __qualname__ to preserve the correct path for inner classes, ensuring migrations reference the right class."
+      },
+      "eval": {
+        "instance_id": "django__django-12125",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 45,
+        "p2p_total": 45,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12125/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 54.0019
+      },
+      "store": {
+        "population": 64,
+        "graveyard": 9,
+        "total_energy": 64.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 1,
+        "false_good": 1,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12193",
+      "order": 24,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/forms/widgets.py",
+          "django/forms/boundfield.py",
+          "django/forms/fields.py",
+          "tests/model_forms/tests.py",
+          "tests/forms_tests/tests/test_forms.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "445e331b3e51",
+          "c21d18000746",
+          "e5c67d9ec52e"
+        ],
+        "tokens": 146,
+        "budget_tokens": 146,
+        "credited": [],
+        "minted": "9f7b852817b7"
+      },
+      "model": {
+        "prompt_chars": 302740,
+        "response_chars": 915,
+        "patch_chars": 495,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "CheckboxInput.get_context() mutates the attrs dict, so callers (like MultiWidget) must pass a copy to avoid leaking state between subwidgets."
+      },
+      "eval": {
+        "instance_id": "django__django-12193",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 11,
+        "p2p_total": 11,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12193/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 59.0853
+      },
+      "store": {
+        "population": 62,
+        "graveyard": 12,
+        "total_energy": 62.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 13,
+        "lies_fired": 3,
+        "false_bad": 2,
+        "false_good": 1,
+        "distortion": -2.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12209",
+      "order": 25,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/fixtures/tests.py",
+          "tests/basic/tests.py",
+          "django/db/models/base.py",
+          "tests/fixtures_regress/tests.py",
+          "django/db/models/query.py",
+          "tests/model_inheritance/tests.py",
+          "django/db/models/fields/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "e2b6e9cfb361",
+          "ea02a9779047",
+          "a503e0993990"
+        ],
+        "tokens": 151,
+        "budget_tokens": 151,
+        "credited": [],
+        "minted": "4fade96f5330"
+      },
+      "model": {
+        "prompt_chars": 303101,
+        "response_chars": 4674,
+        "patch_chars": 902,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The logic for skipping UPDATE in save must only apply when the PK is not explicitly set, to preserve correct upsert/overwrite semantics for explicit PKs with defaults."
+      },
+      "eval": {
+        "instance_id": "django__django-12209",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 0,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12209/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 58.4606
+      },
+      "store": {
+        "population": 60,
+        "graveyard": 15,
+        "total_energy": 60.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 14,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12276",
+      "order": 26,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/forms_tests/widget_tests/test_clearablefileinput.py",
+          "django/forms/widgets.py",
+          "tests/model_forms/tests.py",
+          "docs/conf.py",
+          "django/forms/models.py",
+          "django/forms/forms.py",
+          "tests/admin_widgets/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "c77caa3b025e",
+          "b8fdc00b33fb"
+        ],
+        "tokens": 162,
+        "budget_tokens": 162,
+        "credited": [],
+        "minted": "d6eda9783cc2"
+      },
+      "model": {
+        "prompt_chars": 302662,
+        "response_chars": 1339,
+        "patch_chars": 377,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The use_required_attribute logic for FileInput must account for initial data to avoid rendering 'required' when a file is already present, matching ClearableFileInput's behavior."
+      },
+      "eval": {
+        "instance_id": "django__django-12276",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 117,
+        "p2p_total": 117,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12276/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.686
+      },
+      "store": {
+        "population": 61,
+        "graveyard": 15,
+        "total_energy": 61.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12304",
+      "order": 27,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/model_enums/tests.py",
+          "django/db/models/sql/query.py",
+          "django/core/management/base.py",
+          "django/forms/forms.py",
+          "django/template/defaulttags.py",
+          "django/db/backends/base/base.py",
+          "django/db/backends/base/operations.py",
+          "django/test/testcases.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "6fb570a2230a",
+          "f5dfd6ab2a9a"
+        ],
+        "tokens": 146,
+        "budget_tokens": 146,
+        "credited": [],
+        "minted": "281000025c91"
+      },
+      "model": {
+        "prompt_chars": 302516,
+        "response_chars": 1288,
+        "patch_chars": 623,
+        "edits_applied": 2,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When adding template support for new types, ensure do_not_call_in_templates is set on any class that is callable but not intended to be called from templates, such as Choices/Enum types."
+      },
+      "eval": {
+        "instance_id": "django__django-12304",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 17,
+        "p2p_total": 17,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12304/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 61.0219
+      },
+      "store": {
+        "population": 62,
+        "graveyard": 15,
+        "total_energy": 62.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12308",
+      "order": 28,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/contrib/admin/options.py",
+          "django/forms/fields.py",
+          "tests/test_utils/tests.py",
+          "django/core/management/__init__.py",
+          "tests/forms_tests/field_tests/test_jsonfield.py",
+          "django/contrib/admin/helpers.py",
+          "tests/invalid_models_tests/test_ordinary_fields.py",
+          "tests/forms_tests/tests/test_forms.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "3e21185d969d",
+          "ca4f6528c234"
+        ],
+        "tokens": 188,
+        "budget_tokens": 188,
+        "credited": [],
+        "minted": "fee5634d1221"
+      },
+      "model": {
+        "prompt_chars": 302745,
+        "response_chars": 2584,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When displaying JSONField values in the admin as readonly, always use the formfield's prepare_value to ensure valid JSON serialization and proper handling of invalid input."
+      },
+      "eval": {
+        "instance_id": "django__django-12308",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 20,
+        "p2p_total": 20,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 18.6652
+      },
+      "store": {
+        "population": 63,
+        "graveyard": 15,
+        "total_energy": 63.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12419",
+      "order": 29,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/views/csrf.py",
+          "django/conf/global_settings.py",
+          "tests/view_tests/tests/test_csrf.py",
+          "docs/conf.py",
+          "django/core/checks/security/base.py",
+          "django/middleware/csrf.py",
+          "tests/middleware/test_security.py",
+          "django/utils/cache.py",
+          "django/http/response.py",
+          "tests/middleware/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c77caa3b025e",
+          "281000025c91",
+          "166c9a2f4626"
+        ],
+        "tokens": 158,
+        "budget_tokens": 158,
+        "credited": [],
+        "minted": "39d700bcb6da"
+      },
+      "model": {
+        "prompt_chars": 157036,
+        "response_chars": 304,
+        "patch_chars": 301,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "Changing the default SECURE_REFERRER_POLICY to \"same-origin\" improves privacy but may affect sites relying on Referer headers for cross-origin requests."
+      },
+      "eval": {
+        "instance_id": "django__django-12419",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 0,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12419/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 58.9353
+      },
+      "store": {
+        "population": 64,
+        "graveyard": 15,
+        "total_energy": 64.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 16,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-12741",
+      "order": 30,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/base/operations.py",
+          "tests/backends/tests.py",
+          "django/db/backends/base/creation.py",
+          "django/db/models/sql/compiler.py",
+          "django/db/models/expressions.py",
+          "django/db/backends/postgresql/base.py",
+          "django/db/models/sql/query.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "175ac14bf538",
+          "d6eda9783cc2"
+        ],
+        "tokens": 149,
+        "budget_tokens": 149,
+        "credited": [],
+        "minted": "7a37b86a8b6e"
+      },
+      "model": {
+        "prompt_chars": 302356,
+        "response_chars": 1381,
+        "patch_chars": 1124,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When simplifying method signatures that previously required a 'using' argument, ensure all internal and external calls are updated to use the new signature and that the connection alias is correctly inferred from self.connection."
+      },
+      "eval": {
+        "instance_id": "django__django-12741",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 64,
+        "p2p_total": 67,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-12741/report.json"
+      },
+      "metrics": {
+        "delta": 0.955224,
+        "resolved": false,
+        "wall_time_s": 54.6858
+      },
+      "store": {
+        "population": 65,
+        "graveyard": 15,
+        "total_energy": 65.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.955224,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 17,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13023",
+      "order": 31,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/fields/__init__.py",
+          "django/db/backends/oracle/base.py",
+          "django/forms/fields.py",
+          "django/forms/models.py",
+          "django/utils/http.py",
+          "django/db/models/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "4fade96f5330",
+          "28d11ba8727d"
+        ],
+        "tokens": 138,
+        "budget_tokens": 138,
+        "credited": [],
+        "minted": "4f6a841fc690"
+      },
+      "model": {
+        "prompt_chars": 302373,
+        "response_chars": 1225,
+        "patch_chars": 467,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When adding type validation to model fields, ensure all non-convertible types (like dict) raise ValidationError, not TypeError, for consistent error handling in forms and model validation."
+      },
+      "eval": {
+        "instance_id": "django__django-13023",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 9,
+        "p2p_total": 9,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13023/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 62.0643
+      },
+      "store": {
+        "population": 66,
+        "graveyard": 15,
+        "total_energy": 66.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 18,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13089",
+      "order": 32,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/cache/tests.py",
+          "django/db/backends/oracle/base.py",
+          "django/core/cache/backends/db.py",
+          "django/db/backends/sqlite3/introspection.py",
+          "django/db/backends/base/operations.py",
+          "django/db/models/sql/compiler.py",
+          "django/db/backends/oracle/operations.py",
+          "django/test/client.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6fb570a2230a",
+          "175ac14bf538",
+          "28d11ba8727d"
+        ],
+        "tokens": 142,
+        "budget_tokens": 142,
+        "credited": [],
+        "minted": "a5c316b53afb"
+      },
+      "model": {
+        "prompt_chars": 303512,
+        "response_chars": 2083,
+        "patch_chars": 777,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "Defensive checks for None results from database queries are essential in code that assumes a row will always be returned, especially in culling or pruning logic."
+      },
+      "eval": {
+        "instance_id": "django__django-13089",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 352,
+        "p2p_total": 352,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13089/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 128.6035
+      },
+      "store": {
+        "population": 67,
+        "graveyard": 15,
+        "total_energy": 67.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 19,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13109",
+      "order": 33,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/contrib/admin/options.py",
+          "django/forms/models.py",
+          "django/db/models/fields/__init__.py",
+          "tests/model_forms/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "6fb570a2230a",
+          "4f6a841fc690"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [],
+        "minted": "0824804c42d0"
+      },
+      "model": {
+        "prompt_chars": 303840,
+        "response_chars": 1728,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When validating ForeignKey fields, always use the base manager to ensure all objects (including those filtered out by the default manager) are considered valid."
+      },
+      "eval": {
+        "instance_id": "django__django-13109",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 170,
+        "p2p_total": 170,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 17.4341
+      },
+      "store": {
+        "population": 68,
+        "graveyard": 15,
+        "total_energy": 68.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 19,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13112",
+      "order": 34,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/admin_views/models.py",
+          "tests/model_forms/models.py",
+          "tests/validation/models.py",
+          "tests/model_fields/models.py",
+          "tests/queries/models.py",
+          "django/db/models/fields/__init__.py",
+          "django/contrib/admin/options.py",
+          "tests/field_deconstruction/tests.py",
+          "django/contrib/auth/models.py",
+          "django/contrib/auth/migrations/0001_initial.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "0824804c42d0",
+          "537070e6647b"
+        ],
+        "tokens": 139,
+        "budget_tokens": 139,
+        "credited": [],
+        "minted": "a30c27a906b6"
+      },
+      "model": {
+        "prompt_chars": 303789,
+        "response_chars": 3846,
+        "patch_chars": 1532,
+        "edits_applied": 3,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "Django's model field deconstruction and serialization logic must always normalize app_label and model_name to lowercase to ensure migrations and references work regardless of case in INSTALLED_APPS or model definitions."
+      },
+      "eval": {
+        "instance_id": "django__django-13112",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 63,
+        "p2p_total": 63,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13112/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 65.0491
+      },
+      "store": {
+        "population": 69,
+        "graveyard": 15,
+        "total_energy": 69.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 19,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13297",
+      "order": 35,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/sqlite3/operations.py",
+          "django/db/backends/sqlite3/base.py",
+          "tests/backends/sqlite/tests.py",
+          "django/test/testcases.py",
+          "django/db/models/expressions.py",
+          "django/db/backends/oracle/operations.py",
+          "django/db/backends/sqlite3/schema.py",
+          "tests/test_client_regress/tests.py",
+          "django/test/client.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6fb570a2230a",
+          "3360cfd83b6d",
+          "a30c27a906b6"
+        ],
+        "tokens": 148,
+        "budget_tokens": 148,
+        "credited": [],
+        "minted": "6349bc2d18e7"
+      },
+      "model": {
+        "prompt_chars": 303348,
+        "response_chars": 3150,
+        "patch_chars": 729,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When handling parameters for SQLite queries, always resolve any lazy objects (like SimpleLazyObject) to their actual values to avoid type errors during query execution."
+      },
+      "eval": {
+        "instance_id": "django__django-13297",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 52,
+        "p2p_total": 52,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13297/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 62.561
+      },
+      "store": {
+        "population": 70,
+        "graveyard": 15,
+        "total_energy": 70.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 19,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13363",
+      "order": 36,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/functions/datetime.py",
+          "django/db/backends/oracle/operations.py",
+          "django/db/backends/base/operations.py",
+          "tests/timezones/tests.py",
+          "django/db/models/query.py",
+          "django/db/backends/sqlite3/operations.py",
+          "django/db/models/sql/query.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a30c27a906b6",
+          "0e477831dc47",
+          "28d11ba8727d"
+        ],
+        "tokens": 133,
+        "budget_tokens": 133,
+        "credited": [],
+        "minted": "a6d67b6ea030"
+      },
+      "model": {
+        "prompt_chars": 303539,
+        "response_chars": 2007,
+        "patch_chars": 934,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When adding timezone support to ORM functions, always use the mixin's get_tzname() to respect the tzinfo argument and not just the global timezone."
+      },
+      "eval": {
+        "instance_id": "django__django-13363",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 76,
+        "p2p_total": 76,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13363/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 56.7219
+      },
+      "store": {
+        "population": 71,
+        "graveyard": 15,
+        "total_energy": 71.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 20,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13406",
+      "order": 37,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/query.py",
+          "django/db/models/base.py",
+          "django/db/models/fields/__init__.py",
+          "django/db/models/fields/related_descriptors.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6349bc2d18e7",
+          "a5c316b53afb",
+          "3360cfd83b6d"
+        ],
+        "tokens": 143,
+        "budget_tokens": 143,
+        "credited": [],
+        "minted": "5848b5522063"
+      },
+      "model": {
+        "prompt_chars": 304952,
+        "response_chars": 1807,
+        "patch_chars": 1655,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When restoring or assigning a Query object to a QuerySet, always ensure the iterable class matches the query type (values/values_list vs. model instances) to avoid type mismatches after pickling or reassignment."
+      },
+      "eval": {
+        "instance_id": "django__django-13406",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 3,
+        "f2p_total": 3,
+        "p2p_passed": 32,
+        "p2p_total": 32,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13406/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 80.4538
+      },
+      "store": {
+        "population": 72,
+        "graveyard": 15,
+        "total_energy": 72.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 21,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13410",
+      "order": 38,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/core/files/locks.py",
+          "django/core/files/move.py",
+          "docs/conf.py",
+          "django/test/runner.py",
+          "django/core/files/storage.py",
+          "django/test/testcases.py",
+          "django/core/files/temp.py",
+          "django/http/response.py",
+          "django/core/management/templates.py",
+          "django/conf/global_settings.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "3360cfd83b6d",
+          "4a4826b61524",
+          "a5c316b53afb"
+        ],
+        "tokens": 166,
+        "budget_tokens": 166,
+        "credited": [],
+        "minted": "d881c9a68f49"
+      },
+      "model": {
+        "prompt_chars": 190145,
+        "response_chars": 848,
+        "patch_chars": 644,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The posix file lock implementation must return True on success and False on failure, matching the semantics expected by callers, since fcntl.flock returns None on success and raises on failure."
+      },
+      "eval": {
+        "instance_id": "django__django-13410",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 40,
+        "p2p_total": 40,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13410/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 53.0901
+      },
+      "store": {
+        "population": 73,
+        "graveyard": 15,
+        "total_energy": 73.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 22,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13417",
+      "order": 39,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/models/sql/compiler.py",
+          "django/db/models/query.py",
+          "django/db/models/sql/query.py",
+          "tests/queries/tests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6fb570a2230a",
+          "a6d67b6ea030",
+          "4fade96f5330"
+        ],
+        "tokens": 139,
+        "budget_tokens": 139,
+        "credited": [],
+        "minted": "c1350e17e643"
+      },
+      "model": {
+        "prompt_chars": 302794,
+        "response_chars": 1498,
+        "patch_chars": 616,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The interaction between GROUP BY and default ordering is subtle; always check if GROUP BY disables implicit ordering when determining if a queryset is ordered."
+      },
+      "eval": {
+        "instance_id": "django__django-13417",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 280,
+        "p2p_total": 280,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13417/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 59.0732
+      },
+      "store": {
+        "population": 74,
+        "graveyard": 15,
+        "total_energy": 74.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 23,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13512",
+      "order": 40,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "docs/conf.py",
+          "django/db/backends/oracle/base.py",
+          "django/utils/html.py",
+          "django/utils/http.py",
+          "django/utils/jslex.py",
+          "django/http/response.py",
+          "tests/invalid_models_tests/test_ordinary_fields.py",
+          "tests/httpwrappers/tests.py",
+          "django/middleware/csrf.py",
+          "django/db/backends/postgresql/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "fee5634d1221",
+          "9e8a971a06ae",
+          "0824804c42d0"
+        ],
+        "tokens": 134,
+        "budget_tokens": 134,
+        "credited": [],
+        "minted": "ec8096912c62"
+      },
+      "model": {
+        "prompt_chars": 189891,
+        "response_chars": 874,
+        "patch_chars": 466,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When serializing JSON for HTTP responses, always set ensure_ascii=False in json.dumps to preserve Unicode characters for proper display in browsers and admin interfaces."
+      },
+      "eval": {
+        "instance_id": "django__django-13512",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 3,
+        "p2p_passed": 32,
+        "p2p_total": 32,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13512/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 55.3641
+      },
+      "store": {
+        "population": 75,
+        "graveyard": 15,
+        "total_energy": 75.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 23,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13551",
+      "order": 41,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/contrib/auth/base_user.py",
+          "django/contrib/auth/views.py",
+          "django/contrib/auth/tokens.py",
+          "tests/auth_tests/test_views.py",
+          "django/contrib/auth/forms.py",
+          "tests/auth_tests/test_remote_user.py",
+          "django/contrib/auth/models.py",
+          "tests/test_client_regress/tests.py",
+          "tests/auth_tests/test_tokens.py",
+          "django/conf/global_settings.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6349bc2d18e7",
+          "d6eda9783cc2",
+          "a6d67b6ea030"
+        ],
+        "tokens": 134,
+        "budget_tokens": 134,
+        "credited": [],
+        "minted": "c7493c553147"
+      },
+      "model": {
+        "prompt_chars": 219528,
+        "response_chars": 2780,
+        "patch_chars": 1295,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When generating password reset tokens, always include all user fields whose change should invalidate outstanding tokens, such as the email address, to prevent security issues."
+      },
+      "eval": {
+        "instance_id": "django__django-13551",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 2,
+        "f2p_total": 2,
+        "p2p_passed": 56,
+        "p2p_total": 56,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13551/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 81.8723
+      },
+      "store": {
+        "population": 76,
+        "graveyard": 15,
+        "total_energy": 76.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 24,
+        "lies_fired": 4,
+        "false_bad": 3,
+        "false_good": 1,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13741",
+      "order": 42,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/contrib/auth/forms.py",
+          "tests/auth_tests/test_forms.py",
+          "django/conf/global_settings.py",
+          "django/contrib/auth/models.py",
+          "tests/admin_views/admin.py",
+          "django/contrib/admin/options.py",
+          "tests/auth_tests/test_views.py",
+          "django/db/models/fields/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c7493c553147",
+          "06e461f17e33",
+          "3360cfd83b6d"
+        ],
+        "tokens": 137,
+        "budget_tokens": 137,
+        "credited": [],
+        "minted": "b444b0436cb3"
+      },
+      "model": {
+        "prompt_chars": 302892,
+        "response_chars": 1128,
+        "patch_chars": 878,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When using ReadOnlyPasswordHashField, setting disabled=True ensures the field is ignored on POST and no custom clean_password is needed."
+      },
+      "eval": {
+        "instance_id": "django__django-13741",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 82,
+        "p2p_total": 82,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13741/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 56.3826
+      },
+      "store": {
+        "population": 74,
+        "graveyard": 18,
+        "total_energy": 74.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 25,
+        "lies_fired": 5,
+        "false_bad": 4,
+        "false_good": 1,
+        "distortion": -6.0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13794",
+      "order": 43,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/template/base.py",
+          "django/utils/functional.py",
+          "tests/utils_tests/test_encoding.py",
+          "django/utils/encoding.py",
+          "django/template/defaulttags.py",
+          "django/template/defaultfilters.py",
+          "django/utils/http.py",
+          "django/db/models/options.py",
+          "django/core/management/__init__.py",
+          "django/db/models/fields/__init__.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "6fb570a2230a",
+          "a5c316b53afb",
+          "6349bc2d18e7"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "d47f017e46bf"
+      },
+      "model": {
+        "prompt_chars": 302193,
+        "response_chars": 1080,
+        "patch_chars": 657,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When working with Django template filters, always ensure that lazy string objects (Promise) are resolved to their actual string values before performing string operations to avoid type errors."
+      },
+      "eval": {
+        "instance_id": "django__django-13794",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 2,
+        "f2p_total": 3,
+        "p2p_passed": 24,
+        "p2p_total": 24,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13794/report.json"
+      },
+      "metrics": {
+        "delta": 0.666667,
+        "resolved": false,
+        "wall_time_s": 53.726
+      },
+      "store": {
+        "population": 72,
+        "graveyard": 21,
+        "total_energy": 72.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": -0.666667,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 26,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13807",
+      "order": 44,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/sqlite3/base.py",
+          "django/db/backends/sqlite3/introspection.py",
+          "django/db/backends/sqlite3/schema.py",
+          "tests/backends/sqlite/tests.py",
+          "django/db/backends/sqlite3/operations.py",
+          "django/db/backends/mysql/base.py",
+          "django/db/backends/mysql/introspection.py",
+          "django/db/backends/sqlite3/features.py",
+          "django/db/backends/base/features.py",
+          "django/db/backends/base/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "0e477831dc47",
+          "5848b5522063"
+        ],
+        "tokens": 149,
+        "budget_tokens": 149,
+        "credited": [],
+        "minted": "09393d68c62d"
+      },
+      "model": {
+        "prompt_chars": 168541,
+        "response_chars": 1448,
+        "patch_chars": 1186,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "Always use quote_name when interpolating table names into SQL statements to avoid issues with reserved keywords or special characters."
+      },
+      "eval": {
+        "instance_id": "django__django-13807",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 38,
+        "p2p_total": 38,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13807/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 53.4445
+      },
+      "store": {
+        "population": 73,
+        "graveyard": 21,
+        "total_energy": 73.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 26,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13821",
+      "order": 45,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/sqlite3/schema.py",
+          "django/db/backends/sqlite3/operations.py",
+          "tests/backends/sqlite/tests.py",
+          "django/db/backends/sqlite3/introspection.py",
+          "django/db/backends/sqlite3/base.py",
+          "django/db/backends/sqlite3/features.py",
+          "django/db/backends/base/base.py",
+          "django/contrib/gis/db/backends/postgis/operations.py",
+          "django/db/models/functions/comparison.py",
+          "django/db/backends/mysql/base.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "175ac14bf538",
+          "537070e6647b",
+          "c77caa3b025e"
+        ],
+        "tokens": 138,
+        "budget_tokens": 138,
+        "credited": [],
+        "minted": "efbedf8fb592"
+      },
+      "model": {
+        "prompt_chars": 164402,
+        "response_chars": 3419,
+        "patch_chars": 995,
+        "edits_applied": 3,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When dropping support for older SQLite versions, ensure all version checks and related tests are updated consistently across the codebase."
+      },
+      "eval": {
+        "instance_id": "django__django-13821",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 14,
+        "p2p_total": 14,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13821/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 57.2156
+      },
+      "store": {
+        "population": 74,
+        "graveyard": 21,
+        "total_energy": 74.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 27,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-13933",
+      "order": 46,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/forms/models.py",
+          "django/forms/fields.py",
+          "tests/forms_tests/tests/test_error_messages.py",
+          "tests/model_forms/test_modelchoicefield.py",
+          "tests/model_forms/tests.py",
+          "tests/forms_tests/tests/test_forms.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "fee5634d1221",
+          "4f6a841fc690",
+          "5848b5522063"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [],
+        "minted": "bd7ce98e5386"
+      },
+      "model": {
+        "prompt_chars": 303109,
+        "response_chars": 1704,
+        "patch_chars": 1068,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When customizing error messages for ModelChoiceField, ensure the invalid value is included in the error params for consistency with ChoiceField and ModelMultipleChoiceField."
+      },
+      "eval": {
+        "instance_id": "django__django-13933",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 19,
+        "p2p_total": 19,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-13933/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 47.5675
+      },
+      "store": {
+        "population": 75,
+        "graveyard": 21,
+        "total_energy": 75.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 28,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-14089",
+      "order": 47,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/migrations/operations/base.py",
+          "django/core/serializers/__init__.py",
+          "django/core/management/commands/dumpdata.py",
+          "django/test/testcases.py",
+          "django/template/defaulttags.py",
+          "django/db/models/fields/__init__.py",
+          "django/db/models/sql/query.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a6d67b6ea030",
+          "c77caa3b025e",
+          "7a37b86a8b6e"
+        ],
+        "tokens": 137,
+        "budget_tokens": 137,
+        "credited": [],
+        "minted": "2f1419461d25"
+      },
+      "model": {
+        "prompt_chars": 302169,
+        "response_chars": 2826,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When extending built-in collection types, ensure to implement all expected dunder methods for compatibility with Python's standard library behaviors."
+      },
+      "eval": {
+        "instance_id": "django__django-14089",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 43,
+        "p2p_total": 43,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 9.0066
+      },
+      "store": {
+        "population": 76,
+        "graveyard": 21,
+        "total_energy": 76.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 28,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-14315",
+      "order": 48,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "tests/dbshell/test_postgresql.py",
+          "django/test/testcases.py",
+          "django/db/backends/base/client.py",
+          "django/db/backends/oracle/base.py",
+          "django/utils/autoreload.py",
+          "scripts/manage_translations.py",
+          "docs/conf.py",
+          "tests/dbshell/test_mysql.py",
+          "django/db/backends/postgresql/base.py",
+          "tests/runtests.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "d881c9a68f49",
+          "175ac14bf538",
+          "28d11ba8727d"
+        ],
+        "tokens": 146,
+        "budget_tokens": 146,
+        "credited": [],
+        "minted": "87f0ece671ec"
+      },
+      "model": {
+        "prompt_chars": 184750,
+        "response_chars": 3413,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "When returning environment variables for subprocesses, always return None (not an empty dict) to ensure os.environ is inherited, matching the expectations of subprocess.run and Django's test suite."
+      },
+      "eval": {
+        "instance_id": "django__django-14315",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 11,
+        "p2p_passed": 0,
+        "p2p_total": 0,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 8.2207
+      },
+      "store": {
+        "population": 77,
+        "graveyard": 21,
+        "total_energy": 77.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 28,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-14373",
+      "order": 49,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/utils/dateformat.py",
+          "tests/utils_tests/test_dateformat.py",
+          "django/template/defaultfilters.py",
+          "django/utils/datetime_safe.py",
+          "django/utils/formats.py",
+          "django/forms/widgets.py",
+          "tests/utils_tests/test_datetime_safe.py",
+          "django/db/backends/base/operations.py",
+          "tests/backends/tests.py",
+          "django/contrib/humanize/templatetags/humanize.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "87f0ece671ec",
+          "a30c27a906b6",
+          "175ac14bf538"
+        ],
+        "tokens": 153,
+        "budget_tokens": 153,
+        "credited": [],
+        "minted": "806320cb34d3"
+      },
+      "model": {
+        "prompt_chars": 173375,
+        "response_chars": 416,
+        "patch_chars": 283,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When implementing date formatting, always ensure year fields are zero-padded to four digits for years less than 1000, as required by the format specification."
+      },
+      "eval": {
+        "instance_id": "django__django-14373",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 19,
+        "p2p_total": 19,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-14373/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 48.9343
+      },
+      "store": {
+        "population": 78,
+        "graveyard": 21,
+        "total_energy": 78.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 29,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "evict_on_negative",
+      "seed": 1,
+      "sequence": "django_django_sequence",
+      "instance_id": "django__django-14376",
+      "order": 50,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "django/db/backends/mysql/base.py",
+          "docs/conf.py",
+          "django/db/backends/oracle/base.py",
+          "django/db/backends/base/operations.py",
+          "django/core/cache/backends/memcached.py",
+          "django/utils/autoreload.py",
+          "django/db/backends/mysql/operations.py",
+          "django/db/backends/base/base.py",
+          "django/db/backends/postgresql/base.py",
+          "django/db/backends/mysql/schema.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "51d9460a06f4",
+          "efbedf8fb592",
+          "f5dfd6ab2a9a"
+        ],
+        "tokens": 159,
+        "budget_tokens": 159,
+        "credited": [],
+        "minted": "398b03f7096b"
+      },
+      "model": {
+        "prompt_chars": 176599,
+        "response_chars": 1369,
+        "patch_chars": 630,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When updating backend connection parameters for third-party drivers, always check for deprecation notices and minimum supported versions to ensure compatibility and avoid warnings."
+      },
+      "eval": {
+        "instance_id": "django__django-14376",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 3,
+        "p2p_passed": 6,
+        "p2p_total": 6,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/django__django-14376/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 48.3625
+      },
+      "store": {
+        "population": 79,
+        "graveyard": 21,
+        "total_energy": 79.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 47
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 29,
+        "lies_fired": 6,
+        "false_bad": 5,
+        "false_good": 1,
+        "distortion": -7.333333
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    }
+  ]
+}
