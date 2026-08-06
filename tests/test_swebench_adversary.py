@@ -143,7 +143,9 @@ def test_poison_alive_is_reported():
 # ---------------------------------------------------------------------------
 
 
-def fake_cell(arm, seed, budget, n, resolved, poison_alive, graveyard, fired=0):
+def fake_cell(
+    arm, seed, budget, n, resolved, poison_alive, graveyard, fired=0, merges=0
+):
     """One cell's worth of records, carrying only the scored fields."""
     return [
         {
@@ -160,6 +162,7 @@ def fake_cell(arm, seed, budget, n, resolved, poison_alive, graveyard, fired=0):
                 "population": n - graveyard,
                 "graveyard": graveyard,
                 "poison_alive": poison_alive,
+                "merges_this_tick": merges if i == 1 else 0,
             },
             "adversary": {"lies_fired": fired},
         }
@@ -167,10 +170,27 @@ def fake_cell(arm, seed, budget, n, resolved, poison_alive, graveyard, fired=0):
     ]
 
 
-def test_poison_kill_rate_reads_the_end_state():
+def test_poison_entries_is_not_a_kill_rate():
+    """A merge can hide many poison sources inside one live entry."""
     cell = fake_cell("memory_on", 0, 2, n=10, resolved=4, poison_alive=2, graveyard=8)
     assert attack.poison_seeded(cell) == 10
-    assert attack.poison_kill_rate(cell) == pytest.approx(0.8)
+    assert attack.poison_entries_alive(cell) == 2
+    assert attack.poison_eliminated(cell) is False
+    clean = fake_cell("memory_on", 0, 2, n=10, resolved=4, poison_alive=0, graveyard=10)
+    assert attack.poison_eliminated(clean) is True
+
+
+def test_merges_are_reported_because_they_break_the_entry_count():
+    """The confound that made an earlier version of this scorer wrong.
+
+    Only survival curation consolidates, so an entry-count comparison
+    across arms compares one arm that deduplicates poison against two
+    that never do.
+    """
+    merged = fake_cell("memory_on", 0, 2, 10, 4, poison_alive=1, graveyard=9, merges=1)
+    flat = fake_cell("keep_everything", 0, 2, 10, 4, poison_alive=10, graveyard=0)
+    assert attack.merges(merged) == 1
+    assert attack.merges(flat) == 0
 
 
 def test_benign_buried_excludes_the_poison_it_killed():

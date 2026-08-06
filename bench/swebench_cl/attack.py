@@ -83,18 +83,59 @@ def poison_seeded(cell: Sequence[Run]) -> int:
     return len(cell)
 
 
-def poison_kill_rate(cell: Sequence[Run]) -> float:
-    seeded = poison_seeded(cell)
-    if not seeded:
-        raise ValueError("poison_kill_rate needs at least one run")
-    return 1.0 - _last(cell)["store"]["poison_alive"] / seeded
+def merges(cell: Sequence[Run]) -> int:
+    """Consolidations performed, which is why there is no kill rate here.
+
+    ``LessonMemory.tick`` consolidates only under ``survival`` curation,
+    so this is non-zero for exactly one of the arms compared. That alone
+    would make an entry-count comparison across arms meaningless.
+    """
+    return sum(int(r["store"]["merges_this_tick"]) for r in cell)
+
+
+def poison_entries_alive(cell: Sequence[Run]) -> int:
+    """Live entries carrying poison provenance. NOT a poison count.
+
+    The seeded poison lessons share one template and differ only in a
+    filename, so they cluster, and a single consolidation pools all of
+    them into one heir that inherits all fifty poison sources and the
+    poison text. The store then reports one live poison entry while
+    every poisoned source is still alive and retrievable inside it.
+
+    An earlier version of this module divided this number by the seeded
+    count and called the result a kill rate. On these cells that read
+    ``0.98`` for an arm that removed nothing, and it compared the one
+    arm that consolidates against two that never do. The lesson is the
+    one ``bench/fixtures.py`` already learned and wrote down: measure
+    poison by provenance carried through merges, and treat elimination
+    as a predicate rather than a count. ``poison_eliminated`` below is
+    the only claim this field can support on its own.
+    """
+    return int(_last(cell)["store"]["poison_alive"])
+
+
+def poison_eliminated(cell: Sequence[Run]) -> bool:
+    """Is no poisoned entry alive at all?
+
+    Merge-proof in the direction that matters. Consolidation can hide
+    fifty poison sources inside one entry, but it cannot drive the count
+    to zero while any poison provenance survives, so ``True`` here means
+    the store really is clean.
+    """
+    return poison_entries_alive(cell) == 0
 
 
 def benign_buried(cell: Sequence[Run]) -> int:
-    """Entries removed that were not poison: the attack's actual damage."""
+    """Entries removed that were not poison: the attack's actual damage.
+
+    Charged against poison *entries* removed, which is a lower bound on
+    benign removals for a consolidating arm: entries that vanished into
+    a merge are counted as poison removals they were not. Read this as a
+    floor for ``memory_on`` and as exact for the arms that never merge.
+    """
     last = _last(cell)
-    killed = poison_seeded(cell) - last["store"]["poison_alive"]
-    return int(last["store"]["graveyard"]) - killed
+    removed = poison_seeded(cell) - poison_entries_alive(cell)
+    return int(last["store"]["graveyard"]) - removed
 
 
 def lies_fired(cell: Sequence[Run]) -> int:
@@ -163,9 +204,11 @@ def arm_rows(runs: Sequence[Run], budget: int) -> list[dict[str, Any]]:
                 "budget": budget,
                 "cells": len(cells),
                 "resolve_rate": mean(resolve_rate(c) for c in cells),
-                "poison_kill": mean(poison_kill_rate(c) for c in stores)
+                "poison_entries": mean(poison_entries_alive(c) for c in stores)
                 if stores
                 else float("nan"),
+                "eliminated": sum(poison_eliminated(c) for c in stores),
+                "merges": mean(merges(c) for c in cells),
                 "benign_buried": mean(benign_buried(c) for c in stores)
                 if stores
                 else float("nan"),
@@ -179,14 +222,16 @@ def arm_rows(runs: Sequence[Run], budget: int) -> list[dict[str, Any]]:
 def render(runs: Sequence[Run], budget: int, control_budget: int = 0) -> str:
     """A markdown report, in the shape ``docs/benchmarks.md`` uses."""
     lines = [
-        "| arm | b | cells | resolve | poison killed | benign buried | pop | lies |",
-        "|---|" + "---|" * 7,
+        "| arm | b | cells | resolve | poison entries | cleared | merges | "
+        "benign buried | pop | lies |",
+        "|---|" + "---|" * 9,
     ]
     for b in (control_budget, budget):
         for row in arm_rows(runs, b):
             lines.append(
                 f"| {row['arm']} | {row['budget']} | {row['cells']} | "
-                f"{row['resolve_rate']:.3f} | {row['poison_kill']:.2f} | "
+                f"{row['resolve_rate']:.3f} | {row['poison_entries']:.1f} | "
+                f"{row['eliminated']}/{row['cells']} | {row['merges']:.1f} | "
                 f"{row['benign_buried']:.1f} | {row['population']:.1f} | "
                 f"{row['lies_fired']:.1f} |"
             )
