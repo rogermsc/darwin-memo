@@ -89,7 +89,14 @@ fail_under = 80
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-extend-exclude = ["training"]
+# Markdown is excluded because newer ruff formats Python code blocks
+# inside prose, and its output is worse than hand-alignment there: it
+# dedents continuation comments to column 0, so a comment that wrapped
+# under the statement it explains reads as a new top-level remark. The
+# docs are read by people, not imported. Excluded by glob rather than by
+# pinning ruff, so the behaviour does not depend on which version CI
+# happens to resolve.
+extend-exclude = ["training", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
