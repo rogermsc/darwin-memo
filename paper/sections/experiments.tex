@@ -107,14 +107,14 @@ consecutive $k{=}2$   & 12.38 / 1.00 & 11.47 / 0.81 & 9.12 / 0.48  & 3.73 / 0.06
 
 \subsection{Curation-targeted attack: denial of memory}
 \label{sec:adversary}
-Every curation mechanism is itself an attack surface, and the
-memory-security literature has not modelled it. Write-time filters,
-retrieval sanitizers, and outcome settlement all decide which entries
-live, so an adversary who can perturb the deciding signal can weaponize
-the curator: make it delete the benign entries standing in the way and
-keep the poisoned one it planted. We call this a
-\emph{curation-targeted attack}, and its denial-of-memory case is, to
-our knowledge, unmeasured.
+Every curation mechanism is itself an attack surface. Write-time
+filters, retrieval sanitizers, and outcome settlement all decide which
+entries live, so an adversary who can perturb the deciding signal can
+weaponize the curator: make it delete the benign entries standing in the
+way and keep the poisoned one it planted. We call this a
+\emph{curation-targeted attack}. The threat is named in the literature
+and reported there as unmeasured (\S\ref{sec:related}); what follows is
+the measurement.
 
 The noise suite is the wrong instrument for it by construction: its lies
 are a property of the world, drawn before any arm acts, precisely so

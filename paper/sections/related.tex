@@ -21,10 +21,37 @@ content, and content is exactly what a weak-signal payload is
 constructed to survive. Our threat model is orthogonal to that axis
 rather than a better position on it. We do not ask whether the defence
 can recognize the payload; we ask what the defence does when the
-evidence it decides on has itself been tampered with. To our knowledge
-no prior work models an adversary whose target is the curator rather
-than the store, and the denial-of-memory consequence---a defence induced
-to delete the memory it protects---appears unmeasured.
+evidence it decides on has itself been tampered with.
+
+\paragraph{Attacking the curator: named, and left unmeasured.}
+We are not the first to describe this threat, and we are explicit about
+that because the distinction between naming it and measuring it is the
+whole of our contribution here. \citet{lin2026selfevolving} catalogue
+the attack surface of self-evolving agent systems and state the model
+directly: an adversary who can ``shift embedding proximity or corrupt
+the performance signal gains indirect control over the long-term
+composition of the agent's cognitive state without ever writing to the
+memory store directly,'' with the consequence that ``biased selection
+can systematically retain harmful memories while discarding
+safety-critical ones.'' Their case study CS-I6 names the same mechanism
+as \emph{selective amplification}. \citet{lin2026memsurvey} organize
+memory security around a lifecycle whose final phase is
+\emph{Forget \& Rollback}, and place denial-style consequences---silent
+eviction under retention pressure, denial of retrieval---in its
+availability column.
+
+Both also record that the threat is unmeasured. \citet{lin2026selfevolving}
+write that ``direct attacks on memory consolidation policies remain
+relatively underexplored''; \citet{lin2026memsurvey} report that
+availability threats on agent memory are ``architecturally plausible but
+empirically unstudied'' and that peer-reviewed availability-specific
+attacks and defences are scarce enough that the area is a research
+agenda rather than a subfield. That is the gap this paper closes. Our
+contribution is not the observation that a curator can be attacked
+through its evidence; it is the operationalization---a resource-bounded
+adversary, six curation mechanisms, five attack budgets, thirty seeds,
+per-seed intervals, exact paired permutation tests, and a published
+failure boundary for the mechanism we defend with.
 
 \paragraph{Memory as a model, and the frozen executive.}
 \citet{quek2026memo} argue for keeping the executive LLM frozen and

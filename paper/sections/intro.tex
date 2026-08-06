@@ -27,7 +27,7 @@ can be gamed---the reward-hacking and semantic-drift failure mode that
 self-training systems are known to fall into when no external criterion
 anchors quality \citep{dodgson2026survival}.
 
-\paragraph{The curator is an attack surface, and nobody has attacked it.}
+\paragraph{The curator is an attack surface, and nobody has measured it.}
 Whatever plays the curator---a classifier, a judge, a heuristic, a
 ledger---it decides on some signal, and that signal is reachable by an
 adversary. The memory-security literature defends the store at
@@ -39,11 +39,21 @@ survives; it is worse. A defence that removes entries on bad evidence,
 fed bad evidence, removes the defender's own working memory. The
 adversary need inject nothing at all, and the more decisively a
 mechanism curates the more thoroughly it destroys the store it protects.
-We call this a \emph{curation-targeted attack}, and its denial-of-memory
-case is, to our knowledge, undefined and unmeasured.
+We call this a \emph{curation-targeted attack}.
 
-This paper defines it, measures six curation mechanisms under it, and
-reports which survive. Doing so requires a curator whose deciding signal
+The threat has been named. \citet{lin2026selfevolving} describe an
+adversary who corrupts the performance signal to control ``the long-term
+composition of the agent's cognitive state without ever writing to the
+memory store directly,'' and \citet{lin2026memsurvey} give forgetting
+its own lifecycle phase. Both also record that it has not been
+measured---``relatively underexplored'' in the first, ``architecturally
+plausible but empirically unstudied'' in the second. That is the gap we
+close, and it is worth being plain that closing it is the contribution:
+this paper does not discover that curators are attackable, it makes the
+threat quantitative.
+
+This paper operationalizes it, measures six curation mechanisms under
+it, and reports which survive. Doing so requires a curator whose deciding signal
 is not a model's opinion, so we also ask what happens when the curator
 is removed entirely. Our starting observation is that a large and
 practically important class of
@@ -112,11 +122,13 @@ which curator to reach for when, including the four axes on which a
 simpler mechanism is the correct choice.
 
 \paragraph{Contributions.}
-(1) \textbf{A threat model the memory-security literature has not
-defined}: the \emph{curation-targeted attack}, in which the adversary
-injects no poison and instead corrupts the signal a curator decides on,
-turning the defence into the instrument that starves the defender's
-benign memory (\S\ref{sec:adversary}).
+(1) \textbf{An operational threat model for an attack the literature has
+named but not measured}: the \emph{curation-targeted attack}, in which
+the adversary injects no poison and instead corrupts the signal a
+curator decides on, turning the defence into the instrument that starves
+the defender's benign memory. We give it a resource-bounded adversary,
+an accounting identity, and a budget axis, so that it becomes an
+experiment rather than a scenario (\S\ref{sec:adversary}).
 (2) \textbf{The first measurement of how curation mechanisms fare under
 it}---six mechanisms at five attack budgets over 30 seeds---establishing
 that a bounded credit buffer with earn-back is what separates the
