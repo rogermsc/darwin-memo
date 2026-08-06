@@ -60,7 +60,10 @@ jobs:
         # default and fails loudly on a broken one.
         run: |
           shopt -s nullglob
-          for f in bench/results/*.json bench/results/swebench_cl/*.json; do
+          for f in bench/results/*.json \
+                   bench/results/swebench_cl/*.json \
+                   bench/results/swebench_cl_long/*.json \
+                   bench/results/swebench_cl_adversary/*.json; do
             [ "$(basename "$f")" = MANIFEST.json ] && continue
             python -m bench.report "$f" --check --require-manifest
           done

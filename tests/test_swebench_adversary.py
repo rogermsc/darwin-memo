@@ -9,6 +9,8 @@ adversary's story instead of the harness's.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from bench.swebench_cl import attack
@@ -77,7 +79,7 @@ def test_accounting_identity_holds():
     assert sum(reported) == pytest.approx(sum(trues) + a.distortion)
 
 
-def _attacked(arm: str, lie_budget: int, n_tasks: int = 4):
+def _attacked(arm: str, lie_budget: int, n_tasks: int = 4) -> list[dict[str, Any]]:
     response = f"```diff\n{GOLD_PATCH}```\nREFLECTION: gold."
     tasks = [
         make_task(instance_id=f"acme__proj-{i}", order=i) for i in range(1, n_tasks + 1)
@@ -204,7 +206,7 @@ def test_benign_buried_excludes_the_poison_it_killed():
 
 def test_lie_budget_defaults_to_zero_for_pre_attack_records():
     """The clean matrices load without being rewritten."""
-    run = {"config": {}}
+    run: dict[str, Any] = {"config": {}}
     assert attack.lie_budget(run) == 0
 
 
@@ -249,13 +251,13 @@ def test_docker_guard_reports_a_missing_daemon(monkeypatch):
     def boom(*a, **k):
         raise OSError("docker: command not found")
 
-    monkeypatch.setattr(matrix.subprocess, "run", boom)
+    monkeypatch.setattr("bench.swebench_cl.matrix.subprocess.run", boom)
     assert matrix.docker_alive("docker") is False
 
     def timeout(*a, **k):
         raise sp.TimeoutExpired(cmd="docker info", timeout=1)
 
-    monkeypatch.setattr(matrix.subprocess, "run", timeout)
+    monkeypatch.setattr("bench.swebench_cl.matrix.subprocess.run", timeout)
     assert matrix.docker_alive("docker") is False
 
 
