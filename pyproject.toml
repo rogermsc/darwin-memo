@@ -111,7 +111,8 @@ target-version = "py310"
 # formatter: it moves a continuation comment under a long line to column
 # zero, where it reads as a separate statement. Documentation examples
 # are checked by running them (the CI examples step), not by reformatting
-# them in place.
+# them in place. Excluded by glob rather than by pinning ruff, so the
+# behaviour does not depend on which version CI happens to resolve.
 extend-exclude = ["training", "*.md"]
 
 [tool.ruff.lint]
