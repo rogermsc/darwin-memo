@@ -274,7 +274,7 @@ def test_audit_last_window(tmp_path, capsys):
 
 
 def test_mcp_memory_audit_matches_cli_digest(tmp_path, capsys):
-    pytest.importorskip("mcp")
+    pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 
     from darwin_memo.mcp_server import build_server

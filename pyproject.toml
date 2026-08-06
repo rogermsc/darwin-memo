@@ -41,7 +41,14 @@ embeddings = ["sentence-transformers>=3"]
 # Floor verified empirically: 1.10.0 is the oldest release with both the
 # FastMCP `instructions` parameter and the (blocks, structured) call_tool
 # return shape the server and tests rely on.
-mcp = ["mcp>=1.10"]
+#
+# Ceiling added after mcp 2.0.0 removed `mcp.server.fastmcp` outright, so
+# an unbounded range shipped a broken server to anyone installing the
+# extra: the import in mcp_server.build_server raises ModuleNotFoundError
+# on every Python version. Supporting 2.x means porting to its new API;
+# until then the range is capped rather than left to resolve into
+# something that does not work.
+mcp = ["mcp>=1.10,<2"]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
@@ -82,7 +89,14 @@ fail_under = 80
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-extend-exclude = ["training"]
+# Markdown is excluded because newer ruff formats Python code blocks
+# inside prose, and its output is worse than hand-alignment there: it
+# dedents continuation comments to column 0, so a comment that wrapped
+# under the statement it explains reads as a new top-level remark. The
+# docs are read by people, not imported. Excluded by glob rather than by
+# pinning ruff, so the behaviour does not depend on which version CI
+# happens to resolve.
+extend-exclude = ["training", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
