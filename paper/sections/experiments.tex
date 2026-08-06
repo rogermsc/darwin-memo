@@ -616,3 +616,116 @@ arm & tasks & resolve & 2nd$-$1st & harm & pop \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{The attack on real tasks: what transfers and what does not}
+\label{sec:swebench-attack}
+
+The adversarial result of \S\ref{sec:adversary} lives entirely inside one
+synthetic storage world that we wrote. That is a weak place for a
+paper's central claim to live, so we ran the same attack on
+SWE-Bench-CL, where the settled quantity is the passing-test delta
+returned by the official docker harness and nobody involved chose it.
+The threat model is unchanged: the adversary injects no poison, observes
+only the sign of the true outcome, and corrupts settlement alone. The
+lie reaches the curator and nothing else---\texttt{metrics.delta} and
+\texttt{resolved} keep the harness's own numbers---so capability is
+always scored against reality while the mechanism decides on the
+corruption.
+
+Budget is denominated in measured \emph{settlements} rather than tasks.
+\texttt{StorageEnv} offers $b$ lies per cycle of twelve files, so $b$
+corrupts $b/12$ of the evidence; roughly forty percent of SWE-Bench
+tasks produce no test movement at all, and counting tasks would have
+inflated the real corruption rate by each arm's own failed-apply rate.
+We report $b{=}2$, which is $17\%$ of settlements, the point where the
+synthetic suite has already destroyed the counters and the ledger still
+holds. Three curation arms on \texttt{django} at fifty tasks, three
+seeds, poison-seeded one lesson per task, each cell paired against its
+own unattacked twin: eighteen cells, six lies fired in every one.
+
+\paragraph{Two of the three synthetic findings do not transfer.}
+No arm eliminated the poison at any budget. Capability did not separate
+either: retained $1.048$, $0.957$, and $1.000$ for the ledger, the
+counter, and \texttt{keep\_everything}, every interval spanning zero.
+The synthetic suite's headline---that the attack destroys an
+evict-on-negative counter's capability---is simply absent here, and the
+reason is one this paper has already established: on this benchmark
+memory contributes no measurable capability at all
+(\S\ref{sec:swebench}), so denial of memory has nothing to deny.
+\emph{An attack on memory cannot cost more than the memory was worth.}
+
+\paragraph{What transfers is the mechanism, in its proper currency.}
+The attack's damage lands entirely on benign memory, and how much
+depends on whether removal is recoverable (Table~\ref{tab:swebench-attack}).
+Under the same six lies, the counter's benign burial roughly triples
+while the ledger's barely moves, on every seed, with non-overlapping
+ranges ($2.29$--$3.00$ against $1.08$--$1.43$). The trigger lists show
+the adversary doing both halves of its job: on seed 0 it flipped two
+genuine damage signals positive so the guilty went unpunished, and
+manufactured six against benign work, and the counter obeyed on every
+count. This is the argument of \S\ref{sec:adversary} measured on real
+software-engineering tasks: a counter spends a life it cannot recover,
+so a lie costs it an entry permanently; a ledger spends energy the entry
+earns back, so the same lie costs it almost nothing.
+
+\begin{table}[t]
+\centering
+\caption{Curation-targeted attack on \texttt{django}, 50 tasks, three
+seeds, $b{=}2$ ($17\%$ of settlements corrupted, six lies per cell).
+Benign burial is the graveyard minus the poison entries removed. No arm
+cleared the poison and no arm lost capability; the separation is in what
+the attack made each mechanism delete.}
+\label{tab:swebench-attack}
+\begin{tabular}{lccc}
+\toprule
+arm & benign buried, $b{=}0\to2$ & ratio & capability retained \\
+\midrule
+\texttt{evict\_on\_negative} & $6.3 \to 17.3$ & $2.76\times$ & $0.957$ \\
+\texttt{memory\_on}          & $24.7 \to 29.7$ & $1.21\times$ & $1.048$ \\
+\texttt{keep\_everything}    & $0 \to 0$ & --- & $1.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The null arm is the invariant that makes the rest readable.}
+\texttt{keep\_everything} never settles, so the corruption reaches it
+and does nothing: graveyard $0$, population $100$, and a resolve rate
+identical to its attacked twin in all three seeds ($23/23$, $23/23$,
+$22/22$). Prompt-identical runs return prompt-identical results, which
+is worth more than the control itself: it bounds endpoint
+nondeterminism on this sequence at about one task in fifty, so the
+burial differences above are caused by the store rather than by
+sampling. We note in \S\ref{sec:limitations} that this is much tighter
+than the pilot's cross-seed spread and does not license reading the two
+as the same quantity.
+
+\paragraph{A measurement we got wrong, and the correction.}
+We first scored defence as the fraction of seeded poison \emph{entries}
+no longer alive, and read $0.98$ for the ledger against $0.07$ for the
+counter. That number measured deduplication, not removal. The seeded
+poison lessons share one template and differ only in a filename, so they
+cluster, and a single consolidation pools all fifty into one heir that
+inherits all fifty poison sources and the poison text: the store then
+reports one live poison entry while every poisoned source is alive and
+retrievable inside it. The comparison was confounded twice over, because
+only survival curation consolidates, so it set one arm that deduplicates
+poison against two that never do. Counting poison by provenance instead,
+no arm removed poison: fifty sources alive for the ledger, forty-six for
+the counter, fifty for \texttt{keep\_everything}. We report the
+corrected reading and keep the merge column visible in the released
+data. The lesson is the one our own synthetic harness had already
+written down---measure poison by provenance carried through merges, and
+treat elimination as a predicate rather than a count---and this leg
+failed to apply it.
+
+\paragraph{Statistical status, stated plainly.}
+Three seeds cannot clear $p = 0.25$ on a paired permutation test: eight
+sign assignments, minimum two-sided $2/8$. The effect above is $3/3$
+unanimous with cleanly separated ranges and it is \emph{not} significant
+at any conventional threshold. We report effect size and unanimity
+rather than a $p$-value, and we state what would settle it: a second
+independent sequence would give six worlds and a floor of $p = 0.031$.
+We attempted two (\texttt{sympy}, then \texttt{sphinx}) and neither
+completed---the container host died a few minutes into every
+evaluation---so the claim rests on one repository and should be read as
+a single-sequence result until that is repaired.

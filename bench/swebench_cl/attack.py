@@ -58,13 +58,27 @@ def lie_budget(run: Run) -> int:
     return int(run["config"].get("lie_budget", 0))
 
 
-def by_world(runs: Sequence[Run], budget: int) -> dict[World, list[Run]]:
-    """Cells at one attack budget, grouped by the world they ran in."""
+def by_world(
+    runs: Sequence[Run], budget: int, sequence: str | None = None
+) -> dict[World, list[Run]]:
+    """Cells at one attack budget, grouped by the world they ran in.
+
+    ``sequence`` restricts to one repository. It exists because an
+    abandoned run leaves cells behind: a sequence whose attacked arms
+    completed but whose controls never did contributes to per-arm means
+    while contributing nothing to any pair, so an unfiltered table
+    silently mixes a finished experiment with the wreckage of an
+    unfinished one. Paired statistics were always safe -- an unpaired
+    world is dropped -- but the descriptive rows were not.
+    """
     worlds: dict[World, list[Run]] = {}
     for r in runs:
-        if lie_budget(r) == budget:
-            key = (r["arm"], r["sequence"], int(r["seed"]))
-            worlds.setdefault(key, []).append(r)
+        if lie_budget(r) != budget:
+            continue
+        if sequence is not None and r["sequence"] != sequence:
+            continue
+        key = (r["arm"], r["sequence"], int(r["seed"]))
+        worlds.setdefault(key, []).append(r)
     return worlds
 
 
@@ -150,7 +164,11 @@ def lies_fired(cell: Sequence[Run]) -> int:
 
 
 def retention(
-    runs: Sequence[Run], arm: str, budget: int, control_budget: int = 0
+    runs: Sequence[Run],
+    arm: str,
+    budget: int,
+    control_budget: int = 0,
+    sequence: str | None = None,
 ) -> dict[str, Any]:
     """Capability under attack against the same arm unattacked.
 
@@ -158,8 +176,12 @@ def retention(
     the task ordering and the curriculum's difficulty gradient cancel and
     what is left is the attack.
     """
-    attacked = {k: v for k, v in by_world(runs, budget).items() if k[0] == arm}
-    clean = {k: v for k, v in by_world(runs, control_budget).items() if k[0] == arm}
+    attacked = {
+        k: v for k, v in by_world(runs, budget, sequence).items() if k[0] == arm
+    }
+    clean = {
+        k: v for k, v in by_world(runs, control_budget, sequence).items() if k[0] == arm
+    }
     shared = sorted(set(attacked) & set(clean))
     if not shared:
         raise ValueError(
@@ -187,9 +209,11 @@ def retention(
     }
 
 
-def arm_rows(runs: Sequence[Run], budget: int) -> list[dict[str, Any]]:
+def arm_rows(
+    runs: Sequence[Run], budget: int, sequence: str | None = None
+) -> list[dict[str, Any]]:
     """One row per arm at one budget: capability, defence, and damage."""
-    worlds = by_world(runs, budget)
+    worlds = by_world(runs, budget, sequence)
     rows = []
     for arm in sorted({w[0] for w in worlds}):
         cells = [v for k, v in worlds.items() if k[0] == arm]
@@ -219,7 +243,12 @@ def arm_rows(runs: Sequence[Run], budget: int) -> list[dict[str, Any]]:
     return rows
 
 
-def render(runs: Sequence[Run], budget: int, control_budget: int = 0) -> str:
+def render(
+    runs: Sequence[Run],
+    budget: int,
+    control_budget: int = 0,
+    sequence: str | None = None,
+) -> str:
     """A markdown report, in the shape ``docs/benchmarks.md`` uses."""
     lines = [
         "| arm | b | cells | resolve | poison entries | cleared | merges | "
@@ -227,7 +256,7 @@ def render(runs: Sequence[Run], budget: int, control_budget: int = 0) -> str:
         "|---|" + "---|" * 9,
     ]
     for b in (control_budget, budget):
-        for row in arm_rows(runs, b):
+        for row in arm_rows(runs, b, sequence):
             lines.append(
                 f"| {row['arm']} | {row['budget']} | {row['cells']} | "
                 f"{row['resolve_rate']:.3f} | {row['poison_entries']:.1f} | "
@@ -236,9 +265,10 @@ def render(runs: Sequence[Run], budget: int, control_budget: int = 0) -> str:
                 f"{row['lies_fired']:.1f} |"
             )
     lines.append("")
-    for arm in sorted({r["arm"] for r in runs}):
+    scoped = [r for r in runs if sequence is None or r["sequence"] == sequence]
+    for arm in sorted({r["arm"] for r in scoped}):
         try:
-            res = retention(runs, arm, budget, control_budget)
+            res = retention(runs, arm, budget, control_budget, sequence)
         except ValueError as unpaired:
             lines.append(f"**{arm}**: {unpaired}")
             continue
@@ -267,8 +297,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--budget", type=int, default=2, help="the attacked budget")
     p.add_argument("--control-budget", type=int, default=0)
+    p.add_argument(
+        "--sequence",
+        default=None,
+        help="restrict to one repository; without it, cells from an "
+        "abandoned run are mixed into the per-arm rows",
+    )
     args = p.parse_args(argv)
-    print(render(load_dir(args.results), args.budget, args.control_budget))
+    print(
+        render(
+            load_dir(args.results),
+            args.budget,
+            args.control_budget,
+            args.sequence,
+        )
+    )
     return 0
 
 

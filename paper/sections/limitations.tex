@@ -116,7 +116,22 @@ still controls the task sequence and its ordering, which is worth having,
 but it does not control the sampling. At three replicates and that
 variance, only a large memory effect clears the noise, and any null we
 report on real tasks should be read as underpowered rather than as
-evidence of absence. Passing the endpoint's seed parameter, where the
+evidence of absence.
+
+The adversarial leg supplies a second, much tighter estimate of the same
+quantity, and we flag the disagreement rather than averaging it. On
+\texttt{django}, \texttt{keep\_everything} never settles, so its store
+and therefore its prompts are identical with and without the attack; it
+resolved identically in all three seeds ($23/23$, $23/23$, $22/22$),
+bounding endpoint nondeterminism there at about one task in fifty
+(\S\ref{sec:swebench-attack}). That is not the $8$ points above, and the
+two are not the same measurement: the pilot figure is a cross-seed
+spread over a $19$-task sequence in a different repository, while this
+one is a within-world comparison of prompt-identical runs over $50$
+tasks. The honest reading is that \emph{paired} comparisons inside a
+world are far tighter than the pilot's spread suggests, and that the
+pilot's spread still bounds what a cross-seed comparison can resolve.
+Neither licenses reading the other. Passing the endpoint's seed parameter, where the
 provider offers one, and raising the replicate count are both cheap and
 are the first things to do before this leg is treated as settled.
 

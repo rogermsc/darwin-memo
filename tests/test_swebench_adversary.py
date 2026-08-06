@@ -257,3 +257,31 @@ def test_docker_guard_reports_a_missing_daemon(monkeypatch):
 
     monkeypatch.setattr(matrix.subprocess, "run", timeout)
     assert matrix.docker_alive("docker") is False
+
+
+def test_sequence_filter_excludes_an_abandoned_run():
+    """Orphan cells must not leak into the descriptive rows.
+
+    An abandoned sequence can leave attacked cells with no controls.
+    They pair with nothing, so the statistics were always safe, but they
+    did move the per-arm means until the filter existed.
+    """
+    django = [
+        *fake_cell("memory_on", 0, 0, n=10, resolved=5, poison_alive=1, graveyard=6),
+        *fake_cell("memory_on", 0, 2, n=10, resolved=5, poison_alive=1, graveyard=8),
+    ]
+    orphan = fake_cell(
+        "memory_on", 0, 2, n=10, resolved=1, poison_alive=1, graveyard=30
+    )
+    for r in orphan:
+        r["sequence"] = "abandoned_sequence"
+    runs = [*django, *orphan]
+
+    unfiltered = attack.arm_rows(runs, budget=2)[0]
+    filtered = attack.arm_rows(runs, budget=2, sequence="acme_proj_sequence")[0]
+    assert unfiltered["cells"] == 2, "the orphan inflates the row"
+    assert filtered["cells"] == 1
+    assert filtered["benign_buried"] < unfiltered["benign_buried"]
+
+    # Pairing was never affected: the orphan has no control to pair with.
+    assert attack.retention(runs, "memory_on", budget=2)["pairs"] == 1
