@@ -39,6 +39,22 @@ project uses [SemVer](https://semver.org/).
   interferes) while poison reproduction stays 0 after merge, alongside
   `solo` and `joint` baselines.
 
+## [0.5.2] - 2026-08-06
+
+### Fixed
+
+- `pip install "darwin-memo[mcp]"` installed a server that could not
+  start. The extra declared an unbounded `mcp>=1.10`, and mcp 2.0.0
+  removed `mcp.server.fastmcp` outright, so the import in
+  `mcp_server.build_server` raised `ModuleNotFoundError` on every Python
+  version for anyone who installed the extra after that release. The
+  range is now capped at `mcp>=1.10,<2`. Supporting 2.x means porting to
+  its new API and is not part of this fix.
+- Three tests guarded on `importorskip("mcp")`, which succeeds under
+  mcp 2.x and then fails on the missing submodule rather than skipping.
+  They now guard on `importorskip("mcp.server.fastmcp")`, the module
+  actually required.
+
 ## [0.5.1] - 2026-06-13
 
 A large release: 15 merged PRs since 0.5.0, all under the energy

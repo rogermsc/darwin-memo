@@ -440,7 +440,7 @@ def test_cli_ledger_decide_temporal_flags(tmp_path, capsys):
 
 
 def test_mcp_memory_query_accepts_half_life(tmp_path):
-    pytest.importorskip("mcp")
+    pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 
     from darwin_memo.mcp_server import build_server
