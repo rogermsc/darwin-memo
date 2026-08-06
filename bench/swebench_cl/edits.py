@@ -81,102 +81,36 @@ class ApplyResult:
     new_texts: dict[str, str]
     applied: int
     failed: int
-    relaxed: int = 0
 
 
 def _indent(line: str) -> str:
     return line[: len(line) - len(line.lstrip())]
 
 
-def _relaxed_replace(text: str, search: str, replace: str) -> str | None:
-    """Locate SEARCH ignoring per-line surrounding whitespace.
-
-    Models reproduce the *shape* of a block reliably and its exact
-    leading whitespace unreliably, which loses the whole task on an
-    edit that was substantively correct. This recovers that case under
-    two conditions that keep it from ever guessing:
-
-    *Unique.* The stripped-line window must occur exactly once. Two
-    candidate sites means we cannot know which one was meant, so the
-    edit fails as before.
-
-    *Uniformly shifted.* Every non-blank line's real indentation must
-    equal one constant prefix plus the model's indentation for that
-    line. A block whose relative shape survived and was shifted wholesale
-    is recoverable; one whose internal indentation was garbled is not,
-    because re-indenting it would be invention. The same constant
-    prefix is applied to the replacement, so the result is indented for
-    where it actually lands rather than where the model thought it was.
-    """
-    search_lines = search.splitlines()
-    if not search_lines:
-        return None
-    text_lines = text.splitlines(keepends=True)
-    wanted = [line.strip() for line in search_lines]
-    n = len(wanted)
-    hits = [
-        i
-        for i in range(len(text_lines) - n + 1)
-        if [text_lines[i + k].strip() for k in range(n)] == wanted
-    ]
-    if len(hits) != 1:
-        return None
-    start = hits[0]
-
-    prefixes = set()
-    for k in range(n):
-        if not wanted[k]:
-            continue
-        found = _indent(text_lines[start + k])
-        claimed = _indent(search_lines[k])
-        if not found.endswith(claimed):
-            return None
-        prefixes.add(found[: len(found) - len(claimed)])
-    if len(prefixes) > 1:
-        return None
-    prefix = prefixes.pop() if prefixes else ""
-
-    body = [
-        (prefix + line if line.strip() else line) + "\n"
-        for line in replace.splitlines()
-    ]
-    if body and not text_lines[start + n - 1].endswith("\n"):
-        body[-1] = body[-1][:-1]
-    return "".join(text_lines[:start] + body + text_lines[start + n :])
-
-
 def apply_edits(originals: dict[str, str], edits: list[Edit]) -> ApplyResult:
     """Apply edits to a working copy of the original file texts.
 
     A SEARCH that occurs exactly in the current working text (after any
-    earlier edits to the same file) replaces its first occurrence. One
-    that does not gets a single whitespace-tolerant retry; anything the
-    retry cannot place unambiguously is counted as failed and skipped,
-    never force-applied. ``relaxed`` counts how many landed only via the
-    retry, so the fallback's contribution is always visible in the
-    record rather than folded into ``applied``.
+    earlier edits to the same file) replaces its first occurrence.
+    Anything else is counted as failed and skipped, never force-applied.
+
+    A whitespace-tolerant retry lived here on the theory that models
+    reproduce a block's shape reliably and its indentation unreliably.
+    It fired zero times in 3,015 evaluated tasks, so the theory was
+    wrong: failed edits fail because BM25 handed the model the wrong
+    file, not because it mis-indented the right one. Removed rather than
+    kept as decoration.
     """
     working = dict(originals)
-    applied = failed = relaxed = 0
+    applied = failed = 0
     for edit in edits:
         text = working.get(edit.path)
-        if text is None:
+        if text is None or edit.search not in text:
             failed += 1
             continue
-        if edit.search in text:
-            working[edit.path] = text.replace(edit.search, edit.replace, 1)
-            applied += 1
-            continue
-        loosened = _relaxed_replace(text, edit.search, edit.replace)
-        if loosened is None:
-            failed += 1
-            continue
-        working[edit.path] = loosened
+        working[edit.path] = text.replace(edit.search, edit.replace, 1)
         applied += 1
-        relaxed += 1
-    return ApplyResult(
-        new_texts=working, applied=applied, failed=failed, relaxed=relaxed
-    )
+    return ApplyResult(new_texts=working, applied=applied, failed=failed)
 
 
 def make_diff(originals: dict[str, str], new_texts: dict[str, str]) -> str:
@@ -200,11 +134,9 @@ def make_diff(originals: dict[str, str], new_texts: dict[str, str]) -> str:
     return "".join(chunks)
 
 
-def edits_to_patch(
-    originals: dict[str, str], response: str
-) -> tuple[str, int, int, int]:
-    """Parse, apply, diff: returns (patch, applied, failed, relaxed)."""
+def edits_to_patch(originals: dict[str, str], response: str) -> tuple[str, int, int]:
+    """Parse, apply, diff: returns (patch, applied, failed)."""
     edits = parse_edits(response)
     result = apply_edits(originals, edits)
     patch = make_diff(originals, result.new_texts)
-    return patch, result.applied, result.failed, result.relaxed
+    return patch, result.applied, result.failed
