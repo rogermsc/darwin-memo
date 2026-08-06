@@ -56,6 +56,27 @@ def cells(
     return [(a, q, s) for q in sequences for a in arms for s in seeds]
 
 
+def docker_alive(executor: str, timeout: float = 30.0) -> bool:
+    """Is the daemon answering? Always True for non-docker executors.
+
+    ``docker info`` rather than a socket probe, because the failure this
+    guards against is the daemon being gone while the CLI is still
+    installed, which is what a stopped Docker Desktop looks like.
+    """
+    if executor != "docker":
+        return True
+    try:
+        proc = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return proc.returncode == 0
+
+
 def run_cmd(args: argparse.Namespace, arm: str, sequence: str, seed: int) -> list[str]:
     """The single-cell command line, mirroring ``run.py``'s flags."""
     cmd = [
@@ -187,6 +208,22 @@ def main(argv: list[str] | None = None) -> int:
             f"(elapsed {elapsed / 3600:.1f}h)",
             flush=True,
         )
+        if not docker_alive(args.executor):
+            # Stop rather than continue. Every cell answers its tasks at
+            # the endpoint BEFORE the first evaluation, so a dead daemon
+            # does not fail cheaply: it bills a full model call per task
+            # and then throws the answer away. Continuing through the
+            # remaining plan would spend the matrix's entire API budget
+            # to produce nothing. Cells that fail write no output, so a
+            # resume re-runs exactly these.
+            print(
+                "  docker is not responding; stopping so the remaining "
+                "cells do not bill model calls they cannot evaluate. "
+                "Start docker and re-run this command to resume.",
+                file=sys.stderr,
+            )
+            failures.append((arm, sequence, seed, -1))
+            break
         proc = subprocess.run(run_cmd(args, arm, sequence, seed), check=False)
         if proc.returncode != 0:
             failures.append((arm, sequence, seed, proc.returncode))

@@ -227,3 +227,33 @@ def test_retention_refuses_an_unpaired_arm():
     runs = fake_cell("memory_on", 0, 2, n=10, resolved=3, poison_alive=0, graveyard=1)
     with pytest.raises(ValueError, match="both budget"):
         attack.retention(runs, "memory_on", budget=2)
+
+
+def test_docker_guard_passes_through_non_docker_executors():
+    from bench.swebench_cl.matrix import docker_alive
+
+    assert docker_alive("stub") is True
+
+
+def test_docker_guard_reports_a_missing_daemon(monkeypatch):
+    """A stopped daemon must read as down, not raise.
+
+    The guard exists because every cell bills its model calls before the
+    first evaluation, so continuing past a dead daemon spends the
+    matrix's API budget to produce nothing.
+    """
+    import subprocess as sp
+
+    from bench.swebench_cl import matrix
+
+    def boom(*a, **k):
+        raise OSError("docker: command not found")
+
+    monkeypatch.setattr(matrix.subprocess, "run", boom)
+    assert matrix.docker_alive("docker") is False
+
+    def timeout(*a, **k):
+        raise sp.TimeoutExpired(cmd="docker info", timeout=1)
+
+    monkeypatch.setattr(matrix.subprocess, "run", timeout)
+    assert matrix.docker_alive("docker") is False
