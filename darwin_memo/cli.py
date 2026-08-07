@@ -7,6 +7,7 @@
     darwin-memo ledger FILE OP ...       decide/settle/tick for scripts
     darwin-memo mcp                      serve the memory over MCP stdio
     darwin-memo import SRC DEST          probationary import from another store
+    darwin-memo ui FILE                  local read-only dashboard
 
 The demo is self-contained: it carries its own three-document corpus
 (including the poisoned forum post) and runs the survival loop against
@@ -46,6 +47,7 @@ from .render import register_render_command
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
 from .types import EntryKind
+from .ui import cmd_ui
 
 
 def _positive_float(text: str) -> float:
@@ -457,6 +459,12 @@ def main(argv: list[str] | None = None) -> int:
         f"(default {DEFAULT_PROBATION}; 0 imports at full trust)",
     )
     imp.set_defaults(fn=cmd_import)
+
+    ui = sub.add_parser("ui", help="local read-only dashboard in your browser")
+    ui.add_argument("memory")
+    ui.add_argument("--port", type=int, default=8787, help="default 8787; 0 picks one")
+    ui.add_argument("--no-open", action="store_true", help="do not open a browser")
+    ui.set_defaults(fn=cmd_ui)
 
     register_observe_commands(sub)
     register_render_command(sub)
