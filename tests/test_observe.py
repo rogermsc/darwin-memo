@@ -369,10 +369,35 @@ def test_health_warning_speaks_through_the_shared_rules():
             for c in range(3)
         ]
     )
-    warning = quiet.health_warning()
-    assert "WARNING" in warning
-    assert "silent on 30/30" in warning
-    assert "min_coverage" in warning
+    findings = selection_findings(decides=30, silent=30, nonzero_outcomes=0, settles=30)
+    assert quiet.health_warning() == (
+        "\n\nWARNING: " + f"{findings[0].summary}: {findings[0].fix}"
+    )
+
+    small = SurvivalReport(
+        stats=[
+            CycleStats(
+                cycle=c,
+                population=5,
+                births=0,
+                deaths=0,
+                merges=0,
+                total_energy=5.0,
+                resource_delta=1.0,
+                tasks=3,
+                silent=3,
+                # A nonzero outcome keeps this isolated to the MIN_DECIDES
+                # floor: at 9 settles (>= MIN_SETTLES=5) an all-zero
+                # outcome sum would trip env_never_paid instead, which
+                # isn't the floor this case is meant to exercise.
+                nonzero_outcomes=1,
+            )
+            for c in range(3)
+        ]
+    )
+    # Below MIN_DECIDES: the old hand-rolled rule warned here, the
+    # shared rule must not.
+    assert small.health_warning() == ""
 
     healthy = SurvivalReport(
         stats=[
