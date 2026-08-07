@@ -9,6 +9,7 @@ from darwin_memo.cli import main as cli_main
 from darwin_memo.diagnose import Finding, selection_findings
 from darwin_memo.observe import (
     audit_digest,
+    doctor,
     economics,
     filter_events,
     read_events,
@@ -337,6 +338,70 @@ def test_economics_separates_resource_from_energy(tmp_path):
     ), "one tick of upkeep for the surviving population"
     assert report["energy"]["upkeep_exact"] is False
     assert report["energy"]["upkeep_caveat"] == "", "no pinned entries in this store"
+
+
+def _events(memory):
+    return read_events(memory.with_suffix(".events.jsonl"))
+
+
+def test_doctor_is_clean_on_a_healthy_store(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+        ledger.tick()
+    ledger.save(memory)
+    assert doctor(ledger, _events(memory)) == []
+
+
+def test_doctor_names_an_environment_that_never_paid(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=0.0, detail="nothing happened")
+        ledger.tick()
+    ledger.save(memory)
+    codes = [f.code for f in doctor(ledger, _events(memory))]
+    assert "env_never_paid" in codes
+    assert "silent_majority" not in codes, "memory answered; it just never earned"
+
+
+def test_doctor_flags_a_stale_ticket(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.decide("are stale feature flags safe to remove?")
+    ledger.tick_count = 500  # far past STALE_TICKET_TICKS
+    ledger.save(memory)
+    findings = {f.code: f for f in doctor(ledger, _events(memory))}
+    assert findings["tickets_stale"].severity == "warn"
+
+
+def test_doctor_cli_exits_nonzero_on_an_error_finding(tmp_path, capsys):
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=0.0, detail="nothing happened")
+        ledger.tick()
+    ledger.save(memory)
+
+    assert cli_main(["doctor", str(memory)]) == 1
+    assert "env_never_paid" in capsys.readouterr().out
+
+    assert cli_main(["doctor", str(memory), "--json"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["findings"][0]["code"] == "env_never_paid"
+
+
+def test_stats_reports_economics_when_an_event_log_exists(tmp_path, capsys):
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    ledger.save(memory)
+
+    assert cli_main(["stats", str(memory)]) == 0
+    out = capsys.readouterr().out
+    assert "resource delta: +7" in out
+    assert "upkeep paid" in out
 
 
 def test_mcp_memory_audit_matches_cli_digest(tmp_path, capsys):

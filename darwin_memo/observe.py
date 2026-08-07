@@ -3,8 +3,9 @@
     darwin-memo top FILE [--limit N] [--json]               leaderboard
     darwin-memo why FILE ENTRY_ID [--json]                  one life story
     darwin-memo audit FILE [--since TS] [--last N] [--json] event digest
+    darwin-memo doctor FILE [--json]                        diagnosis
 
-All three are read-only presentation over data the Ledger already
+All four are read-only presentation over data the Ledger already
 keeps: the living population, the graveyard, per-entry history notes
 persisted in the memory file, and the JSONL event log (read across
 rotated files, see :func:`darwin_memo.ledger.event_log_paths`). The
@@ -27,6 +28,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .diagnose import (
+    MIN_DEATHS,
+    STALE_TICKET_TICKS,
+    STARVED_SHARE,
+    Finding,
+    selection_findings,
+)
 from .ledger import Ledger, note_text
 from .store import MemoryStore
 from .types import MemoryEntry
@@ -39,7 +47,7 @@ _TOP_MOVERS = 5  # gainers and losers listed in the audit digest
 # ----------------------------------------------------------------------
 
 
-def _top_row(entry: MemoryEntry, tick: int) -> dict[str, Any]:
+def top_row(entry: MemoryEntry, tick: int) -> dict[str, Any]:
     return {
         "id": entry.id,
         "balance": round(entry.energy, 3),
@@ -62,7 +70,7 @@ def cmd_top(args: argparse.Namespace) -> int:
     if ledger is None:
         return 1
     ranked = sorted(ledger.store.alive(), key=lambda e: e.energy, reverse=True)
-    rows = [_top_row(entry, ledger.tick_count) for entry in ranked[: args.limit]]
+    rows = [top_row(entry, ledger.tick_count) for entry in ranked[: args.limit]]
     if args.json:
         print(
             json.dumps(
@@ -450,6 +458,137 @@ def economics(events: list[dict[str, Any]], store: MemoryStore) -> dict[str, Any
     }
 
 
+def _starved_unused(ledger: Ledger) -> tuple[int, int]:
+    """(entries that starved having never earned, total dead).
+
+    Cause of death lives in per-entry history persisted inside the
+    memory file, not in the JSONL log, so this reads the ledger through
+    :func:`entry_life` — the same path ``why`` uses, so one definition
+    of "starved" serves both.
+    """
+    dead = ledger.store.graveyard()
+    starved = 0
+    for entry in dead:
+        life = entry_life(ledger, entry.id)
+        if life and life["cause_of_death"] == "starved" and not life["settlements"]:
+            starved += 1
+    return starved, len(dead)
+
+
+def _operational_findings(ledger: Ledger, digest: dict[str, Any]) -> list[Finding]:
+    """Faults that only exist in the event-driven shape."""
+    findings: list[Finding] = []
+
+    starved, dead = _starved_unused(ledger)
+    if dead >= MIN_DEATHS and starved / dead >= STARVED_SHARE:
+        findings.append(
+            Finding(
+                code="starvation_cliff",
+                severity="error",
+                summary=f"{starved} of {dead} dead entries starved unused",
+                evidence=f"{starved}/{dead} died having never been credited",
+                fix=(
+                    "nothing ever earned its upkeep: entries spawn at 1.0 and "
+                    "pay 0.05 a tick, so an unconsulted population dies around "
+                    "tick 20 whatever else is true"
+                ),
+            )
+        )
+
+    stale = [
+        t
+        for t in ledger.pending()
+        if ledger.tick_count - t.born_tick > STALE_TICKET_TICKS
+    ]
+    if stale:
+        findings.append(
+            Finding(
+                code="tickets_stale",
+                severity="warn",
+                summary=f"{len(stale)} tickets older than {STALE_TICKET_TICKS} ticks",
+                evidence=", ".join(t.id for t in stale[:5]),
+                fix=(
+                    "decisions were acted on but never reported back; settle "
+                    "or abandon them, or let tick() expire them at delta zero"
+                ),
+            )
+        )
+
+    dropped = int(digest["settles"]["dropped"])
+    if dropped:
+        findings.append(
+            Finding(
+                code="settles_dropped",
+                severity="warn",
+                summary=f"{dropped} settlements landed on unknown tickets",
+                evidence=f"{dropped} settle_dropped events",
+                fix=(
+                    "the ticket id was already settled, abandoned, or minted "
+                    "by a different store file"
+                ),
+            )
+        )
+
+    untracked = int(digest["settles"]["untracked"])
+    if untracked:
+        findings.append(
+            Finding(
+                code="credit_untracked",
+                severity="warn",
+                summary=f"{untracked} settlements carry no per-entry credit",
+                evidence=f"{untracked} settle events without an 'applied' list",
+                fix=(
+                    "written by a version before per-entry credit was logged; "
+                    "energy flow for those settlements is unattributable"
+                ),
+            )
+        )
+    return findings
+
+
+def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
+    """Name the failure mode behind a store that is not earning.
+
+    Takes the ledger rather than the store because two of the six rules
+    read state the JSONL log does not carry: death causes (per-entry
+    history, persisted in the memory file) and open tickets.
+    """
+    digest = audit_digest(events, store=ledger.store)
+    # Gross movement: count settlements that individually moved, so a
+    # window whose payouts cancel is not read as a dead environment.
+    nonzero = sum(
+        1
+        for record in events
+        if record.get("event") == "settle" and float(record.get("delta") or 0.0) != 0.0
+    )
+    findings = selection_findings(
+        decides=int(digest["decides"]["total"]),
+        silent=int(digest["decides"]["silent"]),
+        nonzero_outcomes=nonzero,
+        settles=int(digest["settles"]["landed"]),
+    )
+    findings.extend(_operational_findings(ledger, digest))
+    return findings
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    ledger = _load_ledger(args.memory)
+    if ledger is None:
+        return 1
+    log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
+    findings = doctor(ledger, read_events(log))
+    if args.json:
+        print(json.dumps({"findings": [f.as_dict() for f in findings]}))
+    elif not findings:
+        print("clean: no degeneracy detected")
+    else:
+        for finding in findings:
+            print(f"{finding.severity.upper()} [{finding.code}]: {finding.summary}")
+            print(f"  evidence: {finding.evidence}")
+            print(f"  fix: {finding.fix}")
+    return 1 if any(f.severity == "error" for f in findings) else 0
+
+
 def cmd_audit(args: argparse.Namespace) -> int:
     ledger = _load_ledger(args.memory)
     if ledger is None:
@@ -514,7 +653,7 @@ def _load_ledger(memory: str) -> Ledger | None:
 def register_observe_commands(
     sub: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    """Attach top/why/audit, so cli.py stays one import plus one call."""
+    """Attach top/why/audit/doctor, so cli.py stays one import plus one call."""
     top = sub.add_parser("top", help="living entries ranked by balance")
     top.add_argument("memory")
     top.add_argument("--limit", type=int, default=10, help="entries shown (default 10)")
@@ -535,3 +674,12 @@ def register_observe_commands(
     audit.add_argument("--last", type=int, default=None, help="only the last N events")
     audit.add_argument("--json", action="store_true", help="machine-readable output")
     audit.set_defaults(fn=cmd_audit)
+
+    diagnose_cmd = sub.add_parser(
+        "doctor", help="name the failure mode behind a store that is not earning"
+    )
+    diagnose_cmd.add_argument("memory")
+    diagnose_cmd.add_argument(
+        "--json", action="store_true", help="machine-readable output"
+    )
+    diagnose_cmd.set_defaults(fn=cmd_doctor)

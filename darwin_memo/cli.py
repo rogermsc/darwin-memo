@@ -40,7 +40,7 @@ from .environments import StorageEnv
 from .ledger import DEFAULT_PROBATION, Ledger
 from .llm import LLMClient
 from .mcp_server import register_mcp_command
-from .observe import register_observe_commands
+from .observe import economics, read_events, register_observe_commands
 from .protocol import QueryProtocol
 from .render import register_render_command
 from .store import MemoryStore
@@ -205,6 +205,18 @@ def cmd_stats(args: argparse.Namespace) -> int:
     store = MemoryStore.load(args.memory)
     print(f"alive: {len(store)}  graveyard: {len(store.graveyard())}")
     print(f"total energy: {store.total_energy():.2f}")
+    log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
+    if log.exists():
+        report = economics(read_events(log), store)
+        resource, energy = report["resource"], report["energy"]
+        print(
+            f"resource delta: {resource['delta_total']:+g} over "
+            f"{resource['decides']} decisions ({resource['silent']} silent)"
+        )
+        print(
+            f"energy: net {energy['net']:+.3f} against "
+            f"{energy['upkeep_paid']:.3f} upkeep paid"
+        )
     shares = store.energy_share_by_kind()
     for kind, share in sorted(shares.items(), key=lambda kv: -kv[1]):
         print(f"  {kind:>12}: {share:.0%} of energy")

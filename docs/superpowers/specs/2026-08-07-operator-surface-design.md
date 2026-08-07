@@ -127,7 +127,7 @@ current output format; only its internals move.
 
 ### 4.4 CLI
 
-- New: `darwin-memo doctor --memory <path> [--json]`, registered in
+- New: `darwin-memo doctor <path> [--json]`, registered in
   `observe.register_observe_commands()` (`observe.py:433`). Exit code 0 when
   clean, 1 when any finding is severity `error`, so it composes into CI.
 - Extended: `darwin-memo stats` gains the economics headline (one line: resource
@@ -256,7 +256,7 @@ Per the repo's convention, load-bearing behaviour only — no per-function suite
 
 ```bash
 python -m darwin_memo demo --cycles 30 --save /tmp/demo.json
-darwin-memo doctor --memory /tmp/demo.json          # healthy run must report clean
+darwin-memo doctor /tmp/demo.json                   # healthy run must report clean
 darwin-memo ui --memory /tmp/demo.json              # every panel populated
 curl -s localhost:8787/api/state | python -m json.tool
 ```
