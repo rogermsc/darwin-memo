@@ -7,7 +7,13 @@ import pytest
 from darwin_memo import Ledger, MemoryEntry, MemoryStore
 from darwin_memo.cli import main as cli_main
 from darwin_memo.diagnose import Finding, selection_findings
-from darwin_memo.observe import audit_digest, filter_events, read_events
+from darwin_memo.observe import (
+    audit_digest,
+    economics,
+    filter_events,
+    read_events,
+    timeline,
+)
 
 
 def seeded_ledger(tmp_path, upkeep=0.05):
@@ -272,6 +278,47 @@ def test_audit_last_window(tmp_path, capsys):
 
     digest = _json_out(capsys, ["audit", str(memory), "--json", "--last", "1"])
     assert digest["events"] == 1 and digest["ticks"] == 1, "only the tick remains"
+
+
+def test_timeline_rows_track_ticks_and_bucket_settled_deltas(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    ledger.tick()
+    ledger.save(memory)
+
+    rows = timeline(read_events(memory.with_suffix(".events.jsonl")))
+    assert [r["tick"] for r in rows] == [1, 2]
+    assert rows[0]["delta"] == 7.0, "settled before the first tick closed"
+    assert rows[1]["delta"] == 0.0
+    assert set(rows[0]) == {
+        "tick",
+        "population",
+        "total_energy",
+        "deaths",
+        "merges",
+        "pending",
+        "delta",
+    }
+
+
+def test_economics_separates_resource_from_energy(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    ledger.save(memory)
+
+    report = economics(read_events(memory.with_suffix(".events.jsonl")), ledger.store)
+    assert report["resource"]["delta_total"] == 7.0, "world units, never energy"
+    assert report["resource"]["decides"] == 1
+    assert report["energy"]["credited"] > 0
+    assert report["energy"]["upkeep_paid"] == pytest.approx(
+        report["population"]["alive"] * 0.05
+    ), "one tick of upkeep for the surviving population"
+    assert report["energy"]["upkeep_exact"] is False
+    assert report["energy"]["upkeep_caveat"] == "", "no pinned entries in this store"
 
 
 def test_mcp_memory_audit_matches_cli_digest(tmp_path, capsys):

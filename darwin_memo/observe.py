@@ -369,6 +369,84 @@ def audit_digest(
     }
 
 
+def timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per tick record, with settled deltas bucketed by tick.
+
+    Rows carry whatever tick records the log still holds; a rotated log
+    leaves a gap in the tick numbers, which callers plot on a numeric
+    axis so the gap shows as a gap rather than an interpolated line.
+    """
+    delta_by_tick: dict[int, float] = {}
+    for record in events:
+        if record.get("event") == "settle" and isinstance(record.get("tick"), int):
+            tick = int(record["tick"]) + 1
+            delta_by_tick[tick] = delta_by_tick.get(tick, 0.0) + float(
+                record.get("delta") or 0.0
+            )
+    rows: list[dict[str, Any]] = []
+    for record in events:
+        if record.get("event") != "tick":
+            continue
+        tick = int(record.get("tick") or 0)
+        rows.append(
+            {
+                "tick": tick,
+                "population": int(record.get("population") or 0),
+                "total_energy": float(record.get("total_energy") or 0.0),
+                "deaths": int(record.get("deaths") or 0),
+                "merges": int(record.get("merges") or 0),
+                "pending": int(record.get("pending") or 0),
+                "delta": round(delta_by_tick.get(tick, 0.0), 6),
+            }
+        )
+    return rows
+
+
+def economics(events: list[dict[str, Any]], store: MemoryStore) -> dict[str, Any]:
+    """Two currencies, reported separately and never summed.
+
+    The **resource** ledger is the real case: settled deltas in world
+    units (bytes, passing tests, dollars), with decide and silence
+    counts so coverage is visible — the same delta over three decisions
+    and over three hundred are not the same claim. The **energy** ledger
+    is the internal, dimensionless mechanism. Adding one to the other
+    would be adding bytes to tanh output.
+
+    Upkeep is estimated as population x upkeep. Every alive entry pays
+    each tick (``MemoryStore.charge_upkeep``: ``protect`` and ``pinned``
+    change burial and flooring, not the charge), so the estimate is
+    exact except that a pinned entry sitting at zero has its charge
+    forgiven by the floor.
+    """
+    digest = audit_digest(events, store=store)
+    rows = timeline(events)
+    upkeep_paid = round(sum(r["population"] for r in rows) * store.upkeep, 6)
+    pinned = sum(1 for entry in store.alive() if entry.pinned)
+    caveat = (
+        f"estimated as population x upkeep; {pinned} pinned "
+        "entries may have had a charge forgiven at the zero floor"
+        if pinned
+        else ""
+    )
+    return {
+        "resource": {
+            "delta_total": digest["settles"]["delta_total"],
+            "decides": digest["decides"]["total"],
+            "silent": digest["decides"]["silent"],
+            "settles": digest["settles"]["landed"],
+        },
+        "energy": {
+            "credited": digest["energy"]["credited"],
+            "debited": digest["energy"]["debited"],
+            "net": digest["energy"]["net"],
+            "upkeep_paid": upkeep_paid,
+            "upkeep_exact": False,
+            "upkeep_caveat": caveat,
+        },
+        "population": {"alive": len(store), "dead": len(store.graveyard())},
+    }
+
+
 def cmd_audit(args: argparse.Namespace) -> int:
     ledger = _load_ledger(args.memory)
     if ledger is None:
