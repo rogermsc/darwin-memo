@@ -39,6 +39,34 @@ def served(tmp_path):
     server.server_close()
 
 
+@pytest.fixture
+def served_with_bundle(tmp_path, monkeypatch, served):
+    """A stub bundle so static routing is exercised for real.
+
+    Without a built bundle every non-index route 404s regardless of the
+    containment check, which is exactly what made the traversal test
+    decorative. ``served`` already started the server thread, but
+    ``_static`` reads ``BUNDLE`` from module globals on every call (it's
+    never captured into a local or a default arg), so patching it here,
+    after the thread is already running, still takes effect on the next
+    request.
+    """
+    bundle = tmp_path / "bundle"
+    (bundle / "assets").mkdir(parents=True)
+    (bundle / "index.html").write_text("<!doctype html><title>stub</title>")
+    (bundle / "assets" / "index-abc123.js").write_text("export default 1;\n")
+    # A file that genuinely exists one level above the bundle. Whether
+    # "/../../../pyproject.toml" happens to resolve onto a real file
+    # depends on where pytest happens to put tmp_path -- it does NOT
+    # reach this repo's actual pyproject.toml once BUNDLE is patched to
+    # a tmp_path location, so that assertion alone can't be trusted to
+    # discriminate here. This sibling file is real and adjacent by
+    # construction, so escaping to it is unambiguous either way.
+    (tmp_path / "secret.txt").write_text("do not serve me")
+    monkeypatch.setattr("darwin_memo.ui.BUNDLE", bundle)
+    return served
+
+
 def _get(url):
     with urllib.request.urlopen(url, timeout=5) as response:
         return response.status, json.loads(response.read())
@@ -74,20 +102,39 @@ def test_entry_endpoint_returns_a_life_and_404s_on_nonsense(served):
 
 
 def test_static_route_refuses_to_escape_the_bundle(served):
+    """No bundle is built in this checkout, so every non-index route 404s
+    via the bundle-missing fallback regardless of containment -- neither
+    assertion below can actually catch a deleted containment check (see
+    test_static_route_with_a_real_bundle_serves_assets_and_still_404s_escapes
+    for the one that does). Kept anyway to document the no-bundle path.
+    """
     base, _, _ = served
     with pytest.raises(urllib.error.HTTPError) as caught:
         urllib.request.urlopen(f"{base}/../../../etc/passwd", timeout=5)
     assert caught.value.code == 404
-    # /etc/passwd doesn't exist at this repo's bundle depth, so a missing
-    # containment check would still 404 it via the not-found branch and
-    # mask the hole. pyproject.toml DOES exist three levels up (the repo
-    # root) -- this is the case that actually discriminates the check.
     with pytest.raises(urllib.error.HTTPError) as caught:
         urllib.request.urlopen(f"{base}/../../../pyproject.toml", timeout=5)
-    assert caught.value.code == 404, (
-        "pyproject.toml really exists three levels above the bundle; a "
-        "missing containment check serves it with a 200"
-    )
+    assert caught.value.code == 404
+
+
+def test_static_route_with_a_real_bundle_serves_assets_and_still_404s_escapes(
+    served_with_bundle,
+):
+    base, _, _ = served_with_bundle
+    with urllib.request.urlopen(f"{base}/assets/index-abc123.js", timeout=5) as resp:
+        assert resp.status == 200
+        assert resp.read() == b"export default 1;\n"
+    # A bundle now exists, so a 404 here can only come from containment --
+    # the no-bundle fallback that masked this in the other tests is not in
+    # play. "../secret.txt" is one level above the bundle (the fixture
+    # writes it into tmp_path, the bundle's parent) and genuinely exists,
+    # unlike "/../../../pyproject.toml" -- that only reaches a real file
+    # relative to this repo's actual BUNDLE, not to a tmp_path stand-in,
+    # so it can't be trusted to discriminate a deleted containment check
+    # under this fixture (confirmed by mutation: see task-4-report.md).
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        urllib.request.urlopen(f"{base}/../secret.txt", timeout=5)
+    assert caught.value.code == 404
 
 
 def test_serve_refuses_a_non_loopback_host(tmp_path):
