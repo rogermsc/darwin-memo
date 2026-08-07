@@ -101,13 +101,19 @@ def test_entry_endpoint_returns_a_life_and_404s_on_nonsense(served):
     assert caught.value.code == 404
 
 
-def test_static_route_refuses_to_escape_the_bundle(served):
-    """No bundle is built in this checkout, so every non-index route 404s
-    via the bundle-missing fallback regardless of containment -- neither
-    assertion below can actually catch a deleted containment check (see
+def test_static_route_refuses_to_escape_the_bundle(tmp_path, monkeypatch, served):
+    """No-bundle behaviour, asserted regardless of whether this checkout
+    happens to have a built frontend under darwin_memo/data/ui/ -- BUNDLE
+    is monkeypatched to a path that does not exist, the same way
+    ``served_with_bundle`` patches it to a stub, so the test holds
+    whether or not `cd ui && npm run build` has ever been run locally.
+    Every non-index route 404s via the bundle-missing fallback
+    regardless of containment -- neither assertion below can actually
+    catch a deleted containment check (see
     test_static_route_with_a_real_bundle_serves_assets_and_still_404s_escapes
     for the one that does). Kept anyway to document the no-bundle path.
     """
+    monkeypatch.setattr("darwin_memo.ui.BUNDLE", tmp_path / "no-such-bundle")
     base, _, _ = served
     with pytest.raises(urllib.error.HTTPError) as caught:
         urllib.request.urlopen(f"{base}/../../../etc/passwd", timeout=5)
