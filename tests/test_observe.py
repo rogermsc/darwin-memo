@@ -303,6 +303,24 @@ def test_timeline_rows_track_ticks_and_bucket_settled_deltas(tmp_path):
     }
 
 
+def test_timeline_buckets_by_write_order_not_by_tick_stamp():
+    """An expiry settle shares its tick's stamp but precedes its record."""
+    events = [
+        {"event": "settle", "tick": 0, "delta": 5.0},
+        {"event": "tick", "tick": 1, "population": 2, "total_energy": 2.0},
+        {"event": "settle", "tick": 2, "delta": 3.0},
+        {"event": "tick", "tick": 2, "population": 2, "total_energy": 1.9},
+    ]
+    rows = timeline(events)
+    assert [r["tick"] for r in rows] == [1, 2]
+    assert rows[0]["delta"] == 5.0
+    assert rows[1]["delta"] == 3.0, (
+        "an expiry settlement carries the tick it happened inside, so it "
+        "belongs to that row; a +1 shift would push it to a row that may "
+        "not exist"
+    )
+
+
 def test_economics_separates_resource_from_energy(tmp_path):
     memory, ledger = seeded_ledger(tmp_path)
     ticket = ledger.decide("are stale feature flags safe to remove?")

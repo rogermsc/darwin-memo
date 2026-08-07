@@ -372,33 +372,36 @@ def audit_digest(
 def timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """One row per tick record, with settled deltas bucketed by tick.
 
+    Deltas are bucketed by WRITE ORDER, not by the settle record's own
+    tick stamp. Ledger.tick() increments tick_count before it logs, and
+    it settles expired tickets from inside that same window, so a
+    stamped tick value alone cannot tell an expiry settlement (belongs
+    to the tick closing around it) from a caller's settlement (belongs
+    to the next tick). Their position relative to the tick record can.
+
     Rows carry whatever tick records the log still holds; a rotated log
     leaves a gap in the tick numbers, which callers plot on a numeric
     axis so the gap shows as a gap rather than an interpolated line.
     """
-    delta_by_tick: dict[int, float] = {}
-    for record in events:
-        if record.get("event") == "settle" and isinstance(record.get("tick"), int):
-            tick = int(record["tick"]) + 1
-            delta_by_tick[tick] = delta_by_tick.get(tick, 0.0) + float(
-                record.get("delta") or 0.0
-            )
     rows: list[dict[str, Any]] = []
+    pending_delta = 0.0
     for record in events:
-        if record.get("event") != "tick":
-            continue
-        tick = int(record.get("tick") or 0)
-        rows.append(
-            {
-                "tick": tick,
-                "population": int(record.get("population") or 0),
-                "total_energy": float(record.get("total_energy") or 0.0),
-                "deaths": int(record.get("deaths") or 0),
-                "merges": int(record.get("merges") or 0),
-                "pending": int(record.get("pending") or 0),
-                "delta": round(delta_by_tick.get(tick, 0.0), 6),
-            }
-        )
+        event = record.get("event")
+        if event == "settle":
+            pending_delta += float(record.get("delta") or 0.0)
+        elif event == "tick":
+            rows.append(
+                {
+                    "tick": int(record.get("tick") or 0),
+                    "population": int(record.get("population") or 0),
+                    "total_energy": float(record.get("total_energy") or 0.0),
+                    "deaths": int(record.get("deaths") or 0),
+                    "merges": int(record.get("merges") or 0),
+                    "pending": int(record.get("pending") or 0),
+                    "delta": round(pending_delta, 6),
+                }
+            )
+            pending_delta = 0.0
     return rows
 
 
