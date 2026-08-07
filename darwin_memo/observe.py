@@ -480,13 +480,24 @@ def _operational_findings(ledger: Ledger, digest: dict[str, Any]) -> list[Findin
     findings: list[Finding] = []
 
     starved, dead = _starved_unused(ledger)
-    if dead >= MIN_DEATHS and starved / dead >= STARVED_SHARE:
+    credited = float(digest["energy"]["credited"])
+    if dead >= MIN_DEATHS and starved / dead >= STARVED_SHARE and credited == 0.0:
+        # Starved trivia in the graveyard is healthy on its own -- it is
+        # only a fault when NOTHING in the window ever earned. A run
+        # that pays out elsewhere (credited > 0) is the mechanism
+        # working, not env_never_paid's sibling.
         findings.append(
             Finding(
                 code="starvation_cliff",
                 severity="error",
-                summary=f"{starved} of {dead} dead entries starved unused",
-                evidence=f"{starved}/{dead} died having never been credited",
+                summary=(
+                    f"{starved} of {dead} dead entries starved, and nothing "
+                    "was ever credited"
+                ),
+                evidence=(
+                    f"{starved}/{dead} died having never been credited; "
+                    f"window credited {credited:.3f}"
+                ),
                 fix=(
                     "nothing ever earned its upkeep: entries spawn at 1.0 and "
                     "pay 0.05 a tick, so an unconsulted population dies around "
@@ -515,16 +526,23 @@ def _operational_findings(ledger: Ledger, digest: dict[str, Any]) -> list[Findin
         )
 
     dropped = int(digest["settles"]["dropped"])
-    if dropped:
+    silent = int(digest["decides"]["silent"])
+    if dropped > silent:
+        # A silent decide never registers a ticket (Ledger.decide only
+        # tracks it when it has provenance), so settling one always
+        # drops. That is the normal, benign source of drops; only the
+        # excess beyond what silence explains is worth a warning.
         findings.append(
             Finding(
                 code="settles_dropped",
                 severity="warn",
                 summary=f"{dropped} settlements landed on unknown tickets",
-                evidence=f"{dropped} settle_dropped events",
+                evidence=f"{dropped} settle_dropped events vs {silent} silent decides",
                 fix=(
-                    "the ticket id was already settled, abandoned, or minted "
-                    "by a different store file"
+                    "most often benign: settling a decide that was silent, "
+                    "since a silent decide never opens a ticket; beyond that "
+                    "count, the ticket id was already settled, abandoned, or "
+                    "minted by a different store file"
                 ),
             )
         )

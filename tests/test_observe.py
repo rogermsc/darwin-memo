@@ -6,8 +6,9 @@ import pytest
 
 from darwin_memo import Ledger, MemoryEntry, MemoryStore
 from darwin_memo.cli import main as cli_main
-from darwin_memo.diagnose import Finding, selection_findings
+from darwin_memo.diagnose import MIN_DEATHS, STARVED_SHARE, Finding, selection_findings
 from darwin_memo.observe import (
+    _starved_unused,
     audit_digest,
     doctor,
     economics,
@@ -404,6 +405,80 @@ def test_doctor_does_not_call_a_cancelling_environment_dead(tmp_path):
         "six settlements each moved the world; that their sum happens to "
         "be zero is not evidence the environment never paid out"
     )
+
+
+_TRIVIA = [
+    (
+        "What color is the cafeteria wall?",
+        "The cafeteria wall is painted eggshell blue.",
+    ),
+    (
+        "Who won the office ping pong tournament?",
+        "Priya won the office ping pong tournament.",
+    ),
+    (
+        "What time does the vending machine restock?",
+        "The vending machine restocks at nine each morning.",
+    ),
+    (
+        "Where is the spare umbrella kept?",
+        "The spare umbrella is kept behind the front desk.",
+    ),
+]
+
+
+def test_starvation_cliff_does_not_fire_on_a_healthy_earning_run(tmp_path):
+    """Starved trivia is a healthy death mode; a window that earned is not dead."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for question, answer in _TRIVIA:
+        ledger.add(question, answer, source="cafeteria")
+    for _ in range(25):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+        ledger.tick()
+    ledger.save(memory)
+
+    # The trivia entries starved unused (never queried, never credited);
+    # confirm this fixture actually exercises that path before trusting
+    # the negative assertion below.
+    starved, dead = _starved_unused(ledger)
+    assert dead >= MIN_DEATHS and starved / dead >= STARVED_SHARE
+
+    codes = [f.code for f in doctor(ledger, _events(memory))]
+    assert "starvation_cliff" not in codes, (
+        "the queried entry earned in this window; starved trivia in the "
+        "graveyard is the mechanism working, not env_never_paid's sibling"
+    )
+
+
+def test_starvation_cliff_fires_when_nothing_was_ever_credited(tmp_path):
+    """A population that starved AND never earned is the real failure."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for question, answer in _TRIVIA[:2]:
+        ledger.add(question, answer, source="cafeteria")
+    for _ in range(25):
+        ledger.tick()  # no decide/settle ever: nothing can be credited
+    ledger.save(memory)
+
+    findings = {f.code: f for f in doctor(ledger, _events(memory))}
+    assert findings["starvation_cliff"].severity == "error"
+
+
+def test_settles_dropped_only_fires_beyond_what_silence_explains(tmp_path):
+    """A silent decide never opens a ticket, so settling one always drops."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(3):
+        ticket = ledger.decide("completely unrelated query about kangaroos and tax law")
+        ledger.settle(ticket.id, delta=1.0, detail="never opened")
+    ledger.save(memory)
+    assert "settles_dropped" not in [f.code for f in doctor(ledger, _events(memory))], (
+        "3 dropped, 3 silent decides: fully explained, not a fault"
+    )
+
+    ledger.settle("totally-bogus-ticket-id", delta=1.0, detail="phantom")
+    ledger.save(memory)
+    codes = [f.code for f in doctor(ledger, _events(memory))]
+    assert "settles_dropped" in codes, "4 dropped vs 3 silent: the excess is real"
 
 
 def test_stats_reports_economics_when_an_event_log_exists(tmp_path, capsys):
