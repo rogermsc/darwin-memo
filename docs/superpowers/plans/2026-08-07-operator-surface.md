@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **Python floor is 3.10** (`requires-python = ">=3.10"`). No `match`, no PEP 695 generics, no `itertools.batched`.
-- **Zero new runtime dependencies.** `dependencies = []` in `pyproject.toml` stays empty. The frontend toolchain is build-time only.
+- **Zero new Python runtime dependencies.** `dependencies = []` in `pyproject.toml` stays empty and no `[project.optional-dependencies]` entry is added. The frontend's npm packages (React, Recharts, Vite) are build-time only and bundle into static assets — they are not a constraint violation.
 - **mypy strict** over `darwin_memo` and `tests` (`[tool.mypy] strict = true`). Every new function needs complete annotations; `tests` may use untyped defs.
 - **ruff** line-length 88, `select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]`.
 - **Coverage gate `fail_under = 80`** over `source = ["darwin_memo"]`. New modules must be tested, not exempted.
@@ -1556,7 +1556,15 @@ export function LivingTable({
 
 - [ ] **Step 4: Mount both**
 
-In `ui/src/App.tsx`, add `const [selected, setSelected] = useState<string | null>(null);` and render `<Timeline rows={state.timeline} />` and `<LivingTable entries={state.entries} onSelect={setSelected} />` after `<DoctorBanner />`. `selected` is consumed by the drawer in Task 8; until then it is set and unused, so add `void selected;` to keep the TS build clean, and remove that line in Task 8.
+In `ui/src/App.tsx`, add the selection state and render `<Timeline rows={state.timeline} />` and `<LivingTable entries={state.entries} onSelect={setSelected} />` after `<DoctorBanner />`.
+
+The selected id is not read until the drawer arrives in Task 8, and the Vite react-ts template sets `noUnusedLocals`, so elide the unused binding rather than suppressing the warning:
+
+```tsx
+const [, setSelected] = useState<string | null>(null);
+```
+
+Task 8 changes that one line to `const [selected, setSelected] = useState<string | null>(null);` when it mounts the drawer.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -1802,7 +1810,7 @@ export function EntryDrawer({
 
 - [ ] **Step 3: Mount both**
 
-In `ui/src/App.tsx`, remove the `void selected;` line from Task 6, add `<EventStream />` after `<Graveyard />`, and render the drawer conditionally:
+In `ui/src/App.tsx`, change Task 6's `const [, setSelected] = …` to `const [selected, setSelected] = useState<string | null>(null);`, add `<EventStream />` after `<Graveyard />`, and render the drawer conditionally:
 
 ```tsx
 {selected && <EntryDrawer id={selected} onClose={() => setSelected(null)} />}
