@@ -6,6 +6,7 @@ import pytest
 
 from darwin_memo import Ledger, MemoryEntry, MemoryStore
 from darwin_memo.cli import main as cli_main
+from darwin_memo.diagnose import Finding, selection_findings
 from darwin_memo.observe import audit_digest, filter_events, read_events
 
 
@@ -306,3 +307,88 @@ def test_mcp_memory_audit_matches_cli_digest(tmp_path, capsys):
     # Same digest shape and numbers as the CLI command over the same file.
     cli_digest = _json_out(capsys, ["audit", str(path), "--json"])
     assert cli_digest == digest
+
+
+def test_silent_majority_fires_and_suppresses_the_never_paid_rule():
+    findings = selection_findings(
+        decides=100, silent=95, nonzero_outcomes=0, settles=100
+    )
+    assert [f.code for f in findings] == ["silent_majority"], (
+        "silence is the actionable diagnosis; a silent store obviously "
+        "never earned, and reporting both buries the useful one"
+    )
+    assert findings[0].severity == "error"
+
+
+def test_never_paid_reads_gross_movement_not_net():
+    # Payouts that exactly cancel DID pay out: the environment works.
+    findings = selection_findings(
+        decides=100, silent=0, nonzero_outcomes=6, settles=100
+    )
+    assert findings == []
+    findings = selection_findings(
+        decides=100, silent=0, nonzero_outcomes=0, settles=100
+    )
+    assert [f.code for f in findings] == ["env_never_paid"]
+
+
+def test_small_runs_are_not_declared_broken():
+    assert selection_findings(decides=3, silent=3, nonzero_outcomes=0, settles=3) == []
+
+
+def test_finding_serializes_to_flat_strings():
+    finding = Finding("c", "warn", "s", "e", "f")
+    assert finding.as_dict() == {
+        "code": "c",
+        "severity": "warn",
+        "summary": "s",
+        "evidence": "e",
+        "fix": "f",
+    }
+
+
+def test_health_warning_speaks_through_the_shared_rules():
+    """The batch report must not drift from the shared predicates."""
+    from darwin_memo.survival import SurvivalReport
+    from darwin_memo.types import CycleStats
+
+    quiet = SurvivalReport(
+        stats=[
+            CycleStats(
+                cycle=c,
+                population=5,
+                births=0,
+                deaths=0,
+                merges=0,
+                total_energy=5.0,
+                resource_delta=0.0,
+                tasks=10,
+                silent=10,
+                nonzero_outcomes=0,
+            )
+            for c in range(3)
+        ]
+    )
+    warning = quiet.health_warning()
+    assert "WARNING" in warning
+    assert "silent on 30/30" in warning
+    assert "min_coverage" in warning
+
+    healthy = SurvivalReport(
+        stats=[
+            CycleStats(
+                cycle=c,
+                population=5,
+                births=0,
+                deaths=0,
+                merges=0,
+                total_energy=5.0,
+                resource_delta=12.0,
+                tasks=10,
+                silent=1,
+                nonzero_outcomes=9,
+            )
+            for c in range(3)
+        ]
+    )
+    assert healthy.health_warning() == ""

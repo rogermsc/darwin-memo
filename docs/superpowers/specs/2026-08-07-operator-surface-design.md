@@ -101,24 +101,25 @@ pinned entries; Phase 2 logs the exact figure and this falls back automatically.
 | code | severity | fires when | reads as |
 |---|---|---|---|
 | `silent_majority` | error | `decides.silent / decides.total > 0.8` over ≥10 decides | relevance floor or vocabulary mismatch — the corpus and the tasks do not share words |
-| `env_never_paid` | error | ≥5 settles landed and `delta_total == 0` | action vocabulary: `decision_polarity` never recognised the verbs, so the environment never acted |
+| `env_never_paid` | error | ≥5 settles landed and no settle carried a nonzero delta (gross, never net) | action vocabulary: `decision_polarity` never recognised the verbs, so the environment never acted |
 | `starvation_cliff` | error | `death` events with `cause == "starved"` and `uses == 0` are ≥ half of all deaths | nothing ever earned; the population simply ran out the clock |
 | `settles_dropped` | warn | `settle_dropped > 0` | settlements arriving for unknown or already-buried tickets |
 | `tickets_stale` | warn | pending tickets older than `expire_after` | decisions acted on but never reported back |
 | `credit_untracked` | warn | `untracked > 0` | settlements written by a pre-`applied` version; per-entry flow is unattributable for those |
 
-`starvation_cliff` reads the death record directly rather than inferring a tick
-window: `Ledger.tick()` already writes `cause`, `uses` and `last_used_tick` on
-every death (`ledger.py:503`), so "starved having never been used" is an exact
-test, not a heuristic about tick 20. The minimum-volume guards on the first two
-rules stop a three-decide store from being declared broken.
+Death causes live in per-entry history persisted in `memory.json`
+(`ledger.py:685`) rather than in the JSONL event log, so `doctor` takes a
+`Ledger`, not just the event stream, to evaluate `starvation_cliff`. The
+minimum-volume guards on the first two rules stop a three-decide store from
+being declared broken.
 
 Only `error` findings set the exit code; `warn` findings print and exit 0. The
 last three have no batch-loop equivalent — they are operational faults that only
 exist in the event-driven shape.
 
 **Reuse, do not duplicate.** `SurvivalReport.health_warning()`
-(`darwin_memo/survival.py:217`) already implements rules 1–3 against in-memory
+(`darwin_memo/survival.py:217`) already implements rules 1–2 (and is itself
+untested; the anti-drift test is its first) against in-memory
 per-cycle stats. Extract the thresholds and predicates into shared helpers that
 both callers use, so the batch loop and the production ledger diagnose
 identically and a threshold change lands once. `health_warning()` keeps its
