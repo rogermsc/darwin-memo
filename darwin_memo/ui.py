@@ -196,16 +196,24 @@ class _Handler(BaseHTTPRequestHandler):
         self._json(200, {"events": filter_events(events, since=since, last=limit)})
 
     def _static(self, route: str) -> None:
-        if not BUNDLE.is_dir():
-            self._send(200, _NO_BUNDLE, "text/html; charset=utf-8")
-            return
         root = BUNDLE.resolve()
         target = (root / route.lstrip("/")).resolve()
+        # Containment first, and before any bundle-presence shortcut: a
+        # path that climbed out is a 404 whether or not a bundle exists.
+        if target != root and root not in target.parents:
+            self._json(404, {"error": "not found"})
+            return
         if target == root or target.is_dir():
             target = root / "index.html"
-        # Containment check before touching the filesystem: a path that
-        # climbed out of the bundle is a 404, never a read.
-        if root not in target.parents or not target.is_file():
+        if not BUNDLE.is_dir():
+            # No built frontend: the index route explains how to build
+            # one; every other path is absent, not a placeholder.
+            if target == root / "index.html":
+                self._send(200, _NO_BUNDLE, "text/html; charset=utf-8")
+            else:
+                self._json(404, {"error": "not found"})
+            return
+        if not target.is_file():
             self._json(404, {"error": "not found"})
             return
         guessed, _ = mimetypes.guess_type(target.name)
