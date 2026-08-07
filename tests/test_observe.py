@@ -391,6 +391,21 @@ def test_doctor_cli_exits_nonzero_on_an_error_finding(tmp_path, capsys):
     assert payload["findings"][0]["code"] == "env_never_paid"
 
 
+def test_doctor_does_not_call_a_cancelling_environment_dead(tmp_path):
+    """Gross movement, not net: payouts that cancel still paid out."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for delta in (7.0, -7.0, 7.0, -7.0, 7.0, -7.0):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=delta, detail="measured")
+        ledger.tick()
+    ledger.save(memory)
+    codes = [f.code for f in doctor(ledger, _events(memory))]
+    assert "env_never_paid" not in codes, (
+        "six settlements each moved the world; that their sum happens to "
+        "be zero is not evidence the environment never paid out"
+    )
+
+
 def test_stats_reports_economics_when_an_event_log_exists(tmp_path, capsys):
     memory, ledger = seeded_ledger(tmp_path)
     ticket = ledger.decide("are stale feature flags safe to remove?")
