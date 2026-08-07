@@ -130,7 +130,13 @@ def state(memory: Path) -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    """GET-only. Any other verb is a 405; there is nothing to write."""
+    """GET-only. There is nothing to write, so no other verb is defined:
+
+    stdlib's ``BaseHTTPRequestHandler`` answers an undefined ``do_POST``
+    etc. with its own 501 Not Implemented, which is already the honest
+    answer for a GET-only server — writing a ``do_POST`` stub purely to
+    change 501 into 405 would be code that earns nothing.
+    """
 
     server_version = "darwin-memo"
 
@@ -176,6 +182,12 @@ class _Handler(BaseHTTPRequestHandler):
                     "process; retry in a moment"
                 },
             )
+        except Exception as exc:  # a dev server must answer, not drop the connection
+            # A local read-only dashboard that kills its request thread
+            # gives the browser no status at all, which reads as "server
+            # is broken" for what is usually a corrupt or unreadable
+            # memory file. Surface it instead of swallowing it.
+            self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
 
     def _entry(self, entry_id: str) -> None:
         ledger, _ = _load(self.memory)

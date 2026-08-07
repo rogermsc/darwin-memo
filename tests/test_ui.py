@@ -1,6 +1,7 @@
 """The local dashboard server: read-only, loopback-only, JSON over observe."""
 
 import json
+import os
 import threading
 import urllib.error
 import urllib.request
@@ -77,6 +78,16 @@ def test_static_route_refuses_to_escape_the_bundle(served):
     with pytest.raises(urllib.error.HTTPError) as caught:
         urllib.request.urlopen(f"{base}/../../../etc/passwd", timeout=5)
     assert caught.value.code == 404
+    # /etc/passwd doesn't exist at this repo's bundle depth, so a missing
+    # containment check would still 404 it via the not-found branch and
+    # mask the hole. pyproject.toml DOES exist three levels up (the repo
+    # root) -- this is the case that actually discriminates the check.
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        urllib.request.urlopen(f"{base}/../../../pyproject.toml", timeout=5)
+    assert caught.value.code == 404, (
+        "pyproject.toml really exists three levels above the bundle; a "
+        "missing containment check serves it with a 200"
+    )
 
 
 def test_serve_refuses_a_non_loopback_host(tmp_path):
@@ -128,3 +139,41 @@ def test_state_endpoint_handles_concurrent_requests(served):
 
     assert not errors, errors
     assert results == [200] * 16
+
+
+def _served_base(memory):
+    """Start a server for a memory file this test builds by hand (not via
+    the ``served`` fixture, which needs a working store to seed)."""
+    server = serve(memory, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}"
+
+
+def test_state_endpoint_answers_with_a_status_on_corrupt_json(tmp_path):
+    memory = tmp_path / "memory.json"
+    memory.write_text("{not valid json")
+    server, base = _served_base(memory)
+    try:
+        with pytest.raises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(f"{base}/api/state", timeout=5)
+        assert caught.value.code == 500, "must answer, not drop the connection"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permission bits")
+def test_state_endpoint_answers_with_a_status_on_unreadable_file(tmp_path):
+    memory = tmp_path / "memory.json"
+    MemoryStore().save(memory)
+    memory.chmod(0o000)
+    server, base = _served_base(memory)
+    try:
+        with pytest.raises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(f"{base}/api/state", timeout=5)
+        assert caught.value.code == 500, "must answer, not drop the connection"
+    finally:
+        server.shutdown()
+        server.server_close()
+        memory.chmod(0o644)  # let tmp_path clean up after itself
