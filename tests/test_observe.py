@@ -323,6 +323,76 @@ def test_timeline_buckets_by_write_order_not_by_tick_stamp():
     )
 
 
+def test_timeline_carries_a_trailing_settle_as_an_open_row(tmp_path):
+    """I-3: a settlement after the last tick record must not be dropped
+    -- it gets its own trailing, explicitly-labelled open-interval row
+    instead of silently vanishing or being folded into a closed tick's
+    bucket (which would misattribute it to a tick it did not happen
+    inside)."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    trailing = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(trailing.id, delta=9999.0, detail="late settle, no tick yet")
+    ledger.save(memory)
+
+    events = _events(memory)
+    rows = timeline(events)
+    assert [r["tick"] for r in rows] == [1, 2], "the open row is numbered one past 1"
+    assert rows[0]["delta"] == 7.0, "unaffected: this row already closed"
+    assert rows[-1] == {
+        "tick": 2,
+        "population": None,
+        "total_energy": None,
+        "deaths": None,
+        "merges": None,
+        "pending": None,
+        "delta": 9999.0,
+        "open": True,
+    }
+
+    report = economics(events, ledger.store)
+    assert sum(r["delta"] for r in rows) == report["resource"]["delta_total"], (
+        "the Timeline data and the Economics headline must agree on the "
+        "same window: dropping the trailing settle used to make them "
+        "disagree by exactly its amount"
+    )
+
+
+def test_timeline_without_a_trailing_settle_has_no_open_row(tmp_path):
+    """Negative direction for I-3: nothing to carry forward means no
+    synthetic row -- the fix must not manufacture rows that were never
+    dropped in the first place."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    ledger.save(memory)
+
+    rows = timeline(_events(memory))
+    assert all("open" not in row for row in rows)
+
+
+def test_economics_upkeep_paid_ignores_the_open_trailing_row(tmp_path):
+    """The open row has no population (nothing has been measured for it
+    yet); it must not crash or silently count as zero-population upkeep
+    for a tick that has not happened."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+    ledger.tick()
+    trailing = ledger.decide("are stale feature flags safe to remove?")
+    ledger.settle(trailing.id, delta=3.0, detail="late")
+    ledger.save(memory)
+
+    events = _events(memory)
+    report = economics(events, ledger.store)
+    assert report["energy"]["upkeep_paid"] == pytest.approx(
+        report["population"]["alive"] * 0.05
+    ), "one closed tick of upkeep, same as with no trailing settle at all"
+
+
 def test_economics_separates_resource_from_energy(tmp_path):
     memory, ledger = seeded_ledger(tmp_path)
     ticket = ledger.decide("are stale feature flags safe to remove?")
@@ -390,6 +460,18 @@ def test_doctor_cli_exits_nonzero_on_an_error_finding(tmp_path, capsys):
     assert cli_main(["doctor", str(memory), "--json"]) == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["findings"][0]["code"] == "env_never_paid"
+
+
+def test_doctor_cli_exits_zero_on_warnings_only(tmp_path, capsys):
+    """Deferred in the final review's triage (T3): warnings alone (no
+    error-severity finding) must not fail the run."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.decide("are stale feature flags safe to remove?")
+    ledger.tick_count = 500  # far past STALE_TICKET_TICKS
+    ledger.save(memory)
+
+    assert cli_main(["doctor", str(memory)]) == 0
+    assert "WARN [tickets_stale]" in capsys.readouterr().out
 
 
 def test_doctor_does_not_call_a_cancelling_environment_dead(tmp_path):
@@ -462,6 +544,164 @@ def test_starvation_cliff_fires_when_nothing_was_ever_credited(tmp_path):
 
     findings = {f.code: f for f in doctor(ledger, _events(memory))}
     assert findings["starvation_cliff"].severity == "error"
+
+
+def _healthy_earning_ledger(tmp_path):
+    """A store that both starves trivia unused AND genuinely earns --
+    the exact shape the final review reproduced C-1's four false
+    positives against (a healthy 30-cycle flagship demo has the same
+    two ingredients: a queried, credited population and unconsulted
+    trivia that starves)."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for question, answer in _TRIVIA:
+        ledger.add(question, answer, source="cafeteria")
+    for _ in range(25):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+        ledger.tick()
+    ledger.save(memory)
+    return memory, ledger
+
+
+def test_doctor_stays_clean_when_the_sidecar_log_is_missing(tmp_path):
+    """C-1: a store copied without its .events.jsonl must not read as
+    broken. The window (an empty events list, exactly what a missing
+    sidecar looks like to doctor()) is thin; the store's own persisted
+    settlement history is not."""
+    _memory, ledger = _healthy_earning_ledger(tmp_path)
+    assert doctor(ledger, []) == [], (
+        "the graveyard and its starved trivia are still visible with no "
+        "event log at all, but the store genuinely earned, so nothing "
+        "here is a fault"
+    )
+
+
+def test_doctor_stays_clean_on_a_quiet_rotated_window(tmp_path):
+    """C-1: a rotated log can leave a window of ticks with no settles in
+    it, even though the store earned plenty outside the window."""
+    memory, ledger = _healthy_earning_ledger(tmp_path)
+    events = _events(memory)
+    quiet = [e for e in events if e.get("event") != "settle"]
+    assert any(e.get("event") == "settle" for e in events), "fixture sanity"
+    assert not any(e.get("event") == "settle" for e in quiet), "fixture sanity"
+    assert doctor(ledger, quiet) == []
+
+
+def test_doctor_does_not_contradict_credit_untracked_on_a_legacy_log(tmp_path):
+    """C-1: a log written before settle events carried an 'applied' list
+    zeroes the window's attributable credit -- credit_untracked already
+    says that figure is unattributable, so starvation_cliff must not
+    then read that same unattributable-and-therefore-zero figure as
+    proof nothing ever earned (the review's self-contradicting screen)."""
+    memory, ledger = _healthy_earning_ledger(tmp_path)
+    legacy = []
+    for record in _events(memory):
+        if record.get("event") == "settle":
+            record = {k: v for k, v in record.items() if k != "applied"}
+        legacy.append(record)
+
+    findings = {f.code: f for f in doctor(ledger, legacy)}
+    assert findings["credit_untracked"].severity == "warn"
+    assert "starvation_cliff" not in findings
+    assert "env_never_paid" not in findings
+    assert "silent_majority" not in findings
+    assert all(f.severity == "warn" for f in findings.values())
+
+
+def test_doctor_stays_clean_on_a_lean_mostly_silent_but_earning_store(tmp_path):
+    """C-1 / silent_majority false positive: an 86%-silent store is the
+    product thesis (spec Sec 2, 'stays lean and cheap'), not a fault,
+    when the minority that WAS answered earned real credit."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(44):
+        ledger.decide("completely unrelated query about kangaroos and tax law")
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=11.0, detail="measured")
+    ledger.save(memory)
+
+    events = _events(memory)
+    digest = audit_digest(events, store=ledger.store)
+    decides, silent = digest["decides"]["total"], digest["decides"]["silent"]
+    assert decides >= 10 and silent / decides > 0.8, "fixture sanity: silent majority"
+    assert digest["energy"]["credited"] > 0, "fixture sanity: it did earn"
+
+    assert doctor(ledger, events) == []
+
+
+def test_silent_majority_still_fires_on_a_genuinely_mute_store(tmp_path):
+    """Both-directions proof for the silent_majority guard: a store that
+    is silent-majority AND never earns anywhere (not just in-window)
+    must still trip, so the earned-guard has not blunted the rule."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(44):
+        ledger.decide("completely unrelated query about kangaroos and tax law")
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=0.0, detail="nothing happened")
+    ledger.save(memory)
+
+    events = _events(memory)
+    digest = audit_digest(events, store=ledger.store)
+    decides, silent = digest["decides"]["total"], digest["decides"]["silent"]
+    assert decides >= 10 and silent / decides > 0.8, "fixture sanity: silent majority"
+
+    findings = {f.code: f for f in doctor(ledger, events)}
+    assert findings["silent_majority"].severity == "error"
+    assert cli_main(["doctor", str(memory)]) == 1
+
+
+def test_env_never_paid_ignores_ticks_own_expiry_settlements(tmp_path):
+    """I-1: Ledger.tick(expire_after=...) settles expired tickets itself
+    (ledger.py tick(), via settle(id, 0.0, 'expired unsettled')). Those
+    are real settle events that inflate the settle count while proving
+    nothing about whether the CALLER ever paid out -- six decides here
+    never get an explicit settle() call at all, only tick()'s own
+    expiry, so blaming decision_polarity (env_never_paid) is the wrong
+    diagnosis for an unwired settle()."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(6):
+        ledger.decide("are stale feature flags safe to remove?")
+    for _ in range(60):
+        ledger.tick()  # settle() is never called by the caller
+    ledger.save(memory)
+
+    events = _events(memory)
+    digest = audit_digest(events, store=ledger.store)
+    assert digest["expired"] >= 6, "fixture sanity: tickets actually expired"
+    assert digest["settles"]["landed"] >= 6, "fixture sanity: tick() logged settles"
+
+    codes = [f.code for f in doctor(ledger, events)]
+    assert "env_never_paid" not in codes, (
+        "tick()'s own zero-delta expiry settlements are not the "
+        "environment refusing to pay; nobody ever called settle() here"
+    )
+
+
+def test_env_never_paid_still_fires_when_the_caller_explicitly_never_pays(tmp_path):
+    """Both-directions proof for I-1: real caller-made zero-delta
+    settlements (not tick()'s auto-expiry) must still trip
+    env_never_paid, even alongside unrelated tickets that separately
+    expire via tick()."""
+    memory, ledger = seeded_ledger(tmp_path)
+    for _ in range(6):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=0.0, detail="nothing happened")
+    ledger.add("Is the bridge safe?", "The bridge is safe to use.", source="patrol")
+    ledger.decide("is the bridge safe to use?")  # left pending, on purpose
+    for _ in range(60):
+        ledger.tick()  # this one expires unsettled; the 6 above already landed
+    ledger.save(memory)
+
+    events = _events(memory)
+    digest = audit_digest(events, store=ledger.store)
+    assert digest["expired"] >= 1, "fixture sanity: the stray ticket expired too"
+
+    codes = [f.code for f in doctor(ledger, events)]
+    assert "env_never_paid" in codes, (
+        "6 real, caller-made zero-delta settlements are still >= "
+        "MIN_SETTLES after subtracting the 1 that expired via tick()"
+    )
 
 
 def test_settles_dropped_only_fires_beyond_what_silence_explains(tmp_path):

@@ -390,6 +390,18 @@ def timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Rows carry whatever tick records the log still holds; a rotated log
     leaves a gap in the tick numbers, which callers plot on a numeric
     axis so the gap shows as a gap rather than an interpolated line.
+
+    A settlement after the LAST tick record has no tick to close around
+    yet (the common live-dashboard case: settle, then look before the
+    next tick lands). Dropping it would make ``sum(row["delta"] for row
+    in rows)`` disagree with :func:`economics`'s ``delta_total``, which
+    is not bucketed and does include it. Instead of silently discarding
+    it or folding it into the last CLOSED tick's bucket (which would
+    make that row lie about what happened before that tick), it gets
+    its own trailing row for the still-open interval, tick numbered one
+    past the last closed tick, with every tick-stat field ``None``
+    (nothing has been measured for it yet) and ``"open": True`` marking
+    it as distinct from a real tick row.
     """
     rows: list[dict[str, Any]] = []
     pending_delta = 0.0
@@ -410,6 +422,19 @@ def timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 }
             )
             pending_delta = 0.0
+    if pending_delta != 0.0:
+        rows.append(
+            {
+                "tick": (rows[-1]["tick"] + 1) if rows else 0,
+                "population": None,
+                "total_energy": None,
+                "deaths": None,
+                "merges": None,
+                "pending": None,
+                "delta": round(pending_delta, 6),
+                "open": True,
+            }
+        )
     return rows
 
 
@@ -431,7 +456,13 @@ def economics(events: list[dict[str, Any]], store: MemoryStore) -> dict[str, Any
     """
     digest = audit_digest(events, store=store)
     rows = timeline(events)
-    upkeep_paid = round(sum(r["population"] for r in rows) * store.upkeep, 6)
+    # A trailing open-interval row (see timeline()) has no population
+    # yet; it is not a closed tick, so it pays no upkeep to sum.
+    upkeep_paid = round(
+        sum(r["population"] for r in rows if r["population"] is not None)
+        * store.upkeep,
+        6,
+    )
     pinned = sum(1 for entry in store.alive() if entry.pinned)
     caveat = (
         f"estimated as population x upkeep; {pinned} pinned "
@@ -475,17 +506,46 @@ def _starved_unused(ledger: Ledger) -> tuple[int, int]:
     return starved, len(dead)
 
 
-def _operational_findings(ledger: Ledger, digest: dict[str, Any]) -> list[Finding]:
+def _ever_credited(ledger: Ledger) -> bool:
+    """Did credit EVER flow, anywhere in the store's whole life?
+
+    Reads per-entry history persisted inside the memory file (the same
+    path :func:`entry_life` and ``why`` use), not the JSONL event log,
+    so this evidence survives log rotation, a missing sidecar log, and
+    a legacy log written before settle events carried an ``applied``
+    list -- unlike the event-log WINDOW, which is not the store.
+    """
+    store = ledger.store
+    for entry in store.alive() + store.graveyard():
+        life = entry_life(ledger, entry.id) or {}
+        for note in life.get("settlements", []):
+            if float(note.get("credit") or 0.0) != 0.0:
+                return True
+    return False
+
+
+def _operational_findings(
+    ledger: Ledger, digest: dict[str, Any], *, earned: bool
+) -> list[Finding]:
     """Faults that only exist in the event-driven shape."""
     findings: list[Finding] = []
 
     starved, dead = _starved_unused(ledger)
     credited = float(digest["energy"]["credited"])
-    if dead >= MIN_DEATHS and starved / dead >= STARVED_SHARE and credited == 0.0:
+    if (
+        dead >= MIN_DEATHS
+        and starved / dead >= STARVED_SHARE
+        and credited == 0.0
+        and not earned
+        and not digest["settles"]["untracked"]
+    ):
         # Starved trivia in the graveyard is healthy on its own -- it is
-        # only a fault when NOTHING in the window ever earned. A run
-        # that pays out elsewhere (credited > 0) is the mechanism
-        # working, not env_never_paid's sibling.
+        # only a fault when NOTHING ever earned, in this window OR
+        # anywhere else in the store's history (``earned``), and the
+        # window's zero credit is not simply unattributable because the
+        # log predates per-entry credit (``untracked``). A run that
+        # pays out elsewhere is the mechanism working, not
+        # env_never_paid's sibling.
         findings.append(
             Finding(
                 code="starvation_cliff",
@@ -570,6 +630,16 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     Takes the ledger rather than the store because two of the six rules
     read state the JSONL log does not carry: death causes (per-entry
     history, persisted in the memory file) and open tickets.
+
+    The "never earned" rules below all read the event-log WINDOW
+    (``events``) -- and the window is not the store. ``EVENT_LOG_KEEP``
+    rotation, a missing sidecar log, or a quiet window (ticks only,
+    settles rotated off the end) all thin the window on a store that
+    earned plenty outside it. ``earned`` is computed once, from
+    evidence that does not depend on the window at all
+    (``_ever_credited`` reads the per-entry history persisted in the
+    memory file), and gates every rule that would otherwise conclude
+    "never earned" from the window alone.
     """
     digest = audit_digest(events, store=ledger.store)
     # Gross movement: count settlements that individually moved, so a
@@ -579,13 +649,21 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
         for record in events
         if record.get("event") == "settle" and float(record.get("delta") or 0.0) != 0.0
     )
-    findings = selection_findings(
-        decides=int(digest["decides"]["total"]),
-        silent=int(digest["decides"]["silent"]),
-        nonzero_outcomes=nonzero,
-        settles=int(digest["settles"]["landed"]),
-    )
-    findings.extend(_operational_findings(ledger, digest))
+    earned = nonzero > 0 or _ever_credited(ledger)
+    findings: list[Finding] = []
+    if not earned:
+        # tick() settles its own expired tickets at delta zero
+        # (ledger.py's tick()); those are real settle events but prove
+        # nothing about whether the CALLER ever paid out, so they must
+        # not count toward the volume floor that decides env_never_paid.
+        expired = int(digest["expired"])
+        findings = selection_findings(
+            decides=int(digest["decides"]["total"]),
+            silent=int(digest["decides"]["silent"]),
+            nonzero_outcomes=nonzero,
+            settles=int(digest["settles"]["landed"]) - expired,
+        )
+    findings.extend(_operational_findings(ledger, digest, earned=earned))
     return findings
 
 

@@ -2,11 +2,18 @@
 
     darwin-memo ui memory.json [--port 8787] [--no-open]
 
-Loopback-only and read-only by construction. There are no mutation
-endpoints, which is precisely what lets this skip authentication, CSRF
-tokens and session handling: nothing a browser can reach here changes
-state. Culling, settling and pinning stay on the CLI and MCP, where
-every operation is event-logged and audited.
+Loopback-only and read-only by construction: binding to ``127.0.0.1``
+stops remote *network* reach, and there are no mutation endpoints, so
+nothing a browser can reach here changes state. That combination is
+what lets this skip authentication, CSRF tokens and session handling
+-- but the loopback bind alone is not enough, because it does not stop
+*browser-mediated* reach: a page the operator has open elsewhere can
+point its own hostname at 127.0.0.1 (DNS rebinding), and the browser
+then treats this server as same-origin with that page. Every request
+therefore also checks its ``Host`` header and rejects anything that is
+not a loopback name or address before doing any other work (see
+``do_GET``). Culling, settling and pinning stay on the CLI and MCP,
+where every operation is event-logged and audited.
 
 The store and the event log are re-read on every request. They are
 small, and a dashboard showing yesterday's population is worse than a
@@ -40,6 +47,22 @@ from .store import StoreLockedError
 
 BUNDLE = Path(__file__).parent / "data" / "ui"
 LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _host_only(raw: str) -> str:
+    """Strip the port (and IPv6 brackets) from a ``Host`` header value.
+
+    ``"host:port"`` splits on its one colon; an IPv6 literal has more
+    than one colon and, when a port follows, brackets around the
+    address (``"[::1]:8787"``) -- without brackets a bare IPv6 host has
+    no port to strip at all, so it is returned as-is.
+    """
+    if raw.startswith("[") and "]" in raw:
+        return raw[1 : raw.index("]")]
+    if raw.count(":") == 1:
+        return raw.split(":", 1)[0]
+    return raw
+
 
 _NO_BUNDLE = b"""<!doctype html><meta charset="utf-8">
 <title>darwin-memo</title>
@@ -158,6 +181,19 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(payload).encode(), "application/json")
 
     def do_GET(self) -> None:  # stdlib callback name
+        # DNS rebinding: loopback BIND stops remote network reach, but a
+        # page the operator has open elsewhere can point its own
+        # hostname at 127.0.0.1 and get same-origin treatment from the
+        # browser, which is exactly the "no auth needed" argument in
+        # the module docstring breaking down. Reject before any other
+        # work -- no route lookup, no file read -- so an unexpected
+        # Host can never reach a handler that would answer it.
+        host = _host_only(self.headers.get("Host") or "")
+        if host and host not in LOOPBACK:
+            self._json(
+                421, {"error": "unexpected Host; the dashboard is loopback-only"}
+            )
+            return
         parsed = urlparse(self.path)
         route = unquote(parsed.path)
         try:

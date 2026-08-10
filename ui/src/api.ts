@@ -8,12 +8,17 @@ export type Finding = {
 
 export type TimelineRow = {
   tick: number;
-  population: number;
-  total_energy: number;
-  deaths: number;
-  merges: number;
-  pending: number;
+  // A settlement that arrived after the last closed tick has no tick
+  // to report population/energy/etc for yet -- it gets a trailing row
+  // (see darwin_memo/observe.py timeline()) with these null and
+  // `open: true`, rather than being silently dropped.
+  population: number | null;
+  total_energy: number | null;
+  deaths: number | null;
+  merges: number | null;
+  pending: number | null;
   delta: number;
+  open?: boolean;
 };
 
 export type Entry = {

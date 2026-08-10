@@ -1,9 +1,11 @@
 """The local dashboard server: read-only, loopback-only, JSON over observe."""
 
+import http.client
 import json
 import os
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -72,6 +74,27 @@ def _get(url):
         return response.status, json.loads(response.read())
 
 
+def _raw_get(base, path, host_header):
+    """A GET with an explicit, caller-controlled Host header.
+
+    ``urllib.request`` derives Host from the URL and offers no clean way
+    to override it, which is exactly the header this must control: the
+    socket still connects to 127.0.0.1 like every other test in this
+    file (DNS rebinding is a Host-header attack, not a network-origin
+    one), only the header lies.
+    """
+    parsed = urllib.parse.urlsplit(base)
+    conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    try:
+        conn.putrequest("GET", path, skip_host=True)
+        conn.putheader("Host", host_header)
+        conn.endheaders()
+        response = conn.getresponse()
+        return response.status, response.read()
+    finally:
+        conn.close()
+
+
 def test_state_endpoint_carries_every_panel(served):
     base, _, _ = served
     status, payload = _get(f"{base}/api/state")
@@ -99,6 +122,34 @@ def test_entry_endpoint_returns_a_life_and_404s_on_nonsense(served):
     with pytest.raises(urllib.error.HTTPError) as caught:
         _get(f"{base}/api/entry/not-a-real-id")
     assert caught.value.code == 404
+
+
+def test_events_endpoint_returns_a_bounded_window(served):
+    """I-4: zero prior coverage of the _events handler at all. The
+    server-side contract EventStream.tsx depends on: 200, an "events"
+    key, a list, bounded by `last`."""
+    base, _, _ = served
+    status, payload = _get(f"{base}/api/events?last=5")
+    assert status == 200
+    assert isinstance(payload["events"], list)
+    assert 0 < len(payload["events"]) <= 5
+    assert {"event"} <= set(payload["events"][0])
+
+
+def test_events_endpoint_defaults_without_a_last_param(served):
+    base, _, _ = served
+    status, payload = _get(f"{base}/api/events")
+    assert status == 200
+    assert len(payload["events"]) > 0
+
+
+def test_events_endpoint_does_not_500_on_a_non_numeric_last(served):
+    """`int(last)` raises ValueError on garbage input; the handler must
+    fall back rather than 500 the dashboard on a malformed query string."""
+    base, _, _ = served
+    status, payload = _get(f"{base}/api/events?last=notanumber")
+    assert status == 200
+    assert isinstance(payload["events"], list)
 
 
 def test_static_route_refuses_to_escape_the_bundle(tmp_path, monkeypatch, served):
@@ -148,6 +199,42 @@ def test_serve_refuses_a_non_loopback_host(tmp_path):
     MemoryStore().save(memory)
     with pytest.raises(ValueError, match="loopback"):
         serve(memory, port=0, host="0.0.0.0")
+
+
+def test_do_get_rejects_a_spoofed_host_header(served):
+    """I-2: a loopback BIND stops remote network reach but not
+    browser-mediated DNS rebinding, where a page the operator has open
+    elsewhere points its own hostname at 127.0.0.1 and gets same-origin
+    treatment. The socket below connects to 127.0.0.1 exactly like
+    every other request in this file; only the Host header lies, which
+    is the actual attack surface this must close."""
+    base, _, _ = served
+    status, body = _raw_get(base, "/api/state", "evil.example.com")
+    assert status == 421
+    assert "loopback" in json.loads(body)["error"]
+
+
+def test_do_get_rejects_a_spoofed_host_with_a_port(served):
+    base, _, _ = served
+    status, _ = _raw_get(base, "/api/state", "evil.example.com:9999")
+    assert status == 421
+
+
+def test_do_get_accepts_every_loopback_host_form(served):
+    """Both-directions proof: the guard must not reject the legitimate
+    traffic every other test in this file depends on."""
+    base, _, _ = served
+    parsed = urllib.parse.urlsplit(base)
+    for host_header in (
+        "127.0.0.1",
+        f"127.0.0.1:{parsed.port}",
+        "localhost",
+        f"localhost:{parsed.port}",
+        "[::1]",
+        f"[::1]:{parsed.port}",
+    ):
+        status, _ = _raw_get(base, "/api/state", host_header)
+        assert status == 200, host_header
 
 
 def test_state_is_read_only(tmp_path):

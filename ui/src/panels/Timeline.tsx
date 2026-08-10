@@ -30,8 +30,12 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
   if (rows.length === 0) {
     return <section className="panel">No ticks recorded yet.</section>;
   }
-  const ticks = rows.map((row) => row.tick);
-  const domain: [number, number] = [Math.min(...ticks), Math.max(...ticks)];
+  // `rows` is chronological (see timeline()'s docstring), so the first
+  // and last rows ARE the min and max -- no need to scan, and no spread
+  // over a potentially huge array. Math.min(...ticks)/Math.max(...ticks)
+  // throws past ~100k arguments; a fully rotated log (40 MB) holds far
+  // more tick rows than that.
+  const domain: [number, number] = [rows[0].tick, rows[rows.length - 1].tick];
   return (
     <section className="panel">
       <h2>Population over time</h2>

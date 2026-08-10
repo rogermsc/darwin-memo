@@ -550,11 +550,22 @@ finding: `SEVERITY [code]: summary`, then `evidence:` and `fix:`
 lines; `--json` prints `{"findings": [...]}` with the same fields.
 Findings are independent — zero or more can fire in one run.
 
+The three rules above the fold below all read the event-log *window*
+handed to `doctor`, not the store — and the window is not the store: a
+rotated log (`EVENT_LOG_KEEP`), a missing sidecar `.events.jsonl`, or a
+quiet window (ticks only, settles rotated off the end) all thin it on
+a store that earned plenty outside it. `doctor` computes once, from
+evidence that does not depend on the window (per-entry settlement
+history persisted in the memory file), whether credit ever flowed
+*anywhere* in the store's life, and every rule below that would
+otherwise conclude "never earned" from the window alone is gated on
+that store-wide evidence first.
+
 | code | severity | fires when |
 |---|---|---|
-| `silent_majority` | error | at least 10 decisions were made and memory stayed silent on over 80% of them |
-| `env_never_paid` | error | at least 5 settlements landed and every one carried a zero delta (gross movement, not a net sum, so cancelling payouts do not read as dead) |
-| `starvation_cliff` | error | at least 3 dead entries, at least half of them starved (never used, not merged, not executed), **and nothing in the window was ever credited**. Starving alone is a healthy death mode for trivia nobody needed; the fault is a population that never earns |
+| `silent_majority` | error | at least 10 decisions were made and memory stayed silent on over 80% of them, **and the store never earned anywhere in its history** |
+| `env_never_paid` | error | at least 5 settlements landed *that the caller itself made* (tick's own zero-delta expiry settlements are excluded) and every one carried a zero delta (gross movement, not a net sum, so cancelling payouts do not read as dead), **and the store never earned anywhere in its history** |
+| `starvation_cliff` | error | at least 3 dead entries, at least half of them starved (never used, not merged, not executed), nothing in the window was ever credited, no settlement in the window is unattributable (`credit_untracked` below), **and the store never earned anywhere in its history**. Starving alone is a healthy death mode for trivia nobody needed; the fault is a population that never earns |
 | `tickets_stale` | warn | one or more pending tickets are older than 50 ticks (`expire_after`'s default) |
 | `settles_dropped` | warn | `settle_dropped` events exceed the count of silent decides. A silent `decide()` never opens a ticket (`Ledger.decide` only tracks a ticket when the answer has provenance), so settling a silent decide always drops — that count is benign and subtracted out; only the excess is worth a warning |
 | `credit_untracked` | warn | one or more settlements carry no per-entry `applied` credit list (written by a version before per-entry credit was logged) |
@@ -570,7 +581,11 @@ over `MEMORY` on `127.0.0.1` (0 for `--port` picks a free one;
 `--no-open` skips the automatic browser launch). Loopback-only and
 read-only by construction: `serve()` refuses to bind any host outside
 `{127.0.0.1, localhost, ::1}`, and there are no mutation endpoints, so
-the server needs no authentication. The store and event log are
+the server needs no authentication. That bind alone does not stop a
+page the operator has open elsewhere from pointing its own hostname at
+`127.0.0.1` (DNS rebinding) and reading the store same-origin, so every
+request also checks its `Host` header and answers `421` on anything
+that is not a loopback name or address. The store and event log are
 re-read from disk on every request rather than cached. Four JSON
 routes plus the static bundle: `GET /api/state` (population, energy,
 `doctor` findings, `timeline`, `economics`, living entries, graveyard,
