@@ -139,6 +139,20 @@ ledger.tick()                        # upkeep, deaths, consolidation
 print(ledger.obituary(entry_id))     # why did this entry die?
 ```
 
+### Seeing it: the local dashboard
+
+```bash
+darwin-memo doctor memory.json     # why is nothing earning?
+darwin-memo ui memory.json         # population, graveyard, economics
+```
+
+`doctor` reads the event log and names which failure mode a store hit
+instead of leaving three of them looking identical. `ui` serves the
+same data as a read-only dashboard on localhost: population and energy
+over time, the graveyard split by cause of death, and the resource-
+versus-upkeep accounting. Read-only and loopback-only, so there is
+nothing to authenticate.
+
 ### Batch (research shape): the SurvivalLoop
 
 ```python
