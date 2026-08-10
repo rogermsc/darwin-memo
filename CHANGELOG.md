@@ -8,6 +8,20 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `MemoryStore.ticks_to_starvation(entry)`: how many ticks of upkeep an
+  entry can still pay, surfaced by `top`, `why` and `/api/state` from one
+  definition so they cannot drift. `None` means *cannot starve* — a pinned
+  entry floors at zero rather than dying, and a store with no upkeep never
+  starves anything — which is not the same as zero ticks left.
+- The tick event now records the upkeep actually charged, so
+  `economics()` reports a measured figure with `upkeep_exact: true` instead
+  of estimating. The estimate really was wrong: a pinned entry sitting at
+  zero pays less than a full tick, and the naive population-times-upkeep
+  figure counted it in full. Preference is all-or-nothing — a log where only
+  some tick records carry the figure falls back to the estimate, because
+  summing a measured tick with an estimated one reports a number that is
+  neither. Logs written before this release are unaffected.
+
 - Organic memory Phase 2: in-memory `ActivationState` (recall-salience;
   `bump`/`decay`/`level`) plus lossless `surface(entry, state)` / `detail(entry)`
   — a recalled memory expands to detail, an idle one shrinks to its gist, with
@@ -74,9 +88,9 @@ project uses [SemVer](https://semver.org/).
     **resource** ledger (settled deltas in world units) and the
     **energy** ledger (the internal dimensionless mechanism)
     separately and never summed, because they are different units.
-    Upkeep is reported as `upkeep_paid` with `upkeep_exact: false` —
-    estimated as population times upkeep until a later release logs
-    the exact per-tick figure on the tick event itself.
+    Upkeep is reported as `upkeep_paid` with an `upkeep_exact` flag;
+    logs written before the tick event carried the charged figure fall
+    back to a population-times-upkeep estimate.
 - Distillation benchmark arm (`bench/distill/`, `python -m bench.run
   --suite distill`): an opt-in, GPU/`transformers`-required family that
   measures survival selection as a *data filter for parametric memory*.
