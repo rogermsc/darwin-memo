@@ -1,4 +1,30 @@
+import pytest
+
 from darwin_memo import EntryKind, MemoryEntry, MemoryStore
+
+
+def test_ticks_to_starvation_is_energy_over_upkeep(store_factory):
+    store = store_factory(upkeep=0.05)
+    entry = store.alive()[0]
+    entry.energy = 1.0
+    assert store.ticks_to_starvation(entry) == pytest.approx(20.0), (
+        "spawn 1.0 at upkeep 0.05 is the documented 20-tick cliff"
+    )
+
+
+def test_pinned_and_free_entries_never_starve(store_factory):
+    """None means 'cannot starve', which is not the same as 0 ticks left."""
+    store = store_factory(upkeep=0.05)
+    entry = store.alive()[0]
+    entry.pinned = True
+    assert store.ticks_to_starvation(entry) is None, (
+        "a pinned balance floors at zero instead of dying"
+    )
+    entry.pinned = False
+    free = store_factory(upkeep=0.0)
+    assert free.ticks_to_starvation(free.alive()[0]) is None, (
+        "no upkeep means no starvation, and never a ZeroDivisionError"
+    )
 
 
 def test_upkeep_kills_unused_entries():

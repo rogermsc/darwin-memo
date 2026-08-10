@@ -49,7 +49,7 @@ def test_cli_encode_missing_file(tmp_path, capsys):
 
 
 def test_mcp_server_full_cycle(tmp_path):
-    pytest.importorskip("mcp")
+    pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 
     from darwin_memo.mcp_server import build_server

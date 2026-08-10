@@ -17,6 +17,55 @@ project uses [SemVer](https://semver.org/).
   Additive and read-only w.r.t. survival — relatedness is mechanical cosine,
   value is still earned by the ledger; no judge. See `docs/organic.md`.
 
+- The operator surface: `darwin-memo doctor` names the failure mode
+  behind a store that is not earning, and `darwin-memo ui` serves a
+  local read-only dashboard over the same data.
+  - Shared degeneracy rules (`darwin_memo/diagnose.py`): the six
+    findings the batch loop and the event-driven Ledger can hit now
+    live in one place (`selection_findings` for the two shared to both
+    shapes, plus four Ledger-only operational findings in
+    `observe.py`), so a fix lands once and the two surfaces cannot
+    drift. `SurvivalReport.health_warning` now delegates to the shared
+    rules instead of carrying its own copy, and gained its first
+    tests. Two of the six rules were corrected during implementation
+    after they produced false positives on this project's own
+    flagship demo: `starvation_cliff` now also requires that nothing
+    was ever credited in the window (starving alone is a healthy death
+    mode for trivia nobody needed — the fault is a population that
+    never earns), and `settles_dropped` now fires only on the excess
+    beyond the count of silent decides, since a silent `decide()`
+    never opens a ticket and settling one always drops as a benign,
+    expected event.
+  - `darwin-memo doctor MEMORY [--json]`: reads the store and its
+    event log and reports zero or more of `silent_majority`,
+    `env_never_paid`, `starvation_cliff` (all severity `error`), and
+    `tickets_stale`, `settles_dropped`, `credit_untracked` (severity
+    `warn`), each with evidence and a fix. Exit code 1 if any finding
+    is an error, 0 otherwise (clean or warnings only). See the finding
+    table in [docs/api.md](docs/api.md#doctor-findings).
+  - `darwin-memo ui MEMORY [--port 8787] [--no-open]`
+    (`darwin_memo/ui.py`): a stdlib-only loopback HTTP server (no new
+    runtime dependency) plus a built Vite/React/TS dashboard
+    (`ui/`, shipped inside the main wheel via `package-data`, no
+    `[ui]` extra). Loopback-only and read-only by construction —
+    `serve()` refuses to bind outside `{127.0.0.1, localhost, ::1}`
+    and there are no mutation endpoints, so the server needs no
+    authentication. The store and event log are re-read from disk on
+    every request. Four JSON routes (`/api/state`, `/api/entry/{id}`,
+    `/api/events`, plus the static bundle) render population, energy,
+    the `doctor` findings, `timeline`, `economics`, living entries,
+    the graveyard by cause of death, and pending tickets.
+  - `timeline` and `economics` on the observe surface
+    (`darwin_memo/observe.py`): `timeline(events)` buckets settled
+    deltas by tick (by write order, not the settle record's own tick
+    stamp, since `Ledger.tick()` settles expired tickets inside the
+    same window it logs). `economics(events, store)` reports the
+    **resource** ledger (settled deltas in world units) and the
+    **energy** ledger (the internal dimensionless mechanism)
+    separately and never summed, because they are different units.
+    Upkeep is reported as `upkeep_paid` with `upkeep_exact: false` —
+    estimated as population times upkeep until a later release logs
+    the exact per-tick figure on the tick event itself.
 - Distillation benchmark arm (`bench/distill/`, `python -m bench.run
   --suite distill`): an opt-in, GPU/`transformers`-required family that
   measures survival selection as a *data filter for parametric memory*.
@@ -47,6 +96,35 @@ project uses [SemVer](https://semver.org/).
   recalls both corpora (cat/ties ≈ a joint-trained ceiling, linear
   interferes) while poison reproduction stays 0 after merge, alongside
   `solo` and `joint` baselines.
+
+### Security
+
+- `darwin-memo ui`'s `Host` header check (`darwin_memo/ui.py`,
+  `_host_only`) now requires an exact match — a loopback name or
+  address, optionally followed by a numeric port, and nothing else —
+  instead of truncating at the first colon or the first `]`. That
+  truncation let `127.0.0.1:PORT@evil.com` and `[::1]evil.com` parse
+  down to a bare loopback host and pass; a browser can't put either
+  string in a real `Host` header, so this closes a parser looseness,
+  not a live DNS-rebinding hole. Host name comparison is also now
+  case-folded per RFC 3986/7230, fixing a real false rejection where
+  `Host: LOCALHOST` was wrongly refused.
+
+## [0.5.2] - 2026-08-06
+
+### Fixed
+
+- `pip install "darwin-memo[mcp]"` installed a server that could not
+  start. The extra declared an unbounded `mcp>=1.10`, and mcp 2.0.0
+  removed `mcp.server.fastmcp` outright, so the import in
+  `mcp_server.build_server` raised `ModuleNotFoundError` on every Python
+  version for anyone who installed the extra after that release. The
+  range is now capped at `mcp>=1.10,<2`. Supporting 2.x means porting to
+  its new API and is not part of this fix.
+- Three tests guarded on `importorskip("mcp")`, which succeeds under
+  mcp 2.x and then fails on the missing submodule rather than skipping.
+  They now guard on `importorskip("mcp.server.fastmcp")`, the module
+  actually required.
 
 ## [0.5.1] - 2026-06-13
 
