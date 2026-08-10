@@ -1,6 +1,6 @@
 # API reference
 
-The public surface of darwin-memo 0.5.0: everything importable from
+The public surface of darwin-memo 0.6.0: everything importable from
 the top-level `darwin_memo` package (its `__all__`), the
 `darwin-memo` CLI, and the MCP server tools. Signatures below are
 copied from the code; when this page and the code disagree, the code
@@ -483,6 +483,8 @@ it).
 | `darwin-memo why MEMORY ENTRY_ID [--json]` | one entry's full life story, dead or alive |
 | `darwin-memo audit MEMORY [--since TS] [--last N] [--json]` | event-log digest across rotated files |
 | `darwin-memo render MEMORY [-o MEMORY.md] [--budget 25kb] [--max-lines 200] [--split-dir DIR]` | top-balance survivors as a budget-capped `MEMORY.md` (see the [Claude Code integration](integrations/claude-code.md)) |
+| `darwin-memo doctor MEMORY [--json]` | name the failure mode behind a store that is not earning; see [findings](#doctor-findings) below |
+| `darwin-memo ui MEMORY [--port 8787] [--no-open]` | local read-only dashboard in your browser |
 | `darwin-memo settle-ci MEMORY ...` | settle a CI lesson store from test results |
 | `darwin-memo mcp [--memory PATH] [--resource-scale F]` | serve the memory over MCP stdio, the same server as the `darwin-memo-mcp` console script below |
 
@@ -535,6 +537,50 @@ nothing and the store is left untouched). Flaky tests that flip
 direction `--flip-threshold` times inside the `--window` are
 quarantined out of the delta via the sidecar state file. See
 [the integration guide](integrations/ci-lesson-store.md).
+
+### `doctor` findings
+
+`darwin-memo doctor MEMORY [--json]` reads the store and its event log
+(`darwin_memo/observe.py:doctor`, rules shared with the batch loop's
+`SurvivalReport.health_warning` via `darwin_memo/diagnose.py`) and
+names which of six degeneracies it hit, instead of leaving several of
+them looking identical (a starving population reads the same whether
+memory never speaks or never gets paid). Human output is one block per
+finding: `SEVERITY [code]: summary`, then `evidence:` and `fix:`
+lines; `--json` prints `{"findings": [...]}` with the same fields.
+Findings are independent — zero or more can fire in one run.
+
+| code | severity | fires when |
+|---|---|---|
+| `silent_majority` | error | at least 10 decisions were made and memory stayed silent on over 80% of them |
+| `env_never_paid` | error | at least 5 settlements landed and every one carried a zero delta (gross movement, not a net sum, so cancelling payouts do not read as dead) |
+| `starvation_cliff` | error | at least 3 dead entries, at least half of them starved (never used, not merged, not executed), **and nothing in the window was ever credited**. Starving alone is a healthy death mode for trivia nobody needed; the fault is a population that never earns |
+| `tickets_stale` | warn | one or more pending tickets are older than 50 ticks (`expire_after`'s default) |
+| `settles_dropped` | warn | `settle_dropped` events exceed the count of silent decides. A silent `decide()` never opens a ticket (`Ledger.decide` only tracks a ticket when the answer has provenance), so settling a silent decide always drops — that count is benign and subtracted out; only the excess is worth a warning |
+| `credit_untracked` | warn | one or more settlements carry no per-entry `applied` credit list (written by a version before per-entry credit was logged) |
+
+Exit code: **1 if any finding has severity `error`**, otherwise **0**
+— warnings alone (`tickets_stale`, `settles_dropped`,
+`credit_untracked`) exit 0.
+
+### `ui`
+
+`darwin-memo ui MEMORY [--port 8787] [--no-open]` serves a dashboard
+over `MEMORY` on `127.0.0.1` (0 for `--port` picks a free one;
+`--no-open` skips the automatic browser launch). Loopback-only and
+read-only by construction: `serve()` refuses to bind any host outside
+`{127.0.0.1, localhost, ::1}`, and there are no mutation endpoints, so
+the server needs no authentication. The store and event log are
+re-read from disk on every request rather than cached. Four JSON
+routes plus the static bundle: `GET /api/state` (population, energy,
+`doctor` findings, `timeline`, `economics`, living entries, graveyard,
+pending tickets — everything the dashboard renders, in one pass),
+`GET /api/entry/{id}` (one entry's life story, 404 if unknown),
+`GET /api/events?since=&last=` (windowed event log), and everything
+else served from the built frontend (`darwin_memo/data/ui`) or a
+"build it" placeholder page when no bundle is present. A concurrent
+external writer (the CLI, the MCP server) holding the store's advisory
+lock answers 503, not a crash.
 
 ## MCP server: `darwin-memo-mcp`
 
