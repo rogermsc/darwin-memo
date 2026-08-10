@@ -7,7 +7,12 @@ export function Graveyard({ graves }: { graves: Grave[] }) {
   for (const grave of graves) {
     byCause.set(grave.cause, [...(byCause.get(grave.cause) ?? []), grave]);
   }
-  const causes = ORDER.filter((cause) => byCause.has(cause));
+  const known = ORDER.filter((cause) => byCause.has(cause));
+  // Anything the server sends that ORDER does not know about still gets
+  // shown: a grave that silently vanishes is worse than one in an
+  // unexpected group, and nothing ties this list to the Python vocabulary.
+  const extra = [...byCause.keys()].filter((c) => !ORDER.includes(c)).sort();
+  const causes = [...known, ...extra];
   return (
     <section className="panel">
       <h2>Graveyard</h2>
