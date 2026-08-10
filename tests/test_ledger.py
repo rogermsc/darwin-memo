@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from darwin_memo import Ledger, MemoryEntry, MemoryStore, SurvivalConfig, Ticket
 
 
@@ -175,3 +177,55 @@ def test_ledger_add_and_forget_honor_escrow_and_log(tmp_path):
     events = [_json.loads(line)["event"] for line in log.read_text().splitlines()]
     assert "add" in events and "forget_refused" in events and "forget" in events
     assert "by forget" in ledger.obituary(entry.id)
+
+
+def test_tick_event_records_the_upkeep_actually_charged(tmp_path):
+    log = tmp_path / "events.jsonl"
+    store = seeded_store()
+    ledger = Ledger(store, resource_scale=1.0, event_log=log)
+
+    ledger.tick()
+
+    events = [json.loads(line) for line in log.read_text().splitlines()]
+    ticks = [e for e in events if e["event"] == "tick"]
+    assert ticks[-1]["upkeep_charged"] == pytest.approx(
+        len(ledger.store) * ledger.store.upkeep
+    ), "no pinned entries here, so charged equals the naive estimate"
+
+
+def test_pinned_entry_at_zero_makes_the_charge_less_than_the_naive_estimate(tmp_path):
+    """Step 7 (REQUIRED): proves population x upkeep was actually wrong.
+
+    A pinned entry floors at zero instead of dying, so it can pay less
+    than a full upkeep tick. If the logged charge ever equalled the
+    naive population x upkeep estimate here, this feature would be
+    measuring nothing.
+    """
+    log = tmp_path / "events.jsonl"
+    store = MemoryStore(upkeep=0.05)
+    store.add(
+        MemoryEntry(
+            question="Is the pinned fact always available?",
+            answer="Yes, pinned facts stay consultable even at zero energy.",
+            sources=["runbook"],
+            pinned=True,
+            energy=0.0,
+        )
+    )
+    store.add(
+        MemoryEntry(
+            question="What about stale feature flags?",
+            answer="Stale feature flags are redundant and safe to remove.",
+            sources=["runbook"],
+        )
+    )
+    ledger = Ledger(store, resource_scale=1.0, event_log=log)
+
+    ledger.tick()
+
+    events = [json.loads(line) for line in log.read_text().splitlines()]
+    tick_event = next(e for e in events if e["event"] == "tick")
+    naive_estimate = len(store) * store.upkeep
+    assert tick_event["upkeep_charged"] < naive_estimate, (
+        "the pinned entry's zero floor forgave part of its upkeep"
+    )

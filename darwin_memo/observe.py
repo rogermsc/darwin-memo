@@ -453,28 +453,38 @@ def economics(events: list[dict[str, Any]], store: MemoryStore) -> dict[str, Any
     is the internal, dimensionless mechanism. Adding one to the other
     would be adding bytes to tanh output.
 
-    Upkeep is estimated as population x upkeep. Every alive entry pays
-    each tick (``MemoryStore.charge_upkeep``: ``protect`` and ``pinned``
-    change burial and flooring, not the charge), so the estimate is
-    exact except that a pinned entry sitting at zero has its charge
-    forgiven by the floor.
+    Upkeep is the sum of ``upkeep_charged`` logged by each tick record
+    (``MemoryStore.charge_upkeep`` records exactly what it deducted,
+    including any charge a pinned entry's zero floor forgave). That
+    figure is used only when EVERY tick record in the log carries it;
+    a log with even one record from before this field existed falls
+    back to the old population x upkeep estimate rather than summing
+    real and estimated figures together, which would report a number
+    that is neither.
     """
     digest = audit_digest(events, store=store)
     rows = timeline(events)
-    # A trailing open-interval row (see timeline()) has no population
-    # yet; it is not a closed tick, so it pays no upkeep to sum.
-    upkeep_paid = round(
-        sum(r["population"] for r in rows if r["population"] is not None)
-        * store.upkeep,
-        6,
-    )
+    tick_events = [e for e in events if e.get("event") == "tick"]
     pinned = sum(1 for entry in store.alive() if entry.pinned)
-    caveat = (
-        f"estimated as population x upkeep; {pinned} pinned "
-        "entries may have had a charge forgiven at the zero floor"
-        if pinned
-        else ""
-    )
+    if tick_events and all("upkeep_charged" in e for e in tick_events):
+        upkeep_paid = round(sum(float(e["upkeep_charged"]) for e in tick_events), 6)
+        upkeep_exact = True
+        caveat = ""
+    else:
+        # A trailing open-interval row (see timeline()) has no population
+        # yet; it is not a closed tick, so it pays no upkeep to sum.
+        upkeep_paid = round(
+            sum(r["population"] for r in rows if r["population"] is not None)
+            * store.upkeep,
+            6,
+        )
+        upkeep_exact = False
+        caveat = (
+            f"estimated as population x upkeep; {pinned} pinned "
+            "entries may have had a charge forgiven at the zero floor"
+            if pinned
+            else ""
+        )
     return {
         "resource": {
             "delta_total": digest["settles"]["delta_total"],
@@ -487,7 +497,7 @@ def economics(events: list[dict[str, Any]], store: MemoryStore) -> dict[str, Any
             "debited": digest["energy"]["debited"],
             "net": digest["energy"]["net"],
             "upkeep_paid": upkeep_paid,
-            "upkeep_exact": False,
+            "upkeep_exact": upkeep_exact,
             "upkeep_caveat": caveat,
         },
         "population": {"alive": len(store), "dead": len(store.graveyard())},

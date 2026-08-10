@@ -424,12 +424,42 @@ def test_economics_separates_resource_from_energy(tmp_path):
     assert report["energy"]["upkeep_paid"] == pytest.approx(
         report["population"]["alive"] * 0.05
     ), "one tick of upkeep for the surviving population"
-    assert report["energy"]["upkeep_exact"] is False
+    assert report["energy"]["upkeep_exact"] is True, (
+        "a fresh log carries upkeep_charged on every tick record"
+    )
     assert report["energy"]["upkeep_caveat"] == "", "no pinned entries in this store"
 
 
 def _events(memory):
     return read_events(memory.with_suffix(".events.jsonl"))
+
+
+def test_economics_prefers_the_logged_figure(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.save(memory)
+    report = economics(read_events(memory.with_suffix(".events.jsonl")), ledger.store)
+    assert report["energy"]["upkeep_exact"] is True
+    assert report["energy"]["upkeep_caveat"] == ""
+
+
+def test_economics_falls_back_on_a_legacy_log(tmp_path):
+    """A log written before this release must still report the old number."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+    stripped = []
+    for record in read_events(log):
+        record.pop("upkeep_charged", None)
+        stripped.append(record)
+    log.write_text("\n".join(json.dumps(r) for r in stripped) + "\n")
+
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False
+    assert report["energy"]["upkeep_paid"] == pytest.approx(
+        len(ledger.store) * ledger.store.upkeep
+    )
 
 
 def test_doctor_is_clean_on_a_healthy_store(tmp_path):
