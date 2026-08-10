@@ -229,6 +229,18 @@ class MemoryStore:
             self.bury(entry.id)
         return dead
 
+    def ticks_to_starvation(self, entry: MemoryEntry) -> float | None:
+        """Ticks of upkeep this entry can still pay, or None if it cannot starve.
+
+        The operator's actual question, and the number that makes the
+        spawn/upkeep cliff visible before it bites. ``None`` is not zero:
+        a pinned entry floors at zero rather than dying, and a store with
+        no upkeep never starves anything.
+        """
+        if self.upkeep <= 0 or entry.pinned:
+            return None
+        return round(entry.energy / self.upkeep, 1)
+
     def bury(self, entry_id: str) -> None:
         entry = self._entries.pop(entry_id, None)
         self.retriever.forget(entry_id)

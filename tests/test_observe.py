@@ -12,6 +12,7 @@ from darwin_memo.observe import (
     audit_digest,
     doctor,
     economics,
+    entry_life,
     filter_events,
     read_events,
     timeline,
@@ -76,6 +77,22 @@ def test_top_ranks_by_balance_with_json_shape(tmp_path, capsys):
     table = capsys.readouterr().out
     assert first["id"] in table
     assert payload["entries"][1]["id"] not in table
+
+
+def test_one_definition_across_cli_and_api(tmp_path, capsys):
+    """top, why and /api/state must not be able to disagree."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.save(memory)
+    entry = ledger.store.alive()[0]
+    expected = ledger.store.ticks_to_starvation(entry)
+
+    top = _json_out(capsys, ["top", str(memory), "--json"])
+    row = next(r for r in top["entries"] if r["id"] == entry.id)
+    assert row["ticks_to_starvation"] == expected
+
+    life = entry_life(ledger, entry.id)
+    assert life is not None
+    assert life["ticks_to_starvation"] == expected
 
 
 def test_top_missing_file_errors(tmp_path, capsys):

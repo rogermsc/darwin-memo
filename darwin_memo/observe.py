@@ -47,7 +47,7 @@ _TOP_MOVERS = 5  # gainers and losers listed in the audit digest
 # ----------------------------------------------------------------------
 
 
-def top_row(entry: MemoryEntry, tick: int) -> dict[str, Any]:
+def top_row(entry: MemoryEntry, tick: int, store: MemoryStore) -> dict[str, Any]:
     return {
         "id": entry.id,
         "balance": round(entry.energy, 3),
@@ -62,6 +62,7 @@ def top_row(entry: MemoryEntry, tick: int) -> dict[str, Any]:
         "pinned": entry.pinned,
         "probation": entry.probation,
         "question": entry.question,
+        "ticks_to_starvation": store.ticks_to_starvation(entry),
     }
 
 
@@ -70,7 +71,10 @@ def cmd_top(args: argparse.Namespace) -> int:
     if ledger is None:
         return 1
     ranked = sorted(ledger.store.alive(), key=lambda e: e.energy, reverse=True)
-    rows = [top_row(entry, ledger.tick_count) for entry in ranked[: args.limit]]
+    rows = [
+        top_row(entry, ledger.tick_count, ledger.store)
+        for entry in ranked[: args.limit]
+    ]
     if args.json:
         print(
             json.dumps(
@@ -162,6 +166,7 @@ def entry_life(ledger: Ledger, entry_id: str) -> dict[str, Any] | None:
         "sources": list(entry.sources) if entry else [],
         "balance": round(entry.energy, 3) if entry else None,
         "uses": entry.uses if entry else None,
+        "ticks_to_starvation": store.ticks_to_starvation(entry) if entry else None,
         "pinned": entry.pinned if entry else False,
         "probation": entry.probation if entry else 0,
         "juvenile": entry.juvenile if entry else 0,
