@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import re
 import threading
 import webbrowser
 from functools import partial
@@ -49,19 +50,37 @@ BUNDLE = Path(__file__).parent / "data" / "ui"
 LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
-def _host_only(raw: str) -> str:
-    """Strip the port (and IPv6 brackets) from a ``Host`` header value.
+# A whole-string match (via fullmatch) for exactly a loopback-shaped
+# authority: either a bracketed IPv6 literal ("[::1]") or a bare name/IPv4
+# ("127.0.0.1", "localhost"), optionally followed by ":<digits>". Nothing
+# may trail the port or the closing bracket -- that is what rejects
+# "127.0.0.1:8787@evil.com" (garbage after the port) and "[::1]evil.com"
+# (garbage after the bracket), where the old split-on-first-colon /
+# strip-to-first-"]" parser truncated instead of refusing. The pattern
+# ends in ``\Z``, not ``$`` -- ``$`` also matches just before a trailing
+# newline, which would accept a smuggled "host\n" as a bare match.
+_HOST_RE = re.compile(
+    r"(?:\[(?P<v6>[0-9a-fA-F:]+)\]|(?P<name>[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?))"
+    r"(?::(?P<port>\d+))?\Z"
+)
 
-    ``"host:port"`` splits on its one colon; an IPv6 literal has more
-    than one colon and, when a port follows, brackets around the
-    address (``"[::1]:8787"``) -- without brackets a bare IPv6 host has
-    no port to strip at all, so it is returned as-is.
+
+def _host_only(raw: str) -> str | None:
+    """Parse a ``Host`` header down to a bare, case-folded host name.
+
+    Returns ``None`` for anything that is not *exactly* a loopback name
+    or IP literal (brackets stripped for IPv6) plus an optional numeric
+    port -- no path, no credentials, no trailing text, no empty string.
+    Host names are case-insensitive (RFC 3986/7230: ``LOCALHOST`` must
+    match ``localhost``); ``.lower()`` is safe for the IPv6 branch too
+    since a loopback literal (``::1``) has no alphabetic characters to
+    fold.
     """
-    if raw.startswith("[") and "]" in raw:
-        return raw[1 : raw.index("]")]
-    if raw.count(":") == 1:
-        return raw.split(":", 1)[0]
-    return raw
+    match = _HOST_RE.fullmatch(raw)
+    if not match:
+        return None
+    host = match.group("v6") or match.group("name")
+    return host.lower()
 
 
 _NO_BUNDLE = b"""<!doctype html><meta charset="utf-8">
@@ -189,7 +208,7 @@ class _Handler(BaseHTTPRequestHandler):
         # work -- no route lookup, no file read -- so an unexpected
         # Host can never reach a handler that would answer it.
         host = _host_only(self.headers.get("Host") or "")
-        if host and host not in LOOPBACK:
+        if host not in LOOPBACK:
             self._json(
                 421, {"error": "unexpected Host; the dashboard is loopback-only"}
             )

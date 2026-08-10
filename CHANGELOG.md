@@ -88,6 +88,19 @@ project uses [SemVer](https://semver.org/).
   interferes) while poison reproduction stays 0 after merge, alongside
   `solo` and `joint` baselines.
 
+### Security
+
+- `darwin-memo ui`'s `Host` header check (`darwin_memo/ui.py`,
+  `_host_only`) now requires an exact match — a loopback name or
+  address, optionally followed by a numeric port, and nothing else —
+  instead of truncating at the first colon or the first `]`. That
+  truncation let `127.0.0.1:PORT@evil.com` and `[::1]evil.com` parse
+  down to a bare loopback host and pass; a browser can't put either
+  string in a real `Host` header, so this closes a parser looseness,
+  not a live DNS-rebinding hole. Host name comparison is also now
+  case-folded per RFC 3986/7230, fixing a real false rejection where
+  `Host: LOCALHOST` was wrongly refused.
+
 ## [0.5.2] - 2026-08-06
 
 ### Fixed

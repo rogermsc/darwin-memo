@@ -36,6 +36,14 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
   // throws past ~100k arguments; a fully rotated log (40 MB) holds far
   // more tick rows than that.
   const domain: [number, number] = [rows[0].tick, rows[rows.length - 1].tick];
+  // The trailing open-interval row (see observe.py's timeline()) has
+  // every tick-stat field null, so both lines above already draw
+  // nothing for it -- true, but silent: the operator can't tell "no
+  // tick has landed since this settlement" from "nothing happened".
+  // A short note is the cheapest correct cue: no custom dot shape, no
+  // ReferenceLine fighting the null-valued point it would sit next to.
+  const last = rows[rows.length - 1];
+  const open = last.open ? last : null;
   return (
     <section className="panel">
       <h2>Population over time</h2>
@@ -95,6 +103,13 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
+      {open && (
+        <p className="timeline-open-note">
+          tick {open.tick} is still open — {open.delta > 0 ? "+" : ""}
+          {open.delta.toLocaleString()} settled since the last tick, not yet
+          closed by one
+        </p>
+      )}
     </section>
   );
 }

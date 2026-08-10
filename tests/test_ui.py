@@ -152,6 +152,44 @@ def test_events_endpoint_does_not_500_on_a_non_numeric_last(served):
     assert isinstance(payload["events"], list)
 
 
+def test_events_endpoint_returns_empty_list_when_the_sidecar_log_is_missing(
+    tmp_path,
+):
+    """P-4: no .events.jsonl sidecar at all (a fresh store, or one copied
+    without its log) must 200 with an empty list, not error -- read_events
+    already tolerates this (_read_one_log checks path.exists()); this
+    locks the contract in at the HTTP layer."""
+    memory = tmp_path / "memory.json"
+    MemoryStore().save(memory)
+    assert not memory.with_suffix(".events.jsonl").exists()
+    server, base = _served_base(memory)
+    try:
+        status, payload = _get(f"{base}/api/events")
+        assert status == 200
+        assert payload["events"] == []
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_events_endpoint_returns_empty_list_when_the_sidecar_log_is_empty(
+    tmp_path,
+):
+    """P-4: the sidecar exists but has zero bytes (e.g. just rotated) --
+    same 200-with-empty-list contract, not a parse error."""
+    memory = tmp_path / "memory.json"
+    MemoryStore().save(memory)
+    memory.with_suffix(".events.jsonl").write_text("")
+    server, base = _served_base(memory)
+    try:
+        status, payload = _get(f"{base}/api/events")
+        assert status == 200
+        assert payload["events"] == []
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_static_route_refuses_to_escape_the_bundle(tmp_path, monkeypatch, served):
     """No-bundle behaviour, asserted regardless of whether this checkout
     happens to have a built frontend under darwin_memo/data/ui/ -- BUNDLE
@@ -222,7 +260,10 @@ def test_do_get_rejects_a_spoofed_host_with_a_port(served):
 
 def test_do_get_accepts_every_loopback_host_form(served):
     """Both-directions proof: the guard must not reject the legitimate
-    traffic every other test in this file depends on."""
+    traffic every other test in this file depends on. Includes P-2's
+    uppercase/mixed-case forms: host names are case-insensitive per
+    RFC 3986/7230, so ``LOCALHOST`` must pass exactly like ``localhost``.
+    """
     base, _, _ = served
     parsed = urllib.parse.urlsplit(base)
     for host_header in (
@@ -230,11 +271,71 @@ def test_do_get_accepts_every_loopback_host_form(served):
         f"127.0.0.1:{parsed.port}",
         "localhost",
         f"localhost:{parsed.port}",
+        "LOCALHOST",
+        f"LOCALHOST:{parsed.port}",
+        "LocalHost",
         "[::1]",
         f"[::1]:{parsed.port}",
     ):
         status, _ = _raw_get(base, "/api/state", host_header)
         assert status == 200, host_header
+
+
+def test_do_get_rejects_a_host_with_trailing_garbage_after_the_port_or_bracket(
+    served,
+):
+    """P-1: the old parser split on the FIRST colon / stripped to the
+    FIRST "]" and returned whatever was left of that, silently dropping
+    anything after it. "127.0.0.1:PORT@evil.com" truncated to
+    "127.0.0.1" and "[::1]evil.com" truncated to "::1" -- both parsed as
+    loopback and were wrongly accepted. Neither string is one a browser
+    can put in a real Host header (DNS rebinding still can't reach this),
+    but the parser itself must not be the only thing standing between
+    correct and lucky."""
+    base, _, _ = served
+    parsed = urllib.parse.urlsplit(base)
+    for host_header in (
+        f"127.0.0.1:{parsed.port}@evil.com",
+        "[::1]evil.com",
+        f"[::1]evil.com:{parsed.port}",
+        f"[::1]:{parsed.port}evil.com",
+    ):
+        status, body = _raw_get(base, "/api/state", host_header)
+        assert status == 421, host_header
+        payload = json.loads(body)
+        assert set(payload) == {"error"}, host_header
+        assert "loopback" in payload["error"], host_header
+
+
+def test_do_get_rejects_empty_path_credential_and_non_numeric_port_hosts(served):
+    """P-1 hardening: a Host must be exactly a loopback name/address plus
+    an optional numeric port -- nothing else. Empty, a path, embedded
+    credentials, and a non-numeric port must all fail closed."""
+    base, _, _ = served
+    for host_header in (
+        "",
+        "127.0.0.1/../../etc/passwd",
+        "user:pass@127.0.0.1",
+        "localhost:notaport",
+    ):
+        status, body = _raw_get(base, "/api/state", host_header)
+        assert status == 421, host_header
+        assert "loopback" in json.loads(body)["error"], host_header
+
+
+def test_do_get_rejects_a_bad_host_before_any_store_read(served):
+    """Order proof, not just a rejected status code: if the Host check
+    ran after (or interleaved with) a store read, deleting the memory
+    file out from under a live server would turn a spoofed-Host request
+    into a 404 (FileNotFoundError from _load) instead of a 421. It must
+    stay 421 -- the rejection happens before do_GET reaches any route."""
+    base, memory, _ = served
+    memory.unlink()
+    status, body = _raw_get(base, "/api/state", "evil.example.com")
+    assert status == 421
+    payload = json.loads(body)
+    assert set(payload) == {"error"}
+    assert "loopback" in payload["error"]
 
 
 def test_state_is_read_only(tmp_path):
