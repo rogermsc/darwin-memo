@@ -462,6 +462,47 @@ def test_economics_falls_back_on_a_legacy_log(tmp_path):
     )
 
 
+def test_economics_falls_back_when_only_some_ticks_carry_the_figure(tmp_path):
+    """All-or-nothing: a mixed log must not sum measured and estimated."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+
+    records = read_events(log)
+    ticks = [r for r in records if r.get("event") == "tick"]
+    assert len(ticks) == 2, "the fixture must actually produce a mixed log"
+
+    ticks[0].pop("upkeep_charged")
+    log.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False, (
+        "one untagged tick makes the whole window inexact; summing a "
+        "measured tick with an estimated one reports neither"
+    )
+
+
+def test_economics_falls_back_when_the_last_tick_lacks_the_figure(tmp_path):
+    """Same guard, missing field on the other end -- direction must not matter."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+
+    records = read_events(log)
+    ticks = [r for r in records if r.get("event") == "tick"]
+    assert len(ticks) == 2, "the fixture must actually produce a mixed log"
+
+    ticks[-1].pop("upkeep_charged")
+    log.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False, (
+        "missing on the last tick instead of the first must also fall back"
+    )
+
+
 def test_doctor_is_clean_on_a_healthy_store(tmp_path):
     memory, ledger = seeded_ledger(tmp_path)
     for _ in range(6):
