@@ -4,6 +4,8 @@ import { Header } from "./panels/Header";
 import { DoctorBanner } from "./panels/DoctorBanner";
 import { Timeline } from "./panels/Timeline";
 import { LivingTable } from "./panels/LivingTable";
+import { Economics } from "./panels/Economics";
+import { Graveyard } from "./panels/Graveyard";
 
 export default function App() {
   const { state, error } = useServerState();
@@ -17,6 +19,8 @@ export default function App() {
       <DoctorBanner findings={state.doctor} />
       <Timeline rows={state.timeline} />
       <LivingTable entries={state.entries} onSelect={setSelected} />
+      <Economics report={state.economics} />
+      <Graveyard graves={state.graveyard} />
     </main>
   );
 }
