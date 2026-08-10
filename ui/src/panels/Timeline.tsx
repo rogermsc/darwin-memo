@@ -1,6 +1,5 @@
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -10,64 +9,80 @@ import {
 } from "recharts";
 import type { TimelineRow } from "../api";
 
-// ponytail: population and total_energy share one plot on two y-axes.
-// dataviz's general rule is one axis per chart (a dual axis usually
-// invents a correlation between unrelated metrics); this pair is the
-// documented exception — energy running out *is* the mechanism that
-// drives the population collapse this panel exists to show, so the two
-// curves timed against each other on one plot is the actual story, not
-// a coincidence made to look causal.
+const TOOLTIP_STYLE = {
+  background: "var(--surface)",
+  border: "1px solid var(--line)",
+  borderRadius: "var(--radius-sm)",
+  fontSize: "0.82rem",
+};
+const AXIS_TICK = { fill: "var(--ink-faint)", fontSize: 11 };
+// Fixed on both charts so the two plot areas are the same width and the
+// ticks actually line up vertically, not just share a nominal domain.
+const Y_WIDTH = 46;
+
+// ponytail: two stacked charts on a shared, explicitly-set tick domain,
+// not one plot with a second y-axis. A second y-axis has a free
+// parameter — wherever its scale is set decides where the lines cross —
+// so it can imply a relationship the data doesn't actually fix. Stacked
+// and aligned shows the same mechanism (energy drains, population
+// collapses) with nothing tunable.
 export function Timeline({ rows }: { rows: TimelineRow[] }) {
   if (rows.length === 0) {
     return <section className="panel">No ticks recorded yet.</section>;
   }
+  const ticks = rows.map((row) => row.tick);
+  const domain: [number, number] = [Math.min(...ticks), Math.max(...ticks)];
   return (
     <section className="panel">
       <h2>Population over time</h2>
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+      <div className="label">population</div>
+      <ResponsiveContainer width="100%" height={140}>
+        <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--line)" />
           {/* Numeric x-axis: a rotated-away log leaves a gap in the tick
               numbers, and it should render as a gap, not an interpolated
-              line across it. */}
+              line across it. Tick labels hidden here — the bottom chart
+              carries them for both, on the same domain. */}
           <XAxis
             dataKey="tick"
             type="number"
-            domain={["dataMin", "dataMax"]}
-            tick={{ fill: "var(--ink-faint)", fontSize: 11 }}
-            stroke="var(--line-strong)"
+            domain={domain}
+            tick={false}
+            axisLine={false}
+            tickLine={false}
           />
           <YAxis
-            yAxisId="count"
+            width={Y_WIDTH}
             allowDecimals={false}
-            tick={{ fill: "var(--ink-faint)", fontSize: 11 }}
+            tick={AXIS_TICK}
             stroke="var(--line-strong)"
           />
-          <YAxis
-            yAxisId="energy"
-            orientation="right"
-            tick={{ fill: "var(--ink-faint)", fontSize: 11 }}
-            stroke="var(--line-strong)"
-          />
-          <Tooltip
-            contentStyle={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.82rem",
-            }}
-          />
-          <Legend wrapperStyle={{ fontSize: "0.78rem", color: "var(--ink-soft)" }} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
           <Line
-            yAxisId="count"
             dataKey="population"
             name="population"
             stroke="var(--chart-series-1)"
             strokeWidth={2}
             dot={false}
           />
+        </LineChart>
+      </ResponsiveContainer>
+      <div className="label" style={{ marginTop: "var(--space-4)" }}>
+        total energy
+      </div>
+      <ResponsiveContainer width="100%" height={170}>
+        <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+          <CartesianGrid stroke="var(--line)" />
+          <XAxis
+            dataKey="tick"
+            type="number"
+            domain={domain}
+            tick={AXIS_TICK}
+            stroke="var(--line-strong)"
+          />
+          <YAxis width={Y_WIDTH} tick={AXIS_TICK} stroke="var(--line-strong)" />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
           <Line
-            yAxisId="energy"
             dataKey="total_energy"
             name="total energy"
             stroke="var(--chart-series-2)"
