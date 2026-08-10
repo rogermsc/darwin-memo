@@ -7,6 +7,7 @@
     darwin-memo ledger FILE OP ...       decide/settle/tick for scripts
     darwin-memo mcp                      serve the memory over MCP stdio
     darwin-memo import SRC DEST          probationary import from another store
+    darwin-memo ui FILE                  local read-only dashboard
 
 The demo is self-contained: it carries its own three-document corpus
 (including the poisoned forum post) and runs the survival loop against
@@ -40,12 +41,13 @@ from .environments import StorageEnv
 from .ledger import DEFAULT_PROBATION, Ledger
 from .llm import LLMClient
 from .mcp_server import register_mcp_command
-from .observe import register_observe_commands
+from .observe import economics, read_events, register_observe_commands
 from .protocol import QueryProtocol
 from .render import register_render_command
 from .store import MemoryStore
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
 from .types import EntryKind
+from .ui import cmd_ui
 
 
 def _positive_float(text: str) -> float:
@@ -205,6 +207,18 @@ def cmd_stats(args: argparse.Namespace) -> int:
     store = MemoryStore.load(args.memory)
     print(f"alive: {len(store)}  graveyard: {len(store.graveyard())}")
     print(f"total energy: {store.total_energy():.2f}")
+    log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
+    if log.exists():
+        report = economics(read_events(log), store)
+        resource, energy = report["resource"], report["energy"]
+        print(
+            f"resource delta: {resource['delta_total']:+g} over "
+            f"{resource['decides']} decisions ({resource['silent']} silent)"
+        )
+        print(
+            f"energy: net {energy['net']:+.3f} against "
+            f"{energy['upkeep_paid']:.3f} upkeep paid"
+        )
     shares = store.energy_share_by_kind()
     for kind, share in sorted(shares.items(), key=lambda kv: -kv[1]):
         print(f"  {kind:>12}: {share:.0%} of energy")
@@ -445,6 +459,12 @@ def main(argv: list[str] | None = None) -> int:
         f"(default {DEFAULT_PROBATION}; 0 imports at full trust)",
     )
     imp.set_defaults(fn=cmd_import)
+
+    ui = sub.add_parser("ui", help="local read-only dashboard in your browser")
+    ui.add_argument("memory")
+    ui.add_argument("--port", type=int, default=8787, help="default 8787; 0 picks one")
+    ui.add_argument("--no-open", action="store_true", help="do not open a browser")
+    ui.set_defaults(fn=cmd_ui)
 
     register_observe_commands(sub)
     register_render_command(sub)

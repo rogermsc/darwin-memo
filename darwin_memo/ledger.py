@@ -526,6 +526,7 @@ class Ledger:
             "pending": len(self._pending),
             "expired": len(expired),
             "total_energy": round(self.store.total_energy(), 3),
+            "upkeep_charged": self.store.last_upkeep_charged,
         }
         self._log("tick", **stats, dead_entries=[e.id for e in dead])
         return stats
