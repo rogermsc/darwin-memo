@@ -96,6 +96,7 @@ class MemoryStore:
         self.retriever: Retriever = retriever or LexicalRetriever()
         self._entries: dict[str, MemoryEntry] = {}
         self._graveyard: dict[str, MemoryEntry] = {}
+        self.last_upkeep_charged = 0.0
 
     # ------------------------------------------------------------------
     # Population access
@@ -216,18 +217,39 @@ class MemoryStore:
         damaged by a settlement in the same call, so the floor here
         only ever forgives the tick's own upkeep deduction, never a
         negative balance carried over from settlement damage.
+
+        Records the total actually deducted on ``self.last_upkeep_charged``
+        (which can run below ``len(self) * self.upkeep`` when a pinned
+        entry's floor forgives part of its charge) so callers can log the
+        real figure instead of estimating it from population size.
         """
         protected = set(protect)
         dead: list[MemoryEntry] = []
+        charged = 0.0
         for entry in list(self._entries.values()):
+            before = entry.energy
             entry.energy -= self.upkeep
             if entry.pinned:
                 entry.energy = max(entry.energy, 0.0)
             elif not entry.alive and entry.id not in protected:
                 dead.append(entry)
+            charged += before - entry.energy
+        self.last_upkeep_charged = round(charged, 6)
         for entry in dead:
             self.bury(entry.id)
         return dead
+
+    def ticks_to_starvation(self, entry: MemoryEntry) -> float | None:
+        """Ticks of upkeep this entry can still pay, or None if it cannot starve.
+
+        The operator's actual question, and the number that makes the
+        spawn/upkeep cliff visible before it bites. ``None`` is not zero:
+        a pinned entry floors at zero rather than dying, and a store with
+        no upkeep never starves anything.
+        """
+        if self.upkeep <= 0 or entry.pinned:
+            return None
+        return round(entry.energy / self.upkeep, 1)
 
     def bury(self, entry_id: str) -> None:
         entry = self._entries.pop(entry_id, None)

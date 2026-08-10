@@ -12,6 +12,7 @@ from darwin_memo.observe import (
     audit_digest,
     doctor,
     economics,
+    entry_life,
     filter_events,
     read_events,
     timeline,
@@ -76,6 +77,22 @@ def test_top_ranks_by_balance_with_json_shape(tmp_path, capsys):
     table = capsys.readouterr().out
     assert first["id"] in table
     assert payload["entries"][1]["id"] not in table
+
+
+def test_one_definition_across_cli_and_api(tmp_path, capsys):
+    """top, why and /api/state must not be able to disagree."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.save(memory)
+    entry = ledger.store.alive()[0]
+    expected = ledger.store.ticks_to_starvation(entry)
+
+    top = _json_out(capsys, ["top", str(memory), "--json"])
+    row = next(r for r in top["entries"] if r["id"] == entry.id)
+    assert row["ticks_to_starvation"] == expected
+
+    life = entry_life(ledger, entry.id)
+    assert life is not None
+    assert life["ticks_to_starvation"] == expected
 
 
 def test_top_missing_file_errors(tmp_path, capsys):
@@ -407,12 +424,83 @@ def test_economics_separates_resource_from_energy(tmp_path):
     assert report["energy"]["upkeep_paid"] == pytest.approx(
         report["population"]["alive"] * 0.05
     ), "one tick of upkeep for the surviving population"
-    assert report["energy"]["upkeep_exact"] is False
+    assert report["energy"]["upkeep_exact"] is True, (
+        "a fresh log carries upkeep_charged on every tick record"
+    )
     assert report["energy"]["upkeep_caveat"] == "", "no pinned entries in this store"
 
 
 def _events(memory):
     return read_events(memory.with_suffix(".events.jsonl"))
+
+
+def test_economics_prefers_the_logged_figure(tmp_path):
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.save(memory)
+    report = economics(read_events(memory.with_suffix(".events.jsonl")), ledger.store)
+    assert report["energy"]["upkeep_exact"] is True
+    assert report["energy"]["upkeep_caveat"] == ""
+
+
+def test_economics_falls_back_on_a_legacy_log(tmp_path):
+    """A log written before this release must still report the old number."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+    stripped = []
+    for record in read_events(log):
+        record.pop("upkeep_charged", None)
+        stripped.append(record)
+    log.write_text("\n".join(json.dumps(r) for r in stripped) + "\n")
+
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False
+    assert report["energy"]["upkeep_paid"] == pytest.approx(
+        len(ledger.store) * ledger.store.upkeep
+    )
+
+
+def test_economics_falls_back_when_only_some_ticks_carry_the_figure(tmp_path):
+    """All-or-nothing: a mixed log must not sum measured and estimated."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+
+    records = read_events(log)
+    ticks = [r for r in records if r.get("event") == "tick"]
+    assert len(ticks) == 2, "the fixture must actually produce a mixed log"
+
+    ticks[0].pop("upkeep_charged")
+    log.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False, (
+        "one untagged tick makes the whole window inexact; summing a "
+        "measured tick with an estimated one reports neither"
+    )
+
+
+def test_economics_falls_back_when_the_last_tick_lacks_the_figure(tmp_path):
+    """Same guard, missing field on the other end -- direction must not matter."""
+    memory, ledger = seeded_ledger(tmp_path)
+    ledger.tick()
+    ledger.tick()
+    ledger.save(memory)
+    log = memory.with_suffix(".events.jsonl")
+
+    records = read_events(log)
+    ticks = [r for r in records if r.get("event") == "tick"]
+    assert len(ticks) == 2, "the fixture must actually produce a mixed log"
+
+    ticks[-1].pop("upkeep_charged")
+    log.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    report = economics(read_events(log), ledger.store)
+    assert report["energy"]["upkeep_exact"] is False, (
+        "missing on the last tick instead of the first must also fall back"
+    )
 
 
 def test_doctor_is_clean_on_a_healthy_store(tmp_path):

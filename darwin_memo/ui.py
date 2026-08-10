@@ -121,15 +121,10 @@ def state(memory: Path) -> dict[str, Any]:
     store = ledger.store
     tick = ledger.tick_count
     upkeep = store.upkeep
-    entries = []
-    for entry in sorted(store.alive(), key=lambda e: e.energy, reverse=True):
-        row = top_row(entry, tick)
-        # The operator's actual question, and the one number that makes
-        # the starvation cliff visible before it bites.
-        row["ticks_to_starvation"] = (
-            round(entry.energy / upkeep, 1) if upkeep > 0 else None
-        )
-        entries.append(row)
+    entries = [
+        top_row(entry, tick, store)
+        for entry in sorted(store.alive(), key=lambda e: e.energy, reverse=True)
+    ]
     graveyard = []
     for dead in store.graveyard():
         life = entry_life(ledger, dead.id)
