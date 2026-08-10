@@ -8,6 +8,17 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory Phase 2: in-memory `ActivationState` (recall-salience;
+  `bump`/`decay`/`level`) plus lossless `surface(entry, state)` / `detail(entry)`
+  — a recalled memory expands to detail, an idle one shrinks to its gist, with
+  the entry never mutated. Organic-only, core untouched; activation gates
+  surfacing, never survival. The invariant that activation must never influence
+  retention is now defended by tests rather than only documented
+  (`tests/test_organic_invariant.py`): a structural test asserting no
+  selection-path module references activation, and a behavioural one asserting
+  that pinning a poisoned entry's activation at maximum changes neither its
+  death cycle nor the survivor set.
+
 - Organic memory layer, Phase 1 (`darwin_memo.organic`, opt-in): an
   `AssociativeGraph` giving one vector per memory and `related(id, k)`
   relevance-weighted neighbours, as the substrate for a future adaptive,
