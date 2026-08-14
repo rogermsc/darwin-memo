@@ -82,9 +82,12 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["darwin_memo"]
-# The organic layer is opt-in (turbovec extra) and its ANN path cannot run in
-# default CI; it is excluded from the core coverage gate.
-omit = ["darwin_memo/organic/*"]
+# Only the ANN backend is excluded: it needs the optional turbovec extra and
+# cannot run in default CI. The rest of the organic layer is pure-Python and
+# zero-dep, so it is covered like any other module (tests/test_organic.py) —
+# the old blanket `organic/*` omit hid three shipped modules behind a reason
+# that was only ever true of this one.
+omit = ["darwin_memo/organic/turbovec_backend.py"]
 
 [tool.coverage.report]
 show_missing = true

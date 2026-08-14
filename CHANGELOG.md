@@ -17,6 +17,16 @@ project uses [SemVer](https://semver.org/).
   core untouched; activation and learned weights gate surfacing/ranking only,
   never survival — no judge, no new runtime deps.
 
+### Fixed
+
+- The organic layer was excluded from the coverage gate wholesale
+  (`omit = ["darwin_memo/organic/*"]`) for a reason — the optional turbovec ANN
+  path cannot run in default CI — that was only ever true of
+  `turbovec_backend.py`. Three shipped, zero-dep modules sat behind it untested.
+  The omit is now that one file, and `tests/test_organic.py` covers the graph,
+  activation and dynamics (100% of each), every test naming the mutation it
+  catches.
+
 - Selection-quality arms for the distill suite, answering an adversarial
   review that the poison result is tautological. `distill_noisy`
   (`bench/distill/noisy_run.py`, `FlakyQAEnv`) adds a counter baseline
