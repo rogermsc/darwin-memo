@@ -179,6 +179,40 @@ What each arm's best metric is, stated plainly:
   evidence that embeddings dominate, but the mechanism demonstrably
   does not depend on the lexical-match path.
 
+## Gold-file recall: how much of the real-task leg was reachable at all
+
+`python -m bench.swebench_cl.recall --dataset DATASET --sequence SEQ
+--code-context-chars N --code-max-files M`.
+
+No model, no docker, no evaluation harness: this measures only whether the
+prompt's code context contains any file the gold patch touches. A task where it
+does not cannot be solved by any arm, so it is dead weight against the memory
+hypothesis regardless of curation quality — and the pilot's null is read against
+whatever is left.
+
+Both conditions use the same budget and prompt shape; only which files fill the
+budget changes. Measured over the full pinned pilot (41 tasks):
+
+| budget | sequence | BM25 any gold file | oracle any gold file | tasks BM25 never reaches |
+|---|---|---|---|---|
+| 60k / 5 | pytest (19) | **0.37** | 1.00 | 12 |
+| 60k / 5 | astropy (22) | 0.45 | 1.00 | 12 |
+| 300k / 10 | pytest (19) | **0.74** | 1.00 | 5 |
+| 300k / 10 | astropy (22) | 0.82 | 1.00 | 4 |
+| 300k / 10 | both (41) | 0.78 | 1.00 | **9** |
+
+The 0.37 and 0.74 figures reproduce exactly the recall the paper quotes for the
+original and current budgets, measured independently here. What the table adds
+is the count: at the budget the pilot actually ran, **9 of 41 tasks never put the
+file to be patched in front of the model**, and at the original budget it was 24
+of 41. The oracle control reaches every gold file in every task at both budgets
+(and *all* gold files at 300k/10), so the ceiling is retrieval and not something
+inherent to the task set.
+
+This does not rescue the null — it bounds it. Roughly a fifth of the pilot could
+not have shown a memory effect under any policy, which is a smaller correction
+than the null itself, and the remaining 32 tasks still produced no separation.
+
 ## Nearest published mechanism: a budget spent on relevance (10 seeds)
 
 `python -m bench.run --suite neighbours` — `bench/results/neighbours.json`.

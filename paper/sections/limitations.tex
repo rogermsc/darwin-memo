@@ -178,8 +178,18 @@ rather than biasing the comparison---but it does mean our real-task
 numbers are a lower bound on what the same memory mechanism would show
 with a stronger code retriever, and that a null result there would be
 consistent with either an absent memory effect or a retrieval ceiling.
-Separating those two would need an oracle-file arm, which we have not
-run.
+We have since measured the ceiling directly (no model and no evaluation
+harness required, since the question is only whether the prompt contains
+the file): over the full pilot, BM25 puts at least one gold file in
+context for $0.78$ of tasks at the budget the pilot ran, and $0.41$ at
+the original budget, while the oracle control reaches every gold file in
+every task. In counts, \textbf{9 of the 41 pilot tasks never showed the
+model the file it had to patch}, and $24$ of $41$ did not at the original
+budget. That bounds the null rather than rescuing it: a fifth of the
+pilot could not have shown a memory effect under any curation policy, and
+the remaining $32$ tasks still produced no separation. What we have not
+run is the oracle arm end to end --- the recall measurement says the
+files can be reached, not what the arms score once they are.
 
 \paragraph{The filter control is a reconstruction.}
 The write-time detector in \S\ref{sec:memsec} is a keyword and
