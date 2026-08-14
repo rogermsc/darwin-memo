@@ -8,6 +8,17 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `bench.swebench_cl.recall`: gold-file recall measurement for the real-task
+  leg, needing no model, no docker and no evaluation harness — the question is
+  whether the prompt contains the file the gold patch touches, not whether the
+  task resolves. Measured over the full pinned pilot: BM25 reaches at least one
+  gold file for 0.37 of pytest tasks and 0.45 of astropy tasks at the original
+  60k/5 budget, and 0.74 / 0.82 at the 300k/10 budget the pilot ran; the oracle
+  control reaches every gold file in every task at both. **9 of the 41 pilot
+  tasks never showed the model the file it had to patch** (24 of 41 at the
+  original budget) — which bounds the null rather than rescuing it, since the
+  remaining 32 tasks still produced no separation. The 0.37 and 0.74 figures
+  reproduce independently the recall the paper quotes.
 - Oracle-retrieval control for the SWE-Bench-CL leg
   (`--oracle-retrieval`, `code_retrieval.oracle_files`). The paper's own
   limitation names this as the missing arm: BM25 correct-file recall is 74%, so

@@ -1077,3 +1077,41 @@ def test_oracle_retrieval_surfaces_a_file_bm25_scores_zero(tmp_path, monkeypatch
     assert oracle_files_included[0] == "gold.py"
     assert "zzzz_unrelated_symbol" in oracle
     assert originals["gold.py"].startswith("def zzzz_unrelated_symbol")
+
+
+def test_summarise_counts_unreachable_tasks_not_just_rates():
+    """`unreachable_blind` is the number the null hangs on: a task whose gold
+    file never reaches the prompt cannot be solved by any arm, so it is dead
+    weight against the memory hypothesis no matter how good curation is.
+
+    Mutation: computing it as `sum(r.blind_all ...)` (all gold files rather
+    than any) inflates it, and reporting a rate instead of a count hides how
+    few tasks the pilot has to begin with.
+    """
+    from bench.swebench_cl.recall import TaskRecall, summarise
+
+    rows = [
+        # sees both gold files
+        TaskRecall(
+            "a",
+            frozenset({"x.py", "y.py"}),
+            frozenset({"x.py", "y.py"}),
+            frozenset({"x.py", "y.py"}),
+        ),
+        # sees one of two: solvable in principle, so NOT unreachable
+        TaskRecall(
+            "b",
+            frozenset({"x.py", "y.py"}),
+            frozenset({"x.py"}),
+            frozenset({"x.py", "y.py"}),
+        ),
+        # sees neither: unreachable for every arm
+        TaskRecall("c", frozenset({"x.py"}), frozenset({"z.py"}), frozenset({"x.py"})),
+    ]
+    got = summarise(rows)
+    assert got["tasks"] == 3
+    assert got["unreachable_blind"] == 1
+    assert got["blind_any"] == pytest.approx(2 / 3)
+    assert got["blind_all"] == pytest.approx(1 / 3)
+    assert got["oracle_any"] == 1.0
+    assert summarise([]) == {"tasks": 0}
