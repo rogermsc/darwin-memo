@@ -25,6 +25,7 @@ import math
 from dataclasses import dataclass, field
 
 from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
+from .diagnose import selection_findings
 from .environments import Environment
 from .protocol import QueryProtocol
 from .store import MemoryStore
@@ -217,37 +218,29 @@ class SurvivalReport:
     def health_warning(self) -> str:
         """A plain-language diagnosis when the run looks degenerate.
 
-        The two failure modes a new environment hits are silent: memory
+        The failure modes a new environment hits are silent: memory
         never answers (phrasing mismatch or action vocabulary not read),
         or answers never earn (verify never pays out). Both end the same
         way, the whole population starving at spawn_energy / upkeep
         cycles, so the report says so instead of letting the table look
-        like success.
+        like success. The rules live in :mod:`darwin_memo.diagnose` so
+        the Ledger's ``doctor`` diagnoses identically.
         """
         total_tasks = sum(s.tasks for s in self.stats)
         if not total_tasks:
             return ""
-        total_silent = sum(s.silent for s in self.stats)
-        # Gross movement, not net: a cycle whose payouts exactly cancel
-        # still paid out, and net-zero float equality must not trigger
-        # a "never paid" diagnosis.
-        never_paid = sum(s.nonzero_outcomes for s in self.stats) == 0
-        notes = []
-        if total_silent / total_tasks > 0.8:
-            notes.append(
-                f"memory was silent on {total_silent}/{total_tasks} tasks: "
-                "task phrasing likely does not lexically overlap the corpus "
-                "(see min_coverage), so nothing can earn energy"
-            )
-        if never_paid and total_silent / total_tasks <= 0.8:
-            notes.append(
-                "no task ever produced a nonzero outcome: the environment "
-                "never paid out; check that verify() reads your answers (is "
-                "decision_polarity's vocabulary right for your action verbs?)"
-            )
-        if not notes:
+        findings = selection_findings(
+            decides=total_tasks,
+            silent=sum(s.silent for s in self.stats),
+            # Gross movement, not net: see selection_findings.
+            nonzero_outcomes=sum(s.nonzero_outcomes for s in self.stats),
+            settles=total_tasks,
+        )
+        if not findings:
             return ""
-        return "\n\nWARNING: " + "\nWARNING: ".join(notes)
+        return "\n\nWARNING: " + "\nWARNING: ".join(
+            f"{f.summary}: {f.fix}" for f in findings
+        )
 
 
 class SurvivalLoop:

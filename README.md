@@ -139,6 +139,20 @@ ledger.tick()                        # upkeep, deaths, consolidation
 print(ledger.obituary(entry_id))     # why did this entry die?
 ```
 
+### Seeing it: the local dashboard
+
+```bash
+darwin-memo doctor memory.json     # why is nothing earning?
+darwin-memo ui memory.json         # population, graveyard, economics
+```
+
+`doctor` reads the event log and names which failure mode a store hit
+instead of leaving three of them looking identical. `ui` serves the
+same data as a read-only dashboard on localhost: population and energy
+over time, the graveyard split by cause of death, and the resource-
+versus-upkeep accounting. Read-only and loopback-only, so there is
+nothing to authenticate.
+
 ### Batch (research shape): the SurvivalLoop
 
 ```python
@@ -386,6 +400,18 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
   readable with no API key (the snapshot flow needs no archive node;
   the module docstring names public endpoints that lie about
   history).
+
+## Organic memory (experimental, opt-in)
+
+An adaptive, brain-like layer is in progress: memories weighted by usage and
+*earned* importance, shrinking to a gist when unused and expanding to full
+detail on recall, connected by relevance-weighted links — all on
+earned/measured signals, **no judge**. Phase 1 (the associative graph) has
+landed: `darwin_memo.organic.store_related(store, entry_id, k)` returns
+relevance-weighted related memories. It is additive and read-only with respect
+to survival (relatedness is mechanical cosine; value is still earned by the
+ledger). Zero-dependency by default; `pip install darwin-memo[organic]` adds a
+turbovec ANN backend for scale. See [docs/organic.md](docs/organic.md).
 
 ## Documentation
 
