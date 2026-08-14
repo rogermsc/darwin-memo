@@ -5,9 +5,16 @@ real issues, because the model never sees the code it must patch. This
 module supplies the missing context the faithful way: it fetches the
 repository at the task's ``base_commit`` and ranks its source files
 against the issue text with classic BM25, so the prompt carries the
-files the issue is actually about. No oracle (the gold patch is never
-read), stdlib only (urllib + tarfile + a hand-rolled BM25), matching the
-rest of the harness's zero-dependency stance.
+files the issue is actually about. Stdlib only (urllib + tarfile + a
+hand-rolled BM25), matching the rest of the harness's zero-dependency
+stance.
+
+Retrieval is blind by default: the gold patch is never read. The one
+exception is the ORACLE CONTROL (``oracle_files`` + ``code_context(...,
+prefer=)``), which reads the answer key on purpose to measure what the
+arms would score if retrieval were solved. Any run using it is a
+control, never a result, and records ``oracle_retrieval: true`` in its
+config so a reader cannot mistake one for the other.
 
 The fetch uses GitHub's archive endpoint
 (``/{repo}/archive/{commit}.tar.gz``), which returns the exact tree at
@@ -22,6 +29,7 @@ import re
 import tarfile
 import urllib.request
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -144,6 +152,23 @@ def bm25_rank(docs: list[_Doc], query: str) -> list[tuple[_Doc, float]]:
     return scored
 
 
+def oracle_files(gold_patch: str) -> list[str]:
+    """The files the gold patch touches: perfect retrieval, by definition.
+
+    Reads the ``--- a/`` lines of a unified diff, the same way
+    ``poison._touched_files`` does. This is ground truth taken from the
+    answer key, so it is only ever legitimate as a CONTROL: it says what
+    the arms would score if retrieval were solved, which is the number
+    the paper needs to separate "memory did not help" from "the model
+    never saw the file".
+    """
+    return [
+        line[6:].strip()
+        for line in gold_patch.splitlines()
+        if line.startswith("--- a/")
+    ]
+
+
 def code_context(
     repo: str,
     commit: str,
@@ -151,6 +176,7 @@ def code_context(
     cache_dir: Path,
     max_chars: int,
     max_files: int = 5,
+    prefer: Sequence[str] = (),
 ) -> tuple[str, list[str], dict[str, str]]:
     """Return (prompt-ready file context, included relpaths, full originals).
 
@@ -159,11 +185,30 @@ def code_context(
     The third return value maps each included path to its FULL original
     text (not the truncated prompt slice), which the edit applier needs
     to locate SEARCH blocks and to compute a correct diff.
+
+    ``prefer`` promotes named relpaths to the front of the ranking,
+    keeping BM25 order behind them. It exists for the oracle-retrieval
+    control (see :func:`oracle_files`): the budget, the truncation, and
+    the prompt shape stay identical, so the only thing that changes is
+    WHICH files fill the budget. Passing it with anything derived from
+    the gold patch makes the run a control and not a result.
     """
     if max_chars <= 0:
         return "", [], {}
     root = fetch_repo_at_commit(repo, commit, cache_dir)
-    ranked = bm25_rank(_gather_py_files(root), query)
+    docs = _gather_py_files(root)
+    ranked = bm25_rank(docs, query)
+    if prefer:
+        # Pull preferred docs from the FULL doc list, not from `ranked`:
+        # bm25_rank drops every doc that scores zero, which is exactly
+        # the case an oracle control exists to cover. Promoting within
+        # the ranking would silently skip any gold file BM25 never
+        # found, and the "oracle" would agree with BM25 by construction
+        # on precisely the tasks where it is supposed to disagree.
+        by_path = {doc.relpath: doc for doc in docs}
+        head = [(by_path[p], float("inf")) for p in prefer if p in by_path]
+        promoted = {doc.relpath for doc, _ in head}
+        ranked = head + [pair for pair in ranked if pair[0].relpath not in promoted]
     blocks: list[str] = []
     included: list[str] = []
     originals: dict[str, str] = {}

@@ -18,6 +18,7 @@ import pytest
 from bench.manifest import manifest_failures, update_manifest
 from bench.report import _REQUIRED_METRIC_KEYS, check
 from bench.swebench_cl.arms import ARMS
+from bench.swebench_cl.code_retrieval import code_context, oracle_files
 from bench.swebench_cl.dataset import (
     DatasetPin,
     TaskRecord,
@@ -1022,3 +1023,57 @@ def test_storage_runs_must_carry_arm_and_seed():
     }
     failures = check([run])
     assert any("missing identity fields" in f and "seed" in f for f in failures)
+
+
+def test_oracle_files_reads_the_touched_paths():
+    patch = (
+        "diff --git a/src/pkg/core.py b/src/pkg/core.py\n"
+        "--- a/src/pkg/core.py\n"
+        "+++ b/src/pkg/core.py\n"
+        "@@ -1 +1 @@\n-x\n+y\n"
+        "diff --git a/tests/test_core.py b/tests/test_core.py\n"
+        "--- a/tests/test_core.py\n"
+        "+++ b/tests/test_core.py\n"
+    )
+    assert oracle_files(patch) == ["src/pkg/core.py", "tests/test_core.py"]
+    assert oracle_files("") == []
+
+
+def test_oracle_retrieval_surfaces_a_file_bm25_scores_zero(tmp_path, monkeypatch):
+    """The whole point of the control, and the bug it nearly shipped with.
+
+    bm25_rank drops every doc that scores zero against the query. An
+    oracle implemented by reordering bm25_rank's OUTPUT can therefore
+    only promote files BM25 already found -- so on exactly the tasks
+    where retrieval failed, the "oracle" would agree with BM25 and the
+    control would report no ceiling where a ceiling exists.
+
+    Mutation: build the promotion list from `ranked` instead of the full
+    doc list and this test fails, because gold.py shares no token with
+    the query.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "gold.py").write_text("def zzzz_unrelated_symbol():\n    return 1\n")
+    (root / "noise.py").write_text("def widget_handler():\n    return 'widget'\n")
+    monkeypatch.setattr(
+        "bench.swebench_cl.code_retrieval.fetch_repo_at_commit",
+        lambda repo, commit, cache_dir: root,
+    )
+
+    _, blind_files, _ = code_context(
+        "o/r", "sha", "widget handler", tmp_path / "cache", max_chars=10_000
+    )
+    assert "gold.py" not in blind_files, "fixture broken: BM25 already found it"
+
+    oracle, oracle_files_included, originals = code_context(
+        "o/r",
+        "sha",
+        "widget handler",
+        tmp_path / "cache",
+        max_chars=10_000,
+        prefer=["gold.py"],
+    )
+    assert oracle_files_included[0] == "gold.py"
+    assert "zzzz_unrelated_symbol" in oracle
+    assert originals["gold.py"].startswith("def zzzz_unrelated_symbol")

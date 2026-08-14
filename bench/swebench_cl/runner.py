@@ -38,6 +38,7 @@ from darwin_memo import (
 from .adversary import SettlementAdversary
 from .arms import ARMS, ArmSpec, token_count
 from .code_retrieval import code_context as retrieve_code_context
+from .code_retrieval import oracle_files
 from .dataset import TaskRecord
 from .edits import EDIT_FORMAT_INSTRUCTIONS, edits_to_patch
 from .executor import EvalReport, delta_from_eval
@@ -268,6 +269,7 @@ def run_sequence(
     max_prompt_chars: int = MAX_PROMPT_CHARS,
     completer: Completer | None = None,
     code_context_chars: int = 0,
+    oracle_retrieval: bool = False,
     code_cache_dir: Path | None = None,
     code_max_files: int = 5,
     seed_poison: bool = False,
@@ -312,6 +314,7 @@ def run_sequence(
                     cache,
                     code_context_chars,
                     code_max_files,
+                    prefer=oracle_files(task.gold_patch) if oracle_retrieval else (),
                 )
             except Exception as error:  # retrieval must never crash a run
                 print(
@@ -360,6 +363,7 @@ def run_sequence(
                     "k": k,
                     "max_prompt_chars": max_prompt_chars,
                     "code_context_chars": code_context_chars,
+                    "oracle_retrieval": oracle_retrieval,
                     "retrieved_files": code_files,
                     # Both belong to the record rather than the filename:
                     # an unattacked poisoned cell is otherwise byte-identical

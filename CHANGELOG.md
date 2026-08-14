@@ -8,6 +8,16 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Oracle-retrieval control for the SWE-Bench-CL leg
+  (`--oracle-retrieval`, `code_retrieval.oracle_files`). The paper's own
+  limitation names this as the missing arm: BM25 correct-file recall is 74%, so
+  the real-task null is consistent with either an absent memory effect or a
+  retrieval ceiling, and nothing separates them. The control fills the code
+  budget with the files the gold patch touches, before BM25, holding budget,
+  truncation and prompt shape identical — only *which* files fill the budget
+  changes. It reads the answer key by construction, so any run using it records
+  `oracle_retrieval: true` in its config and is a control, never a result.
+  Numbers still need a full matrix (docker + endpoint), which this does not run.
 - `budget_relevance` bench arm and the `neighbours` suite: a reconstruction of
   EMBER-style budgeted evidence retention (arXiv:2606.05894), the nearest
   published mechanism to the energy ledger. Held at `budget=4` — the population
