@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.9499992591112978,
+      "energy": 0.8999992591112977,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 23,
@@ -26,7 +26,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 0.49999999998332273,
+      "energy": 0.44999999998332274,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 21,
@@ -35,28 +35,13 @@
       "id": "74a2ba34e5ab"
     },
     {
-      "question": "Should bench result JSON files be committed?",
-      "answer": "No. bench/results is regenerated, not committed; doc tables are regenerated from the Reproduce commands, and if numbers disagree the generated doc wins.",
-      "kind": "explicit",
-      "sources": [
-        "docs/benchmarks"
-      ],
-      "energy": 0.027270294339339557,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 20,
-      "uses": 2,
-      "lineage": [],
-      "id": "7e40e33bc60d"
-    },
-    {
       "question": "Is it safe to add new required metric keys that only some suites emit?",
       "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
       "kind": "explicit",
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0430884933335363,
+      "energy": 0.9930884933335362,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 21,
@@ -71,7 +56,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.1663420549537167,
+      "energy": 1.1163420549537166,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 20,
@@ -140,10 +125,25 @@
       "uses": 1,
       "lineage": [],
       "id": "3b61822cf5a6"
+    },
+    {
+      "question": "Should bench result JSON files be committed?",
+      "answer": "No. bench/results is regenerated, not committed; doc tables are regenerated from the Reproduce commands, and if numbers disagree the generated doc wins.",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": -0.022729705660660446,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 20,
+      "uses": 2,
+      "lineage": [],
+      "id": "7e40e33bc60d"
     }
   ],
   "ledger": {
-    "tick_count": 37,
+    "tick_count": 38,
     "pending": [
       {
         "query": "Are stub-executor benchmark arms safe to validate before Docker eval images run?",
@@ -225,6 +225,15 @@
           "credit": 0.6,
           "delta": 25.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27441686220"
+        },
+        {
+          "tick": 38,
+          "ts": "2026-08-14T15:31:53+00:00",
+          "text": "died at tick 38 (starved: never earned its upkeep; uses=2, last_used_tick=20)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 2,
+          "last_used_tick": 20
         }
       ],
       "7af78c536de1": [
