@@ -177,6 +177,54 @@ selection's kill switch. A pinned poisoned entry is permanent until a
 human notices. Pin sparingly, and audit pins with `darwin-memo top`
 and `why`, which display pinned status for this reason.
 
+## Curation-targeted attacks: corrupting the signal, not the store
+
+This is the attack the paper is named for, and it belongs here rather
+than only in the paper. The adversary injects no poison at all. It
+corrupts the measurements the curator decides on, so the curator
+starves its own benign memory — denial of memory, carried out entirely
+through the mechanism that is supposed to be the defence.
+
+What we measure: at one corrupted measurement per cycle the ledger
+keeps all benign capability and 99.4% of unattacked outcome, where
+`evict_on_negative` loses all of it. What we also measure is the
+boundary — between two and four lies per cycle, the ledger's own
+protection fails. Every mechanism we tested has such a boundary; the
+contribution is knowing where each one sits, not claiming one has none.
+
+The reason a bounded credit buffer with earn-back survives this and a
+strike counter does not: a lie has to be repeated to matter, and an
+honest outcome can pay the damage back. A counter that never forgets
+converts one lie into a permanent verdict.
+
+## Attacks that never write: query-only injection
+
+Everything above assumes an adversary who writes, settles, or imports
+— that is, one who crosses a channel this document names. Recent work
+([MINJA][minja], NeurIPS 2025) injects memory through *query-only*
+interaction: the attacker only ever asks the agent questions, and the
+agent's own memory-write path stores the consequence. No filter is
+defeated because none is crossed, and the settler is never compromised
+because it is never involved.
+
+darwin-memo has no defence to offer here, and the reason is structural
+rather than incidental. Outcome-grounded revocation acts on entries
+that consequences are attributed to. An entry that enters through the
+host agent's own summarisation or compaction path, and is never
+implicated in a settled outcome, is invisible to selection: it neither
+earns nor is blamed, and it dies only when upkeep starves it — on the
+same schedule as any other unused entry, with no acceleration from its
+being adversarial.
+
+Two things follow. First, the write channel is the host agent's
+concern, not this library's: if your agent writes memory from
+untrusted text without provenance, darwin-memo inherits whatever that
+channel admits. Second, upkeep is the only thing acting on dormant
+poison, which makes the starvation horizon a security parameter and
+not merely an economic one.
+
+[minja]: https://arxiv.org/abs/2503.03704
+
 ## What darwin-memo explicitly does not defend against
 
 - Multi-writer stores. One trusted writer per store file is the
