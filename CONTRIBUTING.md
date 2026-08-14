@@ -25,6 +25,22 @@ pytest -q --cov
 The examples must keep running offline with zero API keys:
 `for ex in examples/0*.py; do python "$ex"; done`.
 
+## Dashboard
+
+`darwin-memo ui` serves a small read-only operator dashboard. Its
+frontend lives in `ui/` (Vite + React + TypeScript) and is built
+separately from the Python package:
+
+```bash
+cd ui && npm install && npm run build
+```
+
+That emits static assets into `darwin_memo/data/ui/`, which is
+gitignored and produced in CI at release time, never committed. Without
+a built bundle, `darwin-memo ui` still serves a "no bundle" placeholder
+page plus the live JSON API (`/api/state`, `/api/entry/<id>`,
+`/api/events`) — Python-only contributors never need node installed.
+
 ## The one design rule
 
 Environments measure, never grade. A `verify` implementation returns a

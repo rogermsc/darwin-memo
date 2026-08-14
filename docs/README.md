@@ -16,6 +16,13 @@ demo, and the quickstart. This index is everything else.
 - **[Store format](store-format.md)**: the on-disk JSON format field
   by field, the events JSONL log and its rotation, the lock and
   flaky-test sidecars, and the honest compatibility policy.
+- **`darwin-memo doctor FILE [--json]`**: names which of six
+  degeneracies (if any) a live store hit, with evidence and a fix; see
+  [the finding table](api.md#doctor-findings).
+- **`darwin-memo ui FILE [--port N] [--no-open]`**: a local read-only
+  dashboard over one memory file — population and energy over time,
+  the graveyard, pending tickets, and the `doctor` findings, served
+  loopback-only with no mutation endpoints, so nothing needs auth.
 
 ## Understanding it
 

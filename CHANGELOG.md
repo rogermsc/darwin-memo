@@ -20,6 +20,94 @@ project uses [SemVer](https://semver.org/).
   services (not memorization), survival prevents it (0.00) and keeps the safe
   rule (1.00). Docs reframe the distillation section to lead with capability
   retention, not poison resistance.
+
+## [0.6.0] - 2026-08-10
+
+### Added
+
+- `MemoryStore.ticks_to_starvation(entry)`: how many ticks of upkeep an
+  entry can still pay, surfaced by `top`, `why` and `/api/state` from one
+  definition so they cannot drift. `None` means *cannot starve* — a pinned
+  entry floors at zero rather than dying, and a store with no upkeep never
+  starves anything — which is not the same as zero ticks left.
+- The tick event now records the upkeep actually charged, so
+  `economics()` reports a measured figure with `upkeep_exact: true` instead
+  of estimating. The estimate really was wrong: a pinned entry sitting at
+  zero pays less than a full tick, and the naive population-times-upkeep
+  figure counted it in full. Preference is all-or-nothing — a log where only
+  some tick records carry the figure falls back to the estimate, because
+  summing a measured tick with an estimated one reports a number that is
+  neither. Logs written before this release are unaffected.
+
+- Organic memory Phase 2: in-memory `ActivationState` (recall-salience;
+  `bump`/`decay`/`level`) plus lossless `surface(entry, state)` / `detail(entry)`
+  — a recalled memory expands to detail, an idle one shrinks to its gist, with
+  the entry never mutated. Organic-only, core untouched; activation gates
+  surfacing, never survival. The invariant that activation must never influence
+  retention is now defended by tests rather than only documented
+  (`tests/test_organic_invariant.py`): a structural test asserting no
+  selection-path module references activation, and a behavioural one asserting
+  that pinning a poisoned entry's activation at maximum changes neither its
+  death cycle nor the survivor set.
+
+- Organic memory layer, Phase 1 (`darwin_memo.organic`, opt-in): an
+  `AssociativeGraph` giving one vector per memory and `related(id, k)`
+  relevance-weighted neighbours, as the substrate for a future adaptive,
+  brain-like memory. Zero-dependency default (`HashingEmbedder` +
+  `BruteForceBackend` exact cosine); optional turbovec ANN backend via
+  `darwin-memo[organic]` (0.92 top-3 agreement with the exact backend).
+  Additive and read-only w.r.t. survival — relatedness is mechanical cosine,
+  value is still earned by the ledger; no judge. See `docs/organic.md`.
+
+- The operator surface: `darwin-memo doctor` names the failure mode
+  behind a store that is not earning, and `darwin-memo ui` serves a
+  local read-only dashboard over the same data.
+  - Shared degeneracy rules (`darwin_memo/diagnose.py`): the six
+    findings the batch loop and the event-driven Ledger can hit now
+    live in one place (`selection_findings` for the two shared to both
+    shapes, plus four Ledger-only operational findings in
+    `observe.py`), so a fix lands once and the two surfaces cannot
+    drift. `SurvivalReport.health_warning` now delegates to the shared
+    rules instead of carrying its own copy, and gained its first
+    tests. Two of the six rules were corrected during implementation
+    after they produced false positives on this project's own
+    flagship demo: `starvation_cliff` now also requires that nothing
+    was ever credited in the window (starving alone is a healthy death
+    mode for trivia nobody needed — the fault is a population that
+    never earns), and `settles_dropped` now fires only on the excess
+    beyond the count of silent decides, since a silent `decide()`
+    never opens a ticket and settling one always drops as a benign,
+    expected event.
+  - `darwin-memo doctor MEMORY [--json]`: reads the store and its
+    event log and reports zero or more of `silent_majority`,
+    `env_never_paid`, `starvation_cliff` (all severity `error`), and
+    `tickets_stale`, `settles_dropped`, `credit_untracked` (severity
+    `warn`), each with evidence and a fix. Exit code 1 if any finding
+    is an error, 0 otherwise (clean or warnings only). See the finding
+    table in [docs/api.md](docs/api.md#doctor-findings).
+  - `darwin-memo ui MEMORY [--port 8787] [--no-open]`
+    (`darwin_memo/ui.py`): a stdlib-only loopback HTTP server (no new
+    runtime dependency) plus a built Vite/React/TS dashboard
+    (`ui/`, shipped inside the main wheel via `package-data`, no
+    `[ui]` extra). Loopback-only and read-only by construction —
+    `serve()` refuses to bind outside `{127.0.0.1, localhost, ::1}`
+    and there are no mutation endpoints, so the server needs no
+    authentication. The store and event log are re-read from disk on
+    every request. Four JSON routes (`/api/state`, `/api/entry/{id}`,
+    `/api/events`, plus the static bundle) render population, energy,
+    the `doctor` findings, `timeline`, `economics`, living entries,
+    the graveyard by cause of death, and pending tickets.
+  - `timeline` and `economics` on the observe surface
+    (`darwin_memo/observe.py`): `timeline(events)` buckets settled
+    deltas by tick (by write order, not the settle record's own tick
+    stamp, since `Ledger.tick()` settles expired tickets inside the
+    same window it logs). `economics(events, store)` reports the
+    **resource** ledger (settled deltas in world units) and the
+    **energy** ledger (the internal dimensionless mechanism)
+    separately and never summed, because they are different units.
+    Upkeep is reported as `upkeep_paid` with an `upkeep_exact` flag;
+    logs written before the tick event carried the charged figure fall
+    back to a population-times-upkeep estimate.
 - Distillation benchmark arm (`bench/distill/`, `python -m bench.run
   --suite distill`): an opt-in, GPU/`transformers`-required family that
   measures survival selection as a *data filter for parametric memory*.
@@ -50,6 +138,35 @@ project uses [SemVer](https://semver.org/).
   recalls both corpora (cat/ties ≈ a joint-trained ceiling, linear
   interferes) while poison reproduction stays 0 after merge, alongside
   `solo` and `joint` baselines.
+
+### Security
+
+- `darwin-memo ui`'s `Host` header check (`darwin_memo/ui.py`,
+  `_host_only`) now requires an exact match — a loopback name or
+  address, optionally followed by a numeric port, and nothing else —
+  instead of truncating at the first colon or the first `]`. That
+  truncation let `127.0.0.1:PORT@evil.com` and `[::1]evil.com` parse
+  down to a bare loopback host and pass; a browser can't put either
+  string in a real `Host` header, so this closes a parser looseness,
+  not a live DNS-rebinding hole. Host name comparison is also now
+  case-folded per RFC 3986/7230, fixing a real false rejection where
+  `Host: LOCALHOST` was wrongly refused.
+
+## [0.5.2] - 2026-08-06
+
+### Fixed
+
+- `pip install "darwin-memo[mcp]"` installed a server that could not
+  start. The extra declared an unbounded `mcp>=1.10`, and mcp 2.0.0
+  removed `mcp.server.fastmcp` outright, so the import in
+  `mcp_server.build_server` raised `ModuleNotFoundError` on every Python
+  version for anyone who installed the extra after that release. The
+  range is now capped at `mcp>=1.10,<2`. Supporting 2.x means porting to
+  its new API and is not part of this fix.
+- Three tests guarded on `importorskip("mcp")`, which succeeds under
+  mcp 2.x and then fails on the missing submodule rather than skipping.
+  They now guard on `importorskip("mcp.server.fastmcp")`, the module
+  actually required.
 
 ## [0.5.1] - 2026-06-13
 
@@ -642,7 +759,9 @@ one: its central promise now holds across process boundaries.
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/rogermsc/darwin-memo/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/rogermsc/darwin-memo/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/rogermsc/darwin-memo/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rogermsc/darwin-memo/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rogermsc/darwin-memo/compare/v0.3.0...v0.4.0
