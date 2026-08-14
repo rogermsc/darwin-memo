@@ -7,6 +7,7 @@ monkeypatched where construction itself is under test. The real arm
 """
 
 import json
+from collections import Counter
 
 import bench.llm_arm as llm_arm
 import bench.run as bench_run
@@ -166,12 +167,27 @@ def test_write_transcript_shape(tmp_path):
     assert lines[1]["calls"], "raw completions are the committed evidence"
 
 
-def test_llm_suite_grid_covers_models_and_mitigation():
+def test_llm_suite_grid_covers_models_mitigation_and_controls():
     specs = llm_suite([0, 1], ["llama3.2:3b", "qwen3:4b"])
-    assert len(specs) == 8  # 2 models x refuse off/on x 2 seeds
+    # 2 models x refuse off/on x 2 seeds, plus 2 controls x 2 models x 2
+    # seeds. Without the controls the suite has one arm and no baseline,
+    # so no number in it is a claim about the ledger.
+    assert len(specs) == 16
+    arms = Counter(s.arm for s in specs)
+    assert arms == {
+        "survival_llm": 8,
+        "keep_everything_llm": 4,
+        "evict_on_negative_llm": 4,
+    }
     labels = {s.label for s in specs}
     assert "model=llama3.2:3b,refuse=off" in labels
     assert "model=qwen3:4b,refuse=on" in labels
+    # The mitigation is swept for the ledger only; it is not what the
+    # controls are there to answer.
+    assert {s.label for s in specs if s.arm != "survival_llm"} == {
+        "model=llama3.2:3b,refuse=off",
+        "model=qwen3:4b,refuse=off",
+    }
     for spec in specs:
         assert spec.cycles == LLM_CYCLES
         assert spec.files_per_cycle == LLM_FILES_PER_CYCLE

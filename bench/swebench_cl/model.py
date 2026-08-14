@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ class EndpointConfig:
     temperature: float = 0.0
     max_tokens: int = 1024
     timeout: float = 600.0
+    retries: int = 3  # transient connection failures only; HTTP errors are real
 
 
 class ChatEndpoint:
@@ -72,27 +74,37 @@ class ChatEndpoint:
             data=json.dumps(payload).encode("utf-8"),
             headers=headers,
         )
-        try:
-            with urllib.request.urlopen(request, timeout=config.timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            body = error.read().decode("utf-8", errors="replace")
-            raise EndpointError(
-                f"endpoint returned HTTP {error.code} for model "
-                f"{config.model!r} at {config.base_url}: {body or error.reason}"
-            ) from error
-        except urllib.error.URLError as error:
-            raise EndpointError(
-                f"cannot reach endpoint {config.base_url}: {error.reason}"
-            ) from error
-        except TimeoutError as error:
-            # Connect-phase timeouts arrive wrapped in URLError above;
-            # a timeout while reading the response body arrives bare.
-            raise EndpointError(
-                f"timed out reading from endpoint {config.base_url} after "
-                f"{config.timeout:g}s for model {config.model!r}"
-            ) from error
-        return _content_of(result, config)
+        # Transient connection failures (timeouts, dropped sockets, 5xx)
+        # are retried with backoff so one network blip cannot kill a long
+        # multi-task run. A 4xx is a real error (bad params, auth) and is
+        # raised immediately, never retried.
+        attempts = max(1, config.retries)
+        last_transient: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                with urllib.request.urlopen(
+                    request, timeout=config.timeout
+                ) as response:
+                    return _content_of(
+                        json.loads(response.read().decode("utf-8")), config
+                    )
+            except urllib.error.HTTPError as error:
+                if error.code < 500:
+                    body = error.read().decode("utf-8", errors="replace")
+                    raise EndpointError(
+                        f"endpoint returned HTTP {error.code} for model "
+                        f"{config.model!r} at {config.base_url}: "
+                        f"{body or error.reason}"
+                    ) from error
+                last_transient = error  # 5xx: server-side, retry
+            except (urllib.error.URLError, TimeoutError) as error:
+                last_transient = error
+            if attempt < attempts - 1:
+                time.sleep(2.0 * (attempt + 1))
+        raise EndpointError(
+            f"cannot reach endpoint {config.base_url} after {attempts} "
+            f"attempts for model {config.model!r}: {last_transient}"
+        ) from last_transient
 
 
 def _content_of(result: Any, config: EndpointConfig) -> str:

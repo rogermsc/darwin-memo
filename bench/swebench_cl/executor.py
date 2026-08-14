@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
@@ -198,6 +199,10 @@ class DockerExecutor:
     runner_fn: Callable[[list[str], Path], subprocess.CompletedProcess[str]] | None = (
         None
     )
+    # The Docker daemon intermittently 500s on images/json under load (seen
+    # repeatedly on the dev host); the swebench harness calls it at startup,
+    # so a transient daemon hiccup must not kill a long multi-task run.
+    retries: int = 3
 
     mode = "docker"
 
@@ -256,16 +261,29 @@ class DockerExecutor:
             "none",
         ]
         run = self.runner_fn or _run_subprocess
-        completed = run(command, workdir)
-        if completed.returncode != 0:
-            raise RuntimeError(
-                f"swebench harness failed for {task.instance_id} "
-                f"(is `pip install swebench` done, is Docker up?):\n"
-                f"{completed.stderr[-2000:]}"
+        attempts = max(1, self.retries)
+        last_stderr = ""
+        for attempt in range(attempts):
+            completed = run(command, workdir)
+            if completed.returncode == 0:
+                report.env_ready = True
+                report.eval_executed = True
+                return _merge_harness_report(report, workdir, self.run_id)
+            last_stderr = completed.stderr or ""
+            # Retry only transient Docker-daemon failures (the 500 on
+            # images/json); a real harness failure is raised immediately.
+            transient = (
+                "500 Server Error" in last_stderr
+                or "Internal Server Error" in last_stderr
             )
-        report.env_ready = True
-        report.eval_executed = True
-        return _merge_harness_report(report, workdir, self.run_id)
+            if not transient or attempt == attempts - 1:
+                break
+            time.sleep(3.0 * (attempt + 1))
+        raise RuntimeError(
+            f"swebench harness failed for {task.instance_id} "
+            f"(is `pip install swebench` done, is Docker up?):\n"
+            f"{last_stderr[-2000:]}"
+        )
 
 
 def _run_subprocess(

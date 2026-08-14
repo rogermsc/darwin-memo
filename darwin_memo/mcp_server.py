@@ -39,8 +39,15 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
+        # Naming the underlying error matters: mcp 2.0.0 removed
+        # mcp.server.fastmcp, so this fires with the extra correctly
+        # installed, and a message that only says "install the extra"
+        # sends the reader to re-run a command that already succeeded.
         raise SystemExit(
-            'The MCP server needs the optional extra: pip install "darwin-memo[mcp]"'
+            "The MCP server could not import mcp.server.fastmcp "
+            f"({exc}). Install the optional extra with "
+            'pip install "darwin-memo[mcp]"; if it is already installed, '
+            "check the version, which must be >=1.10,<2."
         ) from exc
 
     memory_path.parent.mkdir(parents=True, exist_ok=True)

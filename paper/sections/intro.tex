@@ -1,0 +1,156 @@
+\section{Introduction}
+\label{sec:intro}
+
+A frozen language model can be given new knowledge without retraining by
+attaching an external memory: a store of past experience that is
+retrieved into the context window at inference time
+\citep{packer2023memgpt, park2023generative, shinn2023reflexion,
+zhao2024expel}. \citet{quek2026memo} formalize the strong version of this
+idea---memory \emph{as a model}, a dedicated artifact that holds knowledge
+while the executive LLM stays fixed. Every such system, structured store
+or learned memory model alike, faces the same question once it runs long
+enough: \emph{what gets to stay?} Memory that only grows is eventually
+dominated by stale, redundant, or actively wrong entries, and recent work
+shows the failure is not hypothetical---memory banks that an LLM
+continuously rewrites degrade over time, with useful entries becoming
+faulty as the rewriting accumulates \citep{zhang2026faulty}.
+
+The prevailing answer puts a \emph{model in the loop} to curate. An LLM
+rates importance \citep{park2023generative}, rewrites and consolidates
+trajectories \citep{zhang2026faulty}, or acts as a judge that decides
+what to keep; alternatively a learned reward model scores entries. All of
+these share two costs. First, they are expensive: every curation decision
+is a model call. Second, and more fundamentally, they introduce a
+\emph{proxy} between the agent and the world. A judge grades plausibility
+and prose, not consequences, and a proxy that can be optimized against
+can be gamed---the reward-hacking and semantic-drift failure mode that
+self-training systems are known to fall into when no external criterion
+anchors quality \citep{dodgson2026survival}.
+
+\paragraph{The curator is an attack surface, and nobody has measured it.}
+Whatever plays the curator---a classifier, a judge, a heuristic, a
+ledger---it decides on some signal, and that signal is reachable by an
+adversary. The memory-security literature defends the store at
+\emph{write} (does this text look malicious?) and at \emph{retrieval}
+(should this entry be injected?) \citep{mpbench2026, memsecbench2026},
+and both read content. Neither asks what happens when the input to the
+\emph{deciding rule} is corrupted. The consequence is not that poison
+survives; it is worse. A defence that removes entries on bad evidence,
+fed bad evidence, removes the defender's own working memory. The
+adversary need inject nothing at all, and the more decisively a
+mechanism curates the more thoroughly it destroys the store it protects.
+We call this a \emph{curation-targeted attack}.
+
+The threat has been named. \citet{lin2026selfevolving} describe an
+adversary who corrupts the performance signal to control ``the long-term
+composition of the agent's cognitive state without ever writing to the
+memory store directly,'' and \citet{lin2026memsurvey} give forgetting
+its own lifecycle phase. Both also record that it has not been
+measured---``relatively underexplored'' in the first, ``architecturally
+plausible but empirically unstudied'' in the second. That is the gap we
+close, and it is worth being plain that closing it is the contribution:
+this paper does not discover that curators are attackable, it makes the
+threat quantitative.
+
+This paper operationalizes it, measures six curation mechanisms under
+it, and reports which survive. Doing so requires a curator whose deciding signal
+is not a model's opinion, so we also ask what happens when the curator
+is removed entirely. Our starting observation is that a large and
+practically important class of
+agent tasks comes with a \emph{conserved, physically measurable resource}
+that already settles the question of value without anyone grading
+anything. A storage-management agent frees or wastes real bytes. A coding
+agent makes a test suite pass or fail. An issue-resolution agent resolves
+a GitHub issue or does not. In each case the environment, not a model,
+returns a scalar that is \emph{conserved} (you cannot manufacture freed
+bytes or passing tests by being persuasive) and therefore cannot be
+hacked by a more eloquent memory. Building on the environment-mediated
+selection principle of \citet{dodgson2026survival}, we make that scalar
+the only currency of memory survival.
+
+\paragraph{\textsc{darwin-memo}.}
+Each memory entry carries an \emph{energy} balance. Every cycle, every
+entry pays a fixed upkeep, so existence is not free. An entry earns energy
+back only when a task it decided (or supported) produces a positive
+measured resource delta, with credit flowing along provenance and bounded
+by a $\tanh$ so no single outcome makes an entry immortal and no single
+disaster instantly kills one that has been right many times. When an
+entry's energy crosses zero it is buried. The consequences fall out of the
+dynamics rather than from any rule about quality: trivia nobody consults
+starves on upkeep; a poisoned entry that advises a harmful action is
+\emph{executed by the damage it causes} as the negative delta flows back
+to it; near-duplicate survivors consolidate, pooling energy. There is no
+reward model, no LLM judge, and no human curation anywhere, and because
+settlement is a scalar the environment already returns, it is essentially
+free.
+
+\paragraph{The result, and its boundary.}
+Under attack the mechanisms separate cleanly (\S\ref{sec:adversary}). At
+one corrupted measurement per cycle the ledger keeps all of its benign
+capability and $99.4\%$ of its unattacked outcome while absorbing thirty
+fired lies; an evict-on-negative counter loses \emph{all} benign
+capability, a two-strike counter half of it, and a quarantine policy
+four fifths, on all 30 seeds (Holm-adjusted $p = 0.0015$). What makes
+the difference is a bounded credit buffer with earn-back: a lie costs
+energy an entry can win back, where a counter spends a life it cannot.
+A Thompson-sampling bandit also keeps its capability, but by never
+removing anything---it hoards dead weight and its poison-kill rate falls
+to $0.07$ by four lies per cycle. Retention is not defence. The ledger
+is not exempt either, and we publish its boundary rather than stopping
+at the win: between two and four lies per cycle it falls too, and past
+that only mechanisms that never delete retain capability, which they do
+by never defending.
+
+\paragraph{What we claim, and what we do not.}
+It would be easy, and wrong, to claim that conserved-resource selection
+dominates all alternatives. It does not, and the failures are not
+marginal. On a deterministic environment a one-line heuristic---``evict
+whatever just caused a negative outcome''---matches the full energy
+ledger on outcomes; with a real model deciding adoption that same
+one-liner revokes poison five to nine cycles \emph{sooner}
+(\S\ref{sec:wef}); in a second environment family that charges nothing
+for refusing to act, a strike counter beats the ledger below a noise
+threshold and a quarantine policy beats it above; a Thompson-sampling
+retrieval bandit reconstructed from \citet{xu2026ael} matches it under
+one-sided noise; and on real software-engineering tasks it shows no
+learning-curve advantage over a token-matched random control
+(\S\ref{sec:swebench}). We report all of these, and the honest summary
+is narrow: \emph{outside an adversarial regime, the ledger's extra
+machinery buys leanness and little else.} Our second contribution is
+therefore the \emph{regime map}: a precise, pre-registered account of
+which curator to reach for when, including the four axes on which a
+simpler mechanism is the correct choice.
+
+\paragraph{Contributions.}
+(1) \textbf{An operational threat model for an attack the literature has
+named but not measured}: the \emph{curation-targeted attack}, in which
+the adversary injects no poison and instead corrupts the signal a
+curator decides on, turning the defence into the instrument that starves
+the defender's benign memory. We give it a resource-bounded adversary,
+an accounting identity, and a budget axis, so that it becomes an
+experiment rather than a scenario (\S\ref{sec:adversary}).
+(2) \textbf{The first measurement of how curation mechanisms fare under
+it}---six mechanisms at five attack budgets over 30 seeds---establishing
+that a bounded credit buffer with earn-back is what separates the
+survivors, that retention without removal is not a defence, and that
+every mechanism including ours has a boundary, which we locate and
+publish.
+(3) A label-free, judge-free curation mechanism that grounds survival in
+a conserved environmental resource, with credit assignment along
+provenance and a formal description (\S\ref{sec:method}).
+(4) The regime map (\S\ref{sec:regime}): a boundary-aware statement of
+where this mechanism wins, ties, and loses, including the axes on which
+a one-line heuristic is the correct choice.
+(5) Control arms reconstructed from the literature---a retrieval bandit
+\citep{xu2026ael}, an LLM-judge settler, and a Generative-Agents-style
+salience score \citep{park2023generative}---run on the same harness
+rather than argued about.
+(6) Two negative results reported with their causes: with a real model
+deciding adoption a one-line counter revokes poison sooner than the
+ledger (\S\ref{sec:wef}), and on SWE-Bench-CL the mechanism shows no
+learning-curve advantage over a token-matched random control
+($p = 0.50$) on sequences shorter than its own starvation horizon
+(\S\ref{sec:swebench}).
+(7) A reproducible, stdlib-only harness with pre-registered hypotheses,
+seed-level bootstrap intervals, exact paired permutation tests, and
+committed per-seed data validated against a manifest in CI.

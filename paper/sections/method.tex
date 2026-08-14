@@ -1,0 +1,152 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Memory entries and the store}
+A memory entry $e$ is a self-contained question--answer pair with a
+provenance set and a scalar \emph{energy}:
+$e = (q_e, a_e, \mathcal{S}_e, E_e)$, where $\mathcal{S}_e$ is the set of
+source documents the entry derives from. Following \citet{quek2026memo},
+entries are produced by a reflection-style encoder that extracts explicit
+and inferred facts, surfaces entities in both directions, and verifies
+self-containment, so each $a_e$ is answerable without access to source
+documents. A new entry spawns with energy $E_0 = 1.0$; energy is capped at
+$\Emax = 5.0$; an entry is \emph{alive} iff $E_e > \varepsilon$ with
+$\varepsilon = 10^{-9}$.
+
+\paragraph{Retrieval is energy-blind.}
+Given a query, the store ranks entries by a pure relevance score
+$\rho(\text{query}, e)$ that \emph{never reads energy}; energy breaks ties
+only. This invariant is load-bearing: if retrieval preferred
+high-energy incumbents, selection pressure would come from the retriever
+rather than from outcomes, and a wrong-but-entrenched entry could defend
+itself. The default $\rho$ is a stdlib smoothed-IDF token overlap with a
+coverage floor (an entry scores only if it covers at least a fraction
+$m_{\text{cov}} = 0.25$ of the query's IDF mass); any
+$\text{text}\!\to\!\mathbb{R}^d$ embedder is a drop-in alternative under
+the same energy-blind invariant.
+
+\subsection{Selection dynamics}
+Let one \emph{cycle} present a batch of tasks drawn from a procedurally
+regenerated environment, so no entry can overfit a fixed instance. For a
+task, the query protocol returns an answer with a \emph{deciding} entry
+$d$ (possibly $\varnothing$) and a set of \emph{supporting} entries
+$\mathcal{P}$; the environment executes the implied action and returns a
+conserved-resource delta $\Delta \in \mathbb{R}$ (bytes freed, tests
+gained). Three forces then act on energy.
+
+\paragraph{(1) Credit along provenance.}
+The measured delta is normalized and bounded before it becomes energy:
+\begin{equation}
+  c(\Delta) \;=\; \credit \cdot \tanh\!\left(\frac{\Delta}{\resscale}\right),
+  \label{eq:credit}
+\end{equation}
+where $\credit = 0.6$ is the credit gain and $\resscale$ is the
+environment's resource scale (e.g.\ $10^5$ bytes for the storage
+environment). The $\tanh$ is the forgiveness mechanism: it keeps one
+enormous outcome from making an entry immortal and one disaster from
+instantly executing an entry that has been right many times. Credit is
+distributed along provenance,
+\begin{equation}
+  \Delta E_d = w_d\, c(\Delta), \quad
+  w_d = \begin{cases} s & d \text{ juvenile}\\ 1 & \text{otherwise}\end{cases}
+  \qquad
+  \Delta E_j = s\, c(\Delta)\ \ \forall j \in \mathcal{P},
+  \label{eq:provenance}
+\end{equation}
+with supporting share $s = 0.25$. When no single entry decides
+(synthesized answers), credit spreads evenly, $\Delta E_j = c(\Delta)/|\mathcal{P}|$,
+with probationary imports capped at the supporting share. Energy is then
+updated with an upper clip,
+\begin{equation}
+  E_i \leftarrow \min\!\big(\Emax,\; E_i + \Delta E_i\big),
+  \label{eq:apply}
+\end{equation}
+the lower side left unbounded so that death is decided at upkeep, not
+here. Because $\Delta$ is conserved and measured, not graded, there is no
+proxy between the entry and the world to optimize against: an entry earns
+only by producing outcomes that persist, at which point it is simply
+useful.
+
+\paragraph{(2) Upkeep.}
+Existence costs energy. Every cycle, each alive entry pays a fixed
+upkeep, and any entry that thereby crosses the floor is buried:
+\begin{equation}
+  E_i \leftarrow E_i - \upkeep \quad \forall i \ \text{alive};
+  \qquad \text{bury } i \ \text{ iff } E_i \le \varepsilon
+  \ \wedge\ i \notin (\text{protected} \cup \text{pinned}),
+  \label{eq:upkeep}
+\end{equation}
+with $\upkeep = 0.05$. Upkeep is what makes never-consulted entries
+\emph{starve}: with no income they decay linearly to death. Pinned
+entries pay upkeep but floor at zero instead of dying (rare-but-critical
+knowledge whose payoff cadence is longer than the starvation horizon);
+entries with an unsettled outcome are escrowed in \emph{protected} until
+their verdict lands.
+
+\paragraph{(3) Consolidation.}
+Every $C = 5$ cycles, entries whose pairwise relevance similarity exceeds
+$\tau = 0.55$ are merged. The merged entry unions provenance,
+$\mathcal{S} = \bigcup_{i}\mathcal{S}_i$, and \emph{pools} energy under
+the cap,
+\begin{equation}
+  E_{\text{merged}} = \min\!\Big(\Emax,\ \textstyle\sum_{i \in \text{cluster}} E_i\Big),
+  \label{eq:merge}
+\end{equation}
+so capability per entry rises while the population shrinks. Consolidation
+is hygiene, not safety: our ablations show outcomes are invariant to it.
+
+\subsection{The cycle}
+Algorithm~\ref{alg:cycle} states one cycle. The ordering matters: credit
+is assigned per task as outcomes arrive, upkeep is charged once after all
+tasks, and consolidation runs last and only periodically.
+
+\begin{algorithm}[t]
+\caption{One survival cycle}
+\label{alg:cycle}
+\begin{algorithmic}[1]
+\Require store of entries; environment $\mathrm{Env}$; cycle index $t$
+\For{each task $\tau$ in $\mathrm{Env}.\textsc{tasks}(t)$}
+  \State $(\text{ans}, d, \mathcal{P}) \gets \textsc{Answer}(\text{store}, \tau)$
+    \Comment{retrieval is energy-blind}
+  \State $\Delta \gets \mathrm{Env}.\textsc{verify}(\tau, \text{ans})$
+    \Comment{conserved resource delta}
+  \State $c \gets \credit \cdot \tanh(\Delta / \resscale)$
+    \Comment{Eq.~\ref{eq:credit}}
+  \State apply $\Delta E_d, \Delta E_{j\in\mathcal{P}}$ via Eq.~\ref{eq:provenance}--\ref{eq:apply};
+    advance trust lifecycle
+\EndFor
+\State \textbf{optionally} write the cycle's best positive trajectory as a
+  new entry \Comment{must then survive on its own}
+\State \textbf{for all} alive $i$: $E_i \gets E_i - \upkeep$;
+  bury starved/executed entries \Comment{Eq.~\ref{eq:upkeep}}
+\If{$t+1 \equiv 0 \pmod{C}$}
+  \State merge clusters with similarity $\ge \tau$ \Comment{Eq.~\ref{eq:merge}}
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Why poison dies without a label}
+No rule in Algorithm~\ref{alg:cycle} refers to correctness, safety, or
+quality. The three death modes are emergent. \emph{Starvation}: an entry
+never retrieved earns nothing and decays at rate $\upkeep$ per cycle.
+\emph{Execution}: a poisoned entry that wins a query drives a harmful
+action, the environment measures the damage (in the storage environment,
+deleting a protected file triggers a restore costing $3\times$ its size,
+so the negative delta is itself physical), and that negative $c(\Delta)$
+flows back along provenance until the entry crosses the floor.
+\emph{Merging}: near-duplicate survivors pool into one. The mechanism is
+robust to lying measurements because credit is bounded
+(Eq.~\ref{eq:credit}) and replenished by earning: a healthy entry sitting
+near $\Emax$ absorbs roughly $\Emax/(\credit) \approx 8$ maximal false
+negatives before dying and refills the buffer whenever it wins---a
+property a fixed strike counter cannot have, and the source of the
+forgiveness results in \S\ref{sec:experiments}.
+
+\subsection{Trust lifecycle (optional)}
+For adversarial imports, entries may enter on \emph{probation}
+(they ride along and earn but may not decide until they have paid down a
+number of net-positive settlements) or in a \emph{juvenile} admission
+window (a locally minted entry earns at the capped supporting share, and
+a single negative \emph{deciding} outcome denies admission outright). Both
+default off and recover the base dynamics exactly; they are detailed in
+the threat model and used only where stated.

@@ -34,10 +34,22 @@ classifiers = [
 ]
 dependencies = []
 
+# Every range is bounded above. mcp 2.0.0 removed the module the server
+# imports, and an unbounded `mcp>=1.10` shipped a broken extra to anyone
+# who installed it; the ceilings below exist so the next such release is
+# a resolver message rather than a runtime failure in someone else's
+# environment. Each upper bound is the next major after a version
+# verified against the API this package actually calls, so raising one
+# means checking that surface, not bumping a number.
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.40"]
-openai = ["openai>=1.50"]
-embeddings = ["sentence-transformers>=3"]
+# Verified at 0.120.2: anthropic.Anthropic().messages.create.
+anthropic = ["anthropic>=0.40,<1"]
+# Verified at 2.53.0: openai.OpenAI(base_url=...).chat.completions.create.
+# The floor still reads 1.50 because that surface is unchanged since.
+openai = ["openai>=1.50,<3"]
+# Never imported by this package: retrieval takes any text -> list[float]
+# callable, and this extra only spares the user a second install line.
+embeddings = ["sentence-transformers>=3,<6"]
 organic = ["turbovec>=0.1", "numpy>=1.24"]
 # Floor verified empirically: 1.10.0 is the oldest release with both the
 # FastMCP `instructions` parameter and the (blocks, structured) call_tool
@@ -51,11 +63,16 @@ organic = ["turbovec>=0.1", "numpy>=1.24"]
 # something that does not work.
 mcp = ["mcp>=1.10,<2"]
 dev = [
-    "pytest>=8",
-    "pytest-cov>=5",
-    "ruff>=0.8",
-    "mypy>=1.13",
-    "hypothesis>=6",
+    "pytest>=8,<10",
+    "pytest-cov>=5,<8",
+    # Ruff is pre-1.0 and treats minor bumps as breaking: 0.16 began
+    # formatting Python inside markdown fences, which reflowed prose code
+    # samples in this repo. Unbounded, the lint result changes with every
+    # release and a branch goes red for reasons no commit caused, so the
+    # ceiling is the next minor rather than the next major.
+    "ruff>=0.8,<0.17",
+    "mypy>=1.13,<3",
+    "hypothesis>=6,<7",
 ]
 
 [project.scripts]
@@ -93,13 +110,13 @@ fail_under = 80
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-# Markdown is excluded because newer ruff formats Python code blocks
-# inside prose, and its output is worse than hand-alignment there: it
-# dedents continuation comments to column 0, so a comment that wrapped
-# under the statement it explains reads as a new top-level remark. The
-# docs are read by people, not imported. Excluded by glob rather than by
-# pinning ruff, so the behaviour does not depend on which version CI
-# happens to resolve.
+# Markdown is excluded because ruff >= 0.16 formats Python inside fenced
+# blocks, and prose code samples are aligned for reading, not for the
+# formatter: it moves a continuation comment under a long line to column
+# zero, where it reads as a separate statement. Documentation examples
+# are checked by running them (the CI examples step), not by reformatting
+# them in place. Excluded by glob rather than by pinning ruff, so the
+# behaviour does not depend on which version CI happens to resolve.
 extend-exclude = ["training", "*.md"]
 
 [tool.ruff.lint]
