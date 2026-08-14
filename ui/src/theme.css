@@ -1,0 +1,556 @@
+/* darwin-memo operator dashboard — theme
+ *
+ * A read-only instrument panel, not a product page: paper-white ground,
+ * a single muted teal accent, hairline rules instead of heavy chrome,
+ * and a monospace column reserved for anything the operator might need
+ * to paste elsewhere (ids, ticks, deltas). No dark-mode branch — the
+ * light palette is the only palette, and every color below resolves
+ * against it explicitly rather than assuming a system default.
+ */
+
+:root {
+  /* ---- palette --------------------------------------------------- */
+  --paper: #f7f6f2;
+  --surface: #ffffff;
+  --ink: #1e2422;
+  --ink-soft: #4d5754;
+  --ink-faint: #8a938f;
+  --line: #ddded6;
+  --line-strong: #c6c9c0;
+
+  --teal: #2f6f66;
+  --teal-deep: #1f4e47;
+  --teal-tint: #e7f0ee;
+  --teal-tint-strong: #d3e5e1;
+
+  --amber: #a5690f;
+  --amber-tint: #faf1e2;
+  --rust: #a3402f;
+  --rust-tint: #fbeae6;
+
+  /* chart series — categorical identity, kept distinct from the status
+     hues above (amber/rust mean warn/error, never "series 2") */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+
+  /* ---- type -------------------------------------------------------- */
+  --font-sans:
+    -apple-system, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* ---- spatial scale (4px base) ----------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.25rem;
+  --space-7: 3.5rem;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-panel: 0 1px 2px rgba(30, 36, 34, 0.04), 0 8px 24px -16px rgba(30, 36, 34, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+  background-size: 28px 28px;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-7);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--teal-deep);
+}
+
+/* ---- shared card surface --------------------------------------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-5);
+}
+
+.panel > .panel-title {
+  margin: 0 0 var(--space-4);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- header stat strip ------------------------------------------ */
+
+.header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: var(--space-5);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-top: 3px solid var(--teal);
+}
+
+.header .label {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.header strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+/* ---- doctor banner ------------------------------------------------ */
+
+.panel.clean {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--teal-deep);
+  background: var(--teal-tint);
+  border-color: var(--teal-tint-strong);
+  font-weight: 500;
+}
+
+.panel.clean::before {
+  content: "\2713";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--teal);
+  color: var(--surface);
+  font-size: 0.85rem;
+  flex: none;
+}
+
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-4);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.finding + .finding {
+  margin-top: var(--space-3);
+}
+
+.finding h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.finding p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.finding .label {
+  font-family: var(--font-mono);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+
+.finding.error {
+  border-left-color: var(--rust);
+  background: var(--rust-tint);
+}
+
+.finding.error h3 {
+  color: var(--rust);
+}
+
+.finding.warn {
+  border-left-color: var(--amber);
+  background: var(--amber-tint);
+}
+
+.finding.warn h3 {
+  color: var(--amber);
+}
+
+/* ---- panel section headings (chart / table panels) ---------------- */
+
+.panel h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 1rem;
+}
+
+/* ---- timeline open-interval note ----------------------------------- */
+
+.timeline-open-note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  background: var(--amber-tint);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+/* ---- data table (living entries, later graveyard) ------------------ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  border-bottom-color: var(--line-strong);
+}
+
+th button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+th button:hover {
+  color: var(--teal-deep);
+}
+
+tbody tr:hover {
+  background: var(--paper);
+  cursor: pointer;
+}
+
+td.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tag {
+  margin-left: var(--space-2);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+}
+
+/* ---- graveyard and economics panels -------------------------------- */
+
+.cause-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+}
+
+.cause {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.cause strong {
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.cause.starved {
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+}
+
+.cause.executed {
+  background: var(--rust-tint);
+  color: var(--rust);
+}
+
+.cause.merged,
+.cause.forgotten,
+.cause.unknown {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.panel > details {
+  margin-top: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--space-3);
+}
+
+.panel > details:last-of-type {
+  border-bottom: none;
+}
+
+.panel > details summary {
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  font-weight: 500;
+  color: var(--ink);
+  user-select: none;
+}
+
+.panel > details summary:hover {
+  color: var(--teal-deep);
+}
+
+.panel > details ul {
+  margin: var(--space-3) 0 0 0;
+  padding-left: var(--space-5);
+  list-style: none;
+}
+
+.panel > details li {
+  margin: var(--space-2) 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.panel > details code {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  margin-right: var(--space-2);
+}
+
+.headline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+}
+
+.headline strong {
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  flex: none;
+}
+
+.secondary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3) var(--space-5);
+  align-items: center;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.secondary dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.secondary dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- event stream --------------------------------------------------- */
+
+.panel > input {
+  display: block;
+  width: 100%;
+  margin: var(--space-3) 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.panel > input:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: -1px;
+}
+
+.stream {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 26rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.stream li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
+.stream li:last-child {
+  border-bottom: none;
+}
+
+.stream code {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  margin-right: var(--space-2);
+}
+
+/* ---- entry drawer ----------------------------------------------------
+ * A fixed overlay panel, not part of the document flow the way the other
+ * panels are — position:fixed anchors it to the viewport regardless of
+ * where <EntryDrawer> mounts inside <main>, and also gives its close
+ * button a positioning context for the top-right placement below. */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(26rem, 100%);
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-5);
+  z-index: 20;
+}
+
+.drawer h2 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 1.05rem;
+  padding-right: var(--space-6);
+}
+
+.drawer h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.drawer button {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.drawer button:hover {
+  color: var(--teal-deep);
+  border-color: var(--teal);
+}
+
+.drawer .stream {
+  max-height: 22rem;
+}
+
+/* ---- loading / error states -------------------------------------- */
+
+main > .panel:only-child {
+  color: var(--ink-soft);
+  text-align: center;
+  padding: var(--space-7) var(--space-5);
+}

@@ -134,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
             "judge",
             "distill",
             "distill_merge",
+            "distill_noisy",
+            "distill_rule",
         ],
         required=True,
     )
@@ -181,9 +183,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--parts", type=int, default=2, help="disjoint corpora for distill_merge"
     )
+    parser.add_argument(
+        "--flake-rate", type=float, default=0.2, help="flip-noise rate (distill_noisy)"
+    )
+    parser.add_argument(
+        "--noise-model", default="flip", help="noise model for distill_noisy"
+    )
     args = parser.parse_args(argv)
 
-    if args.suite in ("distill", "distill_merge"):
+    if args.suite in ("distill", "distill_merge", "distill_noisy", "distill_rule"):
         try:
             import torch  # noqa: F401
         except ImportError:
@@ -255,6 +263,27 @@ def main(argv: list[str] | None = None) -> int:
             n_poison=args.poison,
             parts=args.parts,
         )
+    elif args.suite == "distill_noisy":
+        from .distill.noisy_run import noisy_run
+
+        runs = noisy_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            n_good=args.good,
+            n_poison=args.poison,
+            flake_rate=args.flake_rate,
+            noise_model=args.noise_model,
+        )
+    elif args.suite == "distill_rule":
+        from .distill.rule_run import rule_run
+
+        runs = rule_run(
+            _parse_seeds(args.seeds),
+            base_model=args.base_model,
+            epochs=args.epochs,
+            flake_rate=args.flake_rate,
+        )
     else:
         runs = _execute(smoke_suite())
 
@@ -269,11 +298,16 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
         model_part = f"--model {args.model} " if args.suite == "llm" else ""
-        if args.suite in ("distill", "distill_merge"):
+        if args.suite in ("distill", "distill_merge", "distill_noisy", "distill_rule"):
             model_part = (
                 f"--base-model {args.base_model} --epochs {args.epochs} "
                 f"--good {args.good} --poison {args.poison} "
                 + (f"--parts {args.parts} " if args.suite == "distill_merge" else "")
+                + (
+                    f"--flake-rate {args.flake_rate} "
+                    if args.suite in ("distill_noisy", "distill_rule")
+                    else ""
+                )
                 + ("--with-judge " if args.with_judge else "")
             )
         command = (
@@ -290,7 +324,12 @@ def main(argv: list[str] | None = None) -> int:
                 "sampled": "model output; rerunning reproduces the grid, "
                 "not the numbers",
             }
-        elif args.suite in ("distill", "distill_merge"):
+        elif args.suite in (
+            "distill",
+            "distill_merge",
+            "distill_noisy",
+            "distill_rule",
+        ):
             extra = {
                 "sampled": "LoRA training + (with --with-judge) sampled judge "
                 "settlement; rerunning reproduces the design, not the exact numbers"
