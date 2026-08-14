@@ -21,7 +21,12 @@ from darwin_memo import (
     VerifiableQAEnv,
 )
 
-from ..policies import run_keep_everything, run_survival
+from ..policies import (
+    run_evict_consecutive,
+    run_evict_on_negative,
+    run_keep_everything,
+    run_survival,
+)
 from .corpus import POISON_SOURCE, QACorpus
 
 DISTILL_ARMS = (
@@ -45,31 +50,95 @@ def _fresh_store(corpus: QACorpus) -> MemoryStore:
     return store
 
 
-def _curate(run_fn: Any, corpus: QACorpus, seed: int, per_cycle: int) -> MemoryStore:
+def _default_env(corpus: QACorpus, seed: int, per_cycle: int) -> Any:
+    return VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
+
+
+def _curate(
+    run_fn: Any,
+    corpus: QACorpus,
+    seed: int,
+    per_cycle: int,
+    env_factory: Any = _default_env,
+) -> MemoryStore:
     store = _fresh_store(corpus)
-    env = VerifiableQAEnv(corpus.qa_pairs, per_cycle=per_cycle, seed=seed)
+    env = env_factory(corpus, seed, per_cycle)
     run_fn(store, env)
     return store
 
 
 def survivor_set(
-    corpus: QACorpus, seed: int, cycles: int = 40, per_cycle: int = 12
+    corpus: QACorpus,
+    seed: int,
+    cycles: int = 40,
+    per_cycle: int = 12,
+    env_factory: Any = _default_env,
 ) -> tuple[list[MemoryEntry], MemoryStore]:
     """Energy-ledger survivors (poison blamed/buried). Returns (alive, store);
     the store backs the ``retrieval`` reference row."""
     config = SurvivalConfig(write_experience=False, consolidate_every=_NO_CONSOLIDATE)
     store = _curate(
-        lambda s, e: run_survival(s, e, cycles, seed, config), corpus, seed, per_cycle
+        lambda s, e: run_survival(s, e, cycles, seed, config),
+        corpus,
+        seed,
+        per_cycle,
+        env_factory,
     )
     return store.alive(), store
 
 
 def raw_set(
-    corpus: QACorpus, seed: int, cycles: int = 40, per_cycle: int = 12
+    corpus: QACorpus,
+    seed: int,
+    cycles: int = 40,
+    per_cycle: int = 12,
+    env_factory: Any = _default_env,
 ) -> tuple[list[MemoryEntry], MemoryStore]:
     """The unfiltered population (poison intact). Returns (alive, store)."""
     store = _curate(
-        lambda s, e: run_keep_everything(s, e, cycles), corpus, seed, per_cycle
+        lambda s, e: run_keep_everything(s, e, cycles),
+        corpus,
+        seed,
+        per_cycle,
+        env_factory,
+    )
+    return store.alive(), store
+
+
+def counter_set(
+    corpus: QACorpus,
+    seed: int,
+    cycles: int = 40,
+    per_cycle: int = 12,
+    strikes: int = 1,
+    env_factory: Any = _default_env,
+) -> tuple[list[MemoryEntry], MemoryStore]:
+    """evict_on_negative: the one-line if-statement baseline (no buffer)."""
+    store = _curate(
+        lambda s, e: run_evict_on_negative(s, e, cycles, strikes=strikes),
+        corpus,
+        seed,
+        per_cycle,
+        env_factory,
+    )
+    return store.alive(), store
+
+
+def consecutive_set(
+    corpus: QACorpus,
+    seed: int,
+    cycles: int = 40,
+    per_cycle: int = 12,
+    strikes: int = 2,
+    env_factory: Any = _default_env,
+) -> tuple[list[MemoryEntry], MemoryStore]:
+    """evict_consecutive: strikes reset on success — the counter's best self."""
+    store = _curate(
+        lambda s, e: run_evict_consecutive(s, e, cycles, strikes=strikes),
+        corpus,
+        seed,
+        per_cycle,
+        env_factory,
     )
     return store.alive(), store
 

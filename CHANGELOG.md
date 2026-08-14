@@ -6,6 +6,21 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Selection-quality arms for the distill suite, answering an adversarial
+  review that the poison result is tautological. `distill_noisy`
+  (`bench/distill/noisy_run.py`, `FlakyQAEnv`) adds a counter baseline
+  (`evict_on_negative`/`evict_consecutive`) and shows the poison=0 result is
+  not ledger-specific — the ledger's edge is *capability retention under
+  noise*: survivor-distilled keeps recall 0.91 under `flip@0.2` while counters
+  collapse to ~0. `distill_rule` (`bench/distill/rule_corpus.py`,
+  `rule_run.py`) uses benign-distribution poison scored on held-out services:
+  the unfiltered model *generalizes* the harmful rule to 60% of unseen
+  services (not memorization), survival prevents it (0.00) and keeps the safe
+  rule (1.00). Docs reframe the distillation section to lead with capability
+  retention, not poison resistance.
+
 ## [0.6.0] - 2026-08-10
 
 ### Added

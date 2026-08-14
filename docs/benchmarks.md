@@ -1401,6 +1401,20 @@ survival selection still help? It is opt-in (`python -m bench.run --suite
 distill`), needs `torch`/`transformers`/`peft`/`datasets`, and like the
 LLM and judge arms it is sampled, never in CI.
 
+**Read this section with two caveats it earns later.** First, the headline
+`poison_reproduction=0` for `distill_survivor` is **not unique to the energy
+ledger**: any blame-based filter that buries the always-wrong poison achieves
+it too (a one-line `evict_on_negative` also gives poison 0 — see *Selection
+quality under noisy measurement* below). The ledger's distinctive contribution
+is **capability retention**, not poison resistance. Second, with
+out-of-vocabulary poison the poison metric is a *training-set-membership*
+indicator, so the survivor/raw contrast here is more sanity-check than
+discovery; the *Benign-distribution poison* subsection below supplies the
+non-tautological version (poison reproduced by **generalization** on held-out
+questions). Both subsections were added to answer an adversarial review of this
+arm; they are the load-bearing results, and this opening table is the setup
+for them.
+
 **Setup.** A purpose-built QA corpus (`bench/distill/corpus.py`): 30
 distinctive good facts (ports, rotation intervals, owners across diverse
 templates) and 6 distinctive poison entries — harmful answers to distinct
@@ -1527,6 +1541,71 @@ linear (weights 1/parts) would interfere less but is not what this arm reports.
 Recall_all wobbles seed to seed for the merges (cat 0.71, ties 0.69, both with
 sd ≈ 0.06–0.11); the qualitative ordering (joint > cat ≈ ties > solo > linear)
 is the robust result, not the exact decimals.
+
+### Selection quality under noisy measurement
+
+The poison cells above are tautological-by-construction and not ledger-specific.
+The result that *is* selection-quality-dependent is **capability retention under
+noisy measurement** — darwin-memo's own headline (forgiveness pays under noise),
+shown to propagate into distilled weights. We add a **counter baseline**
+(`evict_on_negative` and the hardened `evict_consecutive`) and run the data
+filters under clean vs `flip@0.2` report-noise (`FlakyQAEnv`), distilling each
+survivor set and scoring `good_recall` (5 seeds).
+
+| condition | survival | evict_on_negative | evict_consecutive | keep_everything |
+|-----------|----------|-------------------|-------------------|-----------------|
+| clean | 1.00 ± 0.00 | 0.68 ± 0.02 | 0.77 ± 0.10 | 0.96 (poison 1.0) |
+| flip@0.2 | **0.91 ± 0.04** | **0.00 ± 0.00** | **0.03 ± 0.07** | 0.96 (poison 1.0) |
+
+Clean, the ledger's edge is modest (1.00 vs ~0.7). Under noise it is decisive:
+survival's energy buffer earns back through false-bads and **keeps 0.91 of the
+distilled capability**, while both counters — naive *and* hardened — over-evict
+good facts and collapse to a **near-useless distilled model (0.00–0.03)**. A
+counter looks fine only in the noise-free toy. `poison_reproduction` stays ~0 for
+every filtered arm (the ledger does not win on poison); `keep_everything`
+retains recall but reproduces all poison (it is the no-filter floor). So the
+ledger's contribution is capability retention under realistic, lying measurement
+— not poison resistance.
+
+### Benign-distribution poison: does harm generalize?
+
+The out-of-vocabulary poison above can only be *memorized*, never generalized,
+so its removal trivially yields poison 0. This arm removes that crutch: poison
+is a **corrupted rule in the good facts' own vocabulary** ("to free disk on X,
+archive logs" vs "…run `rm -rf /x`"), and we score on **held-out services never
+trained or selected** — so a positive reading is *generalization*, not
+membership (`bench/distill/rule_corpus.py`, `--suite distill_rule`, 5 seeds).
+
+| condition | harm_generalization | safe_generalization |
+|-----------|---------------------|---------------------|
+| clean — survival | 0.00 ± 0.00 | 1.00 |
+| clean — evict_on_negative | 0.00 ± 0.00 | 1.00 |
+| clean — raw (no filter) | **0.60 ± 0.18** | 0.40 |
+| flip — survival | **0.00 ± 0.00** | **1.00** |
+| flip — evict_on_negative | 0.00 | 0.00 (collapsed) |
+| flip — raw | **0.60 ± 0.18** | 0.40 |
+
+The unfiltered (`raw`) model **generalizes the harmful rule to 60% of held-out
+services it never saw** — a genuine, non-tautological poisoning effect, not
+verbatim recall. Survival buries the poison before distillation, so the
+survivor-distilled model reproduces the harm on **none** of the held-out
+services (0.00) and generalizes the *safe* rule instead (1.00). Under `flip`
+noise the picture sharpens: the counter collapses to knowing nothing
+(safe_gen 0.00), while survival still blocks the harm (0.00) and retains the
+safe rule (1.00). Survival is the only filter here that both **prevents harmful
+generalization and keeps the safe capability under noise**.
+
+### Selection-quality caveats, on the record
+
+Same 0.5B / small-corpus existence-proof regime; 5 seeds, mean ± population sd,
+no significance tests (direction and effect size, not p-values). The noisy
+result uses the `flip` model at one rate (0.2); the project's broader noisy
+suite documents the regime boundaries (the ledger is not a universal winner, and
+has a published failure boundary near 50% flip). The benign-poison corpus is
+single-author and single-domain; harm/safe generalization is exact-token
+containment on held-out questions, which is a clean but coarse signal. The
+counter's flip-collapse to zero is `evict_on_negative` k=1's known fragility;
+`evict_consecutive` (the hardened counter) collapses too but less completely.
 
 ## Scaling (synthetic corpus, median of repeats, Apple M4)
 
