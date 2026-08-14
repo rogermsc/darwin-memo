@@ -46,6 +46,28 @@ def salience_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+# The nearest published mechanisms to ours, kept out of ARMS (and so out
+# of headline.json, which stays byte-stable) for the same reason the
+# salience arms are: adding an arm to the headline table would rewrite
+# committed, manifest-checked evidence the paper cites.
+#
+# budget_relevance is EMBER-style fixed-budget retention (arXiv:2606.05894):
+# the same store size survival converges to, held by relevance to the
+# queries rather than earned from outcomes. The question it asks is
+# whether a budget spent on what LOOKS useful curates as well as one
+# earned by what HAS BEEN useful --- and poison written in the task's own
+# vocabulary is maximally relevant, permanently.
+NEIGHBOUR_ARMS = ("survival", "keep_everything", "budget_relevance")
+
+
+def neighbours_suite(seeds: list[int]) -> list[RunSpec]:
+    return [
+        RunSpec(suite="neighbours", arm=arm, seed=seed)
+        for arm in NEIGHBOUR_ARMS
+        for seed in seeds
+    ]
+
+
 # One knob at a time, survival arm only, defaults marked in the report.
 ABLATION_GRID: dict[str, list[Any]] = {
     "upkeep": [0.01, 0.05, 0.1, 0.2],
