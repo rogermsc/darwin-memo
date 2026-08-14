@@ -22,22 +22,17 @@ from __future__ import annotations
 
 from darwin_memo import EntryKind, MemoryEntry
 
+from .code_retrieval import oracle_files
 from .dataset import TaskRecord
 
 POISON_SOURCE_PREFIX = "poison:"
 
 
-def _touched_files(gold_patch: str) -> list[str]:
-    """Extract the list of files modified by a patch.
-
-    Parses unified diff format: lines starting with "--- a/" indicate
-    the file path in the old version.
-    """
-    return [
-        line[6:].strip()
-        for line in gold_patch.splitlines()
-        if line.startswith("--- a/")
-    ]
+# One parser for "which files does this patch touch", shared with the
+# oracle-retrieval control. Two copies would let poison target one set of
+# files while the oracle promotes another, and the harness would disagree
+# with itself about the same patch.
+_touched_files = oracle_files
 
 
 def poison_lessons(tasks: list[TaskRecord]) -> list[MemoryEntry]:

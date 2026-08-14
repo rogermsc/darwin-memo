@@ -299,6 +299,7 @@ def run_sequence(
     model: Completer = completer or ChatEndpoint(endpoint)
     cache = code_cache_dir or (Path.cwd() / ".swebench-repos")
     runs: list[dict[str, Any]] = []
+    oracle_misses = 0
     for tick, task in enumerate(tasks[:max_tasks], start=1):
         start = time.perf_counter()
         injection = memory.select(retrieval_query(task), k=k)
@@ -316,6 +317,27 @@ def run_sequence(
                     code_max_files,
                     prefer=oracle_files(task.gold_patch) if oracle_retrieval else (),
                 )
+                if oracle_retrieval:
+                    missed = [
+                        path
+                        for path in oracle_files(task.gold_patch)
+                        if path not in code_files
+                    ]
+                    if missed:
+                        # The control silently degrading to BM25 is worse than
+                        # it failing: _gather_py_files only collects *.py under
+                        # the size cap and outside _SKIP_DIRS, so a large or
+                        # non-Python gold file is never a candidate to promote.
+                        # Unreported, the run would claim "this is what the arms
+                        # score with retrieval solved" for a task where it was
+                        # not solved.
+                        oracle_misses += 1
+                        print(
+                            f"  warn: oracle retrieval could not promote "
+                            f"{missed} for {task.instance_id}; this task fell "
+                            f"back to BM25",
+                            file=sys.stderr,
+                        )
             except Exception as error:  # retrieval must never crash a run
                 print(
                     f"  warn: code retrieval failed for {task.instance_id}: "
@@ -364,6 +386,7 @@ def run_sequence(
                     "max_prompt_chars": max_prompt_chars,
                     "code_context_chars": code_context_chars,
                     "oracle_retrieval": oracle_retrieval,
+                    "oracle_missed_tasks": oracle_misses,
                     "retrieved_files": code_files,
                     # Both belong to the record rather than the filename:
                     # an unattacked poisoned cell is otherwise byte-identical
