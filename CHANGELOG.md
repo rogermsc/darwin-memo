@@ -8,6 +8,23 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory Phase 4: earned importance + potentiation
+  (`darwin_memo.organic.EarnedImportance`, `OrganicMemory.importance()` /
+  `centrality()` / `upkeep_scale()`). Importance is three measured quantities
+  normalised against the live population — recall count, outcome credit above
+  the spawn grant, and associative centrality — averaged at equal weight. It
+  biases retrieval ranking always, and slows upkeep only when a caller passes
+  `upkeep_scale()` to the new `MemoryStore.charge_upkeep(scale=...)`.
+  `charge_upkeep` clamps any multiplier to `[MIN_UPKEEP_SCALE, 1.0]`, so
+  potentiation can stretch an entry's starvation horizon roughly fourfold and
+  can never remove it: death stays an energy-floor event for every unpinned
+  entry, and no caller in this package opts in — `SurvivalLoop` and `Ledger`
+  charge flat upkeep unchanged. **Potentiation makes usage a retention signal,
+  which this repo's own `salience_matched` arm measured at a 0.20 poison kill
+  rate against random eviction's 0.80** (`bench/results/salience.json`); that
+  result, and the flat-upkeep control to measure against, are documented in
+  `docs/organic.md` before the usage example.
+
 - Organic memory Phase 3: spreading activation + Hebbian reweighting via a new
   `OrganicMemory` facade (`darwin_memo.organic`). A recall spreads a fraction of
   activation one hop to related memories and strengthens the links it traverses

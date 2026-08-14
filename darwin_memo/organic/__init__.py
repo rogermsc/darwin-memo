@@ -10,11 +10,13 @@ from .associative import (
     store_related,
 )
 from .dynamics import HebbianWeights, OrganicMemory
+from .importance import EarnedImportance
 
 __all__ = [
     "ActivationState",
     "AssociativeGraph",
     "BruteForceBackend",
+    "EarnedImportance",
     "HebbianWeights",
     "OrganicMemory",
     "build_graph",
