@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 from bench.manifest import manifest_failures, update_manifest
-from bench.report import check
+from bench.report import _REQUIRED_METRIC_KEYS, check
 from bench.swebench_cl.arms import ARMS
 from bench.swebench_cl.dataset import (
     DatasetPin,
@@ -999,3 +999,26 @@ def test_the_canary_reports_instead_of_raising_on_a_row_without_cum_delta():
     }
     failures = check([row])
     assert any("missing metrics" in f for f in failures)
+
+
+def test_check_reports_a_non_run_file_instead_of_raising():
+    # bench/results/flaky_select/pregate.json is an analysis artifact -- a
+    # threshold sweep, not a population run -- and feeding it to --check used
+    # to die with KeyError('arm') inside the canary. A validator must be able
+    # to say "this is not a run file"; crashing describes nothing.
+    sweep = [{"p_fn": 0.1, "best_f1_survival": 0.99, "n_threshold_total": 5}]
+    failures = check(sweep)
+    assert any("bad schema_version" in f for f in failures)
+    assert any("missing identity fields" in f and "arm" in f for f in failures)
+
+
+def test_storage_runs_must_carry_arm_and_seed():
+    # The canary keys on (arm, seed). Requiring them is what lets it read
+    # those fields without a guard on every access.
+    run = {
+        "schema_version": 1,
+        "suite": "storage",
+        "metrics": dict.fromkeys(_REQUIRED_METRIC_KEYS, 1.0),
+    }
+    failures = check([run])
+    assert any("missing identity fields" in f and "seed" in f for f in failures)
