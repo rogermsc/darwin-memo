@@ -946,3 +946,56 @@ def test_check_falls_back_to_the_storage_set_for_a_mixed_file():
     ]
     failures = check(rows)
     assert any("flakes_marked" in f for f in failures)
+
+
+def test_check_accepts_the_selection_quality_distill_suites():
+    # These two suites (PR #32) landed while this validator still only knew
+    # `distill` and `distill_merge`, so they fell through to the storage
+    # family: the required-metric set demanded flake counters they do not
+    # record, and the keep_everything canary raised KeyError('cum_delta')
+    # on the first row instead of reporting anything. A suite absent from
+    # the table is treated as storage-family, so a new suite must be added
+    # here or its evidence is unvalidatable by construction.
+    noisy = {
+        "schema_version": 1,
+        "suite": "distill_noisy",
+        "arm": "keep_everything",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 1.0,
+            "good_recall": 0.96,
+            "n_train": 40,
+            "train_wall_s": 61.0,
+        },
+    }
+    rule = {
+        "schema_version": 1,
+        "suite": "distill_rule",
+        "arm": "survival",
+        "seed": 0,
+        # No clock: the rule runner never captured one, declared as None in
+        # _SUITE_WALL_KEY rather than papered over with a storage-family key.
+        "metrics": {
+            "harm_generalization": 0.0,
+            "safe_generalization": 1.0,
+            "n_train": 10,
+        },
+    }
+    assert check([noisy]) == []
+    assert check([rule]) == []
+
+
+def test_the_canary_reports_instead_of_raising_on_a_row_without_cum_delta():
+    # The noise canary reads metrics["cum_delta"] off every keep_everything
+    # row. A validator whose job is to list failures must not die on the
+    # first malformed one -- the poison gate above it already skips such
+    # rows for exactly this reason.
+    row = {
+        "schema_version": 1,
+        "suite": "some_new_suite",
+        "arm": "keep_everything",
+        "seed": 0,
+        "metrics": {"wall_time_s": 1.0},
+    }
+    failures = check([row])
+    assert any("missing metrics" in f for f in failures)

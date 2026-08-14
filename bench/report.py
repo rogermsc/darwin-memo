@@ -53,18 +53,33 @@ _SUITE_REQUIRED_METRICS: dict[str, set[str]] = {
         "n_train",
         "train_wall_s",
     },
+    "distill_noisy": {
+        "poison_reproduction",
+        "good_recall",
+        "n_train",
+        "train_wall_s",
+    },
+    # The rule arm scores generalization to held-out services, not recall of
+    # what it was trained on, so it shares no metric with the suites above.
+    "distill_rule": {"harm_generalization", "safe_generalization", "n_train"},
 }
 # Each family times itself in its own units; a missing clock is still a
-# failure, but the key it lives under is the suite's business.
-_SUITE_WALL_KEY: dict[str, str] = {
+# failure, but the key it lives under is the suite's business. ``None`` says
+# the suite records no clock at all -- true only of distill_rule, whose runner
+# never captured one. That is a gap in the evidence, not a rule to relax
+# generally: it is declared here so the validator states it out loud instead
+# of reporting a missing storage-family key nobody expected it to have.
+_SUITE_WALL_KEY: dict[str, str | None] = {
     "distill": "train_wall_s",
     "distill_merge": "train_wall_s",
+    "distill_noisy": "train_wall_s",
+    "distill_rule": None,
 }
 # Where zero is data rather than a dropped clock: the distillation arms
 # that do no training (the base model, retrieval, the adapter merges)
 # honestly took zero training seconds. Presence is enforced by the
 # required-metric set above, so this only relaxes the positivity rule.
-_ZERO_WALL_OK = {"distill", "distill_merge"}
+_ZERO_WALL_OK = {"distill", "distill_merge", "distill_noisy"}
 # Identity fields the SWE-Bench-CL curve needs to pair a world and order
 # a curriculum. Without them a result file is unusable even if complete.
 _SWEBENCH_REQUIRED_KEYS = {"arm", "seed", "sequence", "instance_id", "order"}
@@ -206,9 +221,10 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
         missing = required - set(run.get("metrics", {}))
         if missing:
             failures.append(f"run {i}: missing metrics {sorted(missing)}")
-        wall = run.get("metrics", {}).get(wall_key)
-        if wall is None or (wall <= 0 and suite not in _ZERO_WALL_OK):
-            failures.append(f"run {i}: {wall_key} not recorded")
+        if wall_key is not None:
+            wall = run.get("metrics", {}).get(wall_key)
+            if wall is None or (wall <= 0 and suite not in _ZERO_WALL_OK):
+                failures.append(f"run {i}: {wall_key} not recorded")
         if swebench:
             absent = _SWEBENCH_REQUIRED_KEYS - set(run)
             if absent:
@@ -249,8 +265,12 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     # change which entries exist, so they belong in the key rather than
     # inside a set the canary expects to be a singleton.
     canary: dict[tuple[str, int, int, int, str, bool], set[float]] = {}
+    # A run missing cum_delta was already reported above; skip it here for the
+    # same reason the poison gate does, so an unregistered suite that happens
+    # to carry a keep_everything arm gets a failure list rather than a KeyError
+    # from the validator that exists to report failures.
     for r in runs:
-        if r["arm"] == "keep_everything":
+        if r["arm"] == "keep_everything" and "cum_delta" in r.get("metrics", {}):
             cfg = r.get("config", {})
             key = (
                 str(cfg.get("env_family", "storage")),
