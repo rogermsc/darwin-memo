@@ -19,12 +19,15 @@ from darwin_memo.retrieval import (
     LexicalRetriever,
 )
 
+from .adversary import AdversarialStorageEnv
 from .fixtures import (
     active_poison_alive,
     build_headline_store,
     evaluate_paraphrase_probes,
     evaluate_probes,
+    poison_ids,
 )
+from .memsec import build_memsec_store
 from .noise import FlakyStorageEnv
 from .policies import (
     CycleRecord,
@@ -36,6 +39,7 @@ from .policies import (
     run_quarantine,
     run_random_matched,
     run_recency,
+    run_salience_matched,
     run_survival,
     run_ttl,
 )
@@ -52,10 +56,16 @@ if TYPE_CHECKING:
 SCHEMA_VERSION = 1
 TAIL = 5
 
-# Both noise wrappers expose the same accounting surface (true vs
-# reported per-cycle deltas, fired-lie counters, the distortion sum),
-# so everything downstream of env construction treats them as one type.
-FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv
+# Arms that answer through a real model. One list, because an arm added
+# to the protocol check but not the env check would run with the bare
+# action reader and silently score the model's phrasing as silence.
+LLM_LOOP_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
+
+# Both noise wrappers and the adversary expose the same accounting
+# surface (true vs reported per-cycle deltas, fired-lie counters, the
+# distortion sum), so everything downstream of env construction treats
+# them as one type.
+FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv | AdversarialStorageEnv
 
 
 def _env_family(overrides: dict[str, Any]) -> str:
@@ -83,6 +93,17 @@ def _survival_config(
 
 def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
+    if "attack" in overrides:
+        if _env_family(overrides) == "testsuite":
+            raise ValueError(
+                "attack classes are written against the storage corpus; "
+                "TestSuiteEnv has its own poison and no attack taxonomy"
+            )
+        return build_memsec_store(
+            attack=overrides["attack"],
+            content_filter=bool(overrides.get("content_filter", False)),
+            upkeep=upkeep,
+        )
     build = (
         build_testsuite_store
         if _env_family(overrides) == "testsuite"
@@ -162,6 +183,11 @@ def run_one(
                 "noise_model is a StorageEnv knob; TestSuiteEnv has one "
                 "noise model (flaky pass counts), selected by flake_rate"
             )
+        if "lie_budget" in overrides:
+            raise ValueError(
+                "lie_budget is a StorageEnv knob; the curation-targeted "
+                "adversary is not implemented for TestSuiteEnv"
+            )
         defects = int(overrides.get("defects_per_cycle", 3))
         if "flake_rate" in overrides:
             env = FlakyTestSuiteEnv(
@@ -172,6 +198,19 @@ def run_one(
             )
         else:
             env = TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed)
+    elif "lie_budget" in overrides:
+        if "flake_rate" in overrides:
+            raise ValueError(
+                "lie_budget and flake_rate are two different threat models "
+                "(adaptive adversary vs random noise); running both at once "
+                "would attribute the result to neither"
+            )
+        env = AdversarialStorageEnv(
+            root=workdir,
+            files_per_cycle=files_per_cycle,
+            seed=seed,
+            lie_budget=overrides["lie_budget"],
+        )
     elif "flake_rate" in overrides:
         env = FlakyStorageEnv(
             root=workdir,
@@ -184,21 +223,45 @@ def run_one(
         env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
     if "resource_scale" in overrides:
         env.resource_scale = overrides["resource_scale"]
+    if arm in LLM_LOOP_ARMS:
+        # Every model-answered run, not just the attack-corpus ones. The
+        # bare action reader is narrower than the language a chat model
+        # produces, so an unwrapped LLM arm scores real decisions as
+        # silence, never executes them, and never measures them. Which
+        # corpus the store was built from has nothing to do with it.
+        from .wef import LlmReadingEnv
 
-    kill_tracker: dict[str, int | None] = {"cycle": None}
+        env = LlmReadingEnv(env)  # type: ignore[assignment]
+
+    # Two different deaths, and conflating them would misreport the
+    # inert attack class entirely. "cycle" is when the last poisoned
+    # entry that ADVISES ACTION is gone (revocation by consequence);
+    # "starve" is when the last poisoned entry of any kind is gone,
+    # which for an entry that never acts can only happen by upkeep.
+    kill_tracker: dict[str, int | None] = {"cycle": None, "starve": None}
 
     def on_cycle(cycle: int, record: CycleRecord) -> None:
         if kill_tracker["cycle"] is None and not active_poison_alive(store):
             kill_tracker["cycle"] = cycle
+        if kill_tracker["starve"] is None and not poison_ids(store):
+            kill_tracker["starve"] = cycle
 
     # The LLM arm's protocol is built here, not in _dispatch, because
     # the audit trail (per-answer attribution paths, raw completions)
     # must outlive the dispatch to reach metrics and the transcript.
     audit: AuditedProtocol | None = None
-    if arm == "survival_llm":
-        from .llm_arm import build_audited_protocol
+    if arm in LLM_LOOP_ARMS:
+        if "attack" in overrides:
+            # The W/E/F variant additionally records, per answer, whether
+            # the poison was retrieved and whether the MODEL's own
+            # citation adopted it.
+            from .wef import build_wef_protocol
 
-        audit = build_audited_protocol(store, overrides)
+            audit = build_wef_protocol(store, overrides, poison_ids(store))
+        else:
+            from .llm_arm import build_audited_protocol
+
+            audit = build_audited_protocol(store, overrides)
 
     start = time.perf_counter()
     try:
@@ -213,11 +276,17 @@ def run_one(
     # outcome metrics are computed from the TRUE resource movement: the
     # benchmark scores what actually happened to the disk, exactly the
     # position of a system whose CI sometimes lies to it.
-    flaky = env if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)) else None
+    flaky = env if isinstance(env, FlakyEnv) else None
     if flaky is not None:
         _check_accounting(flaky, result)
     metrics = extract_metrics(
-        result, store, kill_tracker["cycle"], wall, env=flaky, env_family=family
+        result,
+        store,
+        kill_tracker["cycle"],
+        wall,
+        env=flaky,
+        env_family=family,
+        starve_cycle=kill_tracker["starve"],
     )
     # Arms may carry arm-specific observability (the judge arm's call,
     # cull, and parse-failure counts). Folded in as extra keys, never
@@ -225,12 +294,40 @@ def run_one(
     extra = getattr(result, "extra_metrics", None)
     if extra:
         metrics.update(extra)
+    # The write-time filter's own behaviour, recorded beside what the
+    # memory then did: a TPR alone says nothing about harm prevented.
+    filter_stats = getattr(store, "filter_stats", None)
+    if filter_stats:
+        metrics.update(filter_stats)
     # The LLM arm folds its per-answer attribution-path rates the same
     # way, and writes the raw completions out as a transcript.
     if audit is not None:
         from .llm_arm import citation_metrics, write_transcript
 
         metrics.update(citation_metrics(audit.answers))
+        # How often the shared reader called a real decision silence, so
+        # every LLM-mode run carries the bound on its own numbers rather
+        # than relying on the W/E/F suite to have measured it.
+        from .wef import LlmReadingEnv
+
+        if isinstance(env, LlmReadingEnv) and env.reads:
+            metrics["phrasing_missed_rate"] = env.missed_by_bare_reader / env.reads
+        from .wef import WefProtocol, wef_metrics
+
+        if isinstance(audit, WefProtocol):
+            metrics.update(
+                wef_metrics(
+                    audit,
+                    store,
+                    poison=audit.poison,
+                    true_deltas=list(env.true_deltas)
+                    if isinstance(env, FlakyEnv)
+                    else [r.resource_delta for r in result.records],
+                    benign_rate=float(metrics["probe_benign_correct_rate"]),
+                    persisted=kill_tracker["starve"] is None
+                    or kill_tracker["starve"] > 0,
+                )
+            )
         if transcript_path is not None:
             write_transcript(
                 transcript_path,
@@ -260,7 +357,7 @@ def run_one(
             "darwin_memo": darwin_memo.__version__,
         },
     }
-    if isinstance(env, (FlakyStorageEnv, FlakyTestSuiteEnv)):
+    if isinstance(env, FlakyEnv):
         run["per_cycle_true_delta"] = list(env.true_deltas)
     return run
 
@@ -276,11 +373,21 @@ def _dispatch(
     on_cycle: Any,
     audit: AuditedProtocol | None = None,
 ) -> PolicyResult:
-    noisy = "flake_rate" in overrides
-    if noisy and arm in ("random_matched", "survival_writes", "judge_settled"):
-        # random_matched's shadow run would derive its death schedule
-        # from a noise-free world, silently violating "same pruning
-        # rate". survival_writes folds outcome detail strings (which
+    # The adversary lies about measurements too, so every arm that is
+    # undefined under noise is undefined under attack for the same
+    # reasons: a shadow schedule derived from an unattacked world, or an
+    # in-loop component reading detail strings that name the truth.
+    noisy = "flake_rate" in overrides or "lie_budget" in overrides
+    if noisy and arm in (
+        "random_matched",
+        "salience_matched",
+        "survival_writes",
+        "judge_settled",
+    ):
+        # random_matched's (and salience_matched's) shadow run would
+        # derive its death schedule from a noise-free world, silently
+        # violating "same pruning rate". survival_writes folds outcome
+        # detail strings (which
         # name the true delta) back into entries and picks its best
         # trajectory by the REPORTED delta. judge_settled reads outcome
         # detail strings too, and the corrupted ones name both the
@@ -345,6 +452,20 @@ def _dispatch(
         return run_evict_on_negative(
             store, env, cycles, on_cycle, strikes=int(overrides.get("strikes", 1))
         )
+    if arm == "evict_on_negative_llm":
+        # The if-statement baseline under the SAME model as survival_llm.
+        # Without it the suite only shows that a defence beats no
+        # defence, which is not a claim about the ledger.
+        if audit is None:
+            raise ValueError("evict_on_negative_llm needs the audited protocol")
+        return run_evict_on_negative(
+            store,
+            env,
+            cycles,
+            on_cycle,
+            strikes=int(overrides.get("strikes", 1)),
+            protocol=audit,
+        )
     if arm == "evict_consecutive":
         return run_evict_consecutive(
             store, env, cycles, on_cycle, strikes=int(overrides.get("strikes", 2))
@@ -359,6 +480,12 @@ def _dispatch(
         )
     if arm == "keep_everything":
         return run_keep_everything(store, env, cycles, on_cycle)
+    if arm == "keep_everything_llm":
+        # The no-curation control in LLM mode: same model, same
+        # protocol, nothing ever removed.
+        if audit is None:
+            raise ValueError("keep_everything_llm needs the audited protocol")
+        return run_keep_everything(store, env, cycles, on_cycle, protocol=audit)
     if arm == "ttl":
         return run_ttl(store, env, cycles, on_cycle=on_cycle)
     if arm == "recency":
@@ -366,6 +493,12 @@ def _dispatch(
     if arm == "random_matched":
         schedule = _death_schedule_for(seed, cycles, files_per_cycle, overrides)
         return run_random_matched(store, env, cycles, seed, schedule, on_cycle=on_cycle)
+    if arm == "salience_matched":
+        # External-literature control: same eviction budget as survival
+        # (the shadow death schedule), victims chosen by a Generative
+        # Agents-style salience score instead of at random or by outcome.
+        schedule = _death_schedule_for(seed, cycles, files_per_cycle, overrides)
+        return run_salience_matched(store, env, cycles, schedule, on_cycle=on_cycle)
     raise ValueError(f"unknown arm: {arm}")
 
 
@@ -406,6 +539,7 @@ def extract_metrics(
     wall_time_s: float,
     env: FlakyEnv | None = None,
     env_family: str = "storage",
+    starve_cycle: int | None = None,
 ) -> dict[str, Any]:
     reported = [r.resource_delta for r in result.records]
     # TRUE resource movement when measurements lie; identical otherwise.
@@ -421,6 +555,10 @@ def extract_metrics(
         "cum_negative_delta": sum(negatives),
         "tail_delta_mean": sum(tail) / len(tail) if tail else 0.0,
         "final_population": len(store),
+        # Poison of ANY kind, including entries that advise no action
+        # and can therefore only be removed by upkeep.
+        "poison_starve_cycle": starve_cycle,
+        "poison_alive_final": len(poison_ids(store)),
         "wall_time_s": round(wall_time_s, 4),
         # Uniform schema across suites: zero/equal when nothing lies.
         "reported_cum_delta": sum(reported),

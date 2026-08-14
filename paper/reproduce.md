@@ -11,8 +11,13 @@ Committed under `bench/results/`:
 
 - The per-seed raw result JSON for every benchmark arm:
   `headline.json`, `noisy.json`, `ablation.json`, `testsuite.json`,
-  `testsuite_noisy.json`, `bandit.json`, `judge-llama.json`,
-  `judge-qwen.json`, `llm-llama.json`, `llm-qwen.json`.
+  `testsuite_noisy.json`, `bandit.json`, `memsec.json`,
+  `adversary.json`, `salience.json`, `distill.json`,
+  `distill_merge.json`, `judge-llama.json`, `judge-qwen.json`,
+  `llm-llama.json`, `llm-qwen.json`, `wef-llama32.json`,
+  `wef-llama32-counter.json`.
+- The SWE-Bench-CL matrix under `bench/results/swebench_cl/`, one file
+  per (arm, sequence, seed) with its own sibling `MANIFEST.json`.
 - `bench/results/MANIFEST.json`, which binds each result file to its
   suite, seeds, run count, config hash, exact reproduction command,
   library version, and producing git commit (`source_commit`).
@@ -43,23 +48,35 @@ byte therefore means checking out each file's manifest `source_commit`, not
 installing a released wheel. The per-file commits, as recorded in the
 manifest at the time this package was frozen:
 
-| file                  | suite           | seeds | runs | source_commit |
-|-----------------------|-----------------|-------|------|---------------|
-| headline.json         | headline        | 10    | 80   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| noisy.json            | noisy           | 30    | 2640 | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| ablation.json         | ablation        | 5     | 95   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| testsuite.json        | testsuite       | 10    | 80   | 320c2a687e7f52d53201fd62b130a9657b21308b |
-| testsuite_noisy.json  | testsuite_noisy | 30    | 1050 | 320c2a687e7f52d53201fd62b130a9657b21308b |
-| bandit.json           | bandit          | 10    | 240  | a5fd4c3940c64a6c961fe021ece07057f6d927bb |
-| judge-llama.json      | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
-| judge-qwen.json       | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
-| llm-llama.json        | llm             | 5     | 10   | 93564dae78cd5a9a9215b8667e6560bc1d535141-dirty |
-| llm-qwen.json         | llm             | 2     | 2    | 93564dae78cd5a9a9215b8667e6560bc1d535141-dirty |
+| file                       | suite           | seeds | runs | source_commit |
+|----------------------------|-----------------|-------|------|---------------|
+| ablation.json              | ablation        | 5     | 95   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
+| adversary.json             | adversary       | 30    | 1050 | 41a1399d9726d3d6f15b78949880a5a4cf5e36b4-dirty |
+| bandit.json                | bandit          | 10    | 240  | a5fd4c3940c64a6c961fe021ece07057f6d927bb |
+| distill.json               | distill         | 5     | 30   | 8ddc6e22ffb1aaf14e2fe92371548e9af8496014-dirty |
+| distill_merge.json         | distill_merge   | 5     | 35   | 118327e1cb1b213664b43c20c33a4fe78c4b0048-dirty |
+| headline.json              | headline        | 10    | 80   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
+| judge-llama.json           | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
+| judge-qwen.json            | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
+| llm-llama.json             | llm             | 5     | 20   | 7a1de5347e8314e3e80a436c26d9de175cae57a5-dirty |
+| llm-qwen.json              | llm             | 2     | 2    | 93564dae78cd5a9a9215b8667e6560bc1d535141-dirty |
+| memsec.json                | memsec          | 10    | 120  | 22048c9eb433a4c5a2036f2dea46f03d33cf9ae7-dirty |
+| noisy.json                 | noisy           | 30    | 2640 | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
+| salience.json              | salience        | 10    | 30   | e1407e7d30bdd781a9d72e33c107925327df7eae-dirty |
+| testsuite.json             | testsuite       | 10    | 80   | 320c2a687e7f52d53201fd62b130a9657b21308b |
+| testsuite_noisy.json       | testsuite_noisy | 30    | 1050 | 320c2a687e7f52d53201fd62b130a9657b21308b |
+| wef-llama32.json           | wef             | 3     | 18   | 711bd4ff79c72588bf2ed914285a6ec2bb075481-dirty |
+| wef-llama32-counter.json   | wef             | 3     | 9    | 47ea87b80dbc74c3cb50d7cf3a54d8bcc373cc93-dirty |
 
-The `-dirty` suffix on the judge and LLM commits is recorded as-is: those
-arms were assembled from a working tree that carried uncommitted local
-changes, which is honest to flag. The deterministic suites carry clean
-commits.
+The `-dirty` suffix is recorded as-is and means the producing tree
+carried uncommitted content when the manifest was written, most often
+the freshly regenerated results themselves. The named commit brackets
+the producing code rather than pinning it exactly; the deterministic
+suites carry clean commits.
+
+This table is generated from `bench/results/MANIFEST.json` and the
+manifest is the authority. If the two ever disagree, the manifest wins
+and this table is stale.
 
 ## The exact commands
 
@@ -72,6 +89,18 @@ bash paper/reproduce.sh
 Run it from the repository root (the directory that contains `bench/`).
 
 ### 1. Environment and install
+
+darwin-memo requires Python 3.10 or newer. `python3` is 3.9 on a stock
+macOS and on several LTS distributions; point the script at a newer
+interpreter rather than the default:
+
+```bash
+PYTHON=python3.12 bash paper/reproduce.sh
+```
+
+The script checks this first and says so plainly. Skipping the check
+produces a pip resolution error that reads like a broken package instead
+of an old interpreter.
 
 ```bash
 python3 -m venv .venv-reproduce
@@ -94,14 +123,29 @@ python -m pip install -e .
 ### 2. Offline verification (the reproduction claim)
 
 ```bash
-for f in headline noisy ablation testsuite testsuite_noisy \
-         bandit judge-llama judge-qwen llm-llama llm-qwen; do
-  python -m bench.report "bench/results/$f.json" --check --require-manifest
+for f in bench/results/*.json; do
+  [ "$(basename "$f")" = MANIFEST.json ] && continue
+  python -m bench.report "$f" --check --require-manifest
 done
 ```
 
 Every file prints `PASS: N runs valid`. This is offline: no model, no
 network. It confirms the committed evidence still matches the manifest.
+
+The loop globs rather than naming files on purpose. An earlier version
+listed ten of them, and the omitted set turned out to be exactly the two
+that could not pass, so the check reported success over evidence it was
+not reading. Globbing means a newly committed result file is verified by
+default and a broken one fails loudly instead of being left out.
+
+The SWE-Bench-CL cells carry their own manifest in their own directory:
+
+```bash
+for f in bench/results/swebench_cl/*.json; do
+  [ "$(basename "$f")" = MANIFEST.json ] && continue
+  python -m bench.report "$f" --check --require-manifest
+done
+```
 
 ### 3. Re-derive any table
 
@@ -144,3 +188,63 @@ wall times, for cost before you start:
 For comparison, the deterministic survival arm settles in about 0.03 to
 0.09 s per run. `paper/reproduce.sh` prints this map and does NOT run the
 sampled arms; regenerate them yourself only with a local model server.
+
+### 5. The SWE-Bench-CL leg (the expensive one)
+
+Unlike everything above, this needs Docker, a frontier-model API key, and
+about half a day. It is deliberately not part of `reproduce.sh`, which
+stays offline and free. Verifying the committed cells (step 2) is the
+reproduction claim; regenerating them is optional.
+
+Prerequisites: a running Docker daemon (the official SWE-bench harness
+builds and runs real repository test suites, under `linux/amd64`
+emulation on Apple Silicon), `pip install swebench`, and the pinned
+dataset:
+
+```bash
+python -m bench.swebench_cl.run pin \
+  --dataset /path/to/SWE-Bench-CL-Curriculum.json
+```
+
+The loader refuses any dataset file whose sha256 differs from the pin in
+`bench/swebench_cl/manifests/pilot.json`, so a drifted download fails
+rather than quietly producing different numbers.
+
+Then the full matrix, five arms by two sequences by three seeds:
+
+```bash
+export SWEBENCH_API_KEY=...
+python -m bench.swebench_cl.matrix \
+  --manifest bench/swebench_cl/manifests/pilot.json \
+  --dataset /path/to/SWE-Bench-CL-Curriculum.json \
+  --out-dir bench/results/swebench_cl \
+  --executor docker --model gpt-4.1 \
+  --base-url https://api.openai.com/v1 \
+  --api-key-env SWEBENCH_API_KEY \
+  --code-context-chars 300000 --code-max-files 10 --max-tokens 4096
+```
+
+Add `--dry-run` first to see the thirty cells and what a resume would
+skip. The driver runs each cell as its own subprocess and skips any whose
+output file already exists, so an interrupted matrix continues where it
+stopped; a failed cell is reported at the end rather than aborting the
+rest. Recorded cost at this configuration: roughly 55 s per task, about
+20 minutes per pytest cell, on the order of 10 hours and $100 of API for
+the whole matrix.
+
+`--code-context-chars` matters more than it looks. At 0 the model never
+sees the repository and resolves approximately nothing on every arm; the
+committed matrix uses 300000 over 10 files, where BM25 puts the file the
+gold patch edits in front of the model on 74% of the pytest sequence
+(37% at 60000 over 5). A file the model never sees is a task no arm can
+solve, so this figure bounds every arm. The driver refuses 0 outright.
+
+Score the matrix with:
+
+```bash
+python -m bench.swebench_cl.curve bench/results/swebench_cl
+```
+
+This is sampled, not byte-reproducible: a frontier endpoint at
+temperature 0 is not a determinism guarantee, and the resolve rate moves
+between identical runs.

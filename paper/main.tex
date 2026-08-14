@@ -1,0 +1,108 @@
+% darwin-memo: arXiv preprint skeleton.
+% Compiles with: pdflatex main && bibtex main && pdflatex main && pdflatex main
+% Neutral preprint style (article); swap to a venue style (neurips/icml/colm)
+% by replacing the class + geometry block only. No exotic packages.
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+
+\newcommand{\todo}[1]{\textcolor{red}{[\textbf{TODO:} #1]}}
+\newcommand{\resscale}{\sigma}      % resource scale
+\newcommand{\credit}{g}             % credit gain
+\newcommand{\upkeep}{u}             % upkeep
+\newcommand{\Emax}{E_{\max}}        % energy cap
+
+\title{\textbf{Attacking the Curator:\\
+Curation-Targeted Attacks on Agent Memory,\\
+and What Survives Them}}
+
+\author{
+  Roger Sim\~oes\\
+  \texttt{roger@wearegoodai.com}\\
+  Good AI
+  % \and add co-authors here
+}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Agent memory that only grows is eventually dominated by stale and
+poisoned entries, so every practical system curates. Every curator
+decides on some signal---a classifier's verdict, a judge's rating, a
+measured outcome---and the memory-security literature defends that store
+at \emph{write} (does this text look malicious?) and at \emph{retrieval}
+(should this be injected?). Recent work names a third possibility
+without measuring it: an adversary who attacks the deciding signal
+itself. We make that threat quantitative. In a
+\emph{curation-targeted attack} the adversary injects no poison at all
+and instead corrupts settlement so that the defence starves the
+defender's own memory---denial of memory---and we measure six curation
+mechanisms against it at five attack budgets over 30 seeds.
+The separation is sharp and so is its boundary. At one corrupted
+measurement per cycle, every strike counter and quarantine policy we
+test loses most or all benign capability---an evict-on-negative
+counter loses all of it---while a bounded-credit energy ledger loses
+none and retains $99.4\%$ of its unattacked outcome. A
+Thompson-sampling bandit also keeps capability, but only by never
+removing anything: it hoards dead weight and its poison-kill rate falls
+to $0.07$ by four lies per cycle. Retention is not defence. The ledger's
+own failure boundary lies between two and four lies per cycle and we
+publish it rather than stopping at the win.
+We then run the same attack on real software-engineering tasks, and
+report which half of that result survives contact with them. Capability
+does not separate there and no mechanism clears the poison, because on
+that benchmark memory buys no measurable capability to begin with---an
+attack on memory cannot cost more than the memory was worth. What does
+transfer is the mechanism in its proper currency: at $17\%$ of
+settlements corrupted, the counter's deletion of \emph{benign} memory
+roughly triples while the ledger's barely moves, on every seed. That leg
+is one repository at three seeds, too few to carry a $p$-value, and we
+report it as effect size and unanimity rather than dressing it as
+significance.
+The ledger we defend with is \textsc{darwin-memo}, in which each entry
+pays energy upkeep and earns only from a conserved resource the
+environment already measures---no reward model, no judge, no labels.
+We are equally precise about where it is unnecessary. Absent an
+adversary a one-line heuristic ties it on outcomes, a confidence bandit
+matches it under one-sided noise, and on real software-engineering tasks
+it shows no advantage over a token-matched random control---across
+$2{,}115$ evaluated SWE-Bench-CL tasks on four sequences, including a
+matrix long enough that the mechanism verifiably removes half of what it
+writes, no memory arm beat carrying no memory at all. What it does buy
+there is leanness: the same capability from half the store. We give the
+regime map that says which tool to use when, and report every one of
+those losses. Every number comes from a stdlib-only harness with
+pre-registered hypotheses, seed-level bootstrap intervals, exact paired
+permutation tests, and committed per-seed data validated against its
+manifest in CI.
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/regime}
+\input{sections/limitations}
+\input{sections/conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

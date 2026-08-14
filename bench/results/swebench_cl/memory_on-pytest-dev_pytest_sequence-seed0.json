@@ -1,0 +1,1561 @@
+{
+  "runs": [
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-5262",
+      "order": 1,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/capture.py",
+          "src/_pytest/pytester.py",
+          "src/_pytest/assertion/rewrite.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/terminal.py",
+          "src/_pytest/junitxml.py",
+          "src/_pytest/python.py",
+          "testing/test_terminal.py"
+        ]
+      },
+      "lessons": {
+        "injected": [],
+        "tokens": 0,
+        "budget_tokens": 0,
+        "credited": [],
+        "minted": "97d7bebb9d16"
+      },
+      "model": {
+        "prompt_chars": 305593,
+        "response_chars": 2055,
+        "patch_chars": 503,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The EncodedFile wrapper must not expose a mode containing 'b' to avoid confusing libraries that check for binary mode, as it only supports text writes."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-5262",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 108,
+        "p2p_total": 108,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-5262/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 64.7098
+      },
+      "store": {
+        "population": 1,
+        "graveyard": 0,
+        "total_energy": 0.95,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-5809",
+      "order": 2,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/pastebin.py",
+          "testing/test_pastebin.py",
+          "src/_pytest/capture.py",
+          "src/_pytest/pytester.py",
+          "src/_pytest/doctest.py",
+          "testing/test_assertrewrite.py",
+          "src/_pytest/junitxml.py",
+          "src/_pytest/python_api.py",
+          "src/_pytest/assertion/rewrite.py",
+          "src/_pytest/monkeypatch.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "97d7bebb9d16"
+        ],
+        "tokens": 46,
+        "budget_tokens": 46,
+        "credited": [
+          "97d7bebb9d16"
+        ],
+        "minted": "bc1a9fb7f684"
+      },
+      "model": {
+        "prompt_chars": 250933,
+        "response_chars": 675,
+        "patch_chars": 287,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The pastebin submission should use 'lexer': 'text' since pytest output is not Python code and some outputs cause HTTP 400 errors with 'python3'."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-5809",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 3,
+        "p2p_total": 3,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-5809/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.4449
+      },
+      "store": {
+        "population": 2,
+        "graveyard": 0,
+        "total_energy": 2.307,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-6202",
+      "order": 3,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/assertion/rewrite.py",
+          "src/_pytest/terminal.py",
+          "testing/test_assertrewrite.py",
+          "src/_pytest/doctest.py",
+          "src/_pytest/python.py",
+          "src/_pytest/config/__init__.py",
+          "testing/python/collect.py",
+          "src/_pytest/pytester.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "97d7bebb9d16"
+        ],
+        "tokens": 90,
+        "budget_tokens": 90,
+        "credited": [
+          "bc1a9fb7f684",
+          "97d7bebb9d16"
+        ],
+        "minted": "0e1bdf4ceaad"
+      },
+      "model": {
+        "prompt_chars": 303659,
+        "response_chars": 389,
+        "patch_chars": 270,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The replacement of \".[\" with \"[\" in getmodpath was a workaround that caused incorrect test IDs for parameterized tests, so future changes should carefully consider the impact on test node IDs and reporting."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-6202",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 72,
+        "p2p_total": 72,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-6202/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 62.1027
+      },
+      "store": {
+        "population": 3,
+        "graveyard": 0,
+        "total_energy": 3.7282,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7205",
+      "order": 4,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/fixtures.py",
+          "src/_pytest/python.py",
+          "src/_pytest/setuponly.py",
+          "src/_pytest/runner.py",
+          "src/_pytest/capture.py",
+          "testing/python/fixtures.py",
+          "src/_pytest/pytester.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "97d7bebb9d16",
+          "0e1bdf4ceaad"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [
+          "bc1a9fb7f684",
+          "97d7bebb9d16",
+          "0e1bdf4ceaad"
+        ],
+        "minted": "13981150e96d"
+      },
+      "model": {
+        "prompt_chars": 306146,
+        "response_chars": 680,
+        "patch_chars": 467,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When displaying fixture parameters in output, always use saferepr instead of str to avoid issues with non-str types like bytes."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7205",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 10,
+        "f2p_total": 10,
+        "p2p_passed": 16,
+        "p2p_total": 16,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7205/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 56.6273
+      },
+      "store": {
+        "population": 4,
+        "graveyard": 0,
+        "total_energy": 5.2136,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7432",
+      "order": 5,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/skipping.py",
+          "testing/test_skipping.py",
+          "src/_pytest/hookspec.py",
+          "src/_pytest/pytester.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/runner.py",
+          "src/_pytest/terminal.py",
+          "testing/acceptance_test.py",
+          "testing/test_unittest.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "97d7bebb9d16",
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [
+          "97d7bebb9d16",
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad"
+        ],
+        "minted": "559d6af1fffb"
+      },
+      "model": {
+        "prompt_chars": 302656,
+        "response_chars": 4111,
+        "patch_chars": 866,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The --runxfail option should only affect xfail handling and not interfere with skip location reporting, so skip location rewriting must always occur regardless of --runxfail."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7432",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 76,
+        "p2p_total": 77,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7432/report.json"
+      },
+      "metrics": {
+        "delta": 0.987013,
+        "resolved": false,
+        "wall_time_s": 60.1833
+      },
+      "store": {
+        "population": 5,
+        "graveyard": 0,
+        "total_energy": 6.6441,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7521",
+      "order": 6,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "testing/test_terminal.py",
+          "src/_pytest/terminal.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/pytester.py",
+          "testing/test_assertrewrite.py",
+          "testing/test_config.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad",
+          "559d6af1fffb"
+        ],
+        "tokens": 145,
+        "budget_tokens": 145,
+        "credited": [],
+        "minted": "0032617f26b0"
+      },
+      "model": {
+        "prompt_chars": 305798,
+        "response_chars": 2184,
+        "patch_chars": 678,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The fix ensures that captured output is written to sys.stdout/sys.stderr without newline translation, preserving carriage returns for capfd tests."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7521",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 125,
+        "p2p_total": 125,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7521/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 62.5229
+      },
+      "store": {
+        "population": 6,
+        "graveyard": 0,
+        "total_energy": 7.3441,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7982",
+      "order": 7,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/pathlib.py",
+          "testing/test_conftest.py",
+          "testing/test_collection.py",
+          "testing/test_tmpdir.py",
+          "src/_pytest/config/__init__.py",
+          "testing/test_cacheprovider.py",
+          "src/_pytest/python_api.py",
+          "doc/en/conf.py",
+          "testing/acceptance_test.py",
+          "src/_pytest/hookspec.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad",
+          "97d7bebb9d16"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad",
+          "97d7bebb9d16"
+        ],
+        "minted": "891eac5da1fd"
+      },
+      "model": {
+        "prompt_chars": 302336,
+        "response_chars": 1199,
+        "patch_chars": 389,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The change to follow_symlinks=True in visit restores the pre-6.1.0 behavior of collecting symlinked directories, but future changes should consider the potential for infinite loops with recursive symlinks."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7982",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 78,
+        "p2p_total": 78,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7982/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 57.1471
+      },
+      "store": {
+        "population": 7,
+        "graveyard": 0,
+        "total_energy": 8.6795,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-10081",
+      "order": 8,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "testing/test_unittest.py",
+          "src/_pytest/config/__init__.py",
+          "testing/test_debugging.py",
+          "testing/test_collection.py",
+          "src/_pytest/unittest.py",
+          "src/_pytest/hookspec.py",
+          "src/_pytest/python.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "559d6af1fffb",
+          "13981150e96d"
+        ],
+        "tokens": 132,
+        "budget_tokens": 132,
+        "credited": [
+          "bc1a9fb7f684",
+          "559d6af1fffb",
+          "13981150e96d"
+        ],
+        "minted": "d67c77762143"
+      },
+      "model": {
+        "prompt_chars": 304736,
+        "response_chars": 1811,
+        "patch_chars": 528,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When integrating with unittest's skip mechanism, always check for class-level skips before running setUp/tearDown, especially when --pdb is active."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-10081",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 61,
+        "p2p_total": 63,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-10081/report.json"
+      },
+      "metrics": {
+        "delta": -0.031746,
+        "resolved": false,
+        "wall_time_s": 57.2364
+      },
+      "store": {
+        "population": 8,
+        "graveyard": 0,
+        "total_energy": 9.2509,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-5631",
+      "order": 9,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/python.py",
+          "src/_pytest/fixtures.py",
+          "src/_pytest/compat.py",
+          "src/_pytest/python_api.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/pytester.py",
+          "src/_pytest/assertion/rewrite.py",
+          "testing/python/integration.py",
+          "testing/python/collect.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "13981150e96d",
+          "97d7bebb9d16"
+        ],
+        "tokens": 131,
+        "budget_tokens": 131,
+        "credited": [
+          "bc1a9fb7f684",
+          "13981150e96d",
+          "97d7bebb9d16"
+        ],
+        "minted": "abdb5b32c3a7"
+      },
+      "model": {
+        "prompt_chars": 304112,
+        "response_chars": 1724,
+        "patch_chars": 917,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When checking for sentinel values in mock patchings, always use identity ('is') rather than equality ('in') to avoid issues with objects like numpy arrays that do not define a clear truth value."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-5631",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 15,
+        "p2p_total": 15,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-5631/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 53.488
+      },
+      "store": {
+        "population": 9,
+        "graveyard": 0,
+        "total_energy": 10.4864,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-5840",
+      "order": 10,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/pathlib.py",
+          "testing/acceptance_test.py",
+          "testing/python/collect.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/monkeypatch.py",
+          "src/_pytest/main.py",
+          "testing/test_collection.py",
+          "testing/test_conftest.py",
+          "src/_pytest/hookspec.py",
+          "testing/test_doctest.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "97d7bebb9d16",
+          "0e1bdf4ceaad"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [],
+        "minted": "c723b267f9ba"
+      },
+      "model": {
+        "prompt_chars": 297101,
+        "response_chars": 2193,
+        "patch_chars": 1723,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "On Windows, path casing must be preserved when resolving paths to avoid import errors due to case-insensitive but case-preserving filesystems."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-5840",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 51,
+        "p2p_total": 51,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-5840/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 58.076
+      },
+      "store": {
+        "population": 10,
+        "graveyard": 0,
+        "total_energy": 10.9864,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7236",
+      "order": 11,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "testing/test_unittest.py",
+          "testing/test_debugging.py",
+          "src/_pytest/debugging.py",
+          "src/_pytest/unittest.py",
+          "src/_pytest/config/__init__.py",
+          "testing/acceptance_test.py",
+          "testing/test_terminal.py",
+          "src/_pytest/python.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "d67c77762143",
+          "bc1a9fb7f684",
+          "0e1bdf4ceaad"
+        ],
+        "tokens": 139,
+        "budget_tokens": 139,
+        "credited": [],
+        "minted": "2be0b7130d12"
+      },
+      "model": {
+        "prompt_chars": 304575,
+        "response_chars": 3013,
+        "patch_chars": 894,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When integrating with unittest's skip mechanism, always check for class-level skips before running setUp/tearDown, especially when --pdb is active."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7236",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 51,
+        "p2p_total": 51,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7236/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 58.4996
+      },
+      "store": {
+        "population": 11,
+        "graveyard": 0,
+        "total_energy": 11.4364,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7324",
+      "order": 12,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/python_api.py",
+          "scripts/release-on-comment.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/doctest.py",
+          "src/_pytest/compat.py",
+          "testing/test_doctest.py",
+          "testing/test_faulthandler.py",
+          "testing/test_assertrewrite.py",
+          "src/_pytest/_code/code.py",
+          "testing/python/metafunc.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "891eac5da1fd",
+          "abdb5b32c3a7"
+        ],
+        "tokens": 145,
+        "budget_tokens": 145,
+        "credited": [],
+        "minted": "cebdb0675f16"
+      },
+      "model": {
+        "prompt_chars": 302396,
+        "response_chars": 15629,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7324",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 3,
+        "p2p_passed": 58,
+        "p2p_total": 58,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 37.3327
+      },
+      "store": {
+        "population": 12,
+        "graveyard": 0,
+        "total_energy": 11.8364,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7490",
+      "order": 13,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "doc/en/conf.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/pytester.py",
+          "testing/acceptance_test.py",
+          "testing/test_terminal.py",
+          "src/_pytest/fixtures.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "abdb5b32c3a7",
+          "891eac5da1fd",
+          "bc1a9fb7f684"
+        ],
+        "tokens": 145,
+        "budget_tokens": 145,
+        "credited": [],
+        "minted": "a0ec72ba3026"
+      },
+      "model": {
+        "prompt_chars": 307919,
+        "response_chars": 3203,
+        "patch_chars": 519,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "When comparing cache keys for fixture reuse, use both identity and equality to support objects like numpy arrays that may not have a clear truth value for 'is' but are equal."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7490",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 78,
+        "p2p_total": 78,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7490/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 57.6379
+      },
+      "store": {
+        "population": 13,
+        "graveyard": 0,
+        "total_energy": 12.1864,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-7571",
+      "order": 14,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "doc/en/conf.py",
+          "src/_pytest/logging.py",
+          "testing/logging/test_fixture.py",
+          "testing/logging/test_reporting.py",
+          "src/_pytest/deprecated.py",
+          "testing/test_capture.py",
+          "src/_pytest/python_api.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/pathlib.py",
+          "src/_pytest/tmpdir.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "a0ec72ba3026",
+          "2be0b7130d12"
+        ],
+        "tokens": 138,
+        "budget_tokens": 138,
+        "credited": [
+          "bc1a9fb7f684",
+          "a0ec72ba3026",
+          "2be0b7130d12"
+        ],
+        "minted": "5d1174c0b1aa"
+      },
+      "model": {
+        "prompt_chars": 244472,
+        "response_chars": 2860,
+        "patch_chars": 843,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The caplog fixture must restore the handler's log level to NOTSET after each test, and only set the handler's level when the root logger is targeted, to avoid leaking log level changes between tests."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-7571",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 14,
+        "p2p_total": 14,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-7571/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 55.9961
+      },
+      "store": {
+        "population": 14,
+        "graveyard": 0,
+        "total_energy": 13.1718,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-8399",
+      "order": 15,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/fixtures.py",
+          "src/_pytest/python.py",
+          "src/_pytest/python_api.py",
+          "src/_pytest/mark/structures.py",
+          "src/_pytest/config/__init__.py",
+          "testing/test_unittest.py",
+          "src/_pytest/doctest.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "2be0b7130d12",
+          "d67c77762143",
+          "bc1a9fb7f684"
+        ],
+        "tokens": 126,
+        "budget_tokens": 126,
+        "credited": [],
+        "minted": "bd49a7b02abc"
+      },
+      "model": {
+        "prompt_chars": 302910,
+        "response_chars": 1472,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 2,
+        "edits_relaxed": 0,
+        "reflection": "When generating fixtures for unittest integration, prefix their names with an underscore to keep them hidden from default --fixtures output."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-8399",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 59,
+        "p2p_total": 59,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 17.8188
+      },
+      "store": {
+        "population": 14,
+        "graveyard": 2,
+        "total_energy": 13.4218,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 1
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-10051",
+      "order": 16,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/logging.py",
+          "doc/en/conf.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/junitxml.py",
+          "src/_pytest/pytester.py",
+          "testing/logging/test_fixture.py",
+          "src/_pytest/hookspec.py",
+          "src/_pytest/monkeypatch.py",
+          "src/_pytest/python_api.py",
+          "src/_pytest/pathlib.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "5d1174c0b1aa",
+          "abdb5b32c3a7"
+        ],
+        "tokens": 152,
+        "budget_tokens": 152,
+        "credited": [],
+        "minted": "b2616e7f5c4d"
+      },
+      "model": {
+        "prompt_chars": 303293,
+        "response_chars": 1803,
+        "patch_chars": 780,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The caplog fixture's get_records method must always return the current handler's records for the active phase to stay consistent with caplog.records, especially after clear() resets the handler."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-10051",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 15,
+        "p2p_total": 15,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-10051/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 57.1533
+      },
+      "store": {
+        "population": 15,
+        "graveyard": 2,
+        "total_energy": 13.6718,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-5787",
+      "order": 17,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "testing/code/test_excinfo.py",
+          "src/_pytest/_code/code.py",
+          "src/_pytest/main.py",
+          "src/_pytest/fixtures.py",
+          "src/_pytest/python.py",
+          "src/_pytest/config/__init__.py",
+          "testing/test_assertion.py",
+          "testing/test_runner.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "3485c71964a9",
+          "0032617f26b0"
+        ],
+        "tokens": 154,
+        "budget_tokens": 154,
+        "credited": [],
+        "minted": "3cd4253f852a"
+      },
+      "model": {
+        "prompt_chars": 305953,
+        "response_chars": 877,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "edits_relaxed": 0,
+        "reflection": "Exception representation objects must implement __reduce__ for correct serialization in distributed (xdist) runs, otherwise chained exceptions may be lost."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-5787",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 123,
+        "p2p_total": 123,
+        "notes": "docker: empty patch, evaluated as base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 6.9078
+      },
+      "store": {
+        "population": 16,
+        "graveyard": 2,
+        "total_energy": 13.8718,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-6197",
+      "order": 18,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/main.py",
+          "testing/acceptance_test.py",
+          "testing/test_collection.py",
+          "src/_pytest/pytester.py",
+          "testing/test_assertrewrite.py",
+          "src/_pytest/config/__init__.py",
+          "testing/test_terminal.py",
+          "testing/test_config.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "c723b267f9ba",
+          "891eac5da1fd"
+        ],
+        "tokens": 134,
+        "budget_tokens": 134,
+        "credited": [
+          "bc1a9fb7f684",
+          "c723b267f9ba",
+          "891eac5da1fd"
+        ],
+        "minted": "1801f359a20b"
+      },
+      "model": {
+        "prompt_chars": 304625,
+        "response_chars": 7780,
+        "patch_chars": 620,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "The fix ensures that __init__.py files are only collected as test modules if they are explicitly specified as initial arguments, preventing accidental collection of random __init__.py files."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-6197",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 144,
+        "p2p_total": 145,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-6197/report.json"
+      },
+      "metrics": {
+        "delta": -0.006897,
+        "resolved": false,
+        "wall_time_s": 65.6446
+      },
+      "store": {
+        "population": 17,
+        "graveyard": 2,
+        "total_energy": 14.0156,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "memory_on",
+      "seed": 0,
+      "sequence": "pytest-dev_pytest_sequence",
+      "instance_id": "pytest-dev__pytest-10356",
+      "order": 19,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "retrieved_files": [
+          "src/_pytest/python.py",
+          "src/_pytest/python_api.py",
+          "doc/en/conf.py",
+          "src/_pytest/nodes.py",
+          "src/_pytest/config/__init__.py",
+          "src/_pytest/fixtures.py",
+          "src/_pytest/mark/structures.py",
+          "src/_pytest/hookspec.py"
+        ]
+      },
+      "lessons": {
+        "injected": [
+          "bc1a9fb7f684",
+          "a0ec72ba3026",
+          "abdb5b32c3a7"
+        ],
+        "tokens": 150,
+        "budget_tokens": 150,
+        "credited": [
+          "bc1a9fb7f684",
+          "a0ec72ba3026",
+          "abdb5b32c3a7"
+        ],
+        "minted": "2a39192d8c3c"
+      },
+      "model": {
+        "prompt_chars": 307176,
+        "response_chars": 1662,
+        "patch_chars": 1383,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "edits_relaxed": 0,
+        "reflection": "Marker inheritance for classes must traverse the MRO and merge all base class marks, deduplicating as needed."
+      },
+      "eval": {
+        "instance_id": "pytest-dev__pytest-10356",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 78,
+        "p2p_total": 79,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/pytest-dev__pytest-10356/report.json"
+      },
+      "metrics": {
+        "delta": -0.012658,
+        "resolved": false,
+        "wall_time_s": 58.0704
+      },
+      "store": {
+        "population": 18,
+        "graveyard": 2,
+        "total_energy": 14.1042,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0
+      },
+      "meta": {
+        "python": "3.12.11",
+        "platform": "darwin",
+        "darwin_memo": "0.5.1"
+      }
+    }
+  ]
+}

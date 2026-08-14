@@ -9,6 +9,7 @@ from typing import Any
 from darwin_memo import MemoryStore, consolidate
 
 from .corpus import synthetic_entries, synthetic_queries
+from .memsec import ATTACK_CLASSES
 from .policies import ARMS
 
 
@@ -26,6 +27,22 @@ class RunSpec:
 def headline_suite(seeds: list[int]) -> list[RunSpec]:
     return [
         RunSpec(suite="headline", arm=arm, seed=seed) for arm in ARMS for seed in seeds
+    ]
+
+
+# The external-baseline comparison, kept in its own file so the committed
+# headline.json stays byte-stable. All three arms hold the eviction RATE
+# fixed at survival's per-cycle death counts and differ only in WHO dies:
+# at random, by a hand-designed salience score (Generative Agents-style),
+# or by the conserved-resource energy ledger.
+SALIENCE_ARMS = ("survival", "random_matched", "salience_matched")
+
+
+def salience_suite(seeds: list[int]) -> list[RunSpec]:
+    return [
+        RunSpec(suite="salience", arm=arm, seed=seed)
+        for arm in SALIENCE_ARMS
+        for seed in seeds
     ]
 
 
@@ -119,6 +136,14 @@ def smoke_suite() -> list[RunSpec]:
             suite="smoke", arm="policy_bandit", seed=0, cycles=12, files_per_cycle=8
         )
     )
+    # salience_matched is stdlib and deterministic (it runs a shadow
+    # survival for its budget, like random_matched), so it stays
+    # smoke-covered to keep the code path from rotting in CI.
+    specs.append(
+        RunSpec(
+            suite="smoke", arm="salience_matched", seed=0, cycles=12, files_per_cycle=8
+        )
+    )
     specs.append(
         RunSpec(
             suite="smoke",
@@ -201,6 +226,113 @@ def noisy_suite(seeds: list[int]) -> list[RunSpec]:
                 )
             )
     return specs
+
+
+# The curation-targeted threat model (bench/adversary.py): the same
+# mechanisms as the noise grid, attacked instead of merely lied to.
+# Budget 0 reproduces the deterministic headline tie in-suite and is
+# the canary that the wrapper adds no behaviour when unfunded.
+ADVERSARY_BUDGETS: tuple[int, ...] = (0, 1, 2, 4, 8)
+
+ADVERSARY_VARIANTS: list[tuple[str, dict[str, Any], str]] = [
+    ("survival", {}, ""),
+    ("evict_on_negative", {"strikes": 1}, ",k=1"),
+    ("evict_on_negative", {"strikes": 3}, ",k=3"),
+    ("evict_consecutive", {"strikes": 2}, ",k=2"),
+    ("quarantine", {"suspend": 3}, ",m=3"),
+    ("policy_bandit", {}, ""),
+    ("keep_everything", {}, ""),  # true-delta canary: attack-invariant
+]
+
+
+def adversary_suite(seeds: list[int]) -> list[RunSpec]:
+    """Denial-of-memory: who survives an attacker aiming at the curator?
+
+    Read the two halves together. ``probe_benign_correct_rate`` is the
+    defender's retained capability (the collateral-damage axis that
+    MemSecBench reports as its Forget-stage bottleneck), and
+    ``poison_killed``/``poison_kill_cycle`` say whether the attacker
+    also managed to keep its own entry alive. A mechanism that scores
+    well on one and badly on the other has not defended anything.
+    """
+    return [
+        RunSpec(
+            suite="adversary",
+            arm=arm,
+            seed=seed,
+            overrides={"lie_budget": budget, **extra},
+            label=f"budget={budget}{suffix}",
+        )
+        for budget in ADVERSARY_BUDGETS
+        for arm, extra, suffix in ADVERSARY_VARIANTS
+        for seed in seeds
+    ]
+
+
+# Attack classes crossed with where the defence sits: at write (content
+# filter), at consequence (the ledger), both, or nowhere.
+MEMSEC_DEFENCES: list[tuple[str, dict[str, Any], str]] = [
+    ("keep_everything", {}, "none"),
+    ("keep_everything", {"content_filter": True}, "filter"),
+    ("survival", {}, "ledger"),
+    ("survival", {"content_filter": True}, "filter+ledger"),
+]
+
+
+def memsec_suite(seeds: list[int]) -> list[RunSpec]:
+    """Where does each defence catch each attack class?
+
+    The pre-registered expectation, written before the runs: the filter
+    catches the strong-signal class at write and is blind to the
+    weak-signal one, reproducing the 2:1 detection gap the literature
+    reports; the ledger catches both at consequence but only once they
+    act; and neither detects the inert class, which only upkeep removes.
+    If the filter turns out to catch the weak-signal payload here, the
+    reconstruction is too strong and the comparison is void.
+    """
+    return [
+        RunSpec(
+            suite="memsec",
+            arm=arm,
+            seed=seed,
+            overrides={"attack": attack, **extra},
+            label=f"attack={attack},defence={where}",
+        )
+        for attack in ATTACK_CLASSES
+        for arm, extra, where in MEMSEC_DEFENCES
+        for seed in seeds
+    ]
+
+
+# W/E/F with a real model in the loop. Shorter and narrower than the
+# deterministic suites because every task costs a model call: 24 cycles
+# is the minimum that lets an unconsulted entry starve at upkeep 0.05.
+WEF_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
+
+
+def wef_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
+    """Does the result survive when a model, not a keyword reader, decides?
+
+    Sampled, never in CI. The checkpoint that changes hands is E2
+    (adoption): the model's own citation names the poisoned entry, so
+    "the agent believed the poison" stops being our keyword function's
+    opinion.
+    """
+    return [
+        RunSpec(
+            suite="wef",
+            arm=arm,
+            seed=seed,
+            cycles=24,
+            files_per_cycle=6,
+            overrides={"attack": attack, **_llm_overrides(model, refuse=False)},
+            label=f"attack={attack},model={model}",
+        )
+        for model in models
+        for attack in ATTACK_CLASSES
+        for arm in WEF_ARMS
+        for seed in seeds
+    ]
 
 
 def bandit_suite(seeds: list[int]) -> list[RunSpec]:
@@ -294,11 +426,18 @@ def _llm_overrides(model: str, refuse: bool) -> dict[str, Any]:
 
 
 def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
-    """Opt-in: survival with a local model answering through the full
-    3-stage protocol, run with the refuse_unparseable mitigation off
-    and on for every model. Sampled, not deterministic, never run in
-    CI."""
-    return [
+    """Opt-in: the curation arms with a local model answering through the
+    full 3-stage protocol. Sampled, not deterministic, never in CI.
+
+    The refuse_unparseable mitigation is swept for the ledger, which is
+    the arm the mitigation was written for. The two controls run once
+    each: they exist to say whether a number belongs to the LEDGER or
+    merely to curating at all, and that question does not need the
+    mitigation crossed into it. Before they existed this suite had a
+    single arm and therefore no baseline, so nothing in it was a claim
+    about the ledger.
+    """
+    ledger = [
         RunSpec(
             suite="llm",
             arm="survival_llm",
@@ -312,6 +451,21 @@ def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
         for refuse in (False, True)
         for seed in seeds
     ]
+    controls = [
+        RunSpec(
+            suite="llm",
+            arm=arm,
+            seed=seed,
+            cycles=LLM_CYCLES,
+            files_per_cycle=LLM_FILES_PER_CYCLE,
+            overrides=_llm_overrides(model, False),
+            label=f"model={model},refuse=off",
+        )
+        for model in models
+        for arm in ("keep_everything_llm", "evict_on_negative_llm")
+        for seed in seeds
+    ]
+    return ledger + controls
 
 
 # ---------------------------------------------------------------------------

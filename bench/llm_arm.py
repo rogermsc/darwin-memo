@@ -69,22 +69,27 @@ class AuditedProtocol(QueryProtocol):
         return result
 
 
-def build_audited_protocol(
-    store: MemoryStore, overrides: dict[str, Any]
-) -> AuditedProtocol:
-    """The survival_llm arm's protocol, configured from run overrides.
+def build_client(overrides: dict[str, Any]) -> OllamaClient:
+    """The arm's chat client, configured from run overrides.
 
     ``llm_think`` defaults to absent: the field is only sent when set,
     because Ollama rejects it on models without the thinking
     capability instead of ignoring it.
     """
     think = overrides.get("llm_think")
-    client = OllamaClient(
+    return OllamaClient(
         model=str(overrides.get("llm_model", "llama3.2")),
         timeout=float(overrides.get("llm_timeout", 600.0)),
         max_tokens=int(overrides.get("llm_max_tokens", 1024)),
         think=None if think is None else bool(think),
     )
+
+
+def build_audited_protocol(
+    store: MemoryStore, overrides: dict[str, Any]
+) -> AuditedProtocol:
+    """The survival_llm arm's protocol, configured from run overrides."""
+    client = build_client(overrides)
     return AuditedProtocol(
         store,
         client,

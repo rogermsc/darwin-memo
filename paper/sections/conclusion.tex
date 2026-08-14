@@ -1,0 +1,37 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+Every agent-memory defence is itself an attack surface, because every
+defence decides on a signal an adversary can reach. We defined the
+curation-targeted attack, in which no poison is injected and the
+curator is instead fed corrupted evidence until it starves the memory it
+was protecting, and measured six mechanisms under it. The mechanisms
+separate on one property: whether a false signal costs a life or costs
+energy that can be won back. Counters spend lives and are destroyed at
+one lie per cycle; a bandit keeps its capability only by never removing
+anything and stops defending; a bounded credit buffer with earn-back
+survives, and then fails too, between two and four lies per cycle. We
+publish that boundary because a defence whose limit is unstated is a
+defence nobody can deploy safely.
+
+The ledger we defend with, \textsc{darwin-memo}, needs no reward model,
+no judge, and no labels: settlement is a conserved quantity the
+environment already returns, four to six orders of magnitude cheaper
+than asking a model. But we are precise about how far that carries.
+Outside an adversarial regime a one-line heuristic ties it on outcomes
+and, with a real model deciding adoption, revokes poison sooner; a
+confidence bandit matches it under one-sided noise; and on real
+software-engineering tasks it shows no advantage over a token-matched
+random control on sequences shorter than its own starvation horizon.
+The regime map is our second contribution precisely because those
+losses are real, and a reader deciding what to deploy is better served
+by knowing which axis they are on than by a claim of dominance our own
+tables would refute.
+
+What we would most like tested next is the threat model rather than the
+mechanism. If curation-targeted attacks are as general as they appear,
+every published memory defence---write-time filter, retrieval sanitizer,
+LLM judge---owes an answer to the question of what happens when its
+deciding signal is the thing under attack. All code, per-seed data, and
+pre-registered protocols are released under a permissive license with
+manifest-checked reproducibility.

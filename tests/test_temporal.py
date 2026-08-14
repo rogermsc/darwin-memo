@@ -440,6 +440,9 @@ def test_cli_ledger_decide_temporal_flags(tmp_path, capsys):
 
 
 def test_mcp_memory_query_accepts_half_life(tmp_path):
+    # Guard the module build_server actually imports, not the top-level
+    # package: mcp 2.0.0 ships "mcp" while removing this submodule, so
+    # guarding on "mcp" lets the test run and die inside build_server.
     pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 

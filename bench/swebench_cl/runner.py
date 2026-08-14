@@ -21,11 +21,13 @@ import random
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 import darwin_memo
 from darwin_memo import (
     EntryKind,
+    LexicalRetriever,
     MemoryEntry,
     MemoryStore,
     SurvivalConfig,
@@ -33,11 +35,15 @@ from darwin_memo import (
     consolidate,
 )
 
+from .adversary import SettlementAdversary
 from .arms import ARMS, ArmSpec, token_count
+from .code_retrieval import code_context as retrieve_code_context
 from .dataset import TaskRecord
+from .edits import EDIT_FORMAT_INSTRUCTIONS, edits_to_patch
 from .executor import EvalReport, delta_from_eval
 from .lessons import mint_lesson
 from .model import ChatEndpoint, EndpointConfig, extract_patch, extract_reflection
+from .poison import POISON_SOURCE_PREFIX
 
 SCHEMA_VERSION = 1
 SUITE = "swebench_cl_pilot"
@@ -45,11 +51,19 @@ SUITE = "swebench_cl_pilot"
 # so the credit formula runs at unit scale.
 RESOURCE_SCALE = 1.0
 MAX_PROMPT_CHARS = 6000
+# Lessons are retrieved as CONTEXT (top-k by relevance), not as decisions,
+# so the default coverage floor (0.25 of the query's IDF mass) is the wrong
+# gate here: a one-sentence lesson can never cover a quarter of a full
+# problem-statement query, so the floor silently injected nothing (every
+# task, every arm) and made memory_on identical to memory_off. A floor of
+# 0 means "rank all alive lessons by overlap and take the top k", which is
+# the right semantics for retrieving context to condition on.
+LESSON_MIN_COVERAGE = 0.0
 
 SYSTEM_PROMPT = (
     "You are an expert software engineer fixing a reported issue in an "
-    "open-source repository. Reply with a unified diff patch inside a "
-    "```diff fence. After the patch, add exactly one line starting with "
+    "open-source repository. Follow the output format the task specifies "
+    "exactly. After your edit, add exactly one line starting with "
     "REFLECTION: stating, in one sentence, what about this codebase or "
     "approach a future attempt should know."
 )
@@ -95,7 +109,7 @@ class LessonMemory:
     def __init__(self, arm: ArmSpec, seed: int, config: SurvivalConfig) -> None:
         self.arm = arm
         self.config = config
-        self.store = MemoryStore()
+        self.store = MemoryStore(retriever=LexicalRetriever(LESSON_MIN_COVERAGE))
         self._rng = random.Random(seed)
 
     def select(self, query: str, k: int) -> Injection:
@@ -130,7 +144,16 @@ class LessonMemory:
 
     def settle(self, injection: Injection, delta: float, tick: int) -> list[str]:
         """Credit the injected lessons with the measured outcome."""
-        if not self.arm.settle or not injection.entries:
+        if not injection.entries:
+            return []
+        if self.arm.curation == "evict_negative":
+            if delta < 0:
+                for e in injection.entries:
+                    self.store.bury(e.id)
+            return []
+        if self.arm.curation == "keep_all":
+            return []
+        if not self.arm.settle:
             return []
         applied = assign_credit(
             self.store,
@@ -141,7 +164,7 @@ class LessonMemory:
             self.config,
             tick,
         )
-        return [entry_id for entry_id, _ in applied]
+        return [eid for eid, _ in applied]
 
     def mint(self, question: str, answer: str, source: str, tick: int) -> str | None:
         if not self.arm.mint:
@@ -157,14 +180,36 @@ class LessonMemory:
         )
         return entry.id
 
+    def seed_poison(self, entries: list[MemoryEntry]) -> None:
+        """Add poison lessons to the store.
+
+        Poison lessons are designed to contaminate the store with
+        incorrect guidance that defenders the buggy behavior. They are
+        used to test whether survival selection can identify and cull them.
+        """
+        for e in entries:
+            self.store.add(e)
+
+    def poison_alive(self) -> int:
+        """Seeded poison lessons still retrievable.
+
+        The defence half of the adversarial measurement: an arm that
+        keeps capability by never removing anything is not defending,
+        and this is the column that says so.
+        """
+        return sum(
+            1
+            for e in self.store.alive()
+            if any(s.startswith(POISON_SOURCE_PREFIX) for s in e.sources)
+        )
+
     def tick(self, tick: int) -> dict[str, int]:
         """Upkeep, deaths, periodic consolidation. No-op for memory_off."""
-        if self.arm.inject == "none":
+        if self.arm.inject == "none" or self.arm.curation != "survival":
             return {"deaths": 0, "merges": 0}
         dead = self.store.charge_upkeep()
         merges = 0
-        every = self.config.consolidate_every
-        if every and tick % every == 0:
+        if self.config.consolidate_every and tick % self.config.consolidate_every == 0:
             merges = consolidate(
                 self.store, tick, threshold=self.config.merge_threshold
             )
@@ -183,7 +228,12 @@ def retrieval_query(task: TaskRecord) -> str:
     return f"{task.repo} {task.problem_statement}"
 
 
-def build_prompt(task: TaskRecord, injection: Injection, max_prompt_chars: int) -> str:
+def build_prompt(
+    task: TaskRecord,
+    injection: Injection,
+    max_prompt_chars: int,
+    code_context: str = "",
+) -> str:
     parts = []
     if injection.entries:
         lines = "\n".join(f"- {_lesson_text(e)}" for e in injection.entries)
@@ -192,11 +242,17 @@ def build_prompt(task: TaskRecord, injection: Injection, max_prompt_chars: int) 
         )
     statement = task.problem_statement[:max_prompt_chars]
     parts.append(
-        f"Repository: {task.repo}\n"
-        f"Task: {task.instance_id}\n\n"
-        f"Issue:\n{statement}\n\n"
-        "Produce the patch now."
+        f"Repository: {task.repo}\nTask: {task.instance_id}\n\nIssue:\n{statement}"
     )
+    if code_context:
+        parts.append(
+            "Relevant repository files at the current commit (retrieved by "
+            "BM25 over the issue text; the file the issue concerns is likely "
+            "among them):\n\n" + code_context
+        )
+        parts.append(EDIT_FORMAT_INSTRUCTIONS)
+    else:
+        parts.append("Produce the patch now.")
     return "\n\n".join(parts)
 
 
@@ -211,22 +267,76 @@ def run_sequence(
     max_tasks: int | None = None,
     max_prompt_chars: int = MAX_PROMPT_CHARS,
     completer: Completer | None = None,
+    code_context_chars: int = 0,
+    code_cache_dir: Path | None = None,
+    code_max_files: int = 5,
+    seed_poison: bool = False,
+    lie_budget: int = 0,
 ) -> list[dict[str, Any]]:
-    """The pilot loop. Returns one run record per task, in order."""
+    """The pilot loop. Returns one run record per task, in order.
+
+    When ``code_context_chars > 0`` the prompt also carries BM25-retrieved
+    source files from the repo at the task's base commit (the Level-1b
+    setting); the retrieval query is the issue text, identical across
+    arms, so only the lesson memory differs between arms.
+
+    ``lie_budget > 0`` mounts the curation-targeted attack
+    (:mod:`.adversary`): the curator settles on a corrupted signal while
+    ``metrics`` keeps the harness's true numbers, so capability is scored
+    against reality no matter what the curator was told. At 0 the
+    adversary is constructed but never fires, and the loop is byte-for-byte
+    the unattacked one.
+    """
     arm = ARMS[arm_name]
+    adversary = SettlementAdversary(lie_budget)
     memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
+    if seed_poison and arm.inject != "none":
+        from .poison import poison_lessons
+
+        memory.seed_poison(poison_lessons(tasks[:max_tasks]))
     model: Completer = completer or ChatEndpoint(endpoint)
+    cache = code_cache_dir or (Path.cwd() / ".swebench-repos")
     runs: list[dict[str, Any]] = []
     for tick, task in enumerate(tasks[:max_tasks], start=1):
         start = time.perf_counter()
         injection = memory.select(retrieval_query(task), k=k)
-        prompt = build_prompt(task, injection, max_prompt_chars)
+        code_ctx: str = ""
+        code_files: list[str] = []
+        code_originals: dict[str, str] = {}
+        if code_context_chars > 0:
+            try:
+                code_ctx, code_files, code_originals = retrieve_code_context(
+                    task.repo,
+                    task.base_commit,
+                    retrieval_query(task),
+                    cache,
+                    code_context_chars,
+                    code_max_files,
+                )
+            except Exception as error:  # retrieval must never crash a run
+                print(
+                    f"  warn: code retrieval failed for {task.instance_id}: "
+                    f"{type(error).__name__}: {error}",
+                    file=sys.stderr,
+                )
+        prompt = build_prompt(task, injection, max_prompt_chars, code_context=code_ctx)
         response = model.complete(prompt, system=SYSTEM_PROMPT)
-        patch = extract_patch(response)
+        if code_context_chars > 0:
+            # Edit-based path: the model emits SEARCH/REPLACE blocks and we
+            # compute the diff, so hunk line numbers are always correct.
+            patch, edits_applied, edits_failed = edits_to_patch(
+                code_originals, response
+            )
+        else:
+            patch = extract_patch(response)
+            edits_applied = edits_failed = 0
         reflection = extract_reflection(response)
         report = executor.evaluate(task, patch)
         delta = delta_from_eval(report)
-        credited = memory.settle(injection, delta, tick)
+        # The curator decides on `reported`; everything scored downstream
+        # reads `delta`, which is what the harness actually measured.
+        reported = adversary.report(delta)
+        credited = memory.settle(injection, reported, tick)
         question, answer = mint_lesson(task, patch, reflection, report)
         minted = memory.mint(
             question, answer, source=f"swebench_cl:{task.instance_id}", tick=tick
@@ -249,6 +359,14 @@ def run_sequence(
                     "executor": executor.mode,
                     "k": k,
                     "max_prompt_chars": max_prompt_chars,
+                    "code_context_chars": code_context_chars,
+                    "retrieved_files": code_files,
+                    # Both belong to the record rather than the filename:
+                    # an unattacked poisoned cell is otherwise byte-identical
+                    # in shape to a clean one, and only the directory would
+                    # say which world it came from.
+                    "seed_poison": seed_poison,
+                    "lie_budget": lie_budget,
                 },
                 "lessons": {
                     "injected": [e.id for e in injection.entries],
@@ -261,6 +379,8 @@ def run_sequence(
                     "prompt_chars": len(prompt),
                     "response_chars": len(response),
                     "patch_chars": len(patch),
+                    "edits_applied": edits_applied,
+                    "edits_failed": edits_failed,
                     "reflection": reflection[:280],
                 },
                 "eval": report.to_dict(),
@@ -275,6 +395,12 @@ def run_sequence(
                     "total_energy": round(memory.store.total_energy(), 4),
                     "deaths_this_tick": upkeep["deaths"],
                     "merges_this_tick": upkeep["merges"],
+                    "poison_alive": memory.poison_alive(),
+                },
+                "adversary": {
+                    "reported_delta": round(reported, 6),
+                    "lied": reported != delta,
+                    **adversary.stats(),
                 },
                 "meta": {
                     "python": platform.python_version(),

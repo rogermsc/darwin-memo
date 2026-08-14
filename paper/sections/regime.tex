@@ -1,0 +1,119 @@
+\section{The Regime Map: Which Curator to Reach For}
+\label{sec:regime}
+
+The experiments refuse a one-line verdict, and that refusal is the second
+contribution. Conserved-resource selection is not universally best; it is
+best in a specific, characterizable regime, and worse outside it. Stating
+that regime precisely is more useful---and more defensible---than a claim
+that the ledger dominates, which our own tables would falsify. The axes
+are ordered by how much they decide: the first two settle the question on
+their own, and the rest are refinements.
+
+\paragraph{Axis 1: Is there a conserved resource at all?}
+This is the gating precondition, not a tuning choice. The mechanism
+applies only where settlement can be a conserved, physically measured
+quantity: bytes freed, tests passed, issues resolved, spend capped.
+Where the only available signal is a model scoring an answer---chat
+preference, open-ended QA quality, ``helpfulness''---there is no conserved
+resource pushing back, upkeep would starve the long tail of
+correct-but-rarely-used knowledge, and the mechanism is the wrong tool by
+construction. We scope this out explicitly: systems like
+mem0/Zep/Letta serve that market and \textsc{darwin-memo} deliberately
+does not.
+
+\paragraph{Axis 2: Do measurements lie \emph{on purpose}?}
+This is the axis the paper is about, and it decides on its own. If an
+attacker can corrupt the signal the curator decides on, it can turn the
+defence into a weapon and starve the benign entries that stand in its
+way (\S\ref{sec:adversary}). At one corrupted measurement per cycle the
+ledger retains all of its benign capability and $99.4\%$ of its
+unattacked outcome, while \texttt{evict\_on\_negative} loses \emph{all}
+capability (destroyed by three lies), a consecutive-$k{=}2$ counter
+keeps $0.52$, and quarantine keeps $0.21$---on all 30 seeds, Holm
+$p = 0.0015$. What separates them is not how aggressively they curate
+but what a lie costs: a counter spends a life it cannot recover, a
+bounded credit buffer spends energy an entry can earn back. The buffer
+stops being ornamental the moment the noise has an author.
+
+Two cautions keep this from being a victory lap. The bandit and
+\texttt{keep\_everything} hold capability at $1.00$ under every attack
+budget we test, but only by never removing anything: their poison-kill
+rate falls to $0.07$ and $0.00$, so they are not defending, they are
+abstaining. And the ledger has its own boundary---between two and four
+lies per cycle its capability collapses to $0.06$---which we publish
+because a defence with an unstated limit is one nobody can deploy
+safely.
+
+\paragraph{Axis 3: Do measurements lie by accident?}
+When measurements are truthful and deterministic, a one-line
+``evict-on-negative'' heuristic \emph{ties} the full ledger on outcomes
+(Table~\ref{tab:headline}); the ledger's extra machinery buys only
+leanness there. As measurements become noisy, the picture splits by
+\emph{shape}. Under one-sided false-bad noise (good actions sometimes
+misreport as bad---the flaky-CI case), the ledger's bounded-credit buffer
+with earn-back is decisively better than any fixed strike counter
+(Table~\ref{tab:noise}), and matches an optimistic confidence bandit only
+at high rates. Under symmetric noise that also rewards the guilty, every
+mechanism has a failure boundary; we locate the ledger's at roughly one
+lie in three and publish it. The honest rule: \emph{if your measurements
+never lie and you do not need leanness, the if-statement is the right
+tool}; the ledger earns its complexity exactly when measurements are
+noisy in a one-sided way, which is the common CI failure mode.
+
+\paragraph{Axis 4: Are refusals measured?}
+This axis decides the second-environment reversal. The ledger's leanness
+is an asset when inaction produces a measurable outcome (storage: keeping
+a file is measured) and a liability when refusing to act is free
+(test-suite: a skipped patch runs no suite, so a protective entry that
+keeps refusing a destructive change can never earn and starves). Where
+refusals are unpriced, a mechanism that never removes entries (a strike
+counter, or the bandit) outlasts the ledger because its protector refuses
+forever. The design implication is concrete: pair conserved-resource
+selection with an environment that prices inaction (e.g.\ a
+reverted-incident counter that pays a blocked bad change), or with a
+quarantine-style cooldown, and the reversal is expected to close. We do
+not claim it; the environment that would show it is future work.
+
+\paragraph{Axis 5: Is the horizon longer than the time constant?}
+The mechanism has a clock, and it is the first thing to check. An entry
+spawns with $1.0$ energy and pays $0.05$ upkeep, so removal by disuse
+takes $20$ cycles; nothing the ledger does that a simpler policy does not
+can appear before then. Our own real-task leg violated this and we did
+not notice until it returned a null: SWE-Bench-CL's two pinned sequences
+are $19$ and $22$ tasks, $10$ of the $246$ lessons minted by the two
+upkeep-charging arms ever starved, and
+\texttt{memory\_on} tied \texttt{keep\_everything} to three decimals
+because on that horizon they are the same policy
+(\S\ref{sec:swebench}). The rule is blunt: if the deployment is shorter
+than a few multiples of $\textrm{spawn}/\textrm{upkeep}$, use the
+if-statement---the ledger cannot yet have done anything else---or raise
+upkeep so the time constant fits the horizon.
+
+\paragraph{Axis 6: What do you need besides correctness?}
+Three needs select the ledger regardless of the above, because no other
+mechanism we tested provides them. \emph{Leanness}: only the energy
+ledger starves never-consulted entries; counters and the bandit hoard
+them (population 15--16 vs 4). \emph{Completeness}: the ledger is the
+only arm that ends with no poisoned entry alive, acting or dormant. Note
+this is completeness and not speed---in the deterministic suites it kills
+actionable poison within one cycle, but with a real model deciding
+adoption a one-line counter revokes five to nine cycles sooner and the
+ledger's advantage is that it finishes the job
+(\S\ref{sec:wef}). \emph{Cost}: settlement by a conserved scalar is
+$10^4$--$10^6\times$ cheaper than an LLM judge or generator, with no API
+dependency and no determinism loss.
+
+\paragraph{Summary.}
+Conserved-resource selection is the right curator when (1) a conserved
+resource exists, (2) measurements are noisy in a one-sided way or
+corrupted by an adversary, (3) inaction is priced or paired with
+recovery, (4) the deployment runs for several multiples of the upkeep
+time constant, and (5) leanness, complete removal of harmful entries,
+label-free operation, or near-zero settlement cost are required. Outside
+that region a one-line heuristic, a confidence bandit, or a quarantine
+policy can match or beat it, and we have shown exactly where---including
+on the one real-task benchmark we ran, where condition (4) failed and the
+ledger was indistinguishable from keeping everything. The mechanism's deepest property is the one that holds
+across the entire map: because settlement is a conserved quantity the
+environment already produces, there is no proxy to optimize against, and
+nothing to hack.

@@ -1,0 +1,137 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Memory poisoning, and where its defences sit.}
+\citet{mpbench2026} systematize memory-poisoning attacks on LLM agents
+and evaluate content-based detectors against them, reporting the split
+that motivates this work: detectors average $63.6\%$ true-positive rate
+on strong-signal payloads and $31.6\%$ on weak-signal ones---payloads
+written to read like ordinary operational facts.
+\citet{memsecbench2026} track poisoning through a lifecycle, from
+persistence to consequence to repair, and identify selective repair as
+the open stage: removing poison without destroying benign memory
+alongside it. We adopt their Write--Execute--Forget checkpoint structure
+as a protocol (\S\ref{sec:wef}), reimplemented rather than ported, and
+we make no comparison to their numbers.
+
+What both share with the wider defence literature is \emph{where} the
+defence sits: at write, screening text before it is stored, or at
+retrieval, screening entries before they are injected. Both read
+content, and content is exactly what a weak-signal payload is
+constructed to survive. Our threat model is orthogonal to that axis
+rather than a better position on it. We do not ask whether the defence
+can recognize the payload; we ask what the defence does when the
+evidence it decides on has itself been tampered with.
+
+\paragraph{Attacking the curator: named, and left unmeasured.}
+We are not the first to describe this threat, and we are explicit about
+that because the distinction between naming it and measuring it is the
+whole of our contribution here. \citet{lin2026selfevolving} catalogue
+the attack surface of self-evolving agent systems and state the model
+directly: an adversary who can ``shift embedding proximity or corrupt
+the performance signal gains indirect control over the long-term
+composition of the agent's cognitive state without ever writing to the
+memory store directly,'' with the consequence that ``biased selection
+can systematically retain harmful memories while discarding
+safety-critical ones.'' Their case study CS-I6 names the same mechanism
+as \emph{selective amplification}. \citet{lin2026memsurvey} organize
+memory security around a lifecycle whose final phase is
+\emph{Forget \& Rollback}, and place denial-style consequences---silent
+eviction under retention pressure, denial of retrieval---in its
+availability column.
+
+Both also record that the threat is unmeasured. \citet{lin2026selfevolving}
+write that ``direct attacks on memory consolidation policies remain
+relatively underexplored''; \citet{lin2026memsurvey} report that
+availability threats on agent memory are ``architecturally plausible but
+empirically unstudied'' and that peer-reviewed availability-specific
+attacks and defences are scarce enough that the area is a research
+agenda rather than a subfield. That is the gap this paper closes. Our
+contribution is not the observation that a curator can be attacked
+through its evidence; it is the operationalization---a resource-bounded
+adversary, six curation mechanisms, five attack budgets, thirty seeds,
+per-seed intervals, exact paired permutation tests, and a published
+failure boundary for the mechanism we defend with---together with a
+real-task leg that reports which half of that result transfers and which
+does not (\S\ref{sec:swebench-attack}).
+
+\paragraph{Memory as a model, and the frozen executive.}
+\citet{quek2026memo} argue for keeping the executive LLM frozen and
+placing new knowledge in a dedicated memory model, with a
+reflection-style QA encoding pipeline and a multi-stage query protocol.
+We adopt their separation of executive from memory and their encoding
+structure (\S\ref{sec:method}), but our live store is a structured set of
+self-contained QA entries rather than a fine-tuned model, because
+selection must operate on \emph{individual} entries. We close the loop to
+the parametric form as a secondary result: distilling the survivors into
+a small model (\S\ref{sec:experiments}) shows that selection survives the
+round-trip into weights.
+
+\paragraph{Environment-mediated selection.}
+\citet{dodgson2026survival} introduce sustainable self-training in which
+behaviors persist by environmental viability under a conserved resource
+and bounded memory, rather than by an explicit reward, precisely to avoid
+the reward-hacking and semantic-drift that an optimizable proxy invites.
+We take this principle as our foundation and apply it at the granularity
+of memory entries: energy is the survival currency, upkeep is the cost of
+existing, and the only income is a conserved, measured resource delta.
+Where their agents propose executable behaviors, our entries propose
+answers from which the environment reads an action, a smaller attack
+surface with the same selection geometry.
+
+\paragraph{Hand-designed memory scores.}
+\citet{park2023generative} score memories for retrieval by a weighted sum
+of recency, importance (an LLM-rated poignancy), and query relevance.
+This is the canonical hand-designed memory-management heuristic, and we
+include it as an \emph{external baseline} (\S\ref{sec:experiments}): we
+repurpose the recency$+$importance core of their score as a retention
+rule and ask whether a hand-designed salience signal curates as well as a
+conserved-resource ledger. (Because a deterministic, always-in-CI arm
+cannot call an LLM, we proxy their LLM-rated importance with consultation
+frequency and omit their query-conditioned relevance term, which is a
+retrieval property, not a retention one; we state this deviation
+explicitly.) MemGPT \citep{packer2023memgpt} manages a context hierarchy
+by paging rather than by selection; Reflexion \citep{shinn2023reflexion}
+and ExpeL \citep{zhao2024expel} accumulate verbal lessons across episodes;
+Voyager \citep{wang2023voyager} grows a skill library. None of these
+removes entries by a conserved-resource criterion.
+
+\paragraph{Bandits over retrieval policies.}
+\citet{xu2026ael} present AEL, which uses Thompson-sampling bandit
+learning to \emph{select among retrieval policies} and LLM-driven
+reflection to evolve behavior across long episode sequences. AEL is a
+positive method for using memory well, not an argument against energy
+ledgers; we are careful not to attribute such a claim to it. What it
+motivates is a sharp control for \emph{our} mechanism: if a simple
+confidence bandit over per-entry outcomes curates as well as a conserved
+ledger, the ledger is unnecessary. We therefore reconstruct a per-entry
+successive-elimination bandit with a Hoeffding radius
+(\S\ref{sec:experiments}) and report exactly the regime---one-sided
+measurement noise---where it matches survival, and the three things it
+cannot do (starve dead weight, kill promptly, survive lies that pay the
+guilty).
+
+\paragraph{LLM-curated memory and its failure mode.}
+\citet{zhang2026faulty} document that memory banks an LLM continuously
+rewrites and consolidates degrade over time: useful memories become
+faulty as the rewriting accumulates, because the model grades and
+restates plausibility rather than verified consequence. Their finding
+motivates a control we call \texttt{judge\_settled}, which is \emph{one
+operationalization} of LLM-controlled memory updates---keep/cull verdicts
+from a local model in place of measured settlement. We are explicit that
+this is our construction, not a reproduction of their setup, and we report
+a mixed result (\S\ref{sec:experiments}): the degradation appears for one
+local judge and not another at our scale, so the broad claim that
+conserved-resource settlement is categorically better is one our
+experiments do \emph{not} make. What is unambiguous is cost: judged
+settlement is $10^4$--$10^6\times$ slower than reading a scalar the
+environment already returns.
+
+\paragraph{Continual-learning evaluation for coding agents.}
+SWE-bench \citep{jimenez2024swebench} evaluates issue resolution on real
+GitHub repositories; \citet{joshi2025swebenchcl} organize its
+human-verified subset into per-repository continual-learning sequences.
+We adopt SWE-Bench-CL as the real-task testbed for whether a lesson store
+under conserved-resource selection produces a learning curve across a
+sequence (\S\ref{sec:experiments}); the resource is the change in
+passing-test count returned by the official evaluation harness.

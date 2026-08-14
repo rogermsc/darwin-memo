@@ -21,6 +21,28 @@ examples/*.jsonl
 # distill arm local artifacts
 .venv-distill/
 memory-model*/
+
+# arxiv-paper branch: local venvs, secrets, paper build artifacts
+.venv312/
+.swebench-key
+.swebench-repos/
+# Fetched, not authored: the loader verifies it against the sha256 in
+# bench/swebench_cl/manifests/pilot.json, so the pin is the evidence
+# and the 5.8MB payload is a cache.
+.swebench-data/
+*.env
+paper/*.pdf
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+
+# Resume checkpoints and raw model transcripts for the sampled LLM
+# suites: regenerable, and a 3-model grid is tens of megabytes. The
+# committed evidence is the results JSON plus its manifest entry.
+bench/results/runs/
+bench/results/transcripts/
 .venv-organic/
 
 # Built by ui/; shipped in the wheel, never committed.

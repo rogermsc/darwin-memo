@@ -35,6 +35,32 @@ echo "== darwin-memo report reproduction (offline manifest verification) =="
 echo "repository root: $ROOT"
 echo
 
+# --- 0: the interpreter, checked before anything is built ---------------
+#
+# darwin-memo requires Python >= 3.10, and `python3` is 3.9 on a stock
+# macOS and on several LTS distributions. Without this check the failure
+# arrives much later as a pip resolution error reading "darwin-memo==0.5.1
+# not installable from PyPI in this environment", which describes a broken
+# package rather than an old interpreter and is exactly the wrong thing to
+# tell someone verifying our evidence.
+if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+  found="$("$PY" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])' 2>/dev/null || echo unknown)"
+  cat >&2 <<EOF
+ERROR: darwin-memo requires Python 3.10 or newer; '$PY' is $found.
+
+This is an interpreter problem, not a packaging one. Point the script at a
+newer interpreter:
+
+    PYTHON=python3.12 bash paper/reproduce.sh
+
+On macOS, /usr/bin/python3 is the system 3.9; a Homebrew or python.org
+install provides python3.10+ under its own name.
+EOF
+  exit 1
+fi
+echo "interpreter: $PY ($("$PY" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])'))"
+echo
+
 # --- 1 + 2: environment and pinned install ------------------------------
 #
 # The v0.5.1 tag is cut at release time. If it is not yet on PyPI, install
@@ -67,6 +93,10 @@ echo
 # reproduction command, library version, and producing git commit.
 # --check --require-manifest fails if a file has no manifest entry, so a
 # deleted binding fails loudly rather than passing silently.
+# Every committed result file, not a subset. An earlier version of this
+# list omitted the distillation arms, which happened to be the two files
+# --check could not validate: the script's coverage had been shaped
+# around what passed. Adding a result file here is part of committing it.
 RESULTS=(
   headline.json
   noisy.json
@@ -74,10 +104,17 @@ RESULTS=(
   testsuite.json
   testsuite_noisy.json
   bandit.json
+  memsec.json
+  adversary.json
+  salience.json
+  distill.json
+  distill_merge.json
   judge-llama.json
   judge-qwen.json
   llm-llama.json
   llm-qwen.json
+  wef-llama32.json
+  wef-llama32-counter.json
 )
 
 echo "-- verifying committed results against MANIFEST.json (offline) --"
@@ -132,4 +169,12 @@ cost per run is shown so the wall-clock price is known before starting:
   (qwen3:4b) the ledger's per-run wall time. None of these arms ever runs
   in CI. This script does NOT run them; regenerate them yourself only with
   a local model server, knowing the cost above.
+
+Needs Docker, a frontier API key, and about half a day (this script runs
+none of it; see paper/reproduce.md section 5):
+
+  bench/results/swebench_cl/   5 arms x 2 sequences x 3 seeds, ~55 s/task,
+                               ~10 h and ~$100 of API for the full matrix.
+                               Resumable: python -m bench.swebench_cl.matrix
+                               skips cells whose output already exists.
 NOTE

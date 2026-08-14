@@ -8,6 +8,10 @@ python -m bench.run --suite testsuite --seeds 0:10 \
 python -m bench.run --suite testsuite_noisy --seeds 0:30 \
     --out bench/results/testsuite_noisy.json
 python -m bench.run --suite bandit   --seeds 0:10 --out bench/results/bandit.json
+python -m bench.run --suite adversary --seeds 0:10 \
+    --out bench/results/adversary.json
+python -m bench.run --suite memsec --seeds 0:10 \
+    --out bench/results/memsec.json
 python -m bench.run --suite judge --seeds 0:5 --judge-models llama3.2:3b \
     --out bench/results/judge-llama.json
 python -m bench.run --suite judge --seeds 0:5 --judge-models qwen3:4b \
@@ -33,13 +37,17 @@ from .suites import (
     JUDGE_MODELS,
     RunSpec,
     ablation_suite,
+    adversary_suite,
     bandit_suite,
     headline_suite,
     judge_suite,
     llm_suite,
+    memsec_suite,
     noisy_suite,
+    salience_suite,
     scaling_suite,
     smoke_suite,
+    wef_suite,
 )
 from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
 
@@ -71,8 +79,14 @@ def _execute(specs: list[RunSpec]) -> list[dict[str, object]]:
 
 
 def _spec_stem(spec: RunSpec) -> str:
-    """Filesystem-safe name for one run's checkpoint and transcript."""
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", f"{spec.label}-seed{spec.seed}")
+    """Filesystem-safe name for one run's checkpoint and transcript.
+
+    The arm is part of the name. It did not need to be while the llm
+    suite was the only caller, because that suite has one arm; a
+    multi-arm suite without it has every arm writing the same stem, so
+    the transcripts overwrite each other and resume never hits.
+    """
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", f"{spec.arm}-{spec.label}-seed{spec.seed}")
 
 
 def _execute_llm(specs: list[RunSpec], out: Path) -> list[dict[str, object]]:
@@ -129,8 +143,12 @@ def main(argv: list[str] | None = None) -> int:
             "testsuite_noisy",
             "scaling",
             "smoke",
+            "salience",
             "llm",
             "bandit",
+            "adversary",
+            "memsec",
+            "wef",
             "judge",
             "distill",
             "distill_merge",
@@ -207,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("error: --with-judge needs a running Ollama server")
                 return 1
 
-    if args.suite in ("llm", "judge"):
+    if args.suite in ("llm", "judge", "wef"):
         # The preflight is a CLI concern; the suites live with the others.
         from darwin_memo import ollama_available
 
@@ -234,8 +252,20 @@ def main(argv: list[str] | None = None) -> int:
     elif args.suite == "llm":
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
+    elif args.suite == "wef":
+        # Checkpointed like the llm suite, and for the same reason: the
+        # grid is hours of model time and an interrupt at run 20 must
+        # not cost the first nineteen.
+        models = [m.strip() for m in args.model.split(",") if m.strip()]
+        runs = _execute_llm(wef_suite(_parse_seeds(args.seeds), models), args.out)
+    elif args.suite == "memsec":
+        runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "adversary":
+        runs = _execute(adversary_suite(_parse_seeds(args.seeds)))
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "salience":
+        runs = _execute(salience_suite(_parse_seeds(args.seeds)))
     elif args.suite == "judge":
         runs = _execute(
             judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))
@@ -297,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             # scaling table stays machine-local by design.
             print("error: --update-manifest does not apply to --suite scaling")
             return 1
-        model_part = f"--model {args.model} " if args.suite == "llm" else ""
+        model_part = f"--model {args.model} " if args.suite in ("llm", "wef") else ""
         if args.suite in ("distill", "distill_merge", "distill_noisy", "distill_rule"):
             model_part = (
                 f"--base-model {args.base_model} --epochs {args.epochs} "
@@ -315,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{model_part}--out {args.out} --update-manifest"
         )
         extra = None
-        if args.suite == "llm":
+        if args.suite in ("llm", "wef"):
             # Tags are mutable; the manifest pins the exact weights.
             from darwin_memo.llm import ollama_model_digest
 

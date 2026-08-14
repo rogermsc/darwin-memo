@@ -43,13 +43,27 @@ jobs:
           cd examples
           for ex in 0*.py; do python "$ex" > /dev/null; done
       - name: Benchmark smoke suite
+        # Written outside bench/results/ on purpose: that directory holds
+        # committed evidence, and a generated file sitting in it would
+        # have to be special-cased by every check that walks it.
         run: |
-          python -m bench.run --suite smoke --out bench/results/smoke.json
-          python -m bench.report bench/results/smoke.json --check
+          python -m bench.run --suite smoke --out "${RUNNER_TEMP:-/tmp}/smoke.json"
+          python -m bench.report "${RUNNER_TEMP:-/tmp}/smoke.json" --check
       - name: Validate committed benchmark results against their manifest
         # The LLM suite itself NEVER runs in CI (sampled model output is
         # not deterministic); CI only validates the committed evidence.
+        #
+        # Globbed, not listed. A hardcoded list here validated 10 of 17
+        # committed files and passed, and the 7 it skipped included the
+        # two that could not pass at all -- the coverage had been shaped
+        # around what worked. A glob verifies a new result file by
+        # default and fails loudly on a broken one.
         run: |
-          for f in bench/results/headline.json bench/results/noisy.json bench/results/ablation.json bench/results/testsuite.json bench/results/testsuite_noisy.json bench/results/bandit.json bench/results/judge-llama.json bench/results/judge-qwen.json bench/results/llm-llama.json bench/results/llm-qwen.json; do
+          shopt -s nullglob
+          for f in bench/results/*.json \
+                   bench/results/swebench_cl/*.json \
+                   bench/results/swebench_cl_long/*.json \
+                   bench/results/swebench_cl_adversary/*.json; do
+            [ "$(basename "$f")" = MANIFEST.json ] && continue
             python -m bench.report "$f" --check --require-manifest
           done

@@ -823,6 +823,9 @@ def test_stats_reports_economics_when_an_event_log_exists(tmp_path, capsys):
 
 
 def test_mcp_memory_audit_matches_cli_digest(tmp_path, capsys):
+    # Guard the module build_server actually imports, not the top-level
+    # package: mcp 2.0.0 ships "mcp" while removing this submodule, so
+    # guarding on "mcp" lets the test run and die inside build_server.
     pytest.importorskip("mcp.server.fastmcp")
     import asyncio
 

@@ -139,7 +139,14 @@ def ollama_model_digest(
     Benchmark manifests record this so committed LLM-mode results name
     the exact weights that produced them. Tags are mutable; the digest is
     not.
+
+    A bare name is matched against ``:latest`` as well, because that is
+    what Ollama stores it as and what a caller passing ``--model
+    llama3.2`` means. Without it this returns ``None`` for a model that
+    is pulled and running, and the manifest records a null in the one
+    field whose whole job is naming the weights.
     """
+    wanted = {model, f"{model}:latest"} if ":" not in model else {model}
     try:
         with urllib.request.urlopen(f"{base_url}/api/tags", timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -148,7 +155,7 @@ def ollama_model_digest(
     if not isinstance(data, dict):
         return None
     for item in data.get("models", []):
-        if item.get("name") == model or item.get("model") == model:
+        if item.get("name") in wanted or item.get("model") in wanted:
             digest = item.get("digest")
             return str(digest) if digest else None
     return None

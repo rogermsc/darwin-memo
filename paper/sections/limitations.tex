@@ -1,0 +1,184 @@
+\section{Limitations}
+\label{sec:limitations}
+
+We state the threats to validity plainly, in the spirit of the
+pre-registration above.
+
+\paragraph{Outside the adversarial regime, the mechanism may be
+unnecessary.}
+We state the strongest argument against this paper because our own data
+makes it. Three independent tests failed to find an advantage for the
+energy ledger where no adversary is present. Pre-registered gates on
+trajectory selection found it matched or beaten by a threshold counter
+under i.i.d.\ noise, by a buffer frontier, and by a tuned EWMA under
+drift. With a real model deciding adoption, a one-line eviction counter
+revokes poison sooner (\S\ref{sec:wef}). On real software-engineering
+tasks it shows no learning-curve advantage over a token-matched random
+control, with the no-memory arm scoring highest of five
+(\S\ref{sec:swebench}). Each has a local explanation---estimation
+quality was never the claim, latency is the price of a buffer, the
+benchmark's sequences are shorter than the mechanism's time
+constant---and we give those explanations where they belong. But a
+reader is entitled to the pattern rather than three separate
+mitigations: absent an attacker, what we have demonstrated is leanness
+and cost, not accuracy. The adversarial result is the one that survived
+every attempt to find a cheaper substitute, and it is the claim we
+would defend if forced to keep only one.
+
+\paragraph{Vocabulary coupling.}
+In the synthetic suites the corpus, the task prompts, and the
+action-reading function were written in the same vocabulary by the same
+hand. The crisp single-cycle poison kill lives in the near-exact
+lexical-match regime that coupling creates. We measure outside it with
+paraphrase probes scored by provenance rather than by the keyword
+reader: harmful paraphrases stay safe (silence is conservative), but the
+lexical arm grounds only a third of benign paraphrases, and an embedding
+retriever doubles that. The headline numbers should be read as
+within-distribution, with the paraphrase columns as the
+out-of-distribution honesty check. An LLM-encoded corpus with
+independently authored probes would close this gap and is the most
+important synthetic-side improvement.
+
+\paragraph{Synthetic environments, and a real-task leg that came back null.}
+The headline, noise, ablation, and control results are on two synthetic
+environment families. They are deliberately adversarial in opposite
+directions (storage prices inaction; the test-suite family does not), and
+we flag every family-dependent conclusion rather than averaging it, but
+they remain synthetic. The SWE-Bench-CL leg (\S\ref{sec:swebench}) exists
+to move the central claim onto real software-engineering tasks, and it
+did not support it: no learning-curve advantage over a token-matched
+random control, $p = 0.50$ over six paired worlds, with the no-memory arm
+scoring highest of the five.
+
+We first attributed that to the benchmark rather than the mechanism: the
+pilot's sequences are $19$ and $22$ tasks against a $20$-cycle
+starvation horizon, and only $10$ of the $246$ lessons minted by
+upkeep-charging arms ever died, so the removal the ledger depends on
+could not occur. The attribution was arithmetic rather than
+interpretation, but it was still made after seeing the result, which is
+the weakest kind---so we tested it. A second matrix over \texttt{django}
+and \texttt{sympy}, $50$ tasks each at $2.5\times$ the horizon, moved
+starvation from $4\%$ of minted lessons to $52\%$ ($155$ of $300$) and
+held the population at $24$ where \texttt{keep\_everything} reaches
+$50$.
+
+\emph{The excuse did not survive its own test.} With removal fully
+active the comparison is $+0.027$ $[-0.020, +0.073]$, $p = 0.50$; on
+\texttt{django} alone, where per-seed variance is smallest, it is
+$-0.013$ with $p = 1.0000$. Halving the store changed capability by
+nothing measurable, and \texttt{memory\_off} again scored highest. Across
+four sequences and $2{,}115$ evaluated tasks, no memory arm has beaten
+no memory at all. We therefore retract the benchmark explanation as a
+defence of the mechanism and keep it only as a description of the pilot.
+The honest status is that conserved-resource selection improves
+\emph{leanness} on real tasks---demonstrably, half the store for equal
+capability---and that its effect on task outcomes is unvalidated and, on
+the evidence we have, plausibly zero. Two further limits below
+(retrieval recall, replicate count) would each depress a real effect, so
+this null should
+not be read as an upper bound on the mechanism either.
+
+\paragraph{Scale of the parametric result.}
+The distillation arm is a 0.5B model on a small corpus with deliberately
+distinctive poison tokens, so reproduction is unambiguous. It is a clean
+existence proof that selection survives the round-trip into weights, not
+a scaling law, and a corpus whose poison is reachable by generalizing
+benign patterns would not separate as cleanly. We present it as a
+secondary result and do not generalize it.
+
+\paragraph{The action reader is part of the measurement.}
+The environment decides whether an answer requested an action by reading
+its text, and that reader is narrower than the language models actually
+produce: it has ``safe to delete'' and a model writes ``deleting
+store-1.db is safe'', which parses as silence. An action the model
+plainly decided then never executes, is never measured, and yields no
+selection signal. We found this from inside while building the
+model-in-the-loop suite, and we handle it by reading LLM-mode answers
+with paraphrases of the same decision rather than by widening the shared
+vocabulary, which would silently move every committed deterministic
+number. The disagreement rate between the two readers is reported with
+the suite and bounds every LLM-mode claim we make. It is a real threat
+to validity for any benchmark of this shape: a mechanism can look
+conservative when its environment is merely deaf.
+
+\paragraph{Three replicates, and what the seed does not control.}
+In the deterministic suites a seed fixes the entire world, so a paired
+test compares two policies inside one realization. That is not true of
+the real-task leg. The pilot's seed feeds exactly one generator---the
+lesson choice in \texttt{random\_matched}---and the endpoint is called at
+temperature $0$ with no seed parameter, so for every other arm the three
+``seeds'' are three draws of endpoint nondeterminism rather than
+controlled replicates. \texttt{memory\_off}, which holds no store at all
+and therefore varies across seeds by sampling alone, resolved $7$, $10$,
+and $9$ of the 19 pytest tasks: about $8$ points of resolve-rate standard
+deviation on an identical configuration. Pairing on (sequence, seed)
+still controls the task sequence and its ordering, which is worth having,
+but it does not control the sampling. At three replicates and that
+variance, only a large memory effect clears the noise, and any null we
+report on real tasks should be read as underpowered rather than as
+evidence of absence.
+
+The adversarial leg supplies a second, much tighter estimate of the same
+quantity, and we flag the disagreement rather than averaging it. On
+\texttt{django}, \texttt{keep\_everything} never settles, so its store
+and therefore its prompts are identical with and without the attack; it
+resolved identically in all three seeds ($23/23$, $23/23$, $22/22$),
+bounding endpoint nondeterminism there at about one task in fifty
+(\S\ref{sec:swebench-attack}). That is not the $8$ points above, and the
+two are not the same measurement: the pilot figure is a cross-seed
+spread over a $19$-task sequence in a different repository, while this
+one is a within-world comparison of prompt-identical runs over $50$
+tasks. The honest reading is that \emph{paired} comparisons inside a
+world are far tighter than the pilot's spread suggests, and that the
+pilot's spread still bounds what a cross-seed comparison can resolve.
+Neither licenses reading the other. Passing the endpoint's seed parameter, where the
+provider offers one, and raising the replicate count are both cheap and
+are the first things to do before this leg is treated as settled.
+
+\paragraph{The real-task leg is bounded by its retriever.}
+On SWE-Bench-CL the model edits whatever BM25 put in front of it, and at
+the configuration we report that is the correct file on $74\%$ of the
+pytest sequence (\S\ref{sec:swebench}). The remaining quarter is
+unanswerable for every arm, so the resolve rates are depressed by an
+amount that has nothing to do with memory. Because the retrieval query
+is issue-only and identical across arms, this costs statistical power
+rather than biasing the comparison---but it does mean our real-task
+numbers are a lower bound on what the same memory mechanism would show
+with a stronger code retriever, and that a null result there would be
+consistent with either an absent memory effect or a retrieval ceiling.
+Separating those two would need an oracle-file arm, which we have not
+run.
+
+\paragraph{The filter control is a reconstruction.}
+The write-time detector in \S\ref{sec:memsec} is a keyword and
+authority-marker rule we wrote, not a port of any published system. We
+give it the shape the published filters have and report its TPR/FPR in
+every row so its behaviour is visible rather than assumed, but a trained
+classifier would land elsewhere on the weak-signal class: the literature
+reports $31.6\%$ there, not the $0\%$ our reconstruction achieves. The
+claim the experiment supports is directional---content inspection
+degrades sharply on payloads written to look ordinary, where consequence
+does not---and not a numerical comparison against any named filter.
+
+\paragraph{Consolidation is a laundering surface.}
+Our own merge machinery carried a poisoned fragment to the end of every
+seed in one cell by pooling it with a correct entry that earns
+(\S\ref{sec:memsec}). The surviving text advises no action, so nothing
+punishes it, but it remains retrievable inside a well-fed entry. Any
+mechanism that consolidates memories inherits this channel, and we have
+not evaluated the obvious fix (refusing to merge across trust
+boundaries).
+
+\paragraph{Silence as a harbor.}
+In environments where inaction produces no measurement, a conservative
+entry can dodge lying measurements simply by staying silent, which
+flatters safety metrics. Environments that price inaction would expose
+entries to lies the current design avoids, and would also likely reverse
+the second-family loss (\S\ref{sec:regime}, Axis 3).
+
+\paragraph{Local-judge scale.}
+The LLM-judge control uses small (3--4B) local models at five seeds; a
+frontier judge might hold capability where one local judge dropped it.
+We therefore make no categorical claim that conserved-resource settlement
+beats judge settlement on quality---only that it is orders of magnitude
+cheaper, which is robust.

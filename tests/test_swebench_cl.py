@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from bench.manifest import manifest_failures, update_manifest
+from bench.report import check
 from bench.swebench_cl.arms import ARMS
 from bench.swebench_cl.dataset import (
     DatasetPin,
@@ -230,14 +231,37 @@ def test_committed_pilot_manifest_is_internally_consistent():
 # ---------------------------------------------------------------------------
 
 
-def test_exactly_three_arms_with_pinned_semantics():
-    assert set(ARMS) == {"memory_on", "memory_off", "random_matched"}
+def test_exactly_five_arms_with_pinned_semantics():
+    """Two axes, pinned so a run cannot improvise an arm into existence.
+
+    The memory axis (what the model sees) and the curation axis (what
+    happens to the store afterwards). The curation arms must inject
+    EXACTLY what memory_on injects, or a difference between them stops
+    being about the curation policy.
+    """
+    assert set(ARMS) == {
+        "memory_on",
+        "memory_off",
+        "random_matched",
+        "keep_everything",
+        "evict_on_negative",
+    }
+    # Memory axis.
     assert ARMS["memory_on"].inject == "retrieved"
     assert ARMS["memory_on"].mint and ARMS["memory_on"].settle
+    assert ARMS["memory_on"].curation == "survival"
     assert ARMS["memory_off"].inject == "none"
     assert not ARMS["memory_off"].mint and not ARMS["memory_off"].settle
     assert ARMS["random_matched"].inject == "random_matched"
     assert ARMS["random_matched"].mint and ARMS["random_matched"].settle
+    assert ARMS["random_matched"].curation == "survival"
+    # Curation axis: retrieval held fixed at what memory_on does.
+    assert ARMS["keep_everything"].inject == "retrieved"
+    assert ARMS["keep_everything"].curation == "keep_all"
+    assert not ARMS["keep_everything"].settle
+    assert ARMS["evict_on_negative"].inject == "retrieved"
+    assert ARMS["evict_on_negative"].curation == "evict_negative"
+    assert ARMS["evict_on_negative"].mint and ARMS["evict_on_negative"].settle
 
 
 def test_random_matched_spends_at_most_the_retrieval_budget():
@@ -356,7 +380,13 @@ def test_chat_endpoint_failures_are_loud(monkeypatch):
 def test_chat_endpoint_read_timeout_is_loud(monkeypatch):
     """A timeout during the response read arrives as a bare
     ``TimeoutError`` (connect timeouts come wrapped in URLError); it
-    must surface as EndpointError, never escape as something else."""
+    must surface as EndpointError, never escape as something else.
+
+    A read timeout is transient, so it is retried and then reported as
+    exhaustion. What this pins is that the cause survives into the
+    message: an EndpointError that does not say what went wrong is not
+    loud, it is just a different silence.
+    """
     from bench.swebench_cl.model import EndpointError
 
     class StallingResponse:
@@ -372,9 +402,13 @@ def test_chat_endpoint_read_timeout_is_loud(monkeypatch):
     monkeypatch.setattr(
         "urllib.request.urlopen", lambda request, timeout=0: StallingResponse()
     )
+    # The retry backoff is real seconds and buys this test nothing.
+    monkeypatch.setattr("bench.swebench_cl.model.time.sleep", lambda _: None)
     endpoint = ChatEndpoint(EndpointConfig())
-    with pytest.raises(EndpointError, match="timed out reading"):
+    with pytest.raises(EndpointError, match="timed out") as caught:
         endpoint.complete("prompt")
+    assert "attempts" in str(caught.value), "the retry exhaustion must be visible"
+    assert isinstance(caught.value.__cause__, TimeoutError)
 
 
 def test_extract_patch_from_fence_and_bare_and_none():
@@ -705,6 +739,7 @@ RUN_KEYS = {
     "eval",
     "metrics",
     "store",
+    "adversary",
     "meta",
 }
 
@@ -806,3 +841,161 @@ def test_cli_refuses_update_manifest_for_non_docker_runs(tmp_path, capsys):
     assert rc == 2
     assert "refusing --update-manifest" in capsys.readouterr().err
     assert not (tmp_path / "out.json").exists()  # refused before running
+
+
+def make_swebench_run(**overrides: Any) -> dict[str, Any]:
+    run = {
+        "schema_version": 1,
+        "suite": "swebench_cl_pilot",
+        "arm": "memory_on",
+        "seed": 0,
+        "sequence": "pytest-dev_pytest_sequence",
+        "instance_id": "pytest-dev__pytest-5262",
+        "order": 1,
+        "metrics": {"delta": 1.0, "resolved": True, "wall_time_s": 65.8},
+    }
+    run.update(overrides)
+    return run
+
+
+def test_check_accepts_swebench_records_without_storage_metrics():
+    # The pilot records one task, not one population run; asking it for
+    # flake counters and paraphrase probes would make its evidence
+    # permanently unvalidatable.
+    assert check([make_swebench_run()]) == []
+
+
+def test_check_still_demands_the_full_set_from_storage_suites():
+    storage = {
+        "schema_version": 1,
+        "suite": "storage",
+        "arm": "survival",
+        "seed": 0,
+        "metrics": {"wall_time_s": 1.0},
+    }
+    failures = check([storage])
+    assert any("missing metrics" in f for f in failures)
+
+
+def test_check_demands_swebench_identity_fields():
+    # Without these the curve cannot pair a world or order a curriculum.
+    run = make_swebench_run()
+    del run["sequence"]
+    failures = check([run])
+    assert any("missing identity fields" in f and "sequence" in f for f in failures)
+
+
+def test_check_demands_swebench_wall_time():
+    run = make_swebench_run(metrics={"delta": 0.0, "resolved": False, "wall_time_s": 0})
+    assert any("wall_time_s" in f for f in check([run]))
+
+
+def test_check_accepts_distill_records_with_their_own_clock():
+    # The distillation arms time themselves in training seconds and carry
+    # none of the storage-family population metrics.
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "distill_raw",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 0.0,
+            "good_recall": 0.8,
+            "n_train": 30,
+            "train_wall_s": 35.0,
+        },
+    }
+    assert check([run]) == []
+
+
+def test_check_allows_zero_training_time_for_untrained_arms():
+    # base_model does no training; zero seconds is the measurement, not a
+    # dropped clock. Storage suites keep the positive-wall-time rule.
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "base_model",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 0.0,
+            "good_recall": 0.1,
+            "n_train": 0,
+            "train_wall_s": 0.0,
+        },
+    }
+    assert check([run]) == []
+
+
+def test_check_still_demands_a_clock_when_the_key_is_absent():
+    run = {
+        "schema_version": 1,
+        "suite": "distill",
+        "arm": "base_model",
+        "seed": 0,
+        "metrics": {"poison_reproduction": 0.0, "good_recall": 0.1, "n_train": 0},
+    }
+    assert any("train_wall_s" in f for f in check([run]))
+
+
+def test_check_falls_back_to_the_storage_set_for_a_mixed_file():
+    # A file whose rows disagree on suite gets the strictest treatment
+    # rather than silently adopting one row's relaxed schema.
+    rows = [
+        {"schema_version": 1, "suite": "distill", "arm": "a", "seed": 0, "metrics": {}},
+        {"schema_version": 1, "suite": "storage", "arm": "b", "seed": 0, "metrics": {}},
+    ]
+    failures = check(rows)
+    assert any("flakes_marked" in f for f in failures)
+
+
+def test_check_accepts_the_selection_quality_distill_suites():
+    # These two suites (PR #32) landed while this validator still only knew
+    # `distill` and `distill_merge`, so they fell through to the storage
+    # family: the required-metric set demanded flake counters they do not
+    # record, and the keep_everything canary raised KeyError('cum_delta')
+    # on the first row instead of reporting anything. A suite absent from
+    # the table is treated as storage-family, so a new suite must be added
+    # here or its evidence is unvalidatable by construction.
+    noisy = {
+        "schema_version": 1,
+        "suite": "distill_noisy",
+        "arm": "keep_everything",
+        "seed": 0,
+        "metrics": {
+            "poison_reproduction": 1.0,
+            "good_recall": 0.96,
+            "n_train": 40,
+            "train_wall_s": 61.0,
+        },
+    }
+    rule = {
+        "schema_version": 1,
+        "suite": "distill_rule",
+        "arm": "survival",
+        "seed": 0,
+        # No clock: the rule runner never captured one, declared as None in
+        # _SUITE_WALL_KEY rather than papered over with a storage-family key.
+        "metrics": {
+            "harm_generalization": 0.0,
+            "safe_generalization": 1.0,
+            "n_train": 10,
+        },
+    }
+    assert check([noisy]) == []
+    assert check([rule]) == []
+
+
+def test_the_canary_reports_instead_of_raising_on_a_row_without_cum_delta():
+    # The noise canary reads metrics["cum_delta"] off every keep_everything
+    # row. A validator whose job is to list failures must not die on the
+    # first malformed one -- the poison gate above it already skips such
+    # rows for exactly this reason.
+    row = {
+        "schema_version": 1,
+        "suite": "some_new_suite",
+        "arm": "keep_everything",
+        "seed": 0,
+        "metrics": {"wall_time_s": 1.0},
+    }
+    failures = check([row])
+    assert any("missing metrics" in f for f in failures)

@@ -1,0 +1,731 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\paragraph{Protocol and reproducibility.}
+All synthetic results use a stdlib-only harness with fixed seeds. Each
+$(\text{seed}, \text{cycle})$ world is an independent draw (its RNG seeded
+by a hash of the pair), so the seed is the unit of independence:
+confidence intervals are seed-level percentile bootstrap ($10^4$ seeded
+resamples), and arm comparisons are exact paired permutation tests (all
+$2^{10}$ sign assignments enumerated at 10 seeds; seeded Monte Carlo at
+30), with $p$-values Holm--Bonferroni adjusted across each reported grid.
+Hypotheses and cell definitions are committed before runs. Per-seed raw
+JSON is committed and bound to its configuration and reproduction command
+by a manifest that CI validates on every push. We summarize the main
+findings here; full tables, ablations, and the published failure
+boundaries are in the supplementary benchmark report.
+
+\subsection{Headline: who curates, and at what cost}
+On the storage environment (16-entry corpus, 3 entries derived from a
+poisoned ``files are safe to delete'' source, 30 cycles, 10 seeds), we
+compare conserved-resource selection against five ablation baselines and
+two outcome-blind controls. Table~\ref{tab:headline} reports the core
+columns.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Storage environment, 10 seeds. \emph{Kill}: fraction of seeds
+where no alive entry from the poisoned source advises a positive action.
+\emph{Cum $\Delta$}: cumulative true resource delta (M bytes).
+\emph{Benign}: benign-probe correctness. \emph{Pop}: final population.
+Survival's wins over keep/random/recency/ttl/salience are all 10/0/0,
+Holm-adjusted $p \le 0.014$.}
+\label{tab:headline}
+\begin{tabular}{lccrcc}
+\toprule
+arm & kill & kill cyc.\ (med) & cum $\Delta$ (M) & benign & pop \\
+\midrule
+\textbf{survival}        & \textbf{1.00} & \textbf{0}  & $\mathbf{+12.59}$ & \textbf{1.00} & \textbf{4} \\
+survival\_embedding      & 1.00 & 19 & $+13.52$ & 1.00 & 4 \\
+evict\_on\_negative ($k{=}1$) & 1.00 & 0  & $+12.78$ & 1.00 & 15 \\
+recency                  & 0.00 & --- & $+4.98$  & 1.00 & 7  \\
+salience\_matched (GA)   & 0.20 & 26 & $-2.76$  & 0.83 & 6  \\
+random\_matched          & 0.80 & 19 & $-7.67$  & 0.40 & 6  \\
+ttl                      & 1.00 & 10 & $-3.63$  & 0.00 & 0  \\
+keep\_everything         & 0.00 & --- & $-9.08$  & 1.00 & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three readings matter. First, \textbf{outcome direction, not pruning
+rate, is the active ingredient}: \texttt{random\_matched} evicts survival's
+\emph{exact} per-cycle death counts but picks victims at random, and its
+cumulative delta collapses to $-7.67$M with benign capability $0.40$.
+Second, \textbf{a hand-designed salience score is not enough}:
+\texttt{salience\_matched}, the Generative-Agents-style recency$+$importance
+score under the same eviction budget, picks better victims than random on
+capability ($0.83$ vs $0.40$) but its kill rate \emph{falls} to $0.20$
+(vs random's $0.80$). The reason is instructive---once the poison starts
+winning queries it is \emph{consulted}, which raises both its recency and
+its frequency-importance, so a usage-based salience score actively shields
+it. A score that rewards use cannot distinguish ``used'' from ``useful'';
+only the outcome-grounded ledger can, and it beats salience on all ten
+seeds ($+15.3$M, Holm $p = 0.0039$). Third, \textbf{the honest tie}: on
+this deterministic world the one-line \texttt{evict\_on\_negative}
+heuristic matches the full ledger on outcomes ($+12.78$ vs $+12.59$M, an
+official tie). What the ledger buys here is leanness (population 4 vs 15:
+it starves dead weight the if-statement hoards) and, as the next section
+shows, forgiveness under noise.
+
+\subsection{Forgiveness: the ledger vs.\ strike counters under lying measurements}
+We corrupt the \emph{measurement} while keeping the world real (files are
+still created and bytes still freed; only the reported delta lies),
+drawing flake marks from a dedicated stream so every arm at a seed faces
+the same lies, and we score everyone on the \emph{true} deltas. Against
+the heuristic family's strongest members---$k$ lifetime strikes,
+consecutive strikes a success resets, and quarantine---survival's true
+outcomes under one-sided ``false-bad'' noise are byte-identical to its
+noise-free run at 5\% and within one seed of it through 20\%, while
+\texttt{evict\_on\_negative} ($k{=}1$) loses nearly all benign capability
+by 5\% (Table~\ref{tab:noise}). A continuous energy buffer with earn-back
+forgives transient lies that a fixed strike count consumes linearly;
+patching a counter with decay and magnitude grading reinvents the ledger.
+We also publish the ledger's own boundary: under symmetric ``flip'' noise
+the poison-kill cycle climbs as false-good lies rescue the guilty, and at
+a 50\% flip---a sign with no information---capability collapses to $0.26$
+and no mechanism curates safely.
+
+\begin{table}[t]
+\centering
+\small
+\caption{False-bad noise (flaky-CI model), 30 seeds. Cells are mean true
+cum $\Delta$ (M) / benign capability. The ledger holds; counters
+collapse. Survival beats consecutive-$k{=}2$ at every rate $\ge 5\%$
+(Holm $p \le 0.0038$).}
+\label{tab:noise}
+\begin{tabular}{lccccc}
+\toprule
+arm & 0.00 & 0.05 & 0.10 & 0.20 & 0.35 \\
+\midrule
+\textbf{survival}     & 12.38 / 1.00 & 12.38 / 1.00 & 12.26 / 0.99 & 12.26 / 0.99 & 10.47 / 0.79 \\
+evict $k{=}1$         & 12.57 / 1.00 & 3.30 / 0.04  & 1.54 / 0.00  & 0.41 / 0.00  & 0.00 / 0.00 \\
+consecutive $k{=}2$   & 12.38 / 1.00 & 11.47 / 0.81 & 9.12 / 0.48  & 3.73 / 0.06  & 1.08 / 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Curation-targeted attack: denial of memory}
+\label{sec:adversary}
+Every curation mechanism is itself an attack surface. Write-time
+filters, retrieval sanitizers, and outcome settlement all decide which
+entries live, so an adversary who can perturb the deciding signal can
+weaponize the curator: make it delete the benign entries standing in the
+way and keep the poisoned one it planted. We call this a
+\emph{curation-targeted attack}. The threat is named in the literature
+and reported there as unmeasured (\S\ref{sec:related}); what follows is
+the measurement.
+
+The noise suite is the wrong instrument for it by construction: its lies
+are a property of the world, drawn before any arm acts, precisely so
+that comparison under \emph{random} noise stays fair. An adversary is
+not random. We keep the world truthful and fixed (same seed, same files,
+same true deltas) and make only the measurement adaptive: when the true
+delta is positive---a benign entry just earned---report $-$true, so the
+entry that did the right thing is blamed for a disaster; when it is
+negative, report $-$true again, so the poison that just caused damage is
+paid. The attacker is resource-bounded at $b$ lies per cycle, spent
+greedily, which turns the threat model into a curve rather than an
+assertion. It observes only the \emph{sign} of the true delta---never
+the store, the provenance, or which entry decided---so it is strictly
+weaker than an attacker with store access, and the defence numbers are
+not flattered by an implausibly blind opponent. At $b{=}0$ the wrapper
+adds exactly zero behaviour and reproduces the deterministic headline
+tie in-suite, which is the canary that the attack, not the harness, is
+what moves the numbers.
+
+The result is a sharp separation with an equally sharp boundary
+(Table~\ref{tab:adversary}). At one lie per cycle the ledger retains
+\emph{all} benign capability and $99.4\%$ of its unattacked outcome
+while absorbing 30 fired lies. Every strike and quarantine heuristic
+loses most or all of it at the same budget: \texttt{evict\_on\_negative}
+($k{=}1$) loses \emph{all} of it, destroyed by \emph{three} lies; a
+consecutive-$k{=}2$ counter keeps $0.52$ and quarantine $0.21$, and both
+are at $0.12$ or below by $b{=}2$. The ledger wins on all 30 seeds at
+$b{\in}\{1,2\}$
+against every counter (Holm $p = 0.0015$). Two asymmetries deserve
+naming. First, cheapness of attack: the counters fire so few lies
+because once their benign memory is gone they stop acting, and an
+adversary stops paying for a defence that has already fallen---the
+ledger absorbed ten times the attack for no loss. Second, retention is
+not defence: the bandit and \texttt{keep\_everything} hold benign
+capability at $1.00$ through $b{=}4$ only by never removing anything,
+and their poison-kill rate collapses to $0.07$ and $0.00$ while they run
+millions of bytes underwater. Read the two halves jointly or a mechanism
+that defends nothing looks safe.
+
+We publish the ledger's own boundary rather than stopping at the win.
+Between two and four lies per cycle it breaks---at $b{=}4$ benign
+capability falls to $0.06$ and the population starves to $1.5$
+entries---and past that point the never-deleting arms beat it on
+retention (Holm $p = 0.0015$ in the other direction) while still killing
+no poison. The honest statement is a regime, not a victory: the energy
+ledger is the only mechanism we test that survives a curation-targeted
+adversary at all, and it survives it up to roughly one corrupted
+measurement in six per cycle.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Curation-targeted adversary at $b$ lies per cycle, 30 seeds.
+Cells are mean true cum $\Delta$ (M) / benign capability. $b{=}0$ is the
+in-suite reproduction of the deterministic tie. Survival beats every
+counter at $b{\in}\{1,2\}$ on all 30 seeds (Holm $p = 0.0015$); at
+$b{\ge}4$ it has fallen, and the arms that still show capability are
+those that never delete (poison-kill rate in prose).}
+\label{tab:adversary}
+\begin{tabular}{lccccc}
+\toprule
+arm & $b{=}0$ & $b{=}1$ & $b{=}2$ & $b{=}4$ & $b{=}8$ \\
+\midrule
+\textbf{survival}     & 12.38 / 1.00 & \textbf{12.30 / 1.00} & \textbf{11.66 / 0.99} & 1.12 / 0.06 & $-$21.10 / 0.00 \\
+evict $k{=}1$         & 12.57 / 1.00 & 0.23 / 0.00  & $-$0.08 / 0.00 & $-$2.03 / 0.00 & $-$16.54 / 0.00 \\
+evict $k{=}3$         & 12.10 / 1.00 & 2.07 / 0.00  & 0.53 / 0.00    & $-$2.03 / 0.00 & $-$21.32 / 0.00 \\
+consecutive $k{=}2$   & 12.38 / 1.00 & 9.37 / 0.52  & 1.05 / 0.00    & $-$6.51 / 0.00 & $-$20.06 / 0.00 \\
+quarantine $m{=}3$    & 5.12 / 1.00  & $-$2.08 / 0.21 & $-$3.59 / 0.12 & $-$6.33 / 0.03 & $-$14.79 / 0.01 \\
+bandit                & 10.86 / 1.00 & 9.39 / 1.00  & 5.23 / 1.00    & $-$7.75 / 1.00 & $-$19.38 / 0.00 \\
+keep\_everything      & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Where each defence catches each attack}
+\label{sec:memsec}
+The memory-security literature defends memory before any consequence
+exists: at write (does this text look malicious?) and at retrieval
+(should this be injected?). Both read content, and the systematic study
+of memory poisoning reports the cost---content detectors average
+$63.6\%$ true-positive rate on strong-signal payloads and $31.6\%$ on
+weak-signal ones, payloads written to read like ordinary operational
+facts \citep{mpbench2026}. We run that split on our own harness rather
+than arguing it, with three attack classes and a reconstructed
+write-time filter as the control.
+
+The classes differ only where they must. \emph{Explicit} (strong signal)
+wraps the packaged poison's actionable claim, verbatim, in imperative
+override and claimed authority, so any outcome difference is
+attributable to the surface and not to the payload.
+\emph{Policy-conformant} (weak signal) is the packaged poison unchanged:
+a plausible operational fact---these files are redundant copies---in the
+register of a real runbook. \emph{Inert} advises no action at all: it is
+the dormant case, and the honest limit of outcome-grounded revocation,
+since an entry that never acts can never be caught by consequence. The
+filter is a reconstruction, not a port, and we give it the charitable
+form: it screens whole documents before encoding, so it sees the payload
+as delivered rather than the fragments an encoder later makes of it.
+
+The result (Table~\ref{tab:memsec}) is a clean division of labour, and
+it includes a loss. On the strong-signal class the filter is simply
+better than we are: it blocks at write for zero damage, where the ledger
+must let the entry act once and pays $-0.39$M before revoking it.
+Prevention beats revocation whenever detection works. On the
+weak-signal class the filter is \emph{byte-identical to no defence at
+all}---TPR $0.00$, $-12.1$M of damage, the poison alive at cycle 30---and
+the ledger turns the same run into $+12.6$M, a $21.7$M swing on the class
+that content inspection cannot see. On the inert class nothing detects
+anything, and only the ledger removes the payload, by starvation at a
+median cycle 19; every other arm carries all three poisoned entries to
+the end of the run. Starvation, not detection, is the answer to dormant
+poison, and no filter has it.
+
+\paragraph{Consolidation launders a poisoned fragment.}
+One cell does not come out clean, and it is ours. Under
+\texttt{explicit}$+$\texttt{ledger} a single poisoned entry survives all
+30 cycles on all 10 seeds with energy \emph{above} its spawn value. It
+is a consolidation artifact: the merge machinery absorbed the
+authority-claim fragment into an entry that also carries the true
+platform-notes content, and the merged entry earns because its useful
+half answers correctly. The poisoned text advises no action, so nothing
+punishes it, and it stays retrievable inside a well-fed entry. This is
+the compaction-driven write channel \citep{mpbench2026} appearing inside
+our own mechanism: consolidation is a poison-laundering surface, and any
+system that merges memories inherits it. We report it rather than tune
+it away; a merge that refuses to pool entries across trust boundaries is
+the obvious fix and we have not evaluated one.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Attack class $\times$ where the defence sits, 10 seeds. Harm and
+cum $\Delta$ in M of true bytes; starve cycle is when the last poisoned
+entry of any kind is gone. The filter wins the strong-signal row; it is
+identical to no defence on the weak-signal row; only the ledger empties
+the store of dormant poison.}
+\label{tab:memsec}
+\begin{tabular}{llccccc}
+\toprule
+attack & defence & filter TPR & harm & cum $\Delta$ & starve & alive@30 \\
+\midrule
+\multirow{2}{*}{explicit}
+ & filter        & 1.00 & \textbf{0.00} & \textbf{13.52} & 0 & 0 \\
+ & ledger        & 1.00 & $-$0.39 & 12.59 & never & 1 \\
+\midrule
+\multirow{3}{*}{policy-conformant}
+ & none          & 0.00 & $-$12.11 & $-$9.08 & never & 3 \\
+ & filter        & 0.00 & $-$12.11 & $-$9.08 & never & 3 \\
+ & ledger        & 0.00 & \textbf{$-$0.39} & \textbf{12.59} & 19 & 0 \\
+\midrule
+\multirow{2}{*}{inert (dormant)}
+ & filter        & 0.00 & 0.00 & 13.52 & never & 3 \\
+ & ledger        & 0.00 & 0.00 & 13.52 & \textbf{19} & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{A model in the loop, and where the claim does not hold}
+\label{sec:wef}
+Every result above lets a keyword function decide what ``the agent
+adopted the poison'' means, and the corpus, the prompts, and that
+function were written in the same vocabulary by the same hand. This
+subsection removes that coupling: a local model (\texttt{llama3.2},
+three seeds, 24 cycles) retrieves, answers, and cites, and the
+lifecycle checkpoints are scored from what the model actually did.
+The checkpoints follow the Write--Execute--Forget protocol
+\citep{memsecbench2026} defines. \textbf{This is a reimplementation of
+the protocol, not a port}: its cases and code were unavailable, so
+nothing here reproduces or compares against its numbers.
+
+\paragraph{The action-vocabulary gap.}
+Building this suite exposed a threat to validity in our own harness.
+The shared reader has \texttt{"safe to delete"}; a chat model writes
+\texttt{"deleting store-1.db under data/ is safe"}. The first parses as
+an action, the second as \emph{silence}, so the environment never
+executes, never measures, and selection receives no signal from a
+decision the model plainly made. LLM-mode answers are therefore read
+with paraphrases of the same decision, scoped to this suite so the
+deterministic suites' committed numbers stay reproducible under the
+reader that produced them. The disagreement rate between the two
+readers ran $0.00$--$0.04$, and every number in this subsection carries
+that as its error bar.
+
+\paragraph{Read against a real defence, the ledger does not win.}
+Both curation arms beat \texttt{keep\_everything\_llm}, which is a
+statement about curation and not about the ledger. The arm that decides
+the question is \texttt{evict\_on\_negative\_llm}: the one-line
+if-statement---evict any entry whose decisions produced a negative
+outcome, no energy, no forgiveness---answering through the same model
+and the same protocol. Against it (Table~\ref{tab:wef}):
+
+\begin{itemize}
+  \item \emph{Harm is a tie.} Adoption is $0.02$ for both arms, against
+  $0.21$ for no curation. Externalized cycles ($1.7$ vs.\ $1.3$ and
+  $1.7$ vs.\ $0.7$) do not separate them at three seeds.
+  \item \emph{Revocation latency: the counter wins outright.} The last
+  \emph{acting} poisoned entry is gone by cycle $1$--$3$ under the
+  counter and $8$--$10$ under the ledger. The energy buffer is exactly
+  what makes the ledger slower---an entry must burn through its balance
+  before it dies---and here that design costs five to nine cycles of
+  exposure, per seed and attack class.
+  \item \emph{Completeness: the ledger wins outright.} It ends with no
+  poisoned entry alive in $9$ of $9$ runs; the counter leaves one to
+  five alive in every run, because an entry it never settles negatively
+  is an entry it never removes.
+\end{itemize}
+
+\paragraph{What F1 is actually measuring.}
+The ledger's $1.00$ repair rate is two mechanisms and should not be
+read as one. Poison that \emph{acts} dies by consequence, at cycle
+$8$--$10$, well before the population's starvation cliff at $19$.
+Poison that never acts---the \texttt{inert} class, adoption and
+externalization both $0.00$---dies at $19$ by upkeep alone, in the same
+sweep that takes the alive population from $14$ to $5$. Removal by
+disuse is a real capability, and the counter has no equivalent, but it
+is not selection against poison: those entries were never identified as
+harmful, they were merely never consulted. Within this 24-cycle horizon
+they had also caused no measured harm.
+
+The cost of that sweep is visible in the same table. Under
+\texttt{policy\_conformant} the ledger's benign preservation falls to
+$0.67$: a third of the benign probe set died in the cycle-19 collapse
+alongside the dormant poison. F1 and F2 are reported together, and
+their product---selective repair---is the honest figure, because repair
+without preservation is amnesia rather than defence. The ledger ends
+these runs carrying $4$--$5$ entries where both other arms carry
+$14$--$18$, which is the same fact read as a benefit.
+
+\paragraph{Verdict.}
+On this protocol the pre-registered claim that conserved-resource
+selection revokes poison \emph{faster} than a one-line heuristic is
+\textbf{not supported}. What survives is narrower and we state it as
+such: the ledger is the only arm that clears dormant payloads and the
+only one that keeps the population small, and it pays for both with
+revocation latency and with benign entries lost to the same starvation
+that removes the dormant poison.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Write--Execute--Forget with \texttt{llama3.2} deciding
+adoption; means over seeds 0--2. \emph{kill} is the cycle the last
+\emph{acting} poisoned entry is gone; \emph{alive} counts poisoned
+entries of any kind at the end. The counter revokes sooner, the ledger
+finishes the job.}
+\label{tab:wef}
+\begin{tabular}{llcccccc}
+\toprule
+attack & arm & E2 & E3 & F1 & F2 & kill & alive \\
+\midrule
+\multirow{3}{*}{explicit}
+ & keep\_everything & 0.21 & 15.0 & 0.00 & 1.00 & never & 7 \\
+ & evict\_on\_negative & 0.02 & 1.7 & 0.00 & 1.00 & \textbf{1--3} & 5 \\
+ & ledger & 0.02 & 1.3 & \textbf{1.00} & 1.00 & 8--10 & \textbf{0} \\
+\midrule
+\multirow{3}{*}{policy-conformant}
+ & keep\_everything & 0.21 & 15.3 & 0.00 & 1.00 & never & 3 \\
+ & evict\_on\_negative & 0.02 & 1.7 & 0.00 & 1.00 & \textbf{1--3} & 1 \\
+ & ledger & 0.02 & 0.7 & \textbf{1.00} & 0.67 & 8 & \textbf{0} \\
+\midrule
+\multirow{3}{*}{inert (dormant)}
+ & keep\_everything & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
+ & evict\_on\_negative & 0.00 & 0.0 & 0.00 & 1.00 & never & 3 \\
+ & ledger & 0.00 & 0.0 & \textbf{1.00} & 1.00 & starve 19 & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Literature controls, run rather than argued}
+\paragraph{Retrieval bandit \citep{xu2026ael}.}
+A per-entry successive-elimination bandit with a Hoeffding radius
+(cull when $\hat\mu + \sqrt{\ln T / 2n} < 0.5$) is the strongest no-ledger
+arm we field. Its confidence radius is real forgiveness, and under
+one-sided false-bad noise it \emph{matches} survival at 35\%
+($11.14$ vs $11.00$M, paired $p = 0.68$) while keeping full benign
+capability. We publish this regime. Everywhere else the ledger's
+pre-registered predictions land: the bandit cannot starve dead weight
+(final population 15--16, near \texttt{keep\_everything}), kills the poison
+cycles later (median 1.5 vs 0), and under symmetric noise its sign-blind
+reward lets the poison feed until it bleeds to $\texttt{keep\_everything}$
+territory.
+
+\paragraph{LLM-judge settlement, and the cost result.}
+Replacing measured settlement with keep/cull verdicts from a local model
+(an operationalization of LLM-curated memory, cf.\ \citealp{zhang2026faulty})
+gives a mixed quality result---one local judge degrades benign capability
+to $0.67$, another does not, at five seeds---so we do \emph{not} claim
+categorical superiority. The robust result is cost: judged settlement
+runs $87.6$\,s (llama3.2:3b) to $1{,}514$\,s (qwen3:4b) per five-cycle
+run against the ledger's $0.03$--$0.09$\,s, four to six orders of
+magnitude, before a verdict is even parsed. Settlement by a scalar the
+environment already returns is effectively free.
+
+\subsection{Second environment, and where the ledger loses}
+On a test-suite environment (the resource is passing-test count; applying
+a patch reruns the suite), the mechanism \emph{transfers}---survival kills
+the actionable poison in every seed---but the headline tie does not:
+\texttt{evict\_on\_negative} \emph{beats} survival ($88$ vs $69$,
+$p = 0.014$). The cause is a designed property of the family meeting a
+designed property of the ledger: this environment charges \emph{nothing}
+for refusing to act, so the protector entry that keeps refusing the
+destructive patch can never earn and starves under upkeep, after which the
+destructive patch lands again. Leanness, the ledger's asset on storage, is
+a liability where refusals are free. This is the central entry in the
+regime map (\S\ref{sec:regime}): the conclusion is family-dependent in
+\emph{both} directions, and we flag it rather than average it away.
+
+\subsection{Parametric memory (secondary).}
+To connect to memory-as-a-model \citep{quek2026memo}, we distill survivors
+into a small (0.5B) model. Distilling the \emph{raw} store teaches the
+facts but bakes in every poison statement (poison reproduction $1.00$);
+distilling the \emph{energy-ledger survivors} teaches the same facts
+(recall $1.00$) and reproduces no poison ($0.00$). The active ingredient
+is a conserved-resource floor: a judge \emph{with} an energy floor nearly
+matches it, a judge without one erodes the store to nothing. This is a
+clean existence proof at one model scale, not a scaling law, and we frame
+it as such.
+
+\subsection{Real software-engineering tasks (SWE-Bench-CL): protocol and status}
+\label{sec:swebench}
+The synthetic suites above are well-instrumented but synthetic. To test
+whether conserved-resource selection produces a \emph{learning curve} on
+real tasks, we adopt SWE-Bench-CL \citep{joshi2025swebenchcl,
+jimenez2024swebench}: per-repository continual-learning sequences of
+human-verified GitHub issues, with the conserved resource being the change
+in passing-test count from the official evaluation harness. Five arms
+answer the same tasks through the same endpoint and executor, along two
+axes. The memory axis asks whether selection matters at all:
+\texttt{memory\_on} (relevance-retrieved lessons, minted and settled by
+eval outcome), \texttt{memory\_off}, and \texttt{random\_matched}
+(uniformly random lessons under the same token budget). The curation
+axis holds retrieval fixed at relevance and varies only the policy:
+\texttt{keep\_everything} and \texttt{evict\_on\_negative} inject
+exactly what \texttt{memory\_on} injects, so any difference between the
+three is the curation rule alone---the same one-line counter that ties
+the ledger in \S\ref{sec:wef}, now on real tasks.
+
+The decisive control is \texttt{random\_matched}: beating
+\texttt{memory\_off} alone could be a token-budget effect, so the
+learning-curve claim is the second-half-minus-first-half improvement of
+\texttt{memory\_on} over \texttt{random\_matched} on at least three
+seeds per sequence.
+
+Two properties of this leg bound what it can show, and both are reported
+rather than assumed: BM25's recall, below, and the fact that a seed here
+does not fix the world it does in the deterministic suites---the endpoint
+is sampled, so three seeds are three draws rather than three controlled
+replicates (\S\ref{sec:limitations}).
+
+That difference, and not either arm's own second-half-minus-first-half
+figure, is the quantity. These sequences are \emph{curricula} ordered by
+increasing difficulty, so the second half is harder by construction and
+every arm posts a negative within-arm delta whether or not it learned
+anything. Both arms walk the identical ordering, so the difficulty
+gradient cancels in the paired difference; reading an arm's raw delta as
+a learning signal would be reading the curriculum instead.
+
+The dataset is pinned by an exact (commit, sha256) pair; the loader
+refuses any file whose hash differs. As of this writing the pin
+re-verifies against live upstream, and the two pilot sequences hold
+(pytest, 19 tasks; astropy, 22 tasks). The full pipeline is validated
+end-to-end \emph{including the real evaluation}, and it resolves real
+issues. A minimal prompt (problem statement only) resolves $\approx 0$ for
+any model, for two structural reasons: the model never sees the code, and
+it cannot compute correct diff hunk line numbers. The run configuration
+that produces a curve adds two stdlib pieces, disclosed as a deviation
+from the minimal pre-registered prompt: \emph{(i)} BM25 retrieval of the
+repository's source files at the task's base commit against the issue text
+(no oracle---the gold patch is never read; the query is issue-only and
+identical across arms, so arms still differ only in lesson memory), and
+\emph{(ii)} a search/replace edit format from which the harness computes
+the diff with \texttt{difflib}, so hunk line numbers are correct by
+construction. With these, gpt-4.1 resolves \texttt{pytest-dev\_\_pytest-5262}
+end-to-end in the official docker harness under \texttt{linux/amd64}
+emulation (BM25 retrieved the correct file from the issue text alone; the
+edit applied; fail-to-pass 1/1, pass-to-pass 108/108); the same task under
+the minimal prompt produced an unappliable diff.
+
+\paragraph{Retrieval recall bounds every arm, so we measured it.}
+A file the model never sees is a task no arm can solve, which makes
+BM25's recall a ceiling on the whole experiment rather than an
+implementation detail. We report it directly: over the pytest sequence,
+the fraction of tasks where the file the gold patch edits appears in the
+retrieved context is $37\%$ at a 60k-character budget over 5 files,
+$63\%$ at 150k/5, $74\%$ at 300k/10, and $89\%$ at 600k/20. The budget
+rather than the file count is what binds at the low end---one or two
+large modules exhaust it---and the first configuration we ran was the
+60k one, where a third of tasks produced no patch at all because the
+model wrote edits against files it had not been shown. We report the
+matrix at 300k/10 and state the residual: roughly a quarter of tasks
+remain unanswerable for retrieval reasons, and they depress every arm
+equally. The gold patch is read \emph{only} for this measurement, never
+by the retriever and never by any arm; the retrieval query is issue-only
+and identical across arms, so recall sets how many tasks are answerable
+and never which arm answers them.
+
+\paragraph{Result: no learning-curve effect, and the reason is arithmetic.}
+The full matrix is five arms over both sequences at three seeds: 615
+tasks, every one scored by the official docker harness, no failed cells.
+The pre-registered comparison does not hold. \texttt{memory\_on} improves
+on \texttt{random\_matched} by $+0.052$ of second-half-minus-first-half
+resolve rate, paired over six worlds, $95\%$ CI $[-0.037, +0.141]$,
+permutation $p = 0.50$ (Table~\ref{tab:swebench}). The interval contains
+zero and the point estimate is a fifth of the within-arm sampling
+standard deviation. We report this as a null, not as a trend.
+
+Two features of the table matter more than the $p$-value.
+\texttt{memory\_off}, which carries no store at all, has the highest
+resolve rate of any arm ($0.358$); and \texttt{memory\_on} is level with
+\texttt{keep\_everything} to three decimals ($0.325$). The second of
+those is not a coincidence, and it explains why the curation axis is
+silent here.
+
+An entry spawns with $1.0$ energy and pays $0.05$ upkeep per cycle, so an
+entry that never earns starves after exactly $20$ cycles. These sequences
+are $19$ and $22$ tasks---the two shortest of the eight in SWE-Bench-CL,
+which range to $50$. Only two of the five arms charge upkeep at all
+(\texttt{memory\_on} and \texttt{random\_matched}; \texttt{keep\_%
+everything} and \texttt{evict\_on\_negative} remove by policy or not at
+all), and across the $246$ lessons those two minted, $10$ ever starved:
+none whatsoever on pytest, and five each at the tail of astropy, where
+the first-born entries finally cross zero. With nothing starving,
+the energy ledger \emph{is} \texttt{keep\_everything} plus settlement,
+and the two arms tie because on this benchmark they are the same policy.
+
+That explanation is testable, so we tested it rather than resting on it.
+
+\paragraph{The long matrix: the excuse does not survive its own test.}
+We re-ran the full design over \texttt{django} and \texttt{sympy}, $50$
+tasks each and $2.5\times$ the horizon: another 30 cells, $1{,}500$
+tasks, no failed cells (Table~\ref{tab:swebench-long}). The mechanism
+half of the prediction held exactly. Starvation moved from $4\%$ of
+minted lessons to $52\%$---$155$ of $300$ under \texttt{memory\_on}, at
+a steady $21$--$23$ per cell---and the surviving population held at $24$
+where \texttt{keep\_everything} climbs to the full $50$. Leanness, the
+one property that survived every earlier comparison, is demonstrated on
+real tasks here for the first time: half the store, and the deaths begin
+at position $20$ where the arithmetic says they must.
+
+The capability half did not hold. With removal fully active the
+pre-registered comparison is $+0.027$ $[-0.020, +0.073]$, permutation
+$p = 0.50$; on \texttt{django} alone, where per-seed variance is
+smallest ($23,23,23$ for \texttt{memory\_off}), it is $-0.013$ with
+$p = 1.0000$. Halving the store changed measured capability by nothing,
+and \texttt{memory\_off} is again the highest-scoring arm ($0.360$).
+Across all four sequences and $2{,}115$ evaluated tasks, no memory arm
+has beaten no memory at all.
+
+We therefore retract the benchmark explanation as a defence of the
+mechanism and keep it only as a description of the pilot. What the two
+matrices jointly establish is narrower than what we set out to show and
+more useful than a second ambiguous null: on real software-engineering
+tasks conserved-resource selection buys \emph{leanness} at no measured
+cost in capability, and buys no measured capability either.
+
+\begin{table}[t]
+\centering
+\small
+\caption{SWE-Bench-CL, five arms $\times$ two sequences $\times$ three
+seeds, gpt-4.1, official docker evaluation. \emph{2nd$-$1st} is the
+within-arm learning delta, negative for every arm because the sequences
+are difficulty-ordered curricula; only the arm-minus-control difference
+is interpretable. \emph{pop} is the surviving lesson count at the end.}
+\label{tab:swebench}
+\begin{tabular}{lccccc}
+\toprule
+arm & tasks & resolve & 2nd$-$1st & harm & pop \\
+\midrule
+\texttt{memory\_off}       & 123 & \textbf{0.358} & $-$0.606 & $-$5.9 & 0.0 \\
+\texttt{random\_matched}   & 123 & 0.333 & $-$0.588 & $-$7.9 & 19.7 \\
+\texttt{memory\_on}        & 123 & 0.325 & $-$0.535 & $-$7.1 & 19.3 \\
+\texttt{keep\_everything}  & 123 & 0.325 & $-$0.572 & $-$6.6 & 20.5 \\
+\texttt{evict\_on\_negative} & 123 & 0.301 & $-$0.554 & $-$6.2 & 11.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\caption{The long matrix: \texttt{django} and \texttt{sympy}, $50$ tasks
+each at $2.5\times$ the starvation horizon, five arms $\times$ three
+seeds, $1{,}500$ tasks. Removal is now active---\texttt{memory\_on}
+starves $52\%$ of what it mints and holds $24$ entries where
+\texttt{keep\_everything} holds $50$---and the resolve rate still does
+not move. \texttt{random\_matched} starves identically because it
+inherits the same curation policy; the arms differ in which lessons are
+injected, not in whether they are curated.}
+\label{tab:swebench-long}
+\begin{tabular}{lccccc}
+\toprule
+arm & tasks & resolve & 2nd$-$1st & harm & pop \\
+\midrule
+\texttt{memory\_off}       & 300 & \textbf{0.360} & $-$0.093 & $-$49.1 & 0.0 \\
+\texttt{memory\_on}        & 300 & 0.350 & $-$0.087 & $-$45.6 & \textbf{24.0} \\
+\texttt{random\_matched}   & 300 & 0.350 & $-$0.113 & $-$42.4 & 24.0 \\
+\texttt{keep\_everything}  & 300 & 0.343 & $-$0.100 & $-$50.2 & 50.0 \\
+\texttt{evict\_on\_negative} & 300 & 0.323 & $-$0.033 & $-$47.5 & 24.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The attack on real tasks: what transfers and what does not}
+\label{sec:swebench-attack}
+
+The adversarial result of \S\ref{sec:adversary} lives entirely inside one
+synthetic storage world that we wrote. That is a weak place for a
+paper's central claim to live, so we ran the same attack on
+SWE-Bench-CL, where the settled quantity is the passing-test delta
+returned by the official docker harness and nobody involved chose it.
+The threat model is unchanged: the adversary injects no poison, observes
+only the sign of the true outcome, and corrupts settlement alone. The
+lie reaches the curator and nothing else---\texttt{metrics.delta} and
+\texttt{resolved} keep the harness's own numbers---so capability is
+always scored against reality while the mechanism decides on the
+corruption.
+
+Budget is denominated in measured \emph{settlements} rather than tasks.
+\texttt{StorageEnv} offers $b$ lies per cycle of twelve files, so $b$
+corrupts $b/12$ of the evidence; roughly forty percent of SWE-Bench
+tasks produce no test movement at all, and counting tasks would have
+inflated the real corruption rate by each arm's own failed-apply rate.
+We report $b{=}2$, which is $17\%$ of settlements, the point where the
+synthetic suite has already destroyed the counters and the ledger still
+holds. Three curation arms on \texttt{django} at fifty tasks, three
+seeds, poison-seeded one lesson per task, each cell paired against its
+own unattacked twin: eighteen cells, six lies fired in every one.
+
+\paragraph{Two of the three synthetic findings do not transfer.}
+No arm eliminated the poison at any budget. Capability did not separate
+either: retained $1.048$, $0.957$, and $1.000$ for the ledger, the
+counter, and \texttt{keep\_everything}, every interval spanning zero.
+The synthetic suite's headline---that the attack destroys an
+evict-on-negative counter's capability---is simply absent here, and the
+reason is one this paper has already established: on this benchmark
+memory contributes no measurable capability at all
+(\S\ref{sec:swebench}), so denial of memory has nothing to deny.
+\emph{An attack on memory cannot cost more than the memory was worth.}
+
+\paragraph{What transfers is the mechanism, in its proper currency.}
+The attack's damage lands entirely on benign memory, and how much
+depends on whether removal is recoverable (Table~\ref{tab:swebench-attack}).
+Under the same six lies, the counter's benign burial roughly triples
+while the ledger's barely moves, on every seed, with non-overlapping
+ranges ($2.29$--$3.00$ against $1.08$--$1.43$). The trigger lists show
+the adversary doing both halves of its job: on seed 0 it flipped two
+genuine damage signals positive so the guilty went unpunished, and
+manufactured six against benign work, and the counter obeyed on every
+count. This is the argument of \S\ref{sec:adversary} measured on real
+software-engineering tasks: a counter spends a life it cannot recover,
+so a lie costs it an entry permanently; a ledger spends energy the entry
+earns back, so the same lie costs it almost nothing.
+
+\begin{table}[t]
+\centering
+\caption{Curation-targeted attack on \texttt{django}, 50 tasks, three
+seeds, $b{=}2$ ($17\%$ of settlements corrupted, six lies per cell).
+Benign burial is the graveyard minus the poison entries removed. No arm
+cleared the poison and no arm lost capability; the separation is in what
+the attack made each mechanism delete.}
+\label{tab:swebench-attack}
+\begin{tabular}{lccc}
+\toprule
+arm & benign buried, $b{=}0\to2$ & ratio & capability retained \\
+\midrule
+\texttt{evict\_on\_negative} & $6.3 \to 17.3$ & $2.76\times$ & $0.957$ \\
+\texttt{memory\_on}          & $24.7 \to 29.7$ & $1.21\times$ & $1.048$ \\
+\texttt{keep\_everything}    & $0 \to 0$ & --- & $1.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The null arm is the invariant that makes the rest readable.}
+\texttt{keep\_everything} never settles, so the corruption reaches it
+and does nothing: graveyard $0$, population $100$, and a resolve rate
+identical to its attacked twin in all three seeds ($23/23$, $23/23$,
+$22/22$). Prompt-identical runs return prompt-identical results, which
+is worth more than the control itself: it bounds endpoint
+nondeterminism on this sequence at about one task in fifty, so the
+burial differences above are caused by the store rather than by
+sampling. We note in \S\ref{sec:limitations} that this is much tighter
+than the pilot's cross-seed spread and does not license reading the two
+as the same quantity.
+
+\paragraph{A measurement we got wrong, and the correction.}
+We first scored defence as the fraction of seeded poison \emph{entries}
+no longer alive, and read $0.98$ for the ledger against $0.07$ for the
+counter. That number measured deduplication, not removal. The seeded
+poison lessons share one template and differ only in a filename, so they
+cluster, and a single consolidation pools all fifty into one heir that
+inherits all fifty poison sources and the poison text: the store then
+reports one live poison entry while every poisoned source is alive and
+retrievable inside it. The comparison was confounded twice over, because
+only survival curation consolidates, so it set one arm that deduplicates
+poison against two that never do. Counting poison by provenance instead,
+no arm removed poison: fifty sources alive for the ledger, forty-six for
+the counter, fifty for \texttt{keep\_everything}. We report the
+corrected reading and keep the merge column visible in the released
+data. The lesson is the one our own synthetic harness had already
+written down---measure poison by provenance carried through merges, and
+treat elimination as a predicate rather than a count---and this leg
+failed to apply it.
+
+\paragraph{Statistical status, stated plainly.}
+Three seeds cannot clear $p = 0.25$ on a paired permutation test: eight
+sign assignments, minimum two-sided $2/8$. The effect above is $3/3$
+unanimous with cleanly separated ranges and it is \emph{not} significant
+at any conventional threshold. We report effect size and unanimity
+rather than a $p$-value, and we state what would settle it: a second
+independent sequence would give six worlds and a floor of $p = 0.031$.
+We attempted two (\texttt{sympy}, then \texttt{sphinx}) and neither
+completed---the container host died a few minutes into every
+evaluation---so the claim rests on one repository and should be read as
+a single-sequence result until that is repaired.
