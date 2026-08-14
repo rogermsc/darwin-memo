@@ -225,10 +225,14 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
             wall = run.get("metrics", {}).get(wall_key)
             if wall is None or (wall <= 0 and suite not in _ZERO_WALL_OK):
                 failures.append(f"run {i}: {wall_key} not recorded")
-        if swebench:
-            absent = _SWEBENCH_REQUIRED_KEYS - set(run)
-            if absent:
-                failures.append(f"run {i}: missing identity fields {sorted(absent)}")
+        # Every family needs the fields that say which run this is. The
+        # storage pair is the weaker requirement but not optional: the noise
+        # canary below keys on (arm, seed), and a file that omits them used to
+        # reach it and raise KeyError -- a validator crashing on the malformed
+        # input it exists to describe.
+        absent = (_SWEBENCH_REQUIRED_KEYS if swebench else {"arm", "seed"}) - set(run)
+        if absent:
+            failures.append(f"run {i}: missing identity fields {sorted(absent)}")
 
     if suite in _SUITE_REQUIRED_METRICS:
         # Everything below is storage-family physics -- poison kills,
@@ -265,12 +269,16 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     # change which entries exist, so they belong in the key rather than
     # inside a set the canary expects to be a singleton.
     canary: dict[tuple[str, int, int, int, str, bool], set[float]] = {}
-    # A run missing cum_delta was already reported above; skip it here for the
-    # same reason the poison gate does, so an unregistered suite that happens
-    # to carry a keep_everything arm gets a failure list rather than a KeyError
-    # from the validator that exists to report failures.
+    # A row missing arm, seed or cum_delta was already reported above; skip it
+    # here for the same reason the poison gate does, so a malformed or
+    # unregistered file gets a failure list rather than a KeyError from the
+    # validator that exists to report failures.
     for r in runs:
-        if r["arm"] == "keep_everything" and "cum_delta" in r.get("metrics", {}):
+        if (
+            r.get("arm") == "keep_everything"
+            and "seed" in r
+            and "cum_delta" in r.get("metrics", {})
+        ):
             cfg = r.get("config", {})
             key = (
                 str(cfg.get("env_family", "storage")),
