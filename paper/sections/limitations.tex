@@ -78,6 +78,38 @@ the evidence we have, plausibly zero. Two further limits below
 this null should
 not be read as an upper bound on the mechanism either.
 
+\paragraph{The task stream is not known to contain reusable work.}
+A stronger version of that caveat has since been made general.
+\citet{agentcl2026} argue that lifelong-adaptation benchmarks rest on
+``naive task streams'' in which nothing guarantees that an earlier
+sub-solution, piece of evidence, or workflow is reusable later, and
+propose \emph{controlled} streams in which reuse is constructed by
+design. SWE-Bench-CL orders tasks within a repository by date and by
+estimated fix time; it does not construct reuse. If lesson $n$ is not
+usable at task $n+k$, no curation policy can separate itself from
+\texttt{memory\_off}, and our null is then a measurement of the stream
+rather than of the ledger. We cannot distinguish these two readings with
+the data we have, and we no longer claim to: a benchmark without
+constructed reuse cannot tell ``selection did not help'' apart from
+``there was nothing to reuse.''
+\citet{cl2memory2026} locate a second bound in the same place, finding
+that memory relocates the stability--plasticity dilemma to retrieval
+rather than dissolving it, and that abstract procedural memories transfer
+where detailed trajectories do not. Our entries are detailed QA pairs.
+
+\paragraph{No representation arm.}
+Every arm in this paper stores the same thing---a question, an answer,
+and provenance---and varies only \emph{which} entries survive. The
+comparison that is now unavoidable is against strategy-level memory:
+\citet{reasoningbank2026} report $54.0 \rightarrow 57.4$ resolve on
+SWE-Bench-Verified with Gemini-2.5-pro and $34.2 \rightarrow 38.8$ with
+Gemini-2.5-flash, storing distilled reasoning strategies rather than
+episodes. Their selection is an LLM judging its own trajectories, which
+this design refuses; but representation and selection are separate axes
+and we have varied only one of them. Whether our null reflects the
+selection rule or the thing being selected is untested, and it is
+testable without adopting a judge.
+
 \paragraph{Scale of the parametric result.}
 The distillation arm is a 0.5B model on a small corpus with deliberately
 distinctive poison tokens, so reproduction is unambiguous. It is a clean
@@ -154,8 +186,9 @@ The write-time detector in \S\ref{sec:memsec} is a keyword and
 authority-marker rule we wrote, not a port of any published system. We
 give it the shape the published filters have and report its TPR/FPR in
 every row so its behaviour is visible rather than assumed, but a trained
-classifier would land elsewhere on the weak-signal class: the literature
-reports $31.6\%$ there, not the $0\%$ our reconstruction achieves. The
+classifier would land elsewhere on the weak-signal class: the best
+off-the-shelf detector in \citet{mpbench2026} reports $42.50\%$ there,
+and the weakest $10.74\%$, against the $0\%$ our reconstruction achieves. The
 claim the experiment supports is directional---content inspection
 degrades sharply on payloads written to look ordinary, where consequence
 does not---and not a numerical comparison against any named filter.

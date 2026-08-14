@@ -4,9 +4,14 @@
 \paragraph{Memory poisoning, and where its defences sit.}
 \citet{mpbench2026} systematize memory-poisoning attacks on LLM agents
 and evaluate content-based detectors against them, reporting the split
-that motivates this work: detectors average $63.6\%$ true-positive rate
-on strong-signal payloads and $31.6\%$ on weak-signal ones---payloads
-written to read like ordinary operational facts.
+that motivates this work: every off-the-shelf detector they test loses
+between $18$ and $42$ points of true-positive rate moving from
+strong-signal payloads to weak-signal ones---payloads written to read
+like ordinary operational facts. The best of them, PromptArmor, falls
+from $84.44\%$ to $42.50\%$; the weakest, DataFilter, from $28.86\%$ to
+$10.74\%$. Their own reading is that the limitation is structural:
+weak-signal payloads ``carry no syntactic anomaly'' and are
+``semantically indistinguishable from legitimate content.''
 \citet{memsecbench2026} track poisoning through a lifecycle, from
 persistence to consequence to repair, and identify selective repair as
 the open stage: removing poison without destroying benign memory
@@ -135,3 +140,73 @@ We adopt SWE-Bench-CL as the real-task testbed for whether a lesson store
 under conserved-resource selection produces a learning curve across a
 sequence (\S\ref{sec:experiments}); the resource is the change in
 passing-test count returned by the official evaluation harness.
+\citet{agentcl2026} raise the objection that bounds what any such leg can
+show: benchmarks built from ``naive task streams'' do not guarantee that
+earlier work is reusable later, so a memory arm and a no-memory arm can
+be indistinguishable for reasons that have nothing to do with curation.
+They propose controlled streams in which reuse is constructed. We report
+our null with that caveat attached rather than as a property of the
+mechanism (\S\ref{sec:limitations}).
+
+\paragraph{What is stored, as opposed to what survives.}
+An orthogonal axis to ours is representation. \citet{reasoningbank2026}
+store distilled reasoning strategies rather than episodes, selected by an
+agent judging its own successful and failed trajectories, and report
+$54.0 \rightarrow 57.4$ resolve on SWE-Bench-Verified with
+Gemini-2.5-pro. \citet{cl2memory2026} give the mechanism a name: memory
+does not dissolve the stability--plasticity dilemma but relocates it to
+retrieval, where abstract procedural memories transfer more reliably than
+detailed trajectories. Every arm in this paper stores an episode and
+varies only which episodes survive, so their axis and ours are
+independent and untested against each other. We flag this as an open
+comparison rather than a resolved one; the selection mechanism we study
+is compatible with either representation, and their selection rule---an
+LLM grading its own trajectories---is the one this work sets out to do
+without.
+
+\paragraph{Attacks that never write.}
+The attack literature this defence answers to is older and broader than
+the 2026 benchmarks. \citet{chen2024agentpoison} red-team agents by
+poisoning memory and knowledge bases directly; \citet{zou2026poisononce}
+inject through the environment a web agent reads;
+\citet{srivastava2025memorygraft} achieve persistent compromise through
+poisoned experience retrieval; and \citet{xu2026steering} target the
+memory control flow rather than its contents. The case that matters most
+for our threat model is \citet{dong2025minja}, which injects memory
+through \emph{query-only} interaction: the attacker never writes, and
+therefore never has to defeat a write-time filter or compromise the
+settler. Our trust boundary assumes a settler that may be adversarial
+(\S\ref{sec:threat}); it does not cover an adversary who reaches memory
+without settling at all, and outcome-grounded revocation has no claim
+over an entry no consequence is ever attributed to.
+
+\paragraph{Budgets, admission, and the round trip into weights.}
+Two systems share our shape without sharing our signal.
+\citet{admission2026} gate memory at write time on measured signals
+rather than a judge, against MemGPT, MemoryBank, A-MEM
+\citep{xu2025amem}, Mem0 \citep{mem0} and HippoRAG---the nearest
+published mechanism to ours, and one evaluated with no adversary at all.
+\citet{ember2026} retain evidence under a fixed budget, which is the
+economic framing we use, with the difference that their budget is spent
+on relevance while ours is \emph{earned} from outcomes: an entry that
+looks useful keeps its place there, an entry that has been useful keeps
+its place here. Downstream, \citet{tmem2026} absorb distilled experience
+into fast LoRA weights online, and related work distils long-term memory
+into parameters periodically. None of these applies a principled filter
+to what gets distilled, which is the question our distillation arm
+isolates (\S\ref{sec:experiments}): the same corpus, filtered three ways,
+produces a model that reproduces the poison and a model that does not.
+
+\paragraph{Learned credit assignment for memory operations.}
+A parallel line keeps the memory operations and learns the credit.
+\citet{memoryr2} optimize store/retrieve/update decisions with
+group-relative policy optimization over trajectory-level reward;
+\citet{treecredit2026} distribute credit across a multi-agent memory
+system; \citet{attrimem2026} attribute process-level feedback to
+individual memory contents. They share a stated bottleneck---outcome
+signals are too coarse to say which memory content earned the result---and
+answer it with learning. The ledger answers the same question with
+arithmetic: credit is bounded by $\tanh$ and scoped to provenance, so
+attribution is a property of the write path rather than an inference
+about it. Neither approach is free; ours buys auditability and pays in
+resolution.

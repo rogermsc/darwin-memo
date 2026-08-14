@@ -8,6 +8,18 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Literature review of 2026 agent-memory work
+  (`docs/research/2026-08-14-literature-review.md`), with every entry marked
+  `[read]` or `[surveyed]` and given a verdict (cite / arm / adopt / scope-out).
+  It adds the attack-side citations the paper was missing (MINJA's query-only
+  injection, AgentPoison, environment-injected and control-flow attacks), the
+  learned-credit-assignment line the ledger is the judge-free alternative to,
+  and the two nearest mechanism neighbours (adaptive admission control,
+  EMBER's budgeted retention). `docs/threat-model.md` gains the
+  curation-targeted attack it was missing and a section on attacks that never
+  write — query-only injection defeats a trusted-settler assumption without
+  violating it, and outcome-grounded revocation has no claim over an entry no
+  consequence is attributed to.
 - Organic memory Phase 4: earned importance + potentiation
   (`darwin_memo.organic.EarnedImportance`, `OrganicMemory.importance()` /
   `centrality()` / `upkeep_scale()`). Importance is three measured quantities
@@ -61,6 +73,22 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **A cited number that could not be reproduced from its source.** Three paper
+  sections stated that content detectors average 63.6% true-positive rate on
+  strong-signal payloads and 31.6% on weak-signal ones, attributed to
+  `mpbench2026`. That pair appears nowhere in the paper, and no aggregation of
+  its Table 4 produces it (four off-the-shelf detectors average 58.33 / 24.98;
+  all seven rows 61.27 / 33.18). Replaced with the printed per-detector figures
+  — PromptArmor 84.44% → 42.50%, DataFilter 28.86% → 10.74%, an 18-to-42-point
+  drop for every detector — so no arithmetic of ours sits between the source and
+  the claim. The argument is unchanged and better supported; only the numbers
+  were wrong. Corrected in `related.tex`, `experiments.tex`, `limitations.tex`
+  and in `docs/research/2026-08-01-memory-security-pivot.md`, where the figure
+  entered.
+- Bibliography defects: A-MEM sat in `references.bib` uncited, and Zep and Letta
+  were named in prose with no entries at all. All three are now cited where the
+  scope-out is stated, alongside LongMemEval as the benchmark family that
+  scope-out refers to.
 - The organic layer was excluded from the coverage gate wholesale
   (`omit = ["darwin_memo/organic/*"]`) for a reason — the optional turbovec ANN
   path cannot run in default CI — that was only ever true of

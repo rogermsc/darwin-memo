@@ -30,7 +30,7 @@ subfield with a standards hook:
 
 | Evidence | Number | Reading |
 |---|---|---|
-| MPBench, weak-signal attacks vs the 4 best filters | **31.63% mean TPR** (vs 63.57% strong-signal) | Content detection fails exactly where the payload is written to look benign |
+| MPBench, weak-signal vs strong-signal, per off-the-shelf detector | PromptArmor **42.50%** (vs 84.44%); CommandSans 28.34% (68.33%); PIGuard 18.34% (51.67%); DataFilter 10.74% (28.86%) — a **18–42 point** drop for every detector | Content detection fails exactly where the payload is written to look benign |
 | MemSecBench F1 Repair | 86.3% | Removing poison is largely solved |
 | MemSecBench **F2 Benign Preservation** | **62.5% — a 30.2-point gap** | Repair is *collateral*: fixing memory destroys good memory |
 | MemSecBench SRSR (selective repair) | 56.1% | The Forget stage is the open bottleneck |
