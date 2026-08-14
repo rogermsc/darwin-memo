@@ -403,15 +403,21 @@ plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
 
 ## Organic memory (experimental, opt-in)
 
-An adaptive, brain-like layer is in progress: memories weighted by usage and
-*earned* importance, shrinking to a gist when unused and expanding to full
-detail on recall, connected by relevance-weighted links — all on
-earned/measured signals, **no judge**. Phase 1 (the associative graph) has
-landed: `darwin_memo.organic.store_related(store, entry_id, k)` returns
-relevance-weighted related memories. It is additive and read-only with respect
-to survival (relatedness is mechanical cosine; value is still earned by the
-ledger). Zero-dependency by default; `pip install darwin-memo[organic]` adds a
-turbovec ANN backend for scale. See [docs/organic.md](docs/organic.md).
+An adaptive, brain-like layer, complete through Phase 4: memories connected by
+relevance-weighted links, shrinking to a gist when unused and expanding to full
+detail on recall, with a recall spreading one hop and strengthening the links it
+travels — all on earned/measured signals, **no judge**. `OrganicMemory(store)`
+is the facade; `store_related(store, entry_id, k)` is the one-shot primitive.
+
+Phases 1–3 are additive and read-only with respect to survival: relatedness is
+mechanical cosine, value is still earned by the ledger. Phase 4 (earned
+importance) is the exception and is **opt-in** — it biases ranking by default,
+and slows upkeep only if you pass `om.upkeep_scale()` to `charge_upkeep`. That
+makes usage a retention signal, which this repo's own `salience_matched` arm
+measured at a 0.20 poison kill rate against random eviction's 0.80; read
+[docs/organic.md](docs/organic.md) before wiring it. Zero-dependency by
+default; `pip install darwin-memo[organic]` adds a turbovec ANN backend for
+scale.
 
 ## Documentation
 

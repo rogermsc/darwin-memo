@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Collection, Iterator
+from collections.abc import Collection, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -39,7 +39,13 @@ try:
 except ImportError:  # pragma: no cover - Windows only
     fcntl = None  # type: ignore[assignment]
 
-__all__ = ["MemoryStore", "StoreLockedError", "tokenize"]
+__all__ = ["MIN_UPKEEP_SCALE", "MemoryStore", "StoreLockedError", "tokenize"]
+
+# The most a caller-supplied multiplier may slow one entry's upkeep:
+# a quarter rate, so a potentiated memory starves in four times the
+# ticks rather than never. Death by energy floor stays reachable for
+# every unpinned entry no matter what a caller passes.
+MIN_UPKEEP_SCALE = 0.25
 
 
 class StoreLockedError(RuntimeError):
@@ -201,8 +207,26 @@ class MemoryStore:
         entry.uses += 1
         entry.last_used_cycle = cycle
 
-    def charge_upkeep(self, protect: Collection[str] = ()) -> list[MemoryEntry]:
+    def charge_upkeep(
+        self,
+        protect: Collection[str] = (),
+        scale: Mapping[str, float] | None = None,
+    ) -> list[MemoryEntry]:
         """Charge every alive entry one cycle of upkeep, bury the dead.
+
+        ``scale`` is an optional per-entry multiplier on this tick's
+        upkeep, supplied by the caller (the organic layer's earned
+        importance is the one shipped user; see docs/organic.md). It is
+        clamped to ``[MIN_UPKEEP_SCALE, 1.0]``: a caller may slow an
+        entry's burn rate but never speed it up and never stop it. The
+        floor is the load-bearing half. Upkeep that reaches zero is a
+        second way to become unkillable — a pin nobody granted — and
+        this project's own salience_matched arm measured what happens
+        when usage decides retention: poison kill rate 0.20 against
+        random eviction's 0.80, because usage cannot tell "used" from
+        "useful". With a floor, every unpinned entry still starves; it
+        only takes longer. Default ``None`` charges flat upkeep, which
+        is what every caller in this repo does.
 
         Entries in ``protect`` still pay upkeep but are not buried even
         at zero energy: the Ledger escrows entries with unsettled
@@ -228,7 +252,8 @@ class MemoryStore:
         charged = 0.0
         for entry in list(self._entries.values()):
             before = entry.energy
-            entry.energy -= self.upkeep
+            factor = 1.0 if scale is None else scale.get(entry.id, 1.0)
+            entry.energy -= self.upkeep * min(1.0, max(MIN_UPKEEP_SCALE, factor))
             if entry.pinned:
                 entry.energy = max(entry.energy, 0.0)
             elif not entry.alive and entry.id not in protected:

@@ -13,6 +13,8 @@ against both the correct and the broken implementation is decoration.
 
 from __future__ import annotations
 
+import pytest
+
 from darwin_memo import MemoryEntry, MemoryStore
 from darwin_memo.organic import (
     ActivationState,
@@ -25,6 +27,15 @@ from darwin_memo.organic import (
     store_related,
     surface,
 )
+from darwin_memo.organic.dynamics import IMPORTANCE_BIAS
+from darwin_memo.organic.importance import (
+    CENTRALITY_WEIGHT,
+    CREDIT_WEIGHT,
+    MAX_RELIEF,
+    RECALL_WEIGHT,
+    EarnedImportance,
+)
+from darwin_memo.store import MIN_UPKEEP_SCALE
 
 # A fixed, hand-checkable vector space: A and B are close, C is orthogonal
 # to both. Cosine(A, B) = 0.9 / sqrt(0.9^2 + 0.44^2) ~= 0.898.
@@ -54,6 +65,13 @@ def graph_of(*words: str) -> AssociativeGraph:
     for word in words:
         graph.add(entry(word))
     return graph
+
+
+def living(store: MemoryStore, entry_id: str) -> MemoryEntry:
+    """The living entry, or fail the test -- store.get() is Optional by design."""
+    found = store.get(entry_id)
+    assert found is not None
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -274,3 +292,155 @@ def test_surface_reads_the_facade_state() -> None:
     assert om.surface(e) == "alpha"
     om.recall("alpha")
     assert om.surface(e) == "alpha the detail"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — earned importance and potentiation
+# ---------------------------------------------------------------------------
+
+
+def test_importance_is_earned_not_granted_at_birth() -> None:
+    """Mutation: normalising credit off raw energy instead of energy above the
+    spawn grant makes every fresh entry maximally important for free, which is
+    the opposite of earned."""
+    store = MemoryStore(upkeep=0.0)
+    store.add(entry("alpha"))
+    store.add(entry("beta"))
+    earned = EarnedImportance()
+    assert earned.scores(store) == {"alpha": 0.0, "beta": 0.0}
+
+
+def test_the_three_components_are_all_measured() -> None:
+    """Recall count, earned credit and centrality each lift importance on
+    their own. Mutation: dropping any weight silently halves the score of an
+    entry that earns only that way."""
+    store = MemoryStore(upkeep=0.0)
+    store.add(entry("alpha"))
+    store.add(entry("beta"))
+    earned = EarnedImportance()
+
+    earned.record_recall("alpha")
+    assert earned.scores(store)["alpha"] == pytest.approx(RECALL_WEIGHT)
+
+    living(store, "beta").energy = 2.0  # one unit of credit above the spawn grant
+    assert earned.scores(store)["beta"] == pytest.approx(CREDIT_WEIGHT)
+
+    central = earned.scores(store, {"beta": 1.0})["beta"]
+    assert central == pytest.approx(CREDIT_WEIGHT + CENTRALITY_WEIGHT)
+
+
+def test_upkeep_scale_slows_the_burn_and_never_stops_it() -> None:
+    """The potentiation contract. Mutation: dropping the MIN_UPKEEP_SCALE
+    floor (or letting MAX_RELIEF reach 1.0) makes an important entry pay
+    nothing and live forever -- a pin nobody granted."""
+    store = MemoryStore(upkeep=0.0)
+    store.add(entry("alpha"))
+    earned = EarnedImportance()
+    earned.record_recall("alpha")
+    living(store, "alpha").energy = 2.0
+
+    scale = earned.upkeep_scale(store, {"alpha": 1.0})["alpha"]
+    assert 1 - MAX_RELIEF <= scale < 1.0
+    assert scale >= MIN_UPKEEP_SCALE
+
+
+def test_charge_upkeep_clamps_whatever_a_caller_passes() -> None:
+    """The floor lives in the store, not in the policy that feeds it, so a
+    retuned or buggy caller cannot buy immortality. Mutation: using the raw
+    factor makes scale=0.0 an unkillable entry."""
+    store = MemoryStore(upkeep=0.1)
+    store.add(entry("alpha", energy=1.0))
+    store.add(entry("beta", energy=1.0))
+
+    store.charge_upkeep(scale={"alpha": 0.0, "beta": 2.0})
+    assert living(store, "alpha").energy == pytest.approx(1.0 - 0.1 * MIN_UPKEEP_SCALE)
+    assert living(store, "beta").energy == pytest.approx(0.9)  # never faster than flat
+
+
+def test_charge_upkeep_without_a_scale_is_unchanged() -> None:
+    """Every caller in this repo passes no scale; potentiation is opt-in.
+    Mutation: defaulting to the organic scale silently changes who dies in
+    SurvivalLoop and Ledger."""
+    store = MemoryStore(upkeep=0.1)
+    store.add(entry("alpha", energy=1.0))
+    store.charge_upkeep()
+    assert living(store, "alpha").energy == pytest.approx(0.9)
+
+
+def test_potentiation_stretches_the_starvation_horizon_without_removing_it() -> None:
+    """The end-to-end claim: an important memory takes longer to starve, and
+    still starves. Mutation: a floor of 0.0 turns this loop infinite."""
+    store = MemoryStore(upkeep=0.1)
+    store.add(entry("alpha", energy=1.0))
+    store.add(entry("beta", energy=1.0))
+    scale = {"alpha": 1 - MAX_RELIEF}
+
+    cycles = 0
+    while store.get("alpha") is not None and cycles < 100:
+        store.charge_upkeep(scale=scale)
+        cycles += 1
+    assert store.get("beta") is None  # the ordinary entry died first
+    assert 10 < cycles <= 100  # alpha outlived it, and still died
+
+
+def test_only_the_recalled_entry_earns_the_recall() -> None:
+    """Mutation: recording the spread neighbours too lets one hot memory
+    manufacture importance for everything it is linked to."""
+    om = organic_memory()
+    om.recall("alpha", k=2)
+    assert om.earned.recalls("alpha") == 1
+    assert om.earned.recalls("beta") == 0
+
+
+def test_importance_biases_ranking_but_does_not_replace_relatedness() -> None:
+    """Mutation: raising IMPORTANCE_BIAS to 1.0 lets the loop (importance ->
+    ranking -> centrality -> importance) decide the order by itself."""
+    om = organic_memory()
+    for _ in range(5):
+        om.earned.record_recall("gamma")  # cosine 0 with alpha, but hot
+    assert om.related("alpha", k=2)[0][0] == "beta"  # relatedness still wins
+    # gamma has cosine 0 and no learned link, so its whole score is the bias
+    # on the recall component alone -- centrality is deliberately not in it.
+    assert dict(om.related("alpha", k=2))["gamma"] == pytest.approx(
+        IMPORTANCE_BIAS * RECALL_WEIGHT, abs=1e-6
+    )
+
+
+def test_centrality_reads_the_graph_not_its_own_output() -> None:
+    """Mutation: computing centrality from OrganicMemory.related() (which is
+    already importance-biased) makes the measurement feed on itself."""
+    om = organic_memory()
+    central = om.centrality()
+    assert set(central) == {"alpha", "beta", "gamma"}
+    assert central["alpha"] > central["gamma"]  # alpha sits next to beta
+    for _ in range(5):
+        om.earned.record_recall("gamma")
+    assert om.centrality() == central  # recalls moved nothing
+
+
+def test_the_facade_potentiates_end_to_end() -> None:
+    """The documented Phase 4 usage in one path: recall a memory, hand the
+    scale to charge_upkeep, and the recalled one outlives its peers without
+    becoming immortal. Mutation: OrganicMemory.upkeep_scale() dropping
+    centrality makes the facade disagree with importance()."""
+    om = organic_memory()
+    om.store.upkeep = 0.1
+    for _ in range(3):
+        om.recall("alpha")
+
+    scale = om.upkeep_scale()
+    assert set(scale) == {"alpha", "beta", "gamma"}
+    assert scale["alpha"] < scale["gamma"]  # the recalled memory burns slower
+    assert min(scale.values()) >= MIN_UPKEEP_SCALE
+    assert om.importance("alpha") > om.importance("gamma")
+    assert om.importance("nobody") == 0.0
+
+    while om.store.get("alpha") is not None:
+        om.store.charge_upkeep(scale=scale)
+    assert om.store.get("gamma") is None  # alpha died last, but it died
+
+
+def test_importance_of_an_empty_store_is_empty() -> None:
+    """Mutation: returning a default dict instead of {} makes peak
+    normalisation divide by zero on the first tick of a fresh store."""
+    assert EarnedImportance().scores(MemoryStore(upkeep=0.0)) == {}
