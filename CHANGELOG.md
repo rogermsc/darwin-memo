@@ -8,6 +8,18 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- The preprint and its reproduction package (`paper/`, `bench/swebench_cl/`).
+  Two experiments: Write-Execute-Forget against the `evict_on_negative`
+  counter (adoption ties at 0.02, the counter revokes 5-9 cycles sooner, and
+  the ledger is the only arm ending with no poisoned entry alive — the
+  pre-registered "revokes faster" claim is marked *not supported*), and
+  SWE-Bench-CL, 5 arms x 2 sequences x 3 seeds over 615 tasks scored by the
+  official docker harness, where `memory_on` beats the token-matched random
+  control by +0.052 [-0.037, +0.141], p = 0.50 — **a null, reported as one**.
+  `bench/swebench_cl/matrix.py` is a resumable subprocess-per-cell driver and
+  `curve.py` scores the pre-registered claim, dropping unpaired worlds rather
+  than zero-filling them.
+
 - Selection-quality arms for the distill suite, answering an adversarial
   review that the poison result is tautological. `distill_noisy`
   (`bench/distill/noisy_run.py`, `FlakyQAEnv`) adds a counter baseline
@@ -20,6 +32,23 @@ project uses [SemVer](https://semver.org/).
   services (not memorization), survival prevents it (0.00) and keeps the safe
   rule (1.00). Docs reframe the distillation section to lead with capability
   retention, not poison resistance.
+
+### Fixed
+
+- Result validation checked a hand-maintained file list in three places
+  (`reproduce.sh`, `reproduce.md`, CI) next to a directory that grows: CI
+  validated 10 of 17 committed files and reported green, and `check()`
+  enforced the storage suites' metric schema on every suite, leaving the
+  distillation results unvalidatable. Required metrics and the wall-clock key
+  are now per-suite and all three call sites glob.
+- `reproduce.sh` failed from a clean clone under stock macOS `python3` (3.9,
+  below the >=3.10 floor) and blamed the package — "darwin-memo not
+  installable from PyPI" — instead of the interpreter. The version is now
+  checked before anything is built.
+- Retrieval, not the edit format, was the ceiling on the SWE-Bench-CL arms:
+  every failing SEARCH block named a file that was never retrieved. BM25
+  gold-file recall was 37% at the 60k/5 budget and is 74% at 300k/10,
+  measured and disclosed in the paper.
 
 ## [0.6.0] - 2026-08-10
 
