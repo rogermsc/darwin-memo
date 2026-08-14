@@ -8,6 +8,16 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `budget_relevance` bench arm and the `neighbours` suite: a reconstruction of
+  EMBER-style budgeted evidence retention (arXiv:2606.05894), the nearest
+  published mechanism to the energy ledger. Held at `budget=4` — the population
+  survival converges to — so both arms keep the same number of entries and
+  differ only in what buys a place. Over 10 seeds survival kills the poison
+  10/10 and ends at +12,586,803; `budget_relevance` kills it 1/10 (and that one
+  by luck, evicted at cycle 0 before any query matched it) and ends at
+  −3,141,427. Relevance is not a defence: poison written in the task's own
+  vocabulary scores maximally relevant to exactly the queries it waits for.
+  Kept out of `ARMS` so `headline.json` stays byte-stable.
 - Literature review of 2026 agent-memory work
   (`docs/research/2026-08-14-literature-review.md`), with every entry marked
   `[read]` or `[surveyed]` and given a verdict (cite / arm / adopt / scope-out).

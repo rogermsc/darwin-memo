@@ -32,6 +32,7 @@ from .noise import FlakyStorageEnv
 from .policies import (
     CycleRecord,
     PolicyResult,
+    run_budget_relevance,
     run_evict_consecutive,
     run_evict_on_negative,
     run_keep_everything,
@@ -480,6 +481,18 @@ def _dispatch(
         )
     if arm == "keep_everything":
         return run_keep_everything(store, env, cycles, on_cycle)
+    if arm == "budget_relevance":
+        # EMBER-style fixed-budget retention. The budget defaults to the
+        # population survival converges to in the headline suite, so the
+        # comparison is "same store size, different reason for it"
+        # rather than a size handicap in either direction.
+        return run_budget_relevance(
+            store,
+            env,
+            cycles,
+            budget=int(overrides.get("budget", 4)),
+            on_cycle=on_cycle,
+        )
     if arm == "keep_everything_llm":
         # The no-curation control in LLM mode: same model, same
         # protocol, nothing ever removed.

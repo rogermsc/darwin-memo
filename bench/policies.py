@@ -46,6 +46,7 @@ from darwin_memo import (
     SurvivalConfig,
     SurvivalLoop,
 )
+from darwin_memo.protocol import ProtocolAnswer
 
 OnCycle = Callable[[int, "CycleRecord"], None]
 # A victim selector sees (store, cycle, blame counts, praise counts) and
@@ -446,6 +447,86 @@ def run_salience_matched(
         return ranked[: min(budget, len(alive))]
 
     return _run_baseline(store, env, cycles, least_salient, on_cycle)
+
+
+class _RelevanceRecorder(QueryProtocol):
+    """A protocol that also accumulates per-entry retrieval relevance.
+
+    The scores come from the retriever's own ranking of the same query
+    the protocol just answered. ``rank()`` is pure --- it reads entry
+    text and returns numbers --- so recomputing it here cannot disturb
+    anything. Reading ``env.tasks()`` a second time to get the prompts
+    would: ``StorageEnv.tasks`` deletes its sandbox and regenerates the
+    cycle's files on every call, so a policy that called it would
+    silently destroy the state its own cycle was just measured on.
+    """
+
+    def __init__(self, store: MemoryStore, scores: dict[str, float]) -> None:
+        super().__init__(store)
+        self._scores = scores
+
+    def answer(self, query: str, k: int = 3, **kwargs: object) -> ProtocolAnswer:
+        for entry, score in self.store.retriever.rank(query, self.store.alive()):
+            self._scores[entry.id] = self._scores.get(entry.id, 0.0) + score
+        return super().answer(query, k, **kwargs)  # type: ignore[arg-type]
+
+
+def run_budget_relevance(
+    store: MemoryStore,
+    env: Environment,
+    cycles: int,
+    budget: int,
+    on_cycle: OnCycle | None = None,
+) -> PolicyResult:
+    """Keep the ``budget`` most query-relevant entries; evict the rest.
+
+    A reconstruction of budgeted evidence retention (EMBER,
+    arXiv:2606.05894), which holds memory at a fixed size and spends
+    that budget on relevance to what is being asked. It is the closest
+    published relative of the energy ledger's framing, and the
+    difference is the whole question this benchmark exists to answer:
+    a budget spent on relevance keeps what *looks* useful, while a
+    budget earned from outcomes keeps what *has been* useful. Poison
+    written in the vocabulary of the task is maximally relevant and
+    never stops being so, which is the failure mode this arm is here
+    to exhibit or refute.
+
+    Relevance is accumulated from the retriever's own ranking against
+    each cycle's task prompts --- the same scores retrieval already
+    computes, never a judgment --- and carried across cycles with a
+    decay so an entry that stops matching queries falls out of the
+    budget. Entries no query has ever matched score zero and are
+    evicted first; ties keep store order, so the arm is deterministic
+    with no RNG. The population is capped from the first cycle, unlike
+    the strike family, which shrinks only when blamed.
+    """
+    scores: dict[str, float] = {}
+
+    def over_budget(
+        s: MemoryStore, cycle: int, blamed: Counter[str], praised: Counter[str]
+    ) -> list[MemoryEntry]:
+        alive = s.alive()
+        victims: list[MemoryEntry] = []
+        if len(alive) > budget:
+            ranked = sorted(alive, key=lambda e: (scores.get(e.id, 0.0), e.id))
+            victims = ranked[: len(alive) - budget]
+        # Decay carries into the NEXT cycle: this cycle's queries have
+        # already been scored by the recorder, so decaying first would
+        # discount the evidence the eviction is about to act on.
+        for entry_id in list(scores):
+            scores[entry_id] *= _BUDGET_RELEVANCE_DECAY
+        return victims
+
+    return _run_baseline(
+        store, env, cycles, over_budget, on_cycle, _RelevanceRecorder(store, scores)
+    )
+
+
+# How fast an entry's accumulated query relevance fades when nothing
+# matches it. Slow enough that one quiet cycle does not evict a
+# genuinely useful entry, fast enough that relevance tracks the current
+# task distribution rather than the whole history.
+_BUDGET_RELEVANCE_DECAY = 0.9
 
 
 ARMS = (

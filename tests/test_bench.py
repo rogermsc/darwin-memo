@@ -405,3 +405,45 @@ def test_paired_raises_on_ambiguous_variant_prefix():
     # Variant-qualified names disambiguate; the diff is against k=2 only.
     rows = paired(runs, "survival", "evict_on_negative:k=2")
     assert rows[0]["median diff"] == "3"
+
+
+def test_budget_relevance_holds_the_budget_and_never_regenerates_the_world():
+    """The EMBER-style arm caps the store and leaves the environment alone.
+
+    Two mutations this catches. First, dropping the population cap (or
+    comparing against the wrong side of it) makes the arm a no-op and it
+    silently becomes keep_everything at a different name. Second --- and
+    this is the one that would corrupt every number the arm produces ---
+    reading `env.tasks(cycle)` inside the victim selector to get the
+    cycle's prompts: StorageEnv.tasks deletes its sandbox and regenerates
+    the cycle's files on every call, so a second call after the task loop
+    destroys the state the cycle was just measured on. The arm reads
+    relevance off the protocol instead, and this test fails if it ever
+    stops doing so.
+    """
+    from bench.policies import run_budget_relevance
+
+    calls = []
+
+    class CountingEnv:
+        def __init__(self, inner):
+            self.inner = inner
+            self.resource_scale = inner.resource_scale
+
+        def tasks(self, cycle):
+            calls.append(cycle)
+            return self.inner.tasks(cycle)
+
+        def verify(self, task, answer_text):
+            return self.inner.verify(task, answer_text)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        env = CountingEnv(StorageEnv(root=Path(tmp), seed=0, files_per_cycle=3))
+        store = build_headline_store()
+        before = len(store)
+        result = run_budget_relevance(store, env, cycles=5, budget=2)
+
+    assert before > 2, "fixture must start over budget or the cap is untested"
+    assert len(store) == 2, f"budget not held: {len(store)} entries alive"
+    assert calls == [0, 1, 2, 3, 4], f"env.tasks called {len(calls)} times: {calls}"
+    assert len(result.records) == 5

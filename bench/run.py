@@ -43,6 +43,7 @@ from .suites import (
     judge_suite,
     llm_suite,
     memsec_suite,
+    neighbours_suite,
     noisy_suite,
     salience_suite,
     scaling_suite,
@@ -144,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             "scaling",
             "smoke",
             "salience",
+            "neighbours",
             "llm",
             "bandit",
             "adversary",
@@ -266,6 +268,8 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "salience":
         runs = _execute(salience_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "neighbours":
+        runs = _execute(neighbours_suite(_parse_seeds(args.seeds)))
     elif args.suite == "judge":
         runs = _execute(
             judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))

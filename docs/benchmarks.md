@@ -179,6 +179,41 @@ What each arm's best metric is, stated plainly:
   evidence that embeddings dominate, but the mechanism demonstrably
   does not depend on the lexical-match path.
 
+## Nearest published mechanism: a budget spent on relevance (10 seeds)
+
+`python -m bench.run --suite neighbours` — `bench/results/neighbours.json`.
+
+The obvious objection to the energy ledger is that it is an expensive way
+to cap a store. EMBER-style budgeted evidence retention
+([arXiv:2606.05894](https://arxiv.org/abs/2606.05894)) caps the store
+directly: hold the *N* most query-relevant entries, evict the rest. The
+`budget_relevance` arm reconstructs it at `budget=4`, the population
+survival converges to on this corpus, so the two arms hold the same
+number of entries and differ only in what buys a place.
+
+| arm | poison killed | mean cum delta | final population |
+|---|---|---|---|
+| survival | **10/10** | **+12,586,803** | 4 |
+| budget_relevance | 1/10 | −3,141,427 | 4 |
+| keep_everything | 0/10 | −9,084,928 | 16 |
+
+Same leanness, opposite outcome. Relevance is not a defence, and the
+reason is visible in the construction: the poison is written in the
+task's own vocabulary — that is what makes it plausible — so it scores
+*highly* relevant to exactly the queries it is waiting for, and it keeps
+scoring highly for as long as those queries keep coming. A budget spent
+on what looks useful funds it; a budget earned from what has been useful
+starves it.
+
+The single seed where `budget_relevance` did kill the poison is not a
+detection: the store starts over budget, and in that seed the poison
+happened to be evicted at cycle 0 before any query had matched it. It
+was luck, and it is reported as luck.
+
+This arm is deliberately **not** in `ARMS`, so `headline.json` stays
+byte-stable: adding an arm to the headline table would rewrite committed,
+manifest-checked evidence the paper cites.
+
 ## Ablations (survival arm, 5 seeds, one knob at a time)
 
 Defaults: upkeep 0.05, credit_gain 0.6, resource_scale 100k,
