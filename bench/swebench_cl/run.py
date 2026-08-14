@@ -89,6 +89,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         max_tasks=args.max_tasks,
         max_prompt_chars=args.max_prompt_chars,
         code_context_chars=args.code_context_chars,
+        oracle_retrieval=args.oracle_retrieval,
         code_cache_dir=args.code_cache_dir,
         code_max_files=args.code_max_files,
         seed_poison=args.seed_poison,
@@ -145,6 +146,18 @@ def main(argv: list[str] | None = None) -> int:
         "(problem statement only, the original pilot setting)",
     )
     run.add_argument("--code-max-files", type=int, default=5)
+    run.add_argument(
+        "--oracle-retrieval",
+        action="store_true",
+        help=(
+            "CONTROL ONLY: fill the code budget with the files the gold patch "
+            "touches, before BM25. Measures what the arms would score if "
+            "retrieval were solved, which is what separates 'memory did not "
+            "help' from 'the model never saw the file'. Reads the answer key, "
+            "so a run using it is never a result; it is recorded in the run "
+            "config as oracle_retrieval=true."
+        ),
+    )
     run.add_argument(
         "--code-cache-dir",
         type=Path,
