@@ -284,3 +284,42 @@ compare no numbers across papers.
    ceiling from the null), `survival_abstracted` (representation vs selection —
    answers ReasoningBank on our terms), `admission_control` and `budget_relevance`
    (the two nearest neighbours), then the query-only-injection security leg.
+
+---
+
+## 7. What building them changed (2026-08-14, after the fact)
+
+Two of those five turned out to be blocked by design facts rather than by
+effort, and one was already built under another name. Recorded here because the
+next person to pick up this list should not rediscover it.
+
+**Shipped.** `budget_relevance` (PR #45) — at the same population of 4, survival
+kills the poison 10/10 at +12.59M and relevance-budgeting 1/10 at −3.14M, and
+that single kill was luck (evicted at cycle 0, before any query matched it). The
+mechanism is visible in the construction: poison written in the task's own
+vocabulary scores maximally relevant to exactly the queries it is waiting for.
+`oracle_file` (PR #46) — implemented as `--oracle-retrieval`; numbers still need
+a full SWE-Bench-CL matrix.
+
+**`admission_control` is largely already built, under another name.** The
+ledger's `probation` and `juvenile` fields *are* write-time admission gating
+(`docs/threat-model.md`, "The price lesson: cold-start damage and admission
+gating"). A separate arm would also be inexpressible in the baseline driver,
+which has no write path at all: baseline stores are seeded once from the demo
+corpus (`bench/fixtures.py`) and only ever shrink, and the memsec suite's filter
+screens the whole corpus at construction time, before any outcome exists to
+admit on. The honest treatment is a sentence in related work noting that
+2603.04549's mechanism corresponds to a gate the ledger already has — not a
+redundant arm.
+
+**The query-only-injection leg is not expressible in this harness, and that is
+informative.** `SurvivalLoop._write_experience` mints a lesson from the *parent
+entry's* question and answer plus the outcome detail — deliberately, to stop
+minted entries from lexically matching every future task on the same template.
+An attacker supplying queries therefore cannot author lesson text; the only
+attacker-controlled string that reaches an entry is `outcome.detail`, which is
+the adversarial-settler channel the threat model already covers. A faithful
+MINJA analogue needs a host whose write channel summarises *conversation* into
+memory — which is exactly why MPBench runs on OpenClaw and HERMES rather than on
+a synthetic environment, and why our security leg belongs on the integration
+surface (MCP into those hosts) rather than in `bench/`.
