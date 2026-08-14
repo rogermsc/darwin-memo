@@ -11,10 +11,13 @@ related memories with relevance-weighted links — all on earned/measured signal
 
 - **Phase 1 — associative graph.** One vector per memory and `related(id, k)`
   relevance-weighted neighbours.
-- **Phase 2 — activation + lossless gist↔detail (this release).** A recalled
-  memory expands to full detail; an idle one shrinks to its gist.
-- Phases 3–4 (spreading activation + Hebbian reweighting, earned
-  importance/potentiation) are specced but not yet implemented.
+- **Phase 2 — activation + lossless gist↔detail.** A recalled memory expands
+  to full detail; an idle one shrinks to its gist.
+- **Phase 3 — spreading activation + Hebbian reweighting (this release).** A
+  recall spreads activation one hop to related memories and strengthens the
+  links it traverses; unused links fade. The `OrganicMemory` facade ties the
+  graph, activation, and learned weights into one adaptive object.
+- Phase 4 (earned importance/potentiation) is specced but not yet implemented.
 
 The layer is **additive and read-only with respect to survival** — it never
 touches energy. Relatedness is mechanical cosine similarity; value is still
@@ -56,6 +59,33 @@ Activation is in-memory and ephemeral (reset on load); `bump`/`decay` are
 explicit calls you wire, like the survival loop. It gates *surfacing* only —
 never survival — and never mutates the entry. Defaults: bump→1.0, decay ×0.5,
 surface threshold 0.5.
+
+## The moving memory: `OrganicMemory` (Phase 3)
+
+`OrganicMemory` is the adaptive facade tying Phases 1–3 together. A recall
+*spreads* a fraction of activation one hop to related memories (so connected
+details surface), and each link a recall traverses *strengthens* (Hebbian) —
+so usage, not just innate similarity, shapes what comes back. Two timescales:
+activation fades fast (×0.5 per cycle), learned links fade slow (×0.9).
+
+```python
+from darwin_memo import MemoryStore
+from darwin_memo.organic import OrganicMemory
+
+om = OrganicMemory(store)          # builds graph + activation + learned weights
+
+om.recall("entry-a")               # light a; spread one hop; strengthen links
+om.related("entry-a", k=5)         # effective relatedness: clamp01(cosine + learned)
+om.surface(entry)                  # gist when cold, full detail when activated
+om.decay()                         # one idle cycle: activation x0.5, links x0.9
+```
+
+`related()` overlays the learned weights on the innate cosine
+(`AssociativeGraph.related()` remains the pure-cosine primitive), so repeatedly
+recalling two memories together lifts one in the other's neighbours even when
+their cosine similarity is modest. As with activation, the learned weights gate
+*surfacing and ranking only* — there is no path from this layer to the energy
+ledger, and no judge.
 
 ## Backends
 

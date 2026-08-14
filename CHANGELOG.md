@@ -8,6 +8,15 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- Organic memory Phase 3: spreading activation + Hebbian reweighting via a new
+  `OrganicMemory` facade (`darwin_memo.organic`). A recall spreads a fraction of
+  activation one hop to related memories and strengthens the links it traverses
+  (`HebbianWeights`, symmetric learned co-recall strengths); `related()` returns
+  the effective relatedness `clamp01(cosine + learned)`, and `decay()` runs two
+  timescales (activation x0.5, learned links x0.9). Additive over Phases 1-2,
+  core untouched; activation and learned weights gate surfacing/ranking only,
+  never survival — no judge, no new runtime deps.
+
 - The preprint and its reproduction package (`paper/`, `bench/swebench_cl/`).
   Two experiments: Write-Execute-Forget against the `evict_on_negative`
   counter (adoption ties at 0.02, the counter revokes 5-9 cycles sooner, and
@@ -35,6 +44,13 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- The organic layer was excluded from the coverage gate wholesale
+  (`omit = ["darwin_memo/organic/*"]`) for a reason — the optional turbovec ANN
+  path cannot run in default CI — that was only ever true of
+  `turbovec_backend.py`. Three shipped, zero-dep modules sat behind it untested.
+  The omit is now that one file, and `tests/test_organic.py` covers the graph,
+  activation and dynamics (100% of each), every test naming the mutation it
+  catches.
 - Result validation checked a hand-maintained file list in three places
   (`reproduce.sh`, `reproduce.md`, CI) next to a directory that grows: CI
   validated 10 of 17 committed files and reported green, and `check()`
