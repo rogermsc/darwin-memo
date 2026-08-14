@@ -500,6 +500,8 @@ def run_budget_relevance(
     with no RNG. The population is capped from the first cycle, unlike
     the strike family, which shrinks only when blamed.
     """
+    if budget < 1:
+        raise ValueError(f"budget must be at least 1, got {budget}")
     scores: dict[str, float] = {}
 
     def over_budget(
@@ -508,7 +510,14 @@ def run_budget_relevance(
         alive = s.alive()
         victims: list[MemoryEntry] = []
         if len(alive) > budget:
-            ranked = sorted(alive, key=lambda e: (scores.get(e.id, 0.0), e.id))
+            # Sort on the score ALONE. Python's sort is stable, so ties keep
+            # store order, which is insertion order and therefore fixed by
+            # the corpus. Adding `e.id` as a tiebreak makes the arm
+            # nondeterministic at a fixed seed: MemoryEntry.id defaults to
+            # uuid4().hex[:12], and most entries sit at exactly 0.0 because
+            # LexicalRetriever.rank drops everything under min_coverage, so
+            # the victims among them would be drawn by random id.
+            ranked = sorted(alive, key=lambda e: scores.get(e.id, 0.0))
             victims = ranked[: len(alive) - budget]
         # Decay carries into the NEXT cycle: this cycle's queries have
         # already been scored by the recorder, so decaying first would

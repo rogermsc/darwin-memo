@@ -243,9 +243,10 @@ class MemoryStore:
         negative balance carried over from settlement damage.
 
         Records the total actually deducted on ``self.last_upkeep_charged``
-        (which can run below ``len(self) * self.upkeep`` when a pinned
-        entry's floor forgives part of its charge) so callers can log the
-        real figure instead of estimating it from population size.
+        (which can run below ``len(self) * self.upkeep`` for two reasons:
+        a pinned entry's floor forgiving part of its charge, and any
+        entry whose ``scale`` multiplier is below 1.0) so callers can log
+        the real figure instead of estimating it from population size.
         """
         protected = set(protect)
         dead: list[MemoryEntry] = []
@@ -264,17 +265,31 @@ class MemoryStore:
             self.bury(entry.id)
         return dead
 
-    def ticks_to_starvation(self, entry: MemoryEntry) -> float | None:
+    def ticks_to_starvation(
+        self, entry: MemoryEntry, scale: Mapping[str, float] | None = None
+    ) -> float | None:
         """Ticks of upkeep this entry can still pay, or None if it cannot starve.
 
         The operator's actual question, and the number that makes the
         spawn/upkeep cliff visible before it bites. ``None`` is not zero:
         a pinned entry floors at zero rather than dying, and a store with
         no upkeep never starves anything.
+
+        ``scale`` is the same per-entry multiplier passed to
+        :meth:`charge_upkeep`, and must be passed here by any caller that
+        passes it there. A potentiated entry burns slower, so a projection
+        that assumes flat upkeep reports it dying up to four times sooner
+        than it will --- and this figure is what ``observe.timeline``,
+        ``observe.economics`` and the dashboard's starvation column all
+        publish to an operator.
         """
         if self.upkeep <= 0 or entry.pinned:
             return None
-        return round(entry.energy / self.upkeep, 1)
+        factor = 1.0 if scale is None else scale.get(entry.id, 1.0)
+        charged = self.upkeep * min(1.0, max(MIN_UPKEEP_SCALE, factor))
+        if charged <= 0:
+            return None
+        return round(entry.energy / charged, 1)
 
     def bury(self, entry_id: str) -> None:
         entry = self._entries.pop(entry_id, None)

@@ -63,6 +63,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.oracle_retrieval and args.code_context_chars <= 0:
+        print(
+            "error: --oracle-retrieval has no effect without --code-context-chars "
+            "> 0 (retrieval is skipped entirely), and the run would still be "
+            "recorded as oracle_retrieval=true -- a blind run filed as the "
+            "retrieval-ceiling control.",
+            file=sys.stderr,
+        )
+        return 2
     manifest = load_manifest(args.manifest)
     dataset = load_dataset(args.dataset)
     tasks = sequence_tasks(manifest, dataset, args.sequence)

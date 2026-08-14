@@ -27,6 +27,7 @@ from .activation import ActivationState
 from .activation import surface as _surface
 from .associative import Backend, Embedder, build_graph
 from .importance import EarnedImportance
+from .importance import clamp01 as _clamp01
 
 SPREAD_FACTOR = 0.5
 HEBB_INCREMENT = 0.25
@@ -38,10 +39,6 @@ HEBB_DECAY = 0.9
 # itself and relatedness would stop mattering.
 IMPORTANCE_BIAS = 0.2
 _PRUNE_EPSILON = 1e-3
-
-
-def _clamp01(x: float) -> float:
-    return max(0.0, min(1.0, x))
 
 
 class HebbianWeights:
@@ -112,6 +109,30 @@ class OrganicMemory:
         self.hebbian = HebbianWeights()
         self.earned = EarnedImportance()
 
+    def sync(self) -> None:
+        """Bring the graph back in step with the store.
+
+        The graph is built once from the store's living entries, and the
+        store moves underneath it: entries get buried, and the survival
+        loop mints new ones every cycle. Without this, a buried memory
+        stays a neighbour forever and a newly minted one has no vector at
+        all --- which reads as centrality 0.0, and through
+        ``upkeep_scale()`` that is not a cosmetic error: it charges every
+        new entry full upkeep for the crime of not existing when the
+        graph was built, while a dead entry keeps propping up its
+        neighbours' scores.
+
+        Called automatically by the read paths, so the drift cannot be
+        observed from outside. Embedding is only paid for entries that
+        are actually new.
+        """
+        alive = {entry.id: entry for entry in self.store.alive()}
+        known = self.graph.ids
+        for entry_id in known - alive.keys():
+            self.graph.remove(entry_id)
+        for entry_id in alive.keys() - known:
+            self.graph.add(alive[entry_id])
+
     def related(self, entry_id: str, k: int = 5) -> list[tuple[str, float]]:
         """Effective relatedness: ``clamp01(cosine + learned + bias)``, top-k.
 
@@ -124,6 +145,7 @@ class OrganicMemory:
         which is itself derived from this ranking: feeding it back in would
         make the graph's shape an input to its own measurement.
         """
+        self.sync()
         cosine = dict(self.graph.related(entry_id, 2 * k))
         learned = self.hebbian.neighbors(entry_id)
         candidates = set(cosine) | set(learned)
@@ -153,6 +175,7 @@ class OrganicMemory:
         learned weights — the effective view minus its own importance term,
         so centrality never counts itself.
         """
+        self.sync()
         out: dict[str, float] = {}
         for entry in self.store.alive():
             neighbours = self.graph.related(entry.id, k)
@@ -161,9 +184,18 @@ class OrganicMemory:
             out[entry.id] = sum(scores) / len(scores) if scores else 0.0
         return out
 
-    def importance(self, entry_id: str) -> float:
-        """This entry's earned importance in [0, 1] (0.0 once it is not alive)."""
-        return self.earned.scores(self.store, self.centrality()).get(entry_id, 0.0)
+    def importance(
+        self, entry_id: str, centrality: dict[str, float] | None = None
+    ) -> float:
+        """This entry's earned importance in [0, 1] (0.0 once it is not alive).
+
+        Pass ``centrality`` when scoring more than one entry: computing it is
+        O(alive x k) backend searches, and each search scans every vector, so
+        scoring a population one call at a time is cubic for no reason.
+        """
+        if centrality is None:
+            centrality = self.centrality()
+        return self.earned.scores(self.store, centrality).get(entry_id, 0.0)
 
     def upkeep_scale(self) -> dict[str, float]:
         """Per-entry upkeep multipliers for ``store.charge_upkeep(scale=...)``.

@@ -23,7 +23,7 @@ before. Wire it deliberately, and measure your own store when you do.
 
 from __future__ import annotations
 
-from darwin_memo import MemoryStore
+from darwin_memo import MemoryEntry, MemoryStore
 from darwin_memo.store import MIN_UPKEEP_SCALE
 
 # Equal weights: the three components are different units (a count, an
@@ -38,14 +38,23 @@ CENTRALITY_WEIGHT = 1 / 3
 # floor so the policy here can never be the thing that makes an entry
 # unkillable, whatever it is tuned to.
 MAX_RELIEF = 0.5
-SPAWN_ENERGY = 1.0
+# Read off the dataclass rather than restated: if the spawn grant ever
+# changes, an entry that has earned nothing must keep reading as having
+# earned nothing. A second literal here would silently credit every new
+# entry with the difference.
+SPAWN_ENERGY: float = MemoryEntry(question="", answer="").energy
+
+
+def clamp01(x: float) -> float:
+    """Clamp into [0, 1]. Shared with dynamics.py so the convention is one line."""
+    return max(0.0, min(1.0, x))
 
 
 def _normalise(value: float, peak: float) -> float:
     """``value`` as a fraction of the population's peak, in [0, 1]."""
     if peak <= 0.0:
         return 0.0
-    return max(0.0, min(1.0, value / peak))
+    return clamp01(value / peak)
 
 
 class EarnedImportance:
@@ -88,7 +97,7 @@ class EarnedImportance:
             e.id: (
                 RECALL_WEIGHT * _normalise(self.recalls(e.id), peak_recalls)
                 + CREDIT_WEIGHT * _normalise(credits[e.id], peak_credit)
-                + CENTRALITY_WEIGHT * max(0.0, min(1.0, centrality.get(e.id, 0.0)))
+                + CENTRALITY_WEIGHT * clamp01(centrality.get(e.id, 0.0))
             )
             for e in alive
         }

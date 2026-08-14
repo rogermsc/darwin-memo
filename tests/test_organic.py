@@ -57,7 +57,8 @@ def fake_embedder(text: str) -> list[float]:
 
 
 def entry(word: str, answer: str = "answer", **kw: object) -> MemoryEntry:
-    return MemoryEntry(question=word, answer=answer, id=word, **kw)  # type: ignore[arg-type]
+    kw.setdefault("id", word)
+    return MemoryEntry(question=word, answer=answer, **kw)  # type: ignore[arg-type]
 
 
 def graph_of(*words: str) -> AssociativeGraph:
@@ -435,8 +436,14 @@ def test_the_facade_potentiates_end_to_end() -> None:
     assert om.importance("alpha") > om.importance("gamma")
     assert om.importance("nobody") == 0.0
 
-    while om.store.get("alpha") is not None:
+    ticks = 0
+    while om.store.get("alpha") is not None and ticks < 200:
         om.store.charge_upkeep(scale=scale)
+        ticks += 1
+    # Bounded on purpose: if MIN_UPKEEP_SCALE is ever dropped to 0.0 the
+    # entry stops paying upkeep entirely, and an unbounded loop would hang
+    # CI with no attribution instead of failing here.
+    assert ticks < 200, "alpha never starved: the upkeep floor is gone"
     assert om.store.get("gamma") is None  # alpha died last, but it died
 
 
@@ -444,3 +451,27 @@ def test_importance_of_an_empty_store_is_empty() -> None:
     """Mutation: returning a default dict instead of {} makes peak
     normalisation divide by zero on the first tick of a fresh store."""
     assert EarnedImportance().scores(MemoryStore(upkeep=0.0)) == {}
+
+
+def test_the_graph_follows_the_store_instead_of_the_moment_it_was_built() -> None:
+    """The bug this catches shipped: OrganicMemory builds its graph once, and
+    the store moves underneath it. A buried entry stayed a neighbour forever,
+    and a newly minted one had no vector at all -- centrality 0.0, which
+    through upkeep_scale() charges every new entry FULL upkeep for not having
+    existed when the graph was built.
+
+    Mutation: drop the sync() call from centrality() or related() and this
+    fails on both halves.
+    """
+    om = organic_memory()
+    om.store.bury("beta")
+    om.store.add(entry("alpha", "a second copy of the alpha text", id="delta"))
+
+    assert "beta" not in dict(om.related("alpha", k=3)), "buried entry still linked"
+    central = om.centrality()
+    assert "beta" not in central
+    assert central["delta"] > 0.0, "new entry scored as isolated"
+    assert om.upkeep_scale()["delta"] == om.upkeep_scale()["alpha"], (
+        "a fresh entry with identical text must not be charged more upkeep "
+        "than the entry it duplicates"
+    )

@@ -84,6 +84,15 @@ class AssociativeGraph:
         self._vectors.pop(entry_id, None)
         self.backend.remove(entry_id)
 
+    @property
+    def ids(self) -> set[str]:
+        """Every id currently embedded in the graph.
+
+        Exists so a caller holding a graph and a store can tell whether the
+        two have drifted apart without reaching into private state.
+        """
+        return set(self._vectors)
+
     def related(self, entry_id: str, k: int = 5) -> list[tuple[str, float]]:
         """Up to k related memory ids with relevance in [0, 1] (cosine, clamped)."""
         vec = self._vectors.get(entry_id)

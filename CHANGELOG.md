@@ -93,6 +93,43 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **`budget_relevance` was nondeterministic at a fixed seed**, contradicting its
+  own docstring. Eviction ties broke on `entry.id`, which defaults to
+  `uuid4().hex[:12]` — and because `LexicalRetriever.rank` drops everything under
+  `min_coverage`, most entries sit at exactly 0.0, so the victims among them were
+  drawn by random id. Five runs at seed 0 produced five different survivor sets
+  and two different cumulative deltas. The sort now uses the score alone and
+  relies on Python's stable sort to keep store order, matching
+  `run_salience_matched`. `bench/results/neighbours.json` was regenerated: every
+  substantive metric is now identical across independent runs (only
+  `wall_time_s` varies), and the published figures are unchanged — they were
+  correct, but they were not reproducible.
+- **`OrganicMemory` read a graph built once in `__init__` while the store moved
+  underneath it.** A buried entry stayed a neighbour indefinitely, and a newly
+  minted one had no vector at all — centrality 0.0, which through
+  `upkeep_scale()` charged every new entry *full* upkeep for not having existed
+  when the graph was built, while dead entries propped up their neighbours'
+  scores. `OrganicMemory.sync()` now reconciles the graph with the store and is
+  called by the read paths; `AssociativeGraph.ids` exposes what it needs.
+- `MemoryStore.ticks_to_starvation` ignored the new upkeep `scale`, so the
+  starvation horizon published by `observe.timeline`, `observe.economics` and the
+  dashboard column was up to 4x too short for any potentiated entry. It now takes
+  the same mapping `charge_upkeep` does.
+- `--oracle-retrieval` without `--code-context-chars > 0` is now refused: the
+  oracle had no effect (retrieval is skipped entirely) but the run was still
+  recorded as `oracle_retrieval: true` — a blind run filed as the
+  retrieval-ceiling control. An oracle task whose gold file is not a retrieval
+  candidate (non-`.py`, over the size cap, or under a skipped directory) now
+  warns and is counted in `oracle_missed_tasks` instead of silently degrading to
+  BM25 while still claiming the control.
+- Single-sourced two duplicated definitions the review found: the unified-diff
+  parser (`poison._touched_files` was a byte-for-byte copy of
+  `code_retrieval.oracle_files`, so a fix to one would have left the harness
+  disagreeing with itself about which files a gold patch touches), and the
+  `[0, 1]` clamp (three copies across two organic modules). `SPAWN_ENERGY` is now
+  read off `MemoryEntry` rather than restating its default, and
+  `run_budget_relevance` rejects a budget below 1 instead of silently evicting
+  the whole population every cycle.
 - **A cited number that could not be reproduced from its source.** Three paper
   sections stated that content detectors average 63.6% true-positive rate on
   strong-signal payloads and 31.6% on weak-signal ones, attributed to
