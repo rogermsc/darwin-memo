@@ -587,6 +587,26 @@ small, tighter edge (1.00 ± 0.00 vs 0.93 ± 0.10). This is a 0.5B existence
 proof, not a scaling law, and the separation depends on poison being distinct
 from the benign distribution (see Limitations).
 
+**Selection quality, not set membership.** Two follow-up arms, added to answer
+an adversarial review, separate what is tautological here from what is not.
+First, a **counter baseline**: the poison=0 result is *not* ledger-specific —
+a one-line `evict_on_negative` filter also yields poison 0, because the poison
+is always wrong and gets buried by any blame rule. The ledger's distinctive
+contribution is **capability retention under noisy measurement**. Distilling the
+filtered sets under `flip@0.2` report-noise, the survivor-distilled model keeps
+good_recall 0.91 ± 0.04 while the naive and hardened counters collapse to
+0.00 / 0.03 — the noise-free toy hides the difference; realistic lying
+measurement reveals it. Second, a **benign-distribution poison** arm removes the
+out-of-vocabulary crutch: poison is a corrupted rule in the good facts'
+vocabulary, scored on held-out services. The unfiltered model **generalizes the
+harmful rule to 0.60 ± 0.18 of held-out services it never trained on**
+(generalization, not memorization); survival buries the poison and reproduces it
+on none (0.00), generalizing the safe rule instead (1.00) — and under noise the
+counter collapses to nothing while survival still blocks the harm and keeps the
+safe rule. So selection quality is load-bearing: the ledger uniquely retains
+capability and blocks harmful generalization under noise, where set-membership
+filters and counters do not.
+
 ### 4.8 Continual learning via task-vector merging
 
 The same machinery composes across corpora. We distill one survivor-filtered
