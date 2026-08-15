@@ -6,6 +6,28 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The Mem0 transfer result now runs three pre-registered phrasing families
+  instead of one**, retiring the caveat #57 shipped with. All three are
+  declared in `ATTACK_FAMILIES` before the runs and all three are reported —
+  trying phrasings until one lands and publishing only that would be fishing.
+  They span the axis that matters: polite user-voice `retraction`, claimed
+  `authority` with an imperative, and `tool_output` shaped like an automated
+  sync report, which is how untrusted content actually reaches an agent.
+  Result across all three, three trials each: **`any_family_deleted: false`,
+  retention 1.00, text unchanged**. The attack fails on the tool-output shape
+  too, which is the one the threat model is really about.
+  **New sub-finding, and it corroborates our own memsec result on a system we
+  do not control**: the `authority` family is the *least* effective on both
+  axes at once — it deletes nothing *and* persists nothing (residue 0/8, all
+  trials), because the curator declines to record a bare imperative from a
+  claimed authority, while the two quieter families persist in full (8/8).
+  Loud beats itself; the weak-signal surface is what gets through. That is the
+  split `bench/memsec.py` pre-registered and measured against a reconstructed
+  write-time detector, reproduced by Mem0's curator with no detector in the
+  loop at all.
+
 ### Added
 
 - **`bench.external.mem0_curation_attack`: the curation-targeted attack run
