@@ -63,21 +63,32 @@ it. A score that rewards use cannot distinguish ``used'' from ``useful'';
 only the outcome-grounded ledger can, and it beats salience on all ten
 seeds ($+15.3$M, Holm $p = 0.0039$). That result has a sharper form we
 did not anticipate. A usage signal is not only a poor proxy for
-usefulness; it is a proxy the \emph{attacker} controls. A usage-based
-retention variant in our codebase slows an entry's upkeep in proportion
-to how often it is recalled and how central it is in an associative
-graph, and both of those move on query alone---so a query-only adversary
-in the sense of \citet{dong2025minja}, one who never writes and never
-settles, drives them without crossing any channel our threat model
-names. Because the score is normalised against the live population,
-inflating one's own recall count deflates every other entry's: under
-flat upkeep the dormant poison starves on exactly the benign schedule
-(margin $0$ cycles), and under the usage-based variant with the same
-attacker it outlives every benign entry by $4$. The margin is identical
-for the loudest payload and the most inert one, because this path reads
-usage and never text. We report it as a mechanism demonstration on one
-store rather than a rate---it is deterministic and needs no model, but
-it is $n=1$---and the system therefore charges flat upkeep by default.
+usefulness; when it is \emph{relative}, it is a proxy the attacker
+controls. A usage-based retention variant in our codebase slows an
+entry's upkeep in proportion to how often it is recalled and how central
+it is in an associative graph, and both move on query alone---so a
+query-only adversary in the sense of \citet{dong2025minja}, one who
+never writes and never settles, drives them without crossing any channel
+our threat model names. Under flat upkeep the dormant poison starves on
+exactly the benign schedule (margin $0$ cycles); under the usage-based
+variant with the same attacker it outlives every benign entry by $4$,
+and the margin is identical for the loudest payload and the most inert
+one, because this path reads usage and never text.
+
+The cause is normalisation against the live population, which we
+establish by counterfactual rather than by argument: replacing the
+recall term's denominator---the population peak, for a fixed
+cap---removes the margin entirely ($4 \rightarrow 0$) while leaving the
+starvation horizon unchanged at $\times 1.45$, with graph centrality
+still fully attacker-driven throughout that run. So neither usage as
+such nor centrality carries the attack. What does is that the score is a
+\emph{standing}: one entry's value is a function of every other entry's
+traffic, so the adversary takes lifetime from the benign population
+rather than buying its own, and no query budget prices it out (one
+recall per entry per cycle already buys three of the four cycles). We
+report this as a mechanism demonstration on one store rather than a
+rate---it is deterministic and needs no model, but it is $n=1$---and the
+system charges flat upkeep by default for this reason.
 Third, \textbf{the honest tie}: on
 this deterministic world the one-line \texttt{evict\_on\_negative}
 heuristic matches the full ledger on outcomes ($+12.78$ vs $+12.59$M, an
