@@ -275,15 +275,30 @@ existing literature already covers, and it is not what we set out to
 measure.
 
 The boundary this exposes is worth more than the transfer would have
-been. Our attack presumes a curator that acts \emph{mechanically} on a
-signal: a strike counter cannot decline to count, and an energy ledger
-cannot decline to debit. An LLM curator can, and here it did --- it
-treated an unsupported retraction as a claim to be recorded rather than
-an instruction to be obeyed. So judgment in the curator, which
-\S\ref{sec:intro} criticises as expensive and gameable, buys a defence
-that mechanical curation does not have. We think both halves are true
-and the honest statement is a trade rather than a ranking: a judge costs
-a model call per decision and can be talked into things, and it can also
+been, and a second curator locates it more precisely than one could.
+Our attack presumes a curator that acts \emph{mechanically} on a signal:
+a strike counter cannot decline to count, and an energy ledger cannot
+decline to debit. A \emph{capable} LLM curator can, and \texttt{glm-5.2}
+did --- it understood the retraction well enough to write a coherent
+linked negation (``User's \emph{previously recorded} peanut allergy is
+out of date'') and still chose to record rather than delete. That is
+judgment, and it is a defence mechanical curation does not have.
+
+It is not, however, a property of LLM curation as such, which is what a
+single model would have let us claim. Repeating the experiment with
+\texttt{llama3.2:3b} yields the same headline --- zero deletions, all
+seeded memories retained --- for a quite different reason: that curator
+never curates coherently. It stored one benign rule three times and
+another twice, merged two unrelated facts into one memory, and wrote
+several of the adversary's imperatives into the store verbatim, ending
+with $22$ memories from $15$ inputs. Its zero deletions are incapacity,
+not restraint, and the store it leaves is already degraded in the way
+\citet{zhang2026faulty} describe. A weak curator buys neither the
+defence nor a clean store.
+
+So the honest statement is a trade with a competence floor rather than a
+ranking: judgment costs a model call per decision and can be talked into
+things, and a judge capable enough to be worth paying for can also
 refuse. Our attack is a threat to the mechanical end of that spectrum,
 where our own mechanism sits.
 

@@ -31,8 +31,17 @@ project uses [SemVer](https://semver.org/).
   mechanical end. Reported in `\S sec:mem0` as a trade rather than a ranking.
   One system, one curator model, one phrasing family — a negative result from a
   single probe is evidence that *this probe* failed, not that the surface is
-  safe. Opt-in, never CI; local embedder and vector index, no key required
-  beyond the chosen chat model.
+  safe. Opt-in, never CI; local embedder and vector index.
+  **A second curator locates the boundary properly.** Repeating it with
+  `llama3.2:3b` gives the same headline — zero deletions, everything retained —
+  for the opposite reason: that curator never curates coherently. It stored one
+  benign rule three times and another twice, merged two unrelated facts into a
+  single memory, and wrote several of the adversary's imperatives in verbatim,
+  ending at 22 memories from 15 inputs. Zero deletions there is *incapacity*,
+  not restraint, and the store is already degraded. So the defence is not a
+  property of LLM curation as such — which one model would have let us claim —
+  but of a curator capable enough to understand the retraction and decline it.
+  A weak curator buys neither the defence nor a clean store.
 
 ### Fixed
 

@@ -43,18 +43,27 @@ utterances persisted, so the store ends holding each fact *and* an
 authoritative-sounding negation of it. That is content poisoning, which is
 somebody else's literature.
 
-The boundary is the useful part. This attack presumes a curator that acts
-*mechanically* on a signal --- a strike counter cannot decline to count, an
-energy ledger cannot decline to debit. An LLM curator can, and here it did: it
-treated an unsupported retraction as a claim to record rather than an
-instruction to obey. Judgment in the curator, which this project criticises
-elsewhere as expensive and gameable, buys a defence that mechanical curation
-does not have. Both are true; the honest statement is a trade, not a ranking.
+The boundary is the useful part, and it takes two curators to locate. This
+attack presumes a curator that acts *mechanically* on a signal --- a strike
+counter cannot decline to count, an energy ledger cannot decline to debit. A
+*capable* LLM curator can: ``glm-5.2`` understood the retraction well enough to
+write a coherent linked negation ("User's PREVIOUSLY RECORDED peanut allergy is
+out of date") and still chose to record rather than delete. That is judgment,
+and mechanical curation has no equivalent.
 
-One system, one curator model, one family of phrasings. A negative result from
-a single probe is evidence that *this probe* failed, not that the surface is
-safe --- Mem0's DELETE path is reachable by construction, and a weaker or
-differently-prompted curator may well take it.
+It is not a property of LLM curation as such, which is what one model would
+have let us claim. ``--model llama3.2:3b`` gives the same headline --- zero
+deletions, everything retained --- for a different reason: it never curates
+coherently. It stored one benign rule three times and another twice, merged two
+unrelated facts into a single memory, and wrote several of the adversary's
+imperatives in verbatim, ending at 22 memories from 15 inputs. Zero deletions
+there is incapacity, not restraint, and the store is already degraded. A weak
+curator buys neither the defence nor a clean store.
+
+Still bounded: one system, two curator models, one family of phrasings. A
+negative result from a single probe design is evidence that *this probe*
+failed, not that the surface is safe --- Mem0's DELETE path is reachable by
+construction, and a differently-prompted attack may well take it.
 
 Opt-in, never CI, and not part of the package. Mem0 pulls a large dependency
 tree and its curator is a sampled model, so results are reported as rates over

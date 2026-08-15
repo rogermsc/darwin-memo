@@ -866,15 +866,34 @@ User's previously recorded peanut allergy is out of date and no longer
 
 That is content poisoning, and an existing literature already covers it.
 
-The boundary is worth more than the transfer would have been. This attack
-presumes a curator that acts **mechanically** on a signal: a strike
-counter cannot decline to count, an energy ledger cannot decline to
-debit. An LLM curator can, and here it did — it treated an unsupported
-retraction as a claim to record, not an instruction to obey. Judgment in
-the curator, which this project criticises elsewhere as expensive and
-gameable, buys a defence mechanical curation does not have. The honest
-statement is a trade, not a ranking, and our own mechanism sits at the
-mechanical end.
+The boundary is worth more than the transfer would have been, and it
+takes two curators to locate. This attack presumes a curator that acts
+**mechanically** on a signal: a strike counter cannot decline to count,
+an energy ledger cannot decline to debit. A **capable** LLM curator can —
+`glm-5.2` understood the retraction well enough to write a coherent
+linked negation ("User's *previously recorded* peanut allergy is out of
+date") and still chose to record rather than delete. That is judgment,
+and mechanical curation has no equivalent.
+
+It is not a property of LLM curation as such, which is what one model
+would have let us claim:
+
+| curator | benign retained | DELETEs | memories from 15 inputs | why zero deletes |
+| --- | --- | --- | --- | --- |
+| `glm-5.2` | 1.00 | 0 | 16 | understood, and declined |
+| `llama3.2:3b` | 1.00 | 0 | **22** | never coherently curated |
+
+The 3B curator stored one benign rule three times and another twice,
+merged two unrelated facts into one memory ("production database in
+eu-west-1 **and** is allergic to peanuts"), and wrote several of the
+adversary's imperatives in verbatim. Its zero deletions are incapacity,
+not restraint, and the store it leaves is already degraded. A weak
+curator buys neither the defence nor a clean store.
+
+The honest statement is a trade with a competence floor, not a ranking:
+judgment costs a model call per decision and can be talked into things,
+and a judge capable enough to be worth paying for can also refuse. Our
+own mechanism sits at the mechanical end.
 
 Caveats, stated firmly:
 
