@@ -17,6 +17,11 @@ project uses [SemVer](https://semver.org/).
   actually defined, and `tests/test_paper_builds_clean.py` now builds the paper
   and fails on any undefined `\ref`/`\cite` (and on stray `\todo` markers,
   the other half of the same promise). Mutation-tested.
+  That build-based check **skips wherever tectonic is absent, which includes
+  CI**, so on its own it would have protected nothing where it mattered. A
+  second check recovers labels and refs from the `.tex` sources directly and
+  needs no toolchain: it runs on every push in 0.02s and catches the same
+  defect. Both are mutation-tested; the static one is the one that guards.
 
 ### Added
 

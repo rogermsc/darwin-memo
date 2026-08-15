@@ -75,3 +75,42 @@ def test_no_todo_markers_left_in_the_paper() -> None:
         if re.search(r"\\todo\{|\bTODO:|\bFIXME\b", line) and "newcommand" not in line
     ]
     assert not offenders, f"todo markers in the paper: {offenders}"
+
+
+# ---------------------------------------------------------------------------
+# The same defect, caught without a LaTeX toolchain.
+#
+# The build-based test above skips wherever tectonic is absent, which includes
+# CI -- so on its own it would have protected nothing where it mattered. Labels
+# and refs are recoverable from the sources directly, so the check that
+# actually runs on every push needs no toolchain at all.
+# ---------------------------------------------------------------------------
+
+_LABEL = re.compile(r"\\label\{([^}]+)\}")
+_REF = re.compile(r"\\(?:page|auto|c)?ref\{([^}]+)\}")
+
+
+def _tex_sources() -> list[Path]:
+    return sorted(PAPER.rglob("*.tex"))
+
+
+def test_every_ref_has_a_label_no_latex_required() -> None:
+    """Mutation: reference a label nobody defined and this fails in CI, where
+    the tectonic-based test above only skips.
+
+    Multi-target refs (``\\ref{a,b}``) are split, since LaTeX resolves each
+    independently and a half-valid one still renders a ``??``.
+    """
+    if not _tex_sources():
+        pytest.skip("no paper sources")
+    labels: set[str] = set()
+    refs: dict[str, str] = {}
+    for path in _tex_sources():
+        text = path.read_text(errors="replace")
+        labels |= set(_LABEL.findall(text))
+        for raw in _REF.findall(text):
+            for target in (t.strip() for t in raw.split(",")):
+                if target:
+                    refs.setdefault(target, str(path.relative_to(ROOT)))
+    dangling = sorted((t, where) for t, where in refs.items() if t not in labels)
+    assert not dangling, f"\\ref targets with no \\label: {dangling}"
