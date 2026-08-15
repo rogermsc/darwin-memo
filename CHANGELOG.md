@@ -6,7 +6,39 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`docs/benchmarks.md` was two legs out of date, in the direction of
+  understating what has been measured.** It still titled the SWE-Bench-CL
+  section "no results yet" and carried a `pending` in every pre-committed
+  cell, while 83 committed run files (3,115 task evaluations, all
+  `eval.mode == "docker"`) and the paper reported the outcome; and its
+  honest-caveats register still said LLM-mode "has no benchmark arm yet;
+  its credit fidelity is covered by unit tests only", in a document that
+  contains an LLM-mode results section with committed results for two
+  models. A reader following the reproduction doc would have concluded two
+  whole legs were unrun. Cells are now filled from the committed JSONs by
+  `bench.swebench_cl.curve` — the scorer that owns those definitions — with
+  the command shown, so no number was transcribed by hand.
+- The four pre-registered SWE-Bench-CL gates are now scored: the three
+  plumbing gates pass (upkeep deaths nonzero; injection real and
+  near-saturated at 2.68–2.73 lessons/task with every second-half task in
+  every memory arm receiving at least one; 3 seeds × 2 sequences) and the
+  headline gate fails — `memory_off` leads on resolve rate (0.358 vs
+  0.325) and `memory_on` vs `random_matched` is +0.052, p = 0.50.
+
 ### Added
+
+- **A second, independent bound on the real-task null, from committed data
+  and no new runs.** Per sequence position every arm resolves every task in
+  positions 1–4 and *nothing* from position 17 on — `memory_off` included.
+  The pre-registered second-half-minus-first-half metric therefore has a
+  shared floor of zero that no curation policy can improve on, and all five
+  arms post a strongly negative curve (−0.535 to −0.606). That is a defect
+  in the experimental design rather than a result about memory: the metric
+  assumed the second half was winnable. Recorded in `limitations.tex`
+  beside the retrieval ceiling, which bounds the same null for an unrelated
+  reason.
 
 - `bench.potentiation --sweep`: the query-only retention attack over a 32-cell
   grid — two independent corpora (memsec, 16 entries; TestSuiteEnv, 20 entries,
