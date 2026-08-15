@@ -6,6 +6,36 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`bench.external.memoryos_lfu_attack`: the threat model finally has a
+  deployed target — MemoryOS (EMNLP 2025) — and the result is not the one
+  predicted.** Mem0 resisted because its curator is an LLM that can decline,
+  and Zep/Letta/Cognee have no automatic signal-driven deletion at all.
+  MemoryOS does: `MidTermMemory.evict_lfu` is `min(access_frequency)` and
+  nothing else — no model consulted, no text read — with the frequency
+  incremented by `search_sessions` on every match. Needs no model and no
+  network to attack, so it is deterministic.
+  **The predicted attack fails, and that is the finding.** Eviction takes a
+  minimum, so the obvious move is to raise the victim's peers until it is
+  lowest. `add_session` registers a newcomer at frequency 0 and *then* evicts,
+  so every arrival sits at the floor and evicts itself: **a memory retrieved
+  even once cannot be removed by capacity pressure at all.**
+  What the mechanism does instead is exact — `evicted ⟺ frequency == 0`, with
+  **3/3** never-retrieved victims evicted and **0/9** ever-retrieved ones, no
+  exceptions. A never-retrieved memory loses to a brand-new arrival that is
+  also at 0, because `min` returns the first minimum in insertion order. So
+  MemoryOS deletes the memory nobody has asked for yet in preference to the
+  one that arrived a moment ago, and one retrieval confers permanent immunity.
+  That is the rare-but-critical failure — an emergency contact or allergy note
+  is stored once, needed rarely, never consulted between — and it is first
+  out. This repo names that cost for its own mechanism and answers it with
+  pinning; MemoryOS has no equivalent on this path. Written up as
+  `\S sec:memoryos`.
+  **Not claimed**: an adversary manufacturing the neglect end to end. What is
+  demonstrated is that neglect kills deterministically and the curator selects
+  the neglected.
+
 ### Fixed
 
 - **A claim about a named third-party system, shipped in #59, was wrong — and

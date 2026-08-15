@@ -358,6 +358,58 @@ widely deployed. The mechanisms deployed today avoid the attack largely
 by declining to forget at all, and Table~\ref{tab:headline} measures
 what that costs.
 
+\subsection{A mechanically curated system: MemoryOS}
+\label{sec:memoryos}
+The Mem0 result and the survey above leave one system in scope, and it is
+the interesting one. MemoryOS \citep{kang2025memoryos} curates
+\emph{mechanically}: its mid-term store holds sessions under a capacity
+and, on overflow, calls \texttt{evict\_lfu}, which is
+\texttt{min(access\_frequency)} and nothing else --- no model is asked,
+no text is read. The signal is retrieval frequency, incremented by
+\texttt{search\_sessions} on every match. A curator that removes entries,
+decides on a signal rather than a judgment, and whose signal moves when
+somebody asks a question: every precondition our threat model needs, in
+published software we did not write. The measurement needs no model
+either, since the eviction is arithmetic.
+
+\paragraph{The predicted attack fails, for a reason worth stating.}
+Eviction takes a minimum, so the obvious move is to leave the victim
+untouched and raise its peers until it is the unique lowest. It does not
+work. \texttt{add\_session} registers a newcomer at frequency zero and
+\emph{then} evicts, so every arrival sits at the floor and evicts itself:
+a memory retrieved even once cannot be removed by capacity pressure at
+all. We report this because it is a real property of the mechanism and
+because we predicted the opposite.
+
+\paragraph{What the mechanism does instead.} Sweeping the victim over
+every seeded memory, eviction tracks a single bit exactly --- evicted if
+and only if \texttt{access\_frequency} is zero, with no exceptions: all
+$3$ victims that reached zero were evicted, and none of the $9$ that were
+retrieved even once ever was. A never-retrieved memory loses to a
+brand-new arrival that is \emph{also} at zero, because \texttt{min}
+returns the first minimum in insertion order and the older entry comes
+first. MemoryOS therefore deletes the memory nobody has asked for yet in
+preference to the one that arrived a moment ago, and a single retrieval
+confers permanent immunity.
+
+This is the rare-but-critical case: an emergency contact or an allergy
+note is precisely the memory stored once, needed rarely, and never
+consulted in between, and it is first out. Our own abstract names that
+cost --- upkeep starves the long tail of correct-but-rarely-used
+knowledge --- and \textsc{darwin-memo} answers it with pinning, which
+floors a pinned entry's balance at zero instead of burying it. On this
+path MemoryOS has no equivalent, so the exposure we describe as a design
+trade in our own mechanism is unmitigated in a deployed one.
+
+\paragraph{What we do not claim.} An adversary able to dominate the
+retrieval channel --- supplying content that absorbs queries which would
+otherwise reach the victim --- would keep a chosen memory at zero and let
+the curator delete it in favour of the adversary's own fresh content.
+What we demonstrate is the second half of that: neglect kills,
+deterministically, and the curator selects the neglected. Manufacturing
+the neglect end to end against a live agent is not demonstrated here and
+should not be read as though it were.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
