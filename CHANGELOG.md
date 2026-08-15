@@ -6,6 +6,35 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The paper shipped a dangling cross-reference.** `related.tex` referenced
+  `\S\ref{sec:threat}`, a label that exists in no `.tex` file, so the built PDF
+  carried a literal `??` on page 6. LaTeX reports this as a warning and still
+  exits zero, which is why nothing caught it — `paper/reproduce.md` promises
+  the paper builds "with no undefined references", and that was prose nobody
+  checked. Repointed at `sec:adversary`, which is where the trust boundary is
+  actually defined, and `tests/test_paper_builds_clean.py` now builds the paper
+  and fails on any undefined `\ref`/`\cite` (and on stray `\todo` markers,
+  the other half of the same promise). Mutation-tested.
+
+### Added
+
+- **Where the threat model applies in today's ecosystem, checked rather than
+  assumed.** After the Mem0 negative, the obvious question is which deployed
+  systems have the surface at all. Zep's temporal knowledge graph does not
+  delete — an outdated fact has its edge marked invalid and is retained for
+  historical queries. Letta evicts from the context window and demotes to
+  archival recall rather than removing anything. Cognee exposes a forget
+  operation whose observed behaviour leaves the memory retrievable under a
+  forced probe. Mem0 deletes, but only through the LLM judgment measured
+  declining to. **None performs outcome-driven mechanical deletion**, which is
+  what a curation-targeted attack needs. The threat model is therefore
+  forward-looking with respect to the deployed ecosystem rather than a
+  vulnerability report against shipping software — and the uncomfortable half
+  is that darwin-memo is itself exactly such a design, so the paper is warning
+  about the class of mechanism it belongs to. In `\S sec:mem0`.
+
 ### Changed
 
 - **The Mem0 transfer result now runs three pre-registered phrasing families
