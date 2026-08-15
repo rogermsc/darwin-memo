@@ -26,6 +26,35 @@ project uses [SemVer](https://semver.org/).
   every memory arm receiving at least one; 3 seeds × 2 sequences) and the
   headline gate fails — `memory_off` leads on resolve rate (0.358 vs
   0.325) and `memory_on` vs `random_matched` is +0.052, p = 0.50.
+- **The frozen reproduction package described less evidence than the repo
+  ships, and nothing checked it.** `paper/reproduce.md` claims of its
+  per-file table: *"This table is generated from `bench/results/MANIFEST.json`
+  and the manifest is the authority. If the two ever disagree, the manifest
+  wins and this table is stale."* Nothing enforced that, and they had
+  drifted — `distill_noisy.json`, `distill_rule.json` and `neighbours.json`
+  were committed evidence, validated by CI on every push and cited in
+  `docs/benchmarks.md`, while the reproduction package listed neither them
+  nor their commits. Anyone freezing the package would have shipped an
+  incomplete one. All three are now in the frozen list and the table, and
+  `tests/test_reproduce_package.py` turns the prose claim into a check:
+  it fails if the manifest gains a result the table omits, if the table
+  names one the manifest lacks, or if any commit differs.
+- **Four `source_commit`s in the reproduction package are not in the
+  repository**, so the document's own prescribed byte-exact path — "check
+  out each file's manifest `source_commit`" — cannot work for them
+  (`bandit.json`, `judge-llama.json`, `judge-qwen.json`, `llm-qwen.json`).
+  The cause is structural: results were generated on a branch, the manifest
+  recorded that branch's sha, and the squash-merge that landed them replaced
+  it. Three of the four are sampled-model runs that were never byte-reproducible
+  anyway; the real loss is `bandit.json`, whose suite is deterministic. Now
+  named in the document with the cause and the mitigation (regenerate result
+  files on `main`), and a test fails if a new unreachable commit appears so
+  the list cannot grow quietly.
+- The package header claimed to reproduce the evidence "for darwin-memo
+  version 0.5.1". The evidence spans releases — one file was produced after
+  `0.6.0` — so there is no single version to install that reproduces
+  everything. The header now says so and points at the per-file
+  `source_commit` as the binding that matters.
 
 ### Added
 
@@ -68,11 +97,12 @@ project uses [SemVer](https://semver.org/).
   operator opts into `charge_upkeep(scale=upkeep_scale())`. Earned importance
   is recalls + credit + centrality, and an attacker who never writes and never
   settles drives two of the three: recalls directly, centrality through the
-  Hebbian links each recall strengthens. Measured on the memsec corpus, 400
-  cycles: potentiation stretches the starvation horizon ×1.45 for everybody
-  (economics, and the poison gains nothing), but under a query-only attacker
-  **the poison outlives every benign entry by 4 cycles**, against 0 under flat
-  upkeep and 0 under potentiation with honest traffic only. The mechanism is
+  Hebbian links each recall strengthens. Under a query-only attacker the
+  poison outlives every benign entry, against no margin at all under flat
+  upkeep and none under potentiation with honest traffic only. *(The
+  single-store cycle counts this entry originally quoted were superseded by
+  the `--sweep` entry above, which reports the scale-invariant figure; they
+  are omitted here rather than left to contradict it.)* The mechanism is
   peak-normalisation — importance is a standing within the live population, so
   inflating your own recall count deflates everyone else's, and the margin is
   taken out of the benign entries' lifetime. Ceiling is exactly 2/3 importance
@@ -81,7 +111,7 @@ project uses [SemVer](https://semver.org/).
   Needs no model, no environment and no seed. The mechanism is *measured*, not
   inferred: `--recall-norm saturating` swaps the recall term's denominator (the
   live population's peak for a fixed cap) and changes nothing else, and the
-  margin falls to 0 while the horizon stays at ×1.45 — with centrality left
+  margin collapses while the horizon holds — with centrality left
   attacker-drivable throughout. So the exploitable property is not that usage
   is a retention signal but that the signal is *relative*, making one entry's
   standing a function of every other entry's traffic. `SaturatingImportance` is
