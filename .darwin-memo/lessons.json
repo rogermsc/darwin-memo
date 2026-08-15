@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.49999925911129744,
+      "energy": 0.44999925911129746,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 23,
@@ -20,28 +20,13 @@
       "id": "053a99cf0a4c"
     },
     {
-      "question": "Can retrieval scoring read entry energy?",
-      "answer": "Never. Retrieval scores are pure relevance and energy is only a sort tie-break in the store; selection pressure must come from outcomes, not from retrieval preferring incumbents.",
-      "kind": "explicit",
-      "sources": [
-        "docs/paper-to-code"
-      ],
-      "energy": 0.0499999999833228,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 21,
-      "uses": 3,
-      "lineage": [],
-      "id": "74a2ba34e5ab"
-    },
-    {
       "question": "Is it safe to add new required metric keys that only some suites emit?",
       "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
       "kind": "explicit",
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.5930884933335359,
+      "energy": 0.5430884933335358,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 21,
@@ -56,7 +41,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 0.7163420549537163,
+      "energy": 0.6663420549537162,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 20,
@@ -140,10 +125,25 @@
       "uses": 2,
       "lineage": [],
       "id": "7e40e33bc60d"
+    },
+    {
+      "question": "Can retrieval scoring read entry energy?",
+      "answer": "Never. Retrieval scores are pure relevance and energy is only a sort tie-break in the store; selection pressure must come from outcomes, not from retrieval preferring incumbents.",
+      "kind": "explicit",
+      "sources": [
+        "docs/paper-to-code"
+      ],
+      "energy": -1.667720128661898e-11,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 21,
+      "uses": 3,
+      "lineage": [],
+      "id": "74a2ba34e5ab"
     }
   ],
   "ledger": {
-    "tick_count": 46,
+    "tick_count": 47,
     "pending": [
       {
         "query": "Are stub-executor benchmark arms safe to validate before Docker eval images run?",
@@ -300,6 +300,15 @@
           "credit": 0.15,
           "delta": 31.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27442652667"
+        },
+        {
+          "tick": 47,
+          "ts": "2026-08-15T14:37:04+00:00",
+          "text": "died at tick 47 (starved: never earned its upkeep; uses=3, last_used_tick=21)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 3,
+          "last_used_tick": 21
         }
       ],
       "3b61822cf5a6": [
