@@ -1,9 +1,18 @@
 # Frozen reproduction package
 
 This package reproduces the evidence behind the technical report
-(`paper/darwin-memo.md`) for darwin-memo version 0.5.1. The verification
-path is offline by default: it checks the committed per-seed result JSON
-against the manifest, with no model and no network.
+(`paper/darwin-memo.md`). The verification path is offline by default: it
+checks the committed per-seed result JSON against the manifest, with no
+model and no network.
+
+The evidence was **not all produced by one release**. `0.5.1` is the
+release the earliest committed suites were cut against, and the package
+was originally written around it, but result files have been regenerated
+and added since — one (`neighbours.json`) after `0.6.0`. There is
+therefore no single version to install that reproduces everything, which
+is why the per-file `source_commit` in the manifest is the binding that
+matters and the version pin below is a convenience for the offline check
+rather than a route to byte-exact numbers.
 
 ## What is frozen
 
@@ -12,8 +21,9 @@ Committed under `bench/results/`:
 - The per-seed raw result JSON for every benchmark arm:
   `headline.json`, `noisy.json`, `ablation.json`, `testsuite.json`,
   `testsuite_noisy.json`, `bandit.json`, `memsec.json`,
-  `adversary.json`, `salience.json`, `distill.json`,
-  `distill_merge.json`, `judge-llama.json`, `judge-qwen.json`,
+  `adversary.json`, `salience.json`, `neighbours.json`, `distill.json`,
+  `distill_merge.json`, `distill_noisy.json`, `distill_rule.json`,
+  `judge-llama.json`, `judge-qwen.json`,
   `llm-llama.json`, `llm-qwen.json`, `wef-llama32.json`,
   `wef-llama32-counter.json`.
 - The SWE-Bench-CL matrix under `bench/results/swebench_cl/`, one file
@@ -55,12 +65,15 @@ manifest at the time this package was frozen:
 | bandit.json                | bandit          | 10    | 240  | a5fd4c3940c64a6c961fe021ece07057f6d927bb |
 | distill.json               | distill         | 5     | 30   | 8ddc6e22ffb1aaf14e2fe92371548e9af8496014-dirty |
 | distill_merge.json         | distill_merge   | 5     | 35   | 118327e1cb1b213664b43c20c33a4fe78c4b0048-dirty |
+| distill_noisy.json         | distill_noisy   | 5     | 45   | 0a16f8a041006ed6cfe132dbc1bdba4c5e978b92-dirty |
+| distill_rule.json          | distill_rule    | 5     | 30   | 9064ce9b250831241d5279e4898eb280b454133b-dirty |
 | headline.json              | headline        | 10    | 80   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
 | judge-llama.json           | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
 | judge-qwen.json            | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
 | llm-llama.json             | llm             | 5     | 20   | 7a1de5347e8314e3e80a436c26d9de175cae57a5-dirty |
 | llm-qwen.json              | llm             | 2     | 2    | 93564dae78cd5a9a9215b8667e6560bc1d535141-dirty |
 | memsec.json                | memsec          | 10    | 120  | 22048c9eb433a4c5a2036f2dea46f03d33cf9ae7-dirty |
+| neighbours.json            | neighbours      | 10    | 30   | b57fef6a87b1e82371ee86343c56395281c86b4f-dirty |
 | noisy.json                 | noisy           | 30    | 2640 | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
 | salience.json              | salience        | 10    | 30   | e1407e7d30bdd781a9d72e33c107925327df7eae-dirty |
 | testsuite.json             | testsuite       | 10    | 80   | 320c2a687e7f52d53201fd62b130a9657b21308b |
@@ -76,7 +89,39 @@ suites carry clean commits.
 
 This table is generated from `bench/results/MANIFEST.json` and the
 manifest is the authority. If the two ever disagree, the manifest wins
-and this table is stale.
+and this table is stale. That correspondence is now enforced rather than
+asserted: `tests/test_reproduce_package.py` fails if the manifest gains a
+result this table omits, if this table names one the manifest does not
+have, or if any commit here differs from the manifest's. It was not
+enforced before, and the two had drifted — `distill_noisy`,
+`distill_rule` and `neighbours` were committed evidence, validated by CI
+on every push and cited in `docs/benchmarks.md`, while this package
+described neither them nor their commits.
+
+**Four commits in the table above are not in the repository**, so for
+these files the "check out the `source_commit`" path does not work:
+
+| file | recorded commit | why |
+|---|---|---|
+| `bandit.json` | `a5fd4c39…` | generated on a branch that was squash-merged |
+| `judge-llama.json` | `a6a60f98…` | same branch |
+| `judge-qwen.json` | `a6a60f98…` | same branch |
+| `llm-qwen.json` | `93564dae…` | generated on a branch that was squash-merged |
+
+A squash-merge replaces a branch's commits with one new commit and the
+branch is then deleted, so a sha recorded during development ceases to
+exist once the work lands. Nothing detected this because the manifest
+records the sha of the tree that *produced* the file, which cannot know
+what sha will later carry it onto `main`. For these four, the `config_hash`
+binding and the recorded command still hold and `--check` still verifies
+them; what is lost is the exact producing tree. The three sampled-model
+files among them (`judge-*`, `llm-qwen`) were never byte-reproducible
+anyway — model sampling is not deterministic — so the practical loss is
+`bandit.json`, whose suite is deterministic.
+
+The test above fails if a *new* unreachable commit appears, so this list
+cannot grow quietly. To avoid adding to it, regenerate result files on
+`main` rather than on a branch that will be squashed.
 
 ## The exact commands
 
@@ -106,8 +151,9 @@ of an old interpreter.
 python3 -m venv .venv-reproduce
 source .venv-reproduce/bin/activate
 python -m pip install --upgrade pip
-# Pinned to the release. The v0.5.1 tag is cut at release time; if it is
-# not yet on PyPI, use the byte-exact alternative below.
+# Enough to run the offline --check over every committed file. It is NOT
+# the tree that produced them all (see the version note at the top), so
+# use the per-file source_commit below for byte-exact numbers.
 python -m pip install "darwin-memo==0.5.1"
 ```
 
