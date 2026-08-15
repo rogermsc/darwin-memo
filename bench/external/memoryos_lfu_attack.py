@@ -212,6 +212,57 @@ def run_trial(
     return row
 
 
+# MemoryOS promotes a session's content into long-term memory once its heat
+# crosses this; the constant is H_PROFILE_UPDATE_THRESHOLD in memoryos.py.
+HEAT_THRESHOLD = 5.0
+
+
+def measure_promotion_cost(MidTermMemory: Any, max_queries: int = 10) -> dict[str, Any]:
+    """How many self-queries buy an adversary a promotion into long-term memory.
+
+    The eviction path above cannot be driven by inflation. The *promotion* path
+    can, and it runs the other way: when a session's heat crosses
+    ``H_PROFILE_UPDATE_THRESHOLD``, MemoryOS analyses that session and writes
+    what it extracts into long-term memory, which capacity pressure does not
+    touch. So an adversary that gets any content into mid-term storage and then
+    asks about it can have the curator launder that content into the
+    persistent tier --- no delete call, no judge, and no further writes.
+
+    Heat is ``N_visit + L_interaction + R_recency``, so the cost is arithmetic
+    and needs no model to measure. What is measured here is the *precondition*
+    --- crossing the threshold --- not the extraction itself, which is an LLM
+    call and is not exercised.
+    """
+    import tempfile as _tf
+
+    with _tf.TemporaryDirectory() as tmp:
+        mid = MidTermMemory(
+            file_path=str(Path(tmp) / "promo.json"), client=None, max_capacity=50
+        )
+        sid = mid.add_session(
+            summary="Adversary-supplied content about widget calibration.",
+            details=[
+                {
+                    "user_input": "widget calibration procedure adversary",
+                    "agent_response": "Calibrate widgets nightly.",
+                }
+            ],
+        )
+        trace = []
+        crossed_at = None
+        for q in range(1, max_queries + 1):
+            mid.search_sessions("widget calibration procedure adversary")
+            heat = float(mid.sessions[sid]["H_segment"])
+            trace.append({"queries": q, "heat": round(heat, 3)})
+            if crossed_at is None and heat >= HEAT_THRESHOLD:
+                crossed_at = q
+    return {
+        "heat_threshold": HEAT_THRESHOLD,
+        "queries_to_promotion": crossed_at,
+        "heat_trace": trace,
+    }
+
+
 def summarise(rows: list[TrialResult]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for cond in CONDITIONS:
@@ -259,6 +310,7 @@ def main() -> int:
         "facts": len(FACTS),
         "results": [asdict(r) for r in rows],
         **summarise(rows),
+        "promotion": measure_promotion_cost(MidTermMemory),
     }
     print(json.dumps(report, indent=2))
     if args.out:

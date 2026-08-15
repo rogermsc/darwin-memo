@@ -32,9 +32,22 @@ project uses [SemVer](https://semver.org/).
   out. This repo names that cost for its own mechanism and answers it with
   pinning; MemoryOS has no equivalent on this path. Written up as
   `\S sec:memoryos`.
-  **Not claimed**: an adversary manufacturing the neglect end to end. What is
-  demonstrated is that neglect kills deterministically and the curator selects
-  the neglected.
+  **And a second curation path that inflation *can* drive, running the other
+  way.** When a session's heat crosses `H_PROFILE_UPDATE_THRESHOLD`, MemoryOS
+  analyses it and writes what it extracts into **long-term memory** — a tier
+  capacity pressure never touches. Heat is
+  `N_visit + L_interaction + R_recency`, so the cost is arithmetic: at the
+  shipped threshold of 5.0, a single-page session crosses on the **third
+  self-query** (3.0 → 4.0 → 5.0). An adversary that gets any content into
+  mid-term storage and asks about it three times has the curator launder that
+  content into the persistent tier — no delete call, no judge, no further
+  writes. Denial of memory is the threat model's usual direction; this is its
+  mirror, and it is the cheaper of the two.
+  **Not claimed**: an adversary manufacturing the neglect end to end, or the
+  promotion's extraction step (a model call, not exercised — what is measured
+  is the precondition). What is demonstrated is that neglect kills
+  deterministically, the curator selects the neglected, and the promotion
+  threshold is three questions away.
 
 ### Fixed
 

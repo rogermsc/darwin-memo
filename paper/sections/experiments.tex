@@ -401,6 +401,23 @@ floors a pinned entry's balance at zero instead of burying it. On this
 path MemoryOS has no equivalent, so the exposure we describe as a design
 trade in our own mechanism is unmitigated in a deployed one.
 
+\paragraph{The other direction: promotion is cheap.} Eviction cannot be
+driven by inflation, but MemoryOS has a second curation decision that
+can, and it runs the other way. When a session's heat crosses
+\texttt{H\_PROFILE\_UPDATE\_THRESHOLD}, MemoryOS analyses that session
+and writes what it extracts into \emph{long-term} memory, a tier
+capacity pressure never touches. Heat is
+$N_{\text{visit}} + L_{\text{interaction}} + R_{\text{recency}}$, so the
+cost of crossing it is arithmetic: with the shipped threshold of $5.0$, a
+single-page session reaches it on the \textbf{third self-query}
+($3.0 \rightarrow 4.0 \rightarrow 5.0$). An adversary that gets any
+content into mid-term storage and then asks about it three times has the
+curator promote that content into the persistent tier --- no delete call,
+no judge, no further writes. The threat model's usual direction is
+denial; this is its mirror, and it is the cheaper of the two. We measure
+the precondition (crossing the threshold) rather than the extraction
+itself, which is a model call we do not exercise.
+
 \paragraph{What we do not claim.} An adversary able to dominate the
 retrieval channel --- supplying content that absorbs queries which would
 otherwise reach the victim --- would keep a chosen memory at zero and let

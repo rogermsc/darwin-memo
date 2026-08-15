@@ -987,6 +987,28 @@ between — and it is first out. This repo's own
 with pinning, which floors a pinned entry at zero rather than burying it.
 MemoryOS has no equivalent on this path.
 
+**The other direction: promotion is cheap.** Eviction cannot be driven by
+inflation, but MemoryOS has a second curation decision that can, and it
+runs the other way. When a session's heat crosses
+`H_PROFILE_UPDATE_THRESHOLD`, MemoryOS analyses that session and writes
+what it extracts into **long-term memory** — a tier capacity pressure
+never touches. Heat is `N_visit + L_interaction + R_recency`, so the cost
+is arithmetic:
+
+| self-queries | heat | |
+| --- | --- | --- |
+| 1 | 3.0 | |
+| 2 | 4.0 | |
+| **3** | **5.0** | **crosses threshold (5.0)** |
+
+**Three self-queries.** An adversary that gets any content into mid-term
+storage and then asks about it three times has the curator promote that
+content into the persistent tier — no delete call, no judge, no further
+writes. Denial of memory is the threat model's usual direction; this is
+its mirror, and it is the cheaper of the two. Measured here is the
+precondition (crossing the threshold), not the extraction itself, which
+is a model call and is not exercised.
+
 **What is not claimed.** An adversary able to dominate the retrieval
 channel would keep a chosen memory at zero and let the curator delete it
 in favour of the adversary's own fresh content. Demonstrated here is the
