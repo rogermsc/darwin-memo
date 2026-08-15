@@ -3,6 +3,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from bench.fixtures import active_poison_alive, build_headline_store, poison_ids
 from bench.policies import run_random_matched, run_recency, run_ttl
 from bench.report import aggregate, check
@@ -447,3 +449,66 @@ def test_budget_relevance_holds_the_budget_and_never_regenerates_the_world():
     assert len(store) == 2, f"budget not held: {len(store)} entries alive"
     assert calls == [0, 1, 2, 3, 4], f"env.tasks called {len(calls)} times: {calls}"
     assert len(result.records) == 5
+
+
+def test_query_only_attacker_makes_potentiated_poison_outlive_the_store():
+    """The security half of Phase 4, and the number docs/threat-model.md carries.
+
+    Three mutations this catches. First, charging flat upkeep in the
+    attacked condition (dropping the ``scale=`` argument) collapses the
+    margin to zero, because flat upkeep is exactly what the shipped loop
+    does and it is the control this whole measurement is read against.
+    Second, letting the attacker's recalls reach the CREDIT component ---
+    crediting energy on recall rather than only on a settled outcome ---
+    pushes the ceiling past 2/3 and the store never releases the poison at
+    all. Third, dropping the peak-normalisation in EarnedImportance.scores
+    makes importance absolute rather than a standing within the
+    population, and the attack stops working entirely: the margin exists
+    because inflating your own recall count DEFLATES everyone else's
+    normalised score, which is what turns a shared horizon into an
+    attacker-owned one.
+    """
+    from bench.potentiation import run_condition
+
+    flat = run_condition("flat", "inert", cycles=400, upkeep=0.05, attacker_queries=3)
+    honest = run_condition(
+        "honest", "inert", cycles=400, upkeep=0.05, attacker_queries=3
+    )
+    attacked = run_condition(
+        "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
+    )
+
+    assert flat.poison_starve_cycle, "the fixture must starve, or nothing is measured"
+    assert flat.poison_outlives_benign == 0, (
+        "flat upkeep must give the poison no edge; it is the control"
+    )
+    assert honest.poison_outlives_benign <= 1, (
+        "potentiation alone must not favour the poison, or the attack is not "
+        f"what is being measured (margin {honest.poison_outlives_benign})"
+    )
+    assert attacked.poison_outlives_benign >= 3, (
+        "query-only recalls must buy the poison a margin over benign entries "
+        f"(margin {attacked.poison_outlives_benign})"
+    )
+    # Credit is the one component a query-only adversary cannot reach, so the
+    # reachable ceiling is exactly the other two thirds -- and the relief that
+    # follows from it is MAX_RELIEF x 2/3.
+    assert attacked.peak_poison_importance == pytest.approx(2 / 3, abs=0.01)
+    assert attacked.min_poison_upkeep_scale == pytest.approx(2 / 3, abs=0.01)
+
+
+def test_potentiation_measurement_is_reproducible_across_processes():
+    """Mutation: any tie broken on ``entry.id`` (uuid4, random per process)
+    makes the margin flip run to run, and a security number that moves is not
+    a number. Two runs in ONE process would not catch it -- the ids are drawn
+    once per store -- so this builds two stores and requires the same answer
+    from both."""
+    from bench.potentiation import run_condition
+
+    first = run_condition(
+        "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
+    )
+    second = run_condition(
+        "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
+    )
+    assert first == second, f"not reproducible:\n{first}\n{second}"

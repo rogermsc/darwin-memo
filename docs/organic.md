@@ -136,6 +136,31 @@ consulted poison gets shielded. That arm is the stronger form (importance
 picks the victim); Phase 4 is the gentler one (importance slows the burn, with
 a floor). The difference is one of degree, not of kind.
 
+There is a second cost, and it is adversarial rather than capability-shaped:
+**potentiation is reachable by an attacker who only ever asks questions.** Two
+of importance's three components — recall count directly, centrality through
+the Hebbian links a recall strengthens — move on query alone, and only credit
+needs a settled outcome. `python -m bench.potentiation` measures what that
+buys on the memsec corpus (400 cycles, upkeep 0.05, three recalls per poisoned
+entry per cycle):
+
+| condition | starvation horizon | cycles the poison outlives every benign entry |
+| --- | --- | --- |
+| `flat` (what ships) | ×1.00 | **0** |
+| `honest` potentiation | ×1.45 | 0 |
+| `attacked` (query-only) | ×1.45 | **4** |
+
+Potentiation on its own is an economic change: the horizon stretches for
+everybody and the poison gains nothing. Under a query-only attacker it becomes
+a security one — the horizon is the same, but the store spends its last four
+cycles holding poison and nothing else. The mechanism is peak-normalisation:
+importance is a standing within the live population, so inflating your own
+recall count deflates everyone else's, and the attacker buys its margin out of
+the benign entries' lifetime rather than out of the ledger. The reachable
+ceiling is exactly 2/3 importance (credit is the third it cannot earn), and
+the margin is the same for the loudest payload and the most dormant one,
+because the mechanism reads usage and never text.
+
 So it is opt-in, and it is opt-in in the strong sense: `SurvivalLoop` and
 `Ledger` charge flat upkeep exactly as they did before, no code in this
 package calls `upkeep_scale()`, and `charge_upkeep()` with no `scale` is

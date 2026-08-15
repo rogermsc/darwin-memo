@@ -126,12 +126,16 @@ class OrganicMemory:
         observed from outside. Embedding is only paid for entries that
         are actually new.
         """
-        alive = {entry.id: entry for entry in self.store.alive()}
         known = self.graph.ids
-        for entry_id in known - alive.keys():
+        for entry_id in known - {entry.id for entry in self.store.alive()}:
             self.graph.remove(entry_id)
-        for entry_id in alive.keys() - known:
-            self.graph.add(alive[entry_id])
+        # Added in STORE order, not set-difference order: the graph resolves
+        # equal cosines by insertion position, so filling it from an unordered
+        # set would make top-k --- and through it centrality, importance and
+        # upkeep relief --- depend on PYTHONHASHSEED. Removal order is free.
+        for entry in self.store.alive():
+            if entry.id not in known:
+                self.graph.add(entry)
 
     def related(self, entry_id: str, k: int = 5) -> list[tuple[str, float]]:
         """Effective relatedness: ``clamp01(cosine + learned + bias)``, top-k.
@@ -164,7 +168,11 @@ class OrganicMemory:
             )
             for cid in candidates
         ]
-        scored.sort(key=lambda pair: (-pair[1], pair[0]))
+        # Ties break on graph insertion position, never on the id: ids are
+        # random per process, so an id tiebreak makes this ranking --- and
+        # every survival number that reads it --- unreproducible at a fixed
+        # seed. See AssociativeGraph.ordinal.
+        scored.sort(key=lambda pair: (-pair[1], self.graph.ordinal(pair[0])))
         return scored[:k]
 
     def centrality(self, k: int = 5) -> dict[str, float]:

@@ -475,3 +475,32 @@ def test_the_graph_follows_the_store_instead_of_the_moment_it_was_built() -> Non
         "a fresh entry with identical text must not be charged more upkeep "
         "than the entry it duplicates"
     )
+
+
+def test_tied_neighbours_keep_insertion_order_and_ignore_the_id() -> None:
+    """Mutation: breaking a tie on the id ``(-score, pair[0])`` looks
+    deterministic and is not --- ``MemoryEntry.id`` defaults to
+    ``uuid4().hex[:12]``, so at a fixed seed the ranking is a coin flip, and
+    everything downstream (centrality, earned importance, upkeep relief)
+    inherits it. Ties are the common case, not a corner one: an embedder puts
+    every unrelated pair at cosine 0.0.
+
+    Uses real (random) ids on purpose. The other tests here pin ids to
+    hand-written strings, which is exactly the condition under which this bug
+    is invisible.
+    """
+    from darwin_memo.organic.associative import AssociativeGraph
+
+    def one_vector(_text: str) -> list[float]:
+        return [1.0, 0.0, 0.0]  # everything ties with everything
+
+    # Three graphs, three fresh sets of ids: one graph cannot show the bug,
+    # because whatever ids it drew are the only ones it will ever sort.
+    for _ in range(3):
+        graph = AssociativeGraph(embedder=one_vector)
+        added = [MemoryEntry(question=f"q{i}", answer=f"a{i}") for i in range(6)]
+        for item in added:
+            graph.add(item)
+        ranked = [eid for eid, _ in graph.related(added[0].id, k=5)]
+        # Insertion order, minus the entry asked about.
+        assert ranked == [e.id for e in added[1:]], "ties did not keep insertion order"

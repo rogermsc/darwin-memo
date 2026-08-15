@@ -56,6 +56,14 @@ class BruteForceBackend:
             for eid, vec in self._vectors.items()
             if eid != exclude
         ]
+        # Ties keep insertion order, and never break on the id: an id is
+        # ``uuid4().hex[:12]``, so an id tiebreak is a coin flip at a fixed
+        # seed. Python's sort is stable and ``reverse=True`` does not reverse
+        # equal elements, so score-only ordering falls back to the order
+        # entries were added --- which callers control and the corpus fixes.
+        # Ties are the common case here, not a corner one: HashingEmbedder
+        # puts unrelated entries at cosine 0.0 in bulk, and everything
+        # downstream (centrality, importance, upkeep relief) reads this rank.
         scored.sort(key=lambda pair: pair[1], reverse=True)
         return scored[:k]
 
@@ -74,14 +82,29 @@ class AssociativeGraph:
         self.embedder: Embedder = embedder or HashingEmbedder()
         self.backend: Backend = backend or BruteForceBackend()
         self._vectors: dict[str, list[float]] = {}
+        self._ordinals: dict[str, int] = {}
+        self._next_ordinal = 0
 
     def add(self, entry: MemoryEntry) -> None:
         vec = self.embedder(_entry_text(entry))
         self._vectors[entry.id] = vec
+        if entry.id not in self._ordinals:
+            self._ordinals[entry.id] = self._next_ordinal
+            self._next_ordinal += 1
         self.backend.add(entry.id, vec)
+
+    def ordinal(self, entry_id: str) -> int:
+        """Insertion position, for callers that must break a tie somehow.
+
+        The only stable order in play: ids are random per process, so any
+        ranking that resolves equal scores by id is unreproducible. Unknown
+        ids sort last.
+        """
+        return self._ordinals.get(entry_id, self._next_ordinal)
 
     def remove(self, entry_id: str) -> None:
         self._vectors.pop(entry_id, None)
+        self._ordinals.pop(entry_id, None)
         self.backend.remove(entry_id)
 
     @property

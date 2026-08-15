@@ -699,6 +699,58 @@ not evaluated here.
   That is why `poison_starve_cycle` and `poison_alive_final` exist;
   reading the inert row off the kill columns alone would be wrong.
 
+## Query-only retention attack: what potentiation costs
+
+```
+python -m bench.potentiation --attack inert --cycles 400 --attacker-queries 3
+```
+
+No model, no environment, no seed: nothing mints or settles, so the only
+force acting on any entry is upkeep — which is the regime the `inert`
+attack class is defined by, and it isolates the mechanism from
+everything else here. Runs in about a second.
+
+The organic layer's Phase 4 lets a caller slow an entry's upkeep in
+proportion to its earned importance (`charge_upkeep(scale=...)`, opt-in;
+nothing in the package calls it). Importance is recalls + credit +
+centrality, and a *query-only* adversary — one who never writes and never
+settles, the [MINJA][minja-bm] shape — drives two of those three: recalls
+directly, centrality through the Hebbian links each recall strengthens.
+Credit is the one third it cannot reach, so its ceiling is 2/3.
+
+| condition | poison starve cycle | benign starve cycle | horizon | poison outlives benign |
+| --- | --- | --- | --- | --- |
+| `flat` (what ships) | 20 | 20 | ×1.00 | **0** |
+| `honest` potentiation | 29 | 29 | ×1.45 | 0 |
+| `attacked` (query-only) | 29 | 25 | ×1.45 | **4** |
+
+Read the last column, not the horizon. Potentiation stretches the
+starvation horizon for *everybody* — that is an economic change and the
+poison gains nothing by it. What the attacker adds is a margin: the store
+spends its last four cycles holding poison and nothing else. The mechanism
+is peak-normalisation. Importance is a standing within the live
+population, so inflating your own recall count deflates everyone else's,
+and the margin is subtracted from the benign entries' lifetime rather than
+added to the attacker's.
+
+Measured ceiling is exactly 2/3 importance and 2/3 upkeep scale, as the
+arithmetic predicts. The margin is the same for the strong-signal payload
+and the inert one (4–5 cycles across all three attack classes), because
+this path reads usage and never text: no content filter sits on it.
+
+Caveats:
+
+- One store, one corpus, three poisoned entries. The margin is a
+  demonstration that the lever exists and roughly what it is worth, not a
+  rate over a population of stores.
+- The attack saturates at three recalls per poisoned entry per cycle;
+  spending more buys nothing, because the attacker is already the
+  population's recall peak and normalisation caps there.
+- `flat` is the shipped default. Nothing in this table is a defect in what
+  darwin-memo installs; it prices a feature an operator may switch on.
+
+[minja-bm]: https://arxiv.org/abs/2503.03704
+
 ## Curation-targeted attack: denial of memory
 
 ```
