@@ -937,6 +937,97 @@ Caveats, stated firmly:
   adversary's own residue as surviving benign memory. It now tracks
   Mem0's stable ids and separates "id survived" from "text unchanged".
 
+## A mechanically curated system: MemoryOS
+
+```
+git clone https://github.com/BAI-LAB/MemoryOS
+pip install faiss-cpu sentence-transformers numpy
+python -m bench.external.memoryos_lfu_attack --memoryos-path MemoryOS/memoryos-pypi
+```
+
+Opt-in, never CI. **No model and no network**: MemoryOS's eviction is
+arithmetic and its embeddings are local, so this is deterministic.
+
+Mem0 resisted the attack because its curator is an LLM that can decline,
+and the survey above found Zep, Letta and Cognee have no automatic
+signal-driven deletion at all. MemoryOS ([EMNLP 2025][memoryos]) is the
+system that does. Its mid-term store holds sessions under a capacity and
+calls `evict_lfu` on overflow, which is `min(access_frequency)` and
+nothing else — no model consulted, no text read — where the frequency is
+incremented by `search_sessions` on every match. Every precondition the
+threat model needs, in published software we did not write.
+
+**The predicted attack fails, and the reason is the finding.** Eviction
+takes a minimum, so the obvious move is to leave the victim alone and
+raise its peers until it is lowest. It does not work: `add_session`
+registers a newcomer at frequency 0 and *then* evicts, so every arrival
+sits at the floor and evicts itself. **A memory retrieved even once
+cannot be removed by capacity pressure at all.**
+
+**What the mechanism does instead**, sweeping the victim over all six
+seeded memories:
+
+| victim's `access_frequency` at overflow | cases | evicted |
+| --- | --- | --- |
+| 0 (never retrieved) | 3 | **3 / 3** |
+| ≥ 1 (retrieved at least once) | 9 | **0 / 9** |
+
+Eviction tracks one bit exactly — `evicted ⟺ frequency == 0` — with no
+exceptions. A never-retrieved memory loses to a brand-new arrival that is
+*also* at 0, because `min` returns the first minimum in insertion order
+and the older entry comes first. So MemoryOS deletes the memory nobody
+has asked for yet in preference to the one that arrived a moment ago, and
+a single retrieval confers permanent immunity.
+
+That is the rare-but-critical case. An emergency contact or an allergy
+note is exactly the memory stored once, needed rarely, never consulted in
+between — and it is first out. This repo's own
+[honest caveats](#honest-caveats) name that cost for survival curation
+("starves protective and unused knowledge"), and darwin-memo answers it
+with pinning, which floors a pinned entry at zero rather than burying it.
+MemoryOS has no equivalent on this path.
+
+**The other direction: promotion is cheap.** Eviction cannot be driven by
+inflation, but MemoryOS has a second curation decision that can, and it
+runs the other way. When a session's heat crosses
+`H_PROFILE_UPDATE_THRESHOLD`, MemoryOS analyses that session and writes
+what it extracts into **long-term memory** — a tier capacity pressure
+never touches. Heat is `N_visit + L_interaction + R_recency`, so the cost
+is arithmetic:
+
+| self-queries | heat | |
+| --- | --- | --- |
+| 1 | 3.0 | |
+| 2 | 4.0 | |
+| **3** | **5.0** | **crosses threshold (5.0)** |
+
+**Three self-queries.** An adversary that gets any content into mid-term
+storage and then asks about it three times has the curator promote that
+content into the persistent tier — no delete call, no judge, no further
+writes. Denial of memory is the threat model's usual direction; this is
+its mirror, and it is the cheaper of the two. Measured here is the
+precondition (crossing the threshold), not the extraction itself, which
+is a model call and is not exercised.
+
+**What is not claimed.** An adversary able to dominate the retrieval
+channel would keep a chosen memory at zero and let the curator delete it
+in favour of the adversary's own fresh content. Demonstrated here is the
+second half: neglect kills, deterministically, and the curator selects
+the neglected. Manufacturing that neglect end to end against a live agent
+is not demonstrated.
+
+Caveats:
+
+- One store tier (`MidTermMemory`), one capacity policy, six memories.
+- Semantic cross-talk is visible in the results and is why the table is
+  keyed on the frequency each victim actually reached rather than on the
+  condition label: three "neglected" victims were incidentally matched by
+  a neighbour's query, landed at frequency 1, and survived.
+- The promotion path to long-term memory is not exercised; a memory
+  promoted before overflow is out of scope here.
+
+[memoryos]: https://arxiv.org/abs/2506.06326
+
 ## Curation-targeted attack: denial of memory
 
 ```
