@@ -521,3 +521,50 @@ def test_potentiation_measurement_is_reproducible_across_processes():
         "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
     )
     assert first == second, f"not reproducible:\n{first}\n{second}"
+
+
+def test_peak_normalisation_is_what_carries_the_attacker_margin():
+    """The counterfactual behind the causal claim in docs/threat-model.md.
+
+    Without this the claim "the mechanism is peak-normalisation" is an
+    inference from the arithmetic, not a measurement, and two other
+    explanations survive: that any usage signal hands the attacker a margin,
+    or that centrality alone does. Swapping ONLY the recall term's
+    denominator — population peak for a fixed cap, nothing else, centrality
+    left attacker-drivable on purpose — collapses the margin to zero while
+    potentiation still works. So it is the coupling between entries that is
+    exploitable, not usage as such.
+
+    Mutation: make `SaturatingImportance.scores` divide by the population
+    peak after all and the margin returns to 4, proving nothing.
+    """
+    from bench.potentiation import run_condition
+
+    attacked_peak = run_condition(
+        "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
+    )
+    attacked_flat_norm = run_condition(
+        "attacked",
+        "inert",
+        cycles=400,
+        upkeep=0.05,
+        attacker_queries=3,
+        recall_norm="saturating",
+    )
+
+    peak_margin = attacked_peak.poison_outlives_benign
+    saturating_margin = attacked_flat_norm.poison_outlives_benign
+    saturating_starve = attacked_flat_norm.poison_starve_cycle
+    assert peak_margin is not None and saturating_margin is not None
+    assert saturating_starve is not None, "nothing starved; the run is vacuous"
+
+    assert peak_margin >= 3, "the attack must work first"
+    assert saturating_margin == 0, (
+        "removing the peak coupling must remove the margin, or the mechanism "
+        f"is something else (margin {saturating_margin})"
+    )
+    # And it is a counterfactual, not a disabling: potentiation still buys the
+    # population a longer horizon, which is the thing the operator opted in for.
+    assert saturating_starve > 20, (
+        "saturating normalisation must not switch potentiation off"
+    )

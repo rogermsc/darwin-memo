@@ -25,7 +25,14 @@ project uses [SemVer](https://semver.org/).
   taken out of the benign entries' lifetime. Ceiling is exactly 2/3 importance
   (credit is the third the attacker cannot earn), and the margin is identical
   across all three attack classes because this path reads usage, never text.
-  Needs no model, no environment and no seed.
+  Needs no model, no environment and no seed. The mechanism is *measured*, not
+  inferred: `--recall-norm saturating` swaps the recall term's denominator (the
+  live population's peak for a fixed cap) and changes nothing else, and the
+  margin falls to 0 while the horizon stays at ×1.45 — with centrality left
+  attacker-drivable throughout. So the exploitable property is not that usage
+  is a retention signal but that the signal is *relative*, making one entry's
+  standing a function of every other entry's traffic. `SaturatingImportance` is
+  a measuring instrument wired into nothing, not a proposed fix.
 - `bench.swebench_cl.recall`: gold-file recall measurement for the real-task
   leg, needing no model, no docker and no evaluation harness — the question is
   whether the prompt contains the file the gold patch touches, not whether the

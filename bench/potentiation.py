@@ -34,6 +34,11 @@ Three conditions over one poisoned store, same corpus and same upkeep:
 - ``attacked``: the same potentiation, plus the attacker recalling its own
   poison each cycle. No writes, no settles, no filter crossed.
 
+``--recall-norm saturating`` re-runs all three against
+:class:`SaturatingImportance`, which changes one thing --- the recall term's
+denominator --- so that "peak-normalisation is the mechanism" is a measured
+claim rather than an inference from the arithmetic.
+
 No model, no environment and no task loop: nothing here mints or settles, so
 the only force acting on any entry is upkeep --- which is exactly the regime
 the ``inert`` attack class is defined by, and it isolates the mechanism from
@@ -61,11 +66,22 @@ from pathlib import Path
 
 from darwin_memo import MemoryStore
 from darwin_memo.organic.dynamics import OrganicMemory
+from darwin_memo.organic.importance import (
+    CENTRALITY_WEIGHT,
+    CREDIT_WEIGHT,
+    RECALL_WEIGHT,
+    SPAWN_ENERGY,
+    EarnedImportance,
+    clamp01,
+)
 
 from .fixtures import PROBES, poison_ids
 from .memsec import build_memsec_store
 
 CONDITIONS = ("flat", "honest", "attacked")
+# How the recall component is scaled. "peak" is what ships; "saturating" is
+# the counterfactual that tests whether peak-normalisation IS the mechanism.
+RECALL_NORMS = ("peak", "saturating")
 
 
 @dataclass(frozen=True)
@@ -110,13 +126,67 @@ def _honest_recalls(store: MemoryStore, organic: OrganicMemory) -> None:
             organic.recall(ranked[0][0].id)
 
 
+class SaturatingImportance(EarnedImportance):
+    """The counterfactual scorer: recalls saturate at a fixed count.
+
+    Not a proposal and not wired into anything --- it exists so the claim
+    "peak-normalisation is the mechanism" can be tested instead of reasoned.
+    The shipped scorer divides an entry's recall count by the live
+    population's PEAK, which couples every entry's score to every other's:
+    when the attacker asks for its own poison a hundred times, the honest
+    entries' recall term collapses toward zero without their traffic
+    changing at all. Dividing by a constant removes exactly that coupling
+    and changes nothing else --- same three components, same weights, same
+    relief curve, and centrality (already absolute, already
+    attacker-drivable) is left alone on purpose, because the point is to
+    isolate which of the two attacker-reachable terms carries the margin.
+    """
+
+    def __init__(self, cap: float = 10.0) -> None:
+        super().__init__()
+        self.cap = cap
+
+    def scores(
+        self, store: MemoryStore, centrality: dict[str, float] | None = None
+    ) -> dict[str, float]:
+        alive = store.alive()
+        if not alive:
+            return {}
+        centrality = centrality or {}
+        credits = {e.id: max(0.0, e.energy - SPAWN_ENERGY) for e in alive}
+        peak_credit = max(credits.values(), default=0.0)
+        return {
+            e.id: (
+                RECALL_WEIGHT * clamp01(self.recalls(e.id) / self.cap)
+                # Credit keeps the shipped peak-normalisation: the attacker
+                # cannot move it either way, so changing it would confound
+                # the comparison this class exists to make.
+                + CREDIT_WEIGHT
+                * (clamp01(credits[e.id] / peak_credit) if peak_credit > 0 else 0.0)
+                + CENTRALITY_WEIGHT * clamp01(centrality.get(e.id, 0.0))
+            )
+            for e in alive
+        }
+
+
 def run_condition(
-    condition: str, attack: str, cycles: int, upkeep: float, attacker_queries: int
+    condition: str,
+    attack: str,
+    cycles: int,
+    upkeep: float,
+    attacker_queries: int,
+    recall_norm: str = "peak",
 ) -> ConditionResult:
     if condition not in CONDITIONS:
         raise ValueError(f"unknown condition {condition!r}; expected {CONDITIONS}")
+    if recall_norm not in RECALL_NORMS:
+        raise ValueError(
+            f"unknown recall_norm {recall_norm!r}; expected {RECALL_NORMS}"
+        )
     store = build_memsec_store(attack, upkeep=upkeep)
     organic = OrganicMemory(store)
+    if recall_norm == "saturating":
+        organic.earned = SaturatingImportance()
     poison = poison_ids(store)
     poison_starve: int | None = None
     benign_starve: int | None = None
@@ -210,11 +280,28 @@ def main() -> int:
         default=1,
         help="recalls the attacker spends per poisoned entry per cycle",
     )
+    parser.add_argument(
+        "--recall-norm",
+        choices=RECALL_NORMS,
+        default="peak",
+        help=(
+            "how the recall component scales: 'peak' is what ships; "
+            "'saturating' is the counterfactual that tests whether "
+            "peak-normalisation is what carries the attacker's margin"
+        ),
+    )
     parser.add_argument("--out", default="")
     args = parser.parse_args()
 
     rows = [
-        run_condition(c, args.attack, args.cycles, args.upkeep, args.attacker_queries)
+        run_condition(
+            c,
+            args.attack,
+            args.cycles,
+            args.upkeep,
+            args.attacker_queries,
+            args.recall_norm,
+        )
         for c in CONDITIONS
     ]
     report = {
@@ -222,6 +309,7 @@ def main() -> int:
         "cycles": args.cycles,
         "upkeep": args.upkeep,
         "attacker_queries": args.attacker_queries,
+        "recall_norm": args.recall_norm,
         "conditions": [asdict(r) for r in rows],
         **summarise(rows),
     }

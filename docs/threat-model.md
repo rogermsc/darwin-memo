@@ -239,6 +239,17 @@ subtracted from the benign entries rather than added to its own. The
 margin is identical for the strong-signal payload and the inert one:
 this path reads usage and never text, so no content filter sits on it.
 
+That mechanism is measured, not inferred. `--recall-norm saturating`
+replaces the recall term's denominator — population peak for a fixed cap
+— and changes nothing else; the margin falls to 0 while the horizon
+stays at ×1.45. Centrality is left attacker-drivable in that run and
+produces no margin on its own. So the exploitable property is not that
+usage is a retention signal, but that the signal is *relative*: one
+entry's standing is a function of every other entry's traffic. Note
+what this rules out as a defence — the attack saturates at three recalls
+per poisoned entry per cycle and one already buys three of the four
+cycles, so there is no query budget an operator can price it out of.
+
 Three things follow. First, the write channel is the host agent's
 concern, not this library's: if your agent writes memory from
 untrusted text without provenance, darwin-memo inherits whatever that

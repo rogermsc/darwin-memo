@@ -738,6 +738,35 @@ arithmetic predicts. The margin is the same for the strong-signal payload
 and the inert one (4–5 cycles across all three attack classes), because
 this path reads usage and never text: no content filter sits on it.
 
+**The mechanism, tested rather than reasoned.** "Peak-normalisation causes
+this" is a causal claim, so it gets a counterfactual:
+
+```
+python -m bench.potentiation --attack inert --attacker-queries 3 \
+    --recall-norm saturating
+```
+
+That swaps *only* the recall term's denominator — the live population's
+peak for a fixed cap — and changes nothing else. Centrality is left
+attacker-drivable on purpose, and credit keeps its peak-normalisation
+because the attacker cannot move it either way.
+
+| recall term | horizon (attacked) | poison outlives benign |
+| --- | --- | --- |
+| `peak` (ships) | ×1.45 | **4** |
+| `saturating` | ×1.45 | **0** |
+
+The margin disappears and potentiation still works. So the exploitable
+property is not "usage is a retention signal" — it is that the signal is
+*relative*, which makes one entry's score a function of every other
+entry's traffic. Centrality is attacker-drivable too and produces no
+margin by itself, because it is absolute.
+
+`SaturatingImportance` lives in `bench/potentiation.py` and is wired into
+nothing: it is a measuring instrument, not a proposed fix. Whether the
+shipped scorer should change is a design decision, and it would move
+retrieval ranking as well as retention.
+
 Caveats:
 
 - One store, one corpus, three poisoned entries. The margin is a
