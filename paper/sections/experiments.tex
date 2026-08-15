@@ -243,6 +243,56 @@ starves the poison $18$ cycles \emph{before} the benign entries. The
 margin is the adversary's doing, and the system charges flat upkeep by
 default for that reason.
 
+\subsection{Does the threat transfer? A system we did not write}
+\label{sec:mem0}
+Every result above runs on environments and mechanisms we built, which
+is the standing objection to all of them, and more seeds cannot answer
+it. So we ran the curation-targeted attack against \textsc{Mem0}, a
+widely deployed memory system whose curation rule we had no hand in.
+Mem0's curator is an LLM that, on each write, retrieves related existing
+memories and emits ADD / UPDATE / DELETE / NONE against them. The
+evidence it decides on is incoming text, so an adversary with access to
+any of the untrusted-content channels an agent reads --- a tool result,
+a retrieved page, a shared document --- can in principle drive DELETE
+against memories it dislikes while persisting nothing of its own. That
+is our threat model on somebody else's mechanism.
+
+We seed eight mundane operational facts, then issue eight turns that
+assert those facts are stale, superseded or mistaken, against a control
+of eight neutral facts matched in count and register. Curator:
+\texttt{glm-5.2}; embeddings and vector index local.
+
+\textbf{The attack does not transfer, and we report that as the
+result.} Across three trials the curator issued \emph{zero} DELETE
+operations, and all eight seeded memories survived with their text
+unmodified --- identical to the control on every measure of damage. What
+the adversary achieved instead was the opposite of denial of memory:
+all eight of its utterances persisted as new memories, so the store ends
+holding each fact \emph{and} an authoritative-sounding negation of it
+(``User is allergic to peanuts'' beside ``User's previously recorded
+peanut allergy is out of date''). That is content poisoning, which an
+existing literature already covers, and it is not what we set out to
+measure.
+
+The boundary this exposes is worth more than the transfer would have
+been. Our attack presumes a curator that acts \emph{mechanically} on a
+signal: a strike counter cannot decline to count, and an energy ledger
+cannot decline to debit. An LLM curator can, and here it did --- it
+treated an unsupported retraction as a claim to be recorded rather than
+an instruction to be obeyed. So judgment in the curator, which
+\S\ref{sec:intro} criticises as expensive and gameable, buys a defence
+that mechanical curation does not have. We think both halves are true
+and the honest statement is a trade rather than a ranking: a judge costs
+a model call per decision and can be talked into things, and it can also
+refuse. Our attack is a threat to the mechanical end of that spectrum,
+where our own mechanism sits.
+
+Three caveats bound this firmly. It is one system, one curator model,
+and one family of attack phrasings; a negative result from a single
+probe design is evidence that \emph{this probe} failed, not that the
+surface is safe. A weaker or differently-prompted curator may well
+delete, and Mem0's DELETE path remains reachable by construction.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
