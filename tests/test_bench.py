@@ -568,3 +568,53 @@ def test_peak_normalisation_is_what_carries_the_attacker_margin():
     assert saturating_starve > 20, (
         "saturating normalisation must not switch potentiation off"
     )
+
+
+def test_potentiation_sweep_holds_across_corpora_and_upkeeps():
+    """The n=1 caveat, discharged. Four claims, each of which the single-store
+    run could not make and one of which it got wrong.
+
+    1. Flat upkeep never favours the poison, in any cell. That is the shipped
+       default and the whole safety claim.
+    2. The attacker gains in EVERY peak-normalised cell — the lever is a
+       property of the mechanism, not of one fixture at one tuning.
+    3. The margin is a roughly constant FRACTION of the starvation horizon,
+       not a fixed cycle count. Absolute cycles are upkeep artefacts.
+    4. Under saturating normalisation the margin never exceeds one cycle,
+       which is the measurement floor. The single-store run reported "removes
+       the margin entirely"; that was true of its cell and too strong in
+       general.
+
+    Mutation: report absolute margins instead of fractions and (2) looks like a
+    scale-dependent effect that fades at high upkeep, when it is the horizon
+    fading and not the attack.
+    """
+    from bench.potentiation import sweep
+
+    report = sweep(
+        cycles=200, attacker_queries=3, upkeeps=[0.05, 0.2], attacks=["inert"]
+    )
+    cells = report["cells"]
+    assert len(cells) == 8, f"grid shape changed: {len(cells)} cells"
+    assert {c["family"] for c in cells} == {"memsec", "testsuite"}
+
+    assert report["flat_cells_gained"] == 0, (
+        "flat upkeep favoured the poison somewhere; the shipped default is "
+        "the control this whole measurement is read against"
+    )
+    assert report["peak_cells_attacker_gained"] == report["peak_cells"], (
+        "the attack must work in every peak cell, or it is a fixture artefact"
+    )
+    peak_fractions = [
+        c["attacked_margin_fraction"] for c in cells if c["recall_norm"] == "peak"
+    ]
+    assert all(0.05 <= f <= 0.30 for f in peak_fractions), (
+        f"margin fraction left its measured band: {peak_fractions}"
+    )
+    saturating_margins = [
+        c["attacked_margin"] for c in cells if c["recall_norm"] == "saturating"
+    ]
+    assert all(m <= 1 for m in saturating_margins), (
+        "saturating normalisation must hold the margin at or below the "
+        f"one-cycle measurement floor: {saturating_margins}"
+    )
