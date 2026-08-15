@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": -0.05000074088870249,
+      "energy": -0.10000074088870249,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 23,
@@ -20,28 +20,13 @@
       "id": "053a99cf0a4c"
     },
     {
-      "question": "Is it safe to add new required metric keys that only some suites emit?",
-      "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
-      "kind": "explicit",
-      "sources": [
-        "noisy-suite-review"
-      ],
-      "energy": 0.0430884933335359,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 21,
-      "uses": 4,
-      "lineage": [],
-      "id": "52867957f4d5"
-    },
-    {
       "question": "Can multiple workflow jobs settle the memory store in parallel?",
       "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
       "kind": "explicit",
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 0.16634205495371618,
+      "energy": 0.11634205495371618,
       "born_cycle": 0,
       "recorded_ts": "",
       "last_used_cycle": 20,
@@ -140,10 +125,25 @@
       "uses": 3,
       "lineage": [],
       "id": "74a2ba34e5ab"
+    },
+    {
+      "question": "Is it safe to add new required metric keys that only some suites emit?",
+      "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": -0.006911506666464104,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 21,
+      "uses": 4,
+      "lineage": [],
+      "id": "52867957f4d5"
     }
   ],
   "ledger": {
-    "tick_count": 57,
+    "tick_count": 58,
     "pending": [
       {
         "query": "Are stub-executor benchmark arms safe to validate before Docker eval images run?",
@@ -212,6 +212,15 @@
           "credit": 0.6,
           "delta": 31.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27442652667"
+        },
+        {
+          "tick": 58,
+          "ts": "2026-08-15T23:26:24+00:00",
+          "text": "died at tick 58 (starved: never earned its upkeep; uses=4, last_used_tick=21)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 4,
+          "last_used_tick": 21
         }
       ],
       "7e40e33bc60d": [
