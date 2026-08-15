@@ -6,6 +6,24 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `tests/test_paper_matches_evidence.py`: the paper's headline table is now
+  checked against the committed runs on every push. `paper/reproduce.md`
+  claims *"No number in the report was produced outside this committed
+  evidence"* — the repo's strongest claim about itself, and nothing enforced
+  it, in a project that has already shipped one number that did not trace to
+  its source (a detector TPR/FPR pair that reached three sections through a
+  research note and could not be reproduced from the paper it cited). The
+  guard regenerates the aggregate with the same `bench.report` machinery the
+  reproduction instructions use and checks every cum-delta, kill-rate and
+  final-population cell of `tab:headline` against it, across both source files
+  (`salience_matched` lives in its own suite so `headline.json` stays
+  byte-stable). **All 8 rows currently agree exactly** — this codifies a
+  property the repo already had rather than fixing a defect. Includes a
+  guard-on-the-guard: if the table is restructured so the parser matches
+  nothing, that fails loudly instead of passing vacuously.
+
 ### Fixed
 
 - **`docs/benchmarks.md` was two legs out of date, in the direction of
