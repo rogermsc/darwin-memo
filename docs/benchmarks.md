@@ -1840,12 +1840,18 @@ zero-dependency core.
   judges also **split** — the differentiating claim holds for
   llama3.2:3b and fails for qwen3:4b — so read that section as
   direction and effect size, not support.
-- The real-task leg is a **null**, and doubly bounded: the
-  pre-registered second-half metric has a shared floor (every arm,
-  including `memory_off`, resolves nothing from sequence position 17
-  on) and 9 of 41 tasks never showed the model the file to patch. It
-  says memory did not help there; it is not evidence that memory does
-  not help.
+- The real-task leg is a **null**, and the two matrices carry very
+  different weight. The main one (`django`, `sympy`, 50 tasks per cell,
+  300 evaluated tasks per arm) is properly powered and shows no floor:
+  per-position resolve rates fluctuate across the full length and the
+  first-to-second-half change is small for every arm (−0.03 to −0.11).
+  The null rests on that. The two short **pilot** sequences do not
+  support it — every arm including `memory_off` resolves nothing from
+  position 17 on, so their second half has a floor no policy can beat,
+  and 9 of their 41 tasks never showed the model the file to patch.
+  Read the pilot as a non-measurement and the long matrix as the
+  measurement. Either way it says memory did not help *here*; it is not
+  evidence that memory does not help.
 - The query-only retention result is measured on two of this repo's own
   fixture corpora over four upkeeps, which is a grid rather than a
   population of deployments.

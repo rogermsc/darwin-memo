@@ -6,6 +6,37 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A claim I added in #53 overgeneralised, and the correction makes the paper
+  stronger.** That text said the pre-registered second-half metric "has a
+  shared floor" and that "the leg could not have detected an effect… even had
+  one been present". True of the two short **pilot** sequences (`pytest` 19
+  tasks, `astropy` 22), where every arm including `memory_off` resolves nothing
+  from position 17 on. **Not true of the main matrix**, which is where the null
+  actually rests: `django` and `sympy` at 50 tasks per cell, 300 evaluated
+  tasks per arm, per-position resolve rates fluctuating across the full length
+  with no collapse, and a first-to-second-half change of only −0.03 to −0.11
+  for every arm. There the comparison is properly powered and properly
+  floored — `memory_off` 0.360, `memory_on` 0.350, `random_matched` 0.350,
+  curve difference +0.027 [−0.020, +0.073], p = 0.50. The null is a
+  measurement on the long matrix and a non-measurement on the pilot;
+  `limitations.tex` and the caveat register now say which is which.
+
+### Changed
+
+- **The query-only retention attack is promoted from a paragraph to a
+  contribution** (`\S sec:potentiation`, its own subsection following the
+  denial-of-memory result, plus a contribution entry and an abstract
+  sentence). It closes a second named-but-unmeasured gap: the long-term memory
+  security survey (arXiv:2604.16548) observes that "retention schemes based on
+  access frequency or recency may inadvertently keep adversarial entries alive
+  while discarding legitimate ones" and stops there. The measurement —
+  attacker owns ~13% of store lifetime, 16/16 potentiated cells, 0/32 under
+  shipped flat upkeep, with the relative-vs-usage cause isolated by
+  counterfactual — was already in the repo but buried in the headline
+  discussion where no reader would find it.
+
 ### Added
 
 - `tests/test_paper_matches_evidence.py`: the paper's headline table is now

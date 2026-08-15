@@ -61,49 +61,7 @@ winning queries it is \emph{consulted}, which raises both its recency and
 its frequency-importance, so a usage-based salience score actively shields
 it. A score that rewards use cannot distinguish ``used'' from ``useful'';
 only the outcome-grounded ledger can, and it beats salience on all ten
-seeds ($+15.3$M, Holm $p = 0.0039$). That result has a sharper form we
-did not anticipate. A usage signal is not only a poor proxy for
-usefulness; when it is \emph{relative}, it is a proxy the attacker
-controls. A usage-based retention variant in our codebase slows an
-entry's upkeep in proportion to how often it is recalled and how central
-it is in an associative graph, and both move on query alone---so a
-query-only adversary in the sense of \citet{dong2025minja}, one who
-never writes and never settles, drives them without crossing any channel
-our threat model names. Under flat upkeep the dormant poison starves on
-exactly the benign schedule (margin $0$ cycles); under the usage-based
-variant with the same attacker it outlives every benign entry by $4$,
-and the margin is identical for the loudest payload and the most inert
-one, because this path reads usage and never text.
-
-Because the measurement is deterministic and needs no model, we can run
-it as a grid rather than an anecdote: two independent corpora $\times$
-four upkeeps $\times$ two normalisations, $32$ cells. Flat upkeep
-favours the poison in $0$ of $32$; the attacker gains in $16$ of $16$
-potentiated cells, on both corpora and all three attack classes. The
-durable quantity is a fraction rather than a cycle count---the absolute
-margin runs $8$--$10$ cycles at upkeep $0.02$ and $1$ cycle at $0.2$,
-but $0.11$--$0.17$ of the starvation horizon throughout. A query-only
-adversary owns roughly the last $13\%$ of the store's life, at whatever
-timescale upkeep sets.
-
-The cause is normalisation against the live population, which we
-establish by counterfactual rather than by argument: replacing the
-recall term's denominator---the population peak, for a fixed cap---while
-leaving graph centrality fully attacker-driven collapses the margin
-(median fraction $0.133 \rightarrow 0.050$) and leaves the starvation
-horizon intact. It does not quite abolish it: $11$ of $16$ cells retain
-a margin of \emph{exactly one cycle}, the smallest observable value, and
-that residual tracks $1/\text{horizon}$ across the grid, so we report
-peak-normalisation as the dominant contributor rather than the sole
-cause. Neither usage as such nor centrality carries the attack. What
-does is that the score is a \emph{standing}: one entry's value is a
-function of every other entry's traffic, so the adversary takes lifetime
-from the benign population rather than buying its own, and no query
-budget prices it out. Potentiation is not inherently poison-friendly
-either---on the second corpus, potentiation \emph{without} an attacker
-starves the poison $18$ cycles \emph{before} the benign entries. The
-margin is the adversary's doing, and the system charges flat upkeep by
-default for that reason.
+seeds ($+15.3$M, Holm $p = 0.0039$). That result has a sharper form, and it is a second attack rather than a footnote to this one: \S\ref{sec:potentiation}.
 Third, \textbf{the honest tie}: on
 this deterministic world the one-line \texttt{evict\_on\_negative}
 heuristic matches the full ledger on outcomes ($+12.78$ vs $+12.59$M, an
@@ -231,6 +189,59 @@ keep\_everything      & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{A retention attack that never writes}
+\label{sec:potentiation}
+The attack above corrupts the settlement signal. A second, weaker
+adversary needs even less: it never writes, never settles, and only
+asks questions. \citet{lin2026memsurvey} name the exposure without
+measuring it --- ``retention schemes based on access frequency or
+recency may inadvertently keep adversarial entries alive while
+discarding legitimate ones'' --- and this section makes it
+quantitative on a usage-based retention variant in our own codebase,
+which is shipped disabled precisely because of what follows.
+
+A usage signal is not only a poor proxy for usefulness; when it is
+\emph{relative}, it is a proxy the attacker controls. The variant slows an
+entry's upkeep in proportion to how often it is recalled and how central
+it is in an associative graph, and both move on query alone---so a
+query-only adversary in the sense of \citet{dong2025minja}, one who
+never writes and never settles, drives them without crossing any channel
+our threat model names. Under flat upkeep the dormant poison starves on
+exactly the benign schedule (margin $0$ cycles); under the usage-based
+variant with the same attacker it outlives every benign entry by $4$,
+and the margin is identical for the loudest payload and the most inert
+one, because this path reads usage and never text.
+
+Because the measurement is deterministic and needs no model, we can run
+it as a grid rather than an anecdote: two independent corpora $\times$
+four upkeeps $\times$ two normalisations, $32$ cells. Flat upkeep
+favours the poison in $0$ of $32$; the attacker gains in $16$ of $16$
+potentiated cells, on both corpora and all three attack classes. The
+durable quantity is a fraction rather than a cycle count---the absolute
+margin runs $8$--$10$ cycles at upkeep $0.02$ and $1$ cycle at $0.2$,
+but $0.11$--$0.17$ of the starvation horizon throughout. A query-only
+adversary owns roughly the last $13\%$ of the store's life, at whatever
+timescale upkeep sets.
+
+The cause is normalisation against the live population, which we
+establish by counterfactual rather than by argument: replacing the
+recall term's denominator---the population peak, for a fixed cap---while
+leaving graph centrality fully attacker-driven collapses the margin
+(median fraction $0.133 \rightarrow 0.050$) and leaves the starvation
+horizon intact. It does not quite abolish it: $11$ of $16$ cells retain
+a margin of \emph{exactly one cycle}, the smallest observable value, and
+that residual tracks $1/\text{horizon}$ across the grid, so we report
+peak-normalisation as the dominant contributor rather than the sole
+cause. Neither usage as such nor centrality carries the attack. What
+does is that the score is a \emph{standing}: one entry's value is a
+function of every other entry's traffic, so the adversary takes lifetime
+from the benign population rather than buying its own, and no query
+budget prices it out. Potentiation is not inherently poison-friendly
+either---on the second corpus, potentiation \emph{without} an attacker
+starves the poison $18$ cycles \emph{before} the benign entries. The
+margin is the adversary's doing, and the system charges flat upkeep by
+default for that reason.
 
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}

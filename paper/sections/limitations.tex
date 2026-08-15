@@ -191,19 +191,31 @@ the remaining $32$ tasks still produced no separation. What we have not
 run is the oracle arm end to end --- the recall measurement says the
 files can be reached, not what the arms score once they are.
 
-A second bound, independent of the first and visible without any new
-run, sits in the shape of the pre-registered metric. Our headline cell
-was the second-half-minus-first-half improvement, and per sequence
-position every arm resolves every task in positions $1$--$4$ and
-\emph{nothing at all} from position $17$ onward --- including
-\texttt{memory\_off}, which carries no lessons. The curriculum ramps
-monotonically into a region no arm solves, so the second half has a
-floor of zero that no curation policy can improve on, and all five arms
-post a strongly negative curve ($-0.535$ to $-0.606$). The metric was
-designed on the assumption that the second half was winnable. It was
-not, which is a defect in our experimental design rather than a finding
-about memory, and it means the leg could not have detected an effect of
-the size we were looking for even had one been present.
+A second bound applies to the \emph{pilot} sequences specifically, and
+it is worth separating from the leg as a whole because the two carry
+very different weight. On the two short pilot sequences (\texttt{pytest}
+at $19$ tasks, \texttt{astropy} at $22$), per sequence position every
+arm resolves every task in positions $1$--$4$ and \emph{nothing at all}
+from position $17$ onward --- including \texttt{memory\_off}, which
+carries no lessons. That curriculum ramps monotonically into a region no
+arm solves, so its second half has a floor of zero that no curation
+policy can improve on, and all five arms post a strongly negative curve
+($-0.535$ to $-0.606$). On those two sequences the pre-registered
+second-half metric could not have detected an effect had one been
+present, and we do not read them as evidence about memory.
+
+The main matrix does not share that defect, which is why the null rests
+on it. The $50$-task \texttt{django} and \texttt{sympy} sequences run
+$300$ evaluated tasks per arm, their per-position resolve rates
+fluctuate across the full length rather than collapsing (positions in
+the forties still resolve at $0.5$--$1.0$), and the first-to-second-half
+change is small for every arm ($-0.03$ to $-0.11$) rather than
+catastrophic. There the comparison is properly powered and properly
+floored: \texttt{memory\_off} $0.360$, \texttt{memory\_on} $0.350$,
+\texttt{random\_matched} $0.350$, curve difference $+0.027$
+$[-0.020, +0.073]$, $p = 0.50$. The null is a measurement on that
+matrix, and a non-measurement on the pilot; conflating the two would
+either overstate the evidence or discard it, and both would be wrong.
 
 \paragraph{The filter control is a reconstruction.}
 The write-time detector in \S\ref{sec:memsec} is a keyword and
