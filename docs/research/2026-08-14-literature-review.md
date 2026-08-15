@@ -140,7 +140,7 @@ forensic signatures and MAGE. This review adds the attack-side literature our
 
 | Work | Why it belongs in our related work |
 |---|---|
-| **Dong et al., "Memory injection attacks on LLM agents via query-only interaction", NeurIPS 2025** (MINJA) | **The gap in our threat model.** `docs/threat-model.md` trusts the `settle` caller completely. MINJA needs no write access at all — it reaches memory through ordinary queries. Our stated boundary ("a settler who controls enough settlements controls the population") does not cover an attacker who never settles. |
+| **Dong et al., "Memory injection attacks on LLM agents via query-only interaction", NeurIPS 2025** (MINJA) | **The gap in our threat model.** `docs/threat-model.md` trusts the `settle` caller completely. MINJA needs no write access at all — it reaches memory through ordinary queries. Our stated boundary ("a settler who controls enough settlements controls the population") does not cover an attacker who never settles. **Since measured** (`bench/potentiation.py`): the attacker cannot author lesson text here, but under opt-in potentiation it can still buy its poison a 4-cycle survival margin over every benign entry, because earned importance is fed by recall count and graph centrality and both move on query alone. |
 | **Chen et al., "AgentPoison: Red-teaming LLM agents via poisoning memory or knowledge bases", NeurIPS 2024** | The canonical agent-memory poisoning attack; our paper cites no attack paper older than 2026, which reads as a literature gap rather than a scope choice. |
 | **Zou et al., "Poison once, exploit forever: Environment-injected memory poisoning attacks on web agents", 2604.02623** | Environment-injected poisoning — the closest published analogue to our environment-mediated settlement. |
 | **Xu et al., "From storage to steering: Memory control flow attacks on LLM agents", 2026** | Attacks the control flow rather than the content — a class our content-blind selection may be structurally immune to, which is worth claiming only if we cite it. |
@@ -321,5 +321,17 @@ attacker-controlled string that reaches an entry is `outcome.detail`, which is
 the adversarial-settler channel the threat model already covers. A faithful
 MINJA analogue needs a host whose write channel summarises *conversation* into
 memory — which is exactly why MPBench runs on OpenClaw and HERMES rather than on
-a synthetic environment, and why our security leg belongs on the integration
+a synthetic environment, and why the *injection* leg belongs on the integration
 surface (MCP into those hosts) rather than in `bench/`.
+
+**Correction, added when the next leg was built.** The paragraph above is sound
+about injection and wrong about the conclusion it drew from it: we generalised
+"the attacker cannot author lesson text" into "the security leg is not
+expressible here", and it is. An attacker who cannot write can still attack
+*retention*. `bench/potentiation.py` does exactly that against the organic
+layer's opt-in potentiation: earned importance is fed by recall count and by
+graph centrality, both of which move on query alone, so a query-only adversary
+buys its poison a 4-cycle margin over every benign entry without touching a
+write path. The lesson generalises past this repo — when one channel is closed,
+enumerate what the attacker can still move through the channels that stay open,
+rather than concluding the threat class is out of scope.
