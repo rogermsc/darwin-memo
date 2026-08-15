@@ -6,6 +6,43 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`bench.external.mem0_curation_attack`: the curation-targeted attack run
+  against Mem0, a memory system this project did not write — and it does not
+  transfer.** Every other result in this repo runs on environments and
+  mechanisms we built, which is the standing objection to all of them and one
+  more seeds cannot answer. Mem0's curator is an LLM emitting
+  ADD/UPDATE/DELETE/NONE against existing memories on every write, so the
+  threat model applies by construction. Three trials with `glm-5.2` as
+  curator: **zero DELETE operations, all eight seeded memories alive with text
+  unmodified, identical to control on every measure of damage**
+  (`benign_memory_lost_to_attack: 0.0`). What the adversary got instead is the
+  inverse of denial of memory — all eight of its utterances persisted, leaving
+  the store holding each fact *and* an authoritative-sounding negation of it,
+  which is content poisoning and somebody else's literature.
+  The boundary is worth more than the transfer would have been: this attack
+  presumes a curator that acts *mechanically* on a signal (a strike counter
+  cannot decline to count; an energy ledger cannot decline to debit), and an
+  LLM curator can decline — it treated an unsupported retraction as a claim to
+  record rather than an instruction to obey. Judgment in the curator, which
+  this project criticises elsewhere as expensive and gameable, buys a defence
+  mechanical curation does not have, and our own mechanism sits at the
+  mechanical end. Reported in `\S sec:mem0` as a trade rather than a ranking.
+  One system, one curator model, one phrasing family — a negative result from a
+  single probe is evidence that *this probe* failed, not that the surface is
+  safe. Opt-in, never CI; local embedder and vector index.
+  **A second curator locates the boundary properly.** Repeating it with
+  `llama3.2:3b` gives the same headline — zero deletions, everything retained —
+  for the opposite reason: that curator never curates coherently. It stored one
+  benign rule three times and another twice, merged two unrelated facts into a
+  single memory, and wrote several of the adversary's imperatives in verbatim,
+  ending at 22 memories from 15 inputs. Zero deletions there is *incapacity*,
+  not restraint, and the store is already degraded. So the defence is not a
+  property of LLM curation as such — which one model would have let us claim —
+  but of a curator capable enough to understand the retraction and decline it.
+  A weak curator buys neither the defence nor a clean store.
+
 ### Fixed
 
 - **A claim I added in #53 overgeneralised, and the correction makes the paper
