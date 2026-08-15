@@ -743,9 +743,11 @@ Caveats:
 - One store, one corpus, three poisoned entries. The margin is a
   demonstration that the lever exists and roughly what it is worth, not a
   rate over a population of stores.
-- The attack saturates at three recalls per poisoned entry per cycle;
-  spending more buys nothing, because the attacker is already the
-  population's recall peak and normalisation caps there.
+- The attack is cheap and it saturates early. One recall per poisoned
+  entry per cycle — the CLI default — already buys 3 of the 4 cycles, and
+  spending more than three buys nothing at all, because the attacker is
+  already the population's recall peak and normalisation caps there. There
+  is no budget an operator can price this out of.
 - `flat` is the shipped default. Nothing in this table is a defect in what
   darwin-memo installs; it prices a feature an operator may switch on.
 
