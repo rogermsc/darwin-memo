@@ -8,6 +8,28 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **A claim about a named third-party system, shipped in #59, was wrong — and
+  it came through a secondary source.** The ecosystem paragraph said Cognee's
+  forget operation "leaves the memory retrievable under a forced probe". That
+  came from a blog testing a *conversational* forget request. Cognee's actual
+  `cognee/api/v1/forget/forget.py` is, in its own words, "a unified deletion
+  command that replaces the separate prune/delete" paths, operating by item, by
+  dataset, or across everything — it really deletes. This is the exact failure
+  mode the repo documented once before (a detector TPR/FPR pair that reached
+  three paper sections through a research note and could not be reproduced from
+  the paper it cited), repeated by me a day later.
+  All three claims are now read from installed sources instead:
+  Graphiti's contradiction path sets `expired_at`/`invalid_at` and returns the
+  edge as invalidated (`utils/maintenance/edge_operations.py`), never deleting
+  automatically, though explicit `DETACH DELETE` APIs exist for a caller;
+  Letta's `summarize_messages_inplace` computes a cutoff from token counts and
+  summarises in-context messages, leaving the store intact; Cognee deletes but
+  only when a caller invokes it. The paragraph's *conclusion* is unchanged —
+  none reaches deletion automatically, by a rule, from a signal — but one of
+  its three reasons was false and is now correct.
+
+### Fixed
+
 - **The paper shipped a dangling cross-reference.** `related.tex` referenced
   `\S\ref{sec:threat}`, a label that exists in no `.tex` file, so the built PDF
   carried a literal `??` on page 6. LaTeX reports this as a warning and still

@@ -326,18 +326,27 @@ construction.
 
 \paragraph{Which deployed systems have the surface at all.}
 The negative result raises a sharper question --- where does this threat
-model apply? --- so we checked what the major deployed agent-memory
-systems do when a memory should stop being used. Zep's temporal
-knowledge graph does not delete: an outdated fact has its edge marked
-invalid and is kept for historical queries. Letta evicts from the
-context window and demotes to archival recall rather than removing
-anything permanently. Cognee exposes a forget operation whose observed
-behaviour leaves the memory retrievable under a forced probe. Mem0 does
-delete, but only through the judgment we just measured declining to.
+model apply? --- so we read what the major deployed agent-memory systems
+do when a memory should stop being used, from their sources rather than
+their documentation. Graphiti's contradiction-resolution path sets
+\texttt{expired\_at} and \texttt{invalid\_at} on the superseded edge and
+returns it as invalidated; the automatic path never deletes, though
+explicit \texttt{DETACH DELETE} APIs exist for a caller who asks. Letta
+compacts the context window: a cutoff is computed from token counts and
+the messages below it are summarised in place, leaving the message store
+itself intact. Cognee's \texttt{forget} is a genuine unified deletion
+command --- by item, by dataset, or everything --- but it is invoked by
+a caller, not reached by a curator weighing evidence. Mem0 does delete
+through its curator, which is the judgment we just measured declining.
 
-None of them performs \emph{outcome-driven mechanical} deletion, which
-is the design a curation-targeted attack needs: a curator that removes
-entries, and that decides on a signal rather than on a judgment. Our
+So deletion is not absent from these systems; what is absent is deletion
+reached \emph{automatically, by a rule, from a signal}. Graphiti and
+Letta decline to remove at all on their automatic paths, Cognee removes
+only when a caller says so, and Mem0 removes only when a model agrees.
+None performs \emph{outcome-driven mechanical} deletion, which is the
+design a curation-targeted attack needs: a curator that removes entries,
+and that decides on a signal rather than on a judgment or an
+instruction. Our
 threat model is therefore forward-looking with respect to today's
 ecosystem rather than a vulnerability report against shipping software,
 and we would rather say so than imply an exploit we have not
