@@ -134,3 +134,44 @@ def test_headline_final_population_matches_committed_runs(arm: str) -> None:
     assert printed == pytest.approx(measured, abs=0.51), (
         f"{arm}: paper says pop {printed}, committed runs say {measured}"
     )
+
+
+# The caption's significance claim, which the cell checks above do not cover:
+# "Survival's wins over keep/random/recency/ttl/salience are all 10/0/0,
+# Holm-adjusted p <= 0.014". Four of those five arms live in headline.json and
+# salience_matched in salience.json, and Holm adjusts across the full grid of
+# comparisons in one call -- so each file must be tested in the call that
+# actually produced the printed number, not merged into one grid that would
+# adjust over a different family and change every p.
+CAPTION_CLAIM = {
+    "headline.json": ("keep_everything", "random_matched", "recency", "ttl"),
+    "salience.json": ("salience_matched",),
+}
+CAPTION_MAX_HOLM = 0.014
+
+
+@pytest.mark.parametrize(
+    ("source", "opponent"),
+    [(src, arm) for src, arms in CAPTION_CLAIM.items() for arm in arms],
+)
+def test_caption_significance_claim_holds(source: str, opponent: str) -> None:
+    """Mutation: regenerate a suite so one comparison slips to 9/1/0 or its
+    Holm-adjusted p crosses 0.014, and the caption keeps asserting a sweep
+    that the evidence no longer supports. The cell tests above would not
+    notice: every printed cell can be correct while the claim about them is
+    stale.
+    """
+    from bench.report import significance
+
+    runs = json.loads((RESULTS / source).read_text())["runs"]
+    rows = {r["vs"]: r for r in significance(runs, baseline="survival")}
+    assert opponent in rows, f"{opponent} not compared in {source}: {sorted(rows)}"
+    row = rows[opponent]
+    assert row["W/T/L"] == "10/0/0", (
+        f"caption says survival beats {opponent} 10/0/0; evidence says {row['W/T/L']}"
+    )
+    holm = float(row["p (holm)"])
+    assert holm <= CAPTION_MAX_HOLM, (
+        f"caption says Holm-adjusted p <= {CAPTION_MAX_HOLM} for {opponent}; "
+        f"evidence says {holm}"
+    )

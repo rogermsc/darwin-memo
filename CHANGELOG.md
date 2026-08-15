@@ -22,7 +22,14 @@ project uses [SemVer](https://semver.org/).
   byte-stable). **All 8 rows currently agree exactly** — this codifies a
   property the repo already had rather than fixing a defect. Includes a
   guard-on-the-guard: if the table is restructured so the parser matches
-  nothing, that fails loudly instead of passing vacuously.
+  nothing, that fails loudly instead of passing vacuously. The table's
+  *caption* is covered too — "wins over keep/random/recency/ttl/salience are
+  all 10/0/0, Holm-adjusted p ≤ 0.014" is a claim the cell checks cannot
+  reach, since every printed cell can be right while the claim about them
+  goes stale. Each file is tested in the call that produced its printed
+  number, because Holm adjusts across the comparisons in one call and merging
+  the two grids would change every p. That claim also currently holds exactly
+  (0.0137 for the four in `headline.json`, 0.0039 for `salience_matched`).
 
 ### Fixed
 
