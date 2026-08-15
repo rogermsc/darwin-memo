@@ -145,11 +145,27 @@ a one-line heuristic is the correct choice.
 \citep{xu2026ael}, an LLM-judge settler, and a Generative-Agents-style
 salience score \citep{park2023generative}---run on the same harness
 rather than argued about.
-(6) Two negative results reported with their causes: with a real model
+(6) \textbf{A measured retention attack on usage-based curation}, closing
+a second gap the security literature names without measuring:
+\citet{lin2026memsurvey} observe that ``retention schemes based on access
+frequency or recency may inadvertently keep adversarial entries alive
+while discarding legitimate ones'' and leave it there. We show the
+stronger form. A \emph{query-only} adversary --- one who never writes,
+never settles, and crosses no channel our threat model names --- drives
+two of the three components of a usage-based retention score by asking
+questions, and thereby owns roughly the last $13\%$ of the store's
+lifetime, stable across two corpora and four upkeep settings ($16$ of
+$16$ cells; $0$ of $32$ under the flat upkeep we ship). A counterfactual
+that swaps one denominator isolates the cause: the exploitable property
+is not that the signal is \emph{usage} but that it is \emph{relative},
+so one entry's standing is a function of every other entry's traffic and
+the adversary takes lifetime from the benign population rather than
+buying its own (\S\ref{sec:potentiation}).
+(7) Two negative results reported with their causes: with a real model
 deciding adoption a one-line counter revokes poison sooner than the
 ledger (\S\ref{sec:wef}), and on SWE-Bench-CL the mechanism shows no
 learning-curve advantage over a token-matched random control
-($p = 0.50$) on sequences shorter than its own starvation horizon
+($p = 0.50$) across $300$ evaluated tasks per arm on the main matrix
 (\S\ref{sec:swebench}).
 (7) A reproducible, stdlib-only harness with pre-registered hypotheses,
 seed-level bootstrap intervals, exact paired permutation tests, and
