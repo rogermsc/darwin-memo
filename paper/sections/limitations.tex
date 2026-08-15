@@ -191,6 +191,20 @@ the remaining $32$ tasks still produced no separation. What we have not
 run is the oracle arm end to end --- the recall measurement says the
 files can be reached, not what the arms score once they are.
 
+A second bound, independent of the first and visible without any new
+run, sits in the shape of the pre-registered metric. Our headline cell
+was the second-half-minus-first-half improvement, and per sequence
+position every arm resolves every task in positions $1$--$4$ and
+\emph{nothing at all} from position $17$ onward --- including
+\texttt{memory\_off}, which carries no lessons. The curriculum ramps
+monotonically into a region no arm solves, so the second half has a
+floor of zero that no curation policy can improve on, and all five arms
+post a strongly negative curve ($-0.535$ to $-0.606$). The metric was
+designed on the assumption that the second half was winnable. It was
+not, which is a defect in our experimental design rather than a finding
+about memory, and it means the leg could not have detected an effect of
+the size we were looking for even had one been present.
+
 \paragraph{The filter control is a reconstruction.}
 The write-time detector in \S\ref{sec:memsec} is a keyword and
 authority-marker rule we wrote, not a port of any published system. We

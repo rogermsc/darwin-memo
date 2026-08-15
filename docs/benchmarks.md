@@ -1829,9 +1829,26 @@ zero-dependency core.
   the same arms on a second environment family; conclusions that hold
   on only one family are flagged there rather than averaged away.
 - The corpus is demo-scale (16 entries) and encoded by the rule-based
-  LocalEncoder, not an LLM. LLM-mode (citation-based attribution) has
-  no benchmark arm yet; its credit fidelity is covered by unit tests
-  only.
+  LocalEncoder, not an LLM.
+- LLM-mode (citation-based attribution) *does* have benchmark arms —
+  `survival_llm`, `keep_everything_llm`, `evict_on_negative_llm`, with
+  committed results for two local models and per-run attribution-path
+  rates from `bench/citation_probe.py`. What it does not have is
+  significance or breadth: 5 seeds (a clean 5–0 sweep cannot go below
+  p = 0.0625), two small local models, StorageEnv only, and opt-in
+  rather than CI because sampled output is not deterministic. The two
+  judges also **split** — the differentiating claim holds for
+  llama3.2:3b and fails for qwen3:4b — so read that section as
+  direction and effect size, not support.
+- The real-task leg is a **null**, and doubly bounded: the
+  pre-registered second-half metric has a shared floor (every arm,
+  including `memory_off`, resolves nothing from sequence position 17
+  on) and 9 of 41 tasks never showed the model the file to patch. It
+  says memory did not help there; it is not evidence that memory does
+  not help.
+- The query-only retention result is measured on two of this repo's own
+  fixture corpora over four upkeeps, which is a grid rather than a
+  population of deployments.
 - Survival's lean population is a trade: it starves protective and
   unused knowledge that keep_everything retains. On these probes that
   costs nothing because silence defaults to the safe action; in an
@@ -1904,7 +1921,7 @@ and `--check --require-manifest` on every committed results file on
 every push, so a deleted manifest or entry fails instead of silently
 passing.
 
-## SWE-Bench-CL learning-curve pilot (protocol pre-committed, no results yet)
+## SWE-Bench-CL learning-curve pilot (protocol pre-committed; scored, null)
 
 Everything above measures the synthetic storage environment. This
 section pins, before any result exists, the protocol for the first run
@@ -1984,21 +2001,74 @@ run must carry `eval.mode == "docker"`; the CLI enforces this by
 refusing `--update-manifest` for any other executor, so stub plumbing
 runs can never enter committed evidence.
 
-| cell | memory_on | memory_off | random_matched |
-|---|---|---|---|
-| resolve rate, full sequence | pending | pending | pending |
-| resolve rate, first half vs second half | pending | pending | pending |
-| mean settlement delta, first half vs second half | pending | pending | pending |
-| injected lesson tokens, second half | pending | n/a | pending |
-| store population at end / upkeep deaths | pending | n/a | pending |
+Filled 2026-08-15 from the 30 committed run files, by the scorer that
+owns these definitions — no number below was transcribed by hand:
 
-The learning-curve claim is the second-half minus first-half
-improvement of memory_on against both controls, with the same paired
-per-seed machinery as the storage suites once seeds exist.
+```
+python -m bench.swebench_cl.curve bench/results/swebench_cl
+```
+
+Both sequences, 3 seeds each, 6 worlds, 123 tasks per arm, `gpt-4.1`
+through the docker executor (every contributing run carries
+`eval.mode == "docker"`; the manifest gate refuses anything else):
+
+| arm | resolve | 2nd half − 1st | end population |
+|---|---|---|---|
+| memory_on | 0.325 | −0.535 | 19.3 |
+| random_matched | 0.333 | −0.588 | 19.7 |
+| keep_everything | 0.325 | −0.572 | 20.5 |
+| evict_on_negative | 0.301 | −0.554 | 11.2 |
+| **memory_off** | **0.358** | −0.606 | 0.0 |
+
+`memory_on` vs `random_matched`, paired on the 6 worlds: mean curve
+difference **+0.052 [−0.037, +0.141], permutation p = 0.50**. The
+pre-registered claim was that `memory_on` improves from first half to
+second half by more than `random_matched` does. It does not, and the
+arm with no lessons at all has the highest resolve rate of the five.
+
+**Why this leg cannot answer the question, visible from `memory_off`
+alone.** The per-position resolve rates are not a learning curve with a
+memory effect on top; they are a difficulty ramp with a shared floor:
+
+```
+memory_on       1.00 1.00 1.00 1.00 0.00 0.50 0.50 0.17 0.83 0.00 0.33 0.00 0.00 0.33 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+memory_off      1.00 1.00 1.00 1.00 0.33 0.50 0.50 0.33 1.00 0.00 0.17 0.00 0.00 0.17 0.00 0.33 0.00 0.00 0.00 0.00 0.00 0.00
+random_matched  1.00 1.00 1.00 1.00 0.17 0.50 0.50 0.17 1.00 0.00 0.17 0.00 0.00 0.33 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+```
+
+Every arm resolves every task in positions 1–4 and **nothing at all from
+position 17 onward**, including the arm with no memory. The
+second-half-minus-first-half metric is therefore reading a curriculum
+that gets monotonically harder until nothing is solvable, and a floor of
+zero cannot be improved on by any curation policy. That is a defect in
+the pre-registered *metric* against this data, not a result about
+memory: the design assumed the second half was winnable.
+
+Read alongside the [retrieval ceiling](#gold-file-recall-how-much-of-the-real-task-leg-was-reachable-at-all)
+— 9 of the 41 tasks never put the file to be patched in front of the
+model — the pilot is bounded twice over, for two independent and
+separately measured reasons. Neither rescues the null; together they say
+what it can and cannot be read as evidence of.
 
 ### What the pilot must show before any expansion
 
-Pre-committed gates, in order of priority:
+Pre-committed gates, in order of priority. **Outcome, scored 2026-08-15:
+the three plumbing gates passed and the headline gate failed.**
+
+| gate | outcome |
+|---|---|
+| upkeep deaths nonzero | **pass** — `memory_on` ends 19.3 alive with 1.3–1.7 buried; `evict_on_negative` 8–11. Culling happens, though the store barely reaches its budget in 19–22 tasks. |
+| injection is real | **pass**, and near-saturated — 2.68–2.73 lessons injected per task against k=3, and **every** second-half task in **every** memory arm received at least one. The arms are genuinely not identical by construction. |
+| memory_on beats both controls | **fail** — it beats neither. `memory_off` leads on resolve rate (0.358 vs 0.325) and the curve difference against `random_matched` is +0.052, p = 0.50. |
+| ≥3 seeds before any curve claim | **pass** — 3 seeds × 2 sequences = 6 worlds. |
+
+Passing the plumbing gates is what makes the null worth reporting: the
+lessons really were minted, retrieved and settled, so "memory did not
+help here" is a measurement rather than a wiring failure. What the
+per-position floor above then adds is that this particular design could
+not have detected help if it existed.
+
+The original gate text follows, unchanged:
 
 - The store must reach its survival budget within a sequence: deaths
   from upkeep must be nonzero, so culling decisions actually happen.
@@ -2104,9 +2174,10 @@ x86 emulation, 2026-06-30): BM25 retrieved the correct file
 SEARCH/REPLACE edit applied, the difflib patch applied cleanly, and the
 instance RESOLVED (fail-to-pass 1/1, pass-to-pass 108/108, delta 1.0).
 The identical task under the blind prompt produced an unappliable diff
-(delta 0). So the pilot now resolves real issues, which is the
-precondition for a learning curve; the scored multi-seed cells remain to
-be filled.
+(delta 0). So the pilot resolves real issues, which is the precondition
+for a learning curve. The multi-seed cells were scored afterwards and are
+filled in [Pre-committed cells](#pre-committed-cells) above: 6 worlds,
+123 tasks per arm, and a null.
 
 ### Reproduce (pilot)
 
