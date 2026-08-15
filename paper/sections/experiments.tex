@@ -324,6 +324,31 @@ negative result is evidence about the probes we ran, not a proof that the
 surface is safe, and Mem0's DELETE path remains reachable by
 construction.
 
+\paragraph{Which deployed systems have the surface at all.}
+The negative result raises a sharper question --- where does this threat
+model apply? --- so we checked what the major deployed agent-memory
+systems do when a memory should stop being used. Zep's temporal
+knowledge graph does not delete: an outdated fact has its edge marked
+invalid and is kept for historical queries. Letta evicts from the
+context window and demotes to archival recall rather than removing
+anything permanently. Cognee exposes a forget operation whose observed
+behaviour leaves the memory retrievable under a forced probe. Mem0 does
+delete, but only through the judgment we just measured declining to.
+
+None of them performs \emph{outcome-driven mechanical} deletion, which
+is the design a curation-targeted attack needs: a curator that removes
+entries, and that decides on a signal rather than on a judgment. Our
+threat model is therefore forward-looking with respect to today's
+ecosystem rather than a vulnerability report against shipping software,
+and we would rather say so than imply an exploit we have not
+demonstrated. The uncomfortable half is that \textsc{darwin-memo} is
+exactly such a design, as are the strike counters and quarantine
+policies of \S\ref{sec:adversary}: this is a warning about the class of
+mechanism the paper itself belongs to, issued before that class is
+widely deployed. The mechanisms deployed today avoid the attack largely
+by declining to forget at all, and Table~\ref{tab:headline} measures
+what that costs.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
