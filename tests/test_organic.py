@@ -491,7 +491,7 @@ def test_tied_neighbours_keep_insertion_order_and_ignore_the_id() -> None:
     """
     from darwin_memo.organic.associative import AssociativeGraph
 
-    def one_vector(_text: str) -> list[float]:
+    def one_vector(text: str) -> list[float]:  # arg name matches Embedder
         return [1.0, 0.0, 0.0]  # everything ties with everything
 
     # Three graphs, three fresh sets of ids: one graph cannot show the bug,

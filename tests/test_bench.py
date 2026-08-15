@@ -468,7 +468,7 @@ def test_query_only_attacker_makes_potentiated_poison_outlive_the_store():
     normalised score, which is what turns a shared horizon into an
     attacker-owned one.
     """
-    from bench.potentiation import run_condition
+    from bench.potentiation import ConditionResult, run_condition
 
     flat = run_condition("flat", "inert", cycles=400, upkeep=0.05, attacker_queries=3)
     honest = run_condition(
@@ -478,17 +478,26 @@ def test_query_only_attacker_makes_potentiated_poison_outlive_the_store():
         "attacked", "inert", cycles=400, upkeep=0.05, attacker_queries=3
     )
 
+    def margin(row: ConditionResult) -> int:
+        """The margin, or fail loudly. A None means something never starved
+        inside the horizon, which would make the comparisons below vacuous
+        rather than false."""
+        value = row.poison_outlives_benign
+        assert value is not None, f"{row.condition} did not starve in 400 cycles"
+        return value
+
+    margins = {r.condition: margin(r) for r in (flat, honest, attacked)}
     assert flat.poison_starve_cycle, "the fixture must starve, or nothing is measured"
-    assert flat.poison_outlives_benign == 0, (
+    assert margins["flat"] == 0, (
         "flat upkeep must give the poison no edge; it is the control"
     )
-    assert honest.poison_outlives_benign <= 1, (
+    assert margins["honest"] <= 1, (
         "potentiation alone must not favour the poison, or the attack is not "
-        f"what is being measured (margin {honest.poison_outlives_benign})"
+        f"what is being measured (margin {margins['honest']})"
     )
-    assert attacked.poison_outlives_benign >= 3, (
+    assert margins["attacked"] >= 3, (
         "query-only recalls must buy the poison a margin over benign entries "
-        f"(margin {attacked.poison_outlives_benign})"
+        f"(margin {margins['attacked']})"
     )
     # Credit is the one component a query-only adversary cannot reach, so the
     # reachable ceiling is exactly the other two thirds -- and the relief that
