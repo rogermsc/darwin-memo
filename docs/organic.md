@@ -161,6 +161,21 @@ ceiling is exactly 2/3 importance (credit is the third it cannot earn), and
 the margin is the same for the loudest payload and the most dormant one,
 because the mechanism reads usage and never text.
 
+That is one cell. `python -m bench.potentiation --sweep` runs 32 — two
+independent corpora × four upkeeps × two normalisations — and the cycle count
+above turns out to be an upkeep artefact:
+
+| | cells | attacker gained | median margin / horizon |
+| --- | --- | --- | --- |
+| `flat` (what ships) | 32 | **0** | — |
+| potentiated | 16 | **16** | **0.133** |
+
+The absolute margin is 8–10 cycles at upkeep 0.02 and 1 cycle at 0.2, but
+0.11–0.17 of the starvation horizon throughout. **The number to carry is the
+fraction: a query-only adversary owns roughly the last 13% of the store's
+life**, at whatever timescale you set upkeep to. Tuning upkeep changes when
+that happens, never whether.
+
 So it is opt-in, and it is opt-in in the strong sense: `SurvivalLoop` and
 `Ledger` charge flat upkeep exactly as they did before, no code in this
 package calls `upkeep_scale()`, and `charge_upkeep()` with no `scale` is

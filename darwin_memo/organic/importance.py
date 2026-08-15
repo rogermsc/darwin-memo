@@ -24,9 +24,12 @@ the Hebbian links that centrality later reads), so an adversary who never
 writes and never settles still drives two of these three components. Because
 they are normalised against the live population's peak, driving them up
 deflates every other entry's score — and ``bench/potentiation.py`` measures
-what that buys: the poison outlives every benign entry by 4 cycles under a
-query-only attacker, against 0 under the flat upkeep that ships. See
-``docs/threat-model.md``.
+what that buys. Over a 32-cell grid (two corpora x four upkeeps), a
+query-only attacker gains in **16 of 16** potentiated cells and in **0 of
+32** under the flat upkeep that ships. The size is best read as a fraction
+of the starvation horizon rather than a cycle count, because upkeep sets
+that timescale: **0.11-0.17 throughout**, i.e. the attacker owns roughly the
+last 13% of the store's life. See ``docs/threat-model.md``.
 
 Nothing in darwin-memo calls ``upkeep_scale()`` for you: ``SurvivalLoop`` and
 ``Ledger`` charge flat upkeep exactly as before. Wire it deliberately, and

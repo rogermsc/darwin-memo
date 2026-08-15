@@ -241,14 +241,34 @@ this path reads usage and never text, so no content filter sits on it.
 
 That mechanism is measured, not inferred. `--recall-norm saturating`
 replaces the recall term's denominator — population peak for a fixed cap
-— and changes nothing else; the margin falls to 0 while the horizon
-stays at ×1.45. Centrality is left attacker-drivable in that run and
-produces no margin on its own. So the exploitable property is not that
-usage is a retention signal, but that the signal is *relative*: one
-entry's standing is a function of every other entry's traffic. Note
-what this rules out as a defence — the attack saturates at three recalls
-per poisoned entry per cycle and one already buys three of the four
-cycles, so there is no query budget an operator can price it out of.
+— and changes nothing else, and the margin collapses while the horizon
+holds. Centrality is left attacker-drivable and contributes at most a
+residual cycle. So the exploitable property is not that usage is a
+retention signal, but that the signal is *relative*: one entry's
+standing is a function of every other entry's traffic. Note what this
+rules out as a defence — the attack saturates at three recalls per
+poisoned entry per cycle and one already buys most of the margin, so
+there is no query budget an operator can price it out of.
+
+`--sweep` runs the same question over 32 cells (two independent corpora
+× four upkeeps × both normalisations) so the numbers above are a rate
+rather than an anecdote. Flat upkeep favours the poison in **0 of 32**
+cells; the attacker gains in **16 of 16** peak cells, on both corpora
+and all three attack classes. The durable figure is not a cycle count
+but a fraction: the margin is 8–10 cycles at upkeep 0.02 and 1 cycle at
+0.2, yet **0.11–0.17 of the starvation horizon throughout**. Read that
+as the operator-facing number — a query-only adversary owns roughly the
+last **13%** of the store's life, at whatever timescale upkeep sets.
+
+The grid also bounds the counterfactual more honestly than one store
+could. `saturating` still leaves a margin in 11 of 16 cells; every one
+is exactly one cycle, and the fraction tracks `1/horizon`, so it is the
+measurement floor rather than a surviving effect. Peak-normalisation is
+therefore the *dominant* contributor and not provably the sole one.
+Finally, on the TestSuiteEnv corpus `honest` potentiation starves the
+poison *before* the benign entries (margin −18 at upkeep 0.02):
+potentiation is not inherently poison-friendly, and the margin is the
+attacker's doing.
 
 Three things follow. First, the write channel is the host agent's
 concern, not this library's: if your agent writes memory from

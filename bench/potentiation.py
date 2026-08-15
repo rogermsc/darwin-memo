@@ -63,6 +63,7 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from darwin_memo import MemoryStore
 from darwin_memo.organic.dynamics import OrganicMemory
@@ -75,13 +76,36 @@ from darwin_memo.organic.importance import (
     clamp01,
 )
 
-from .fixtures import PROBES, poison_ids
-from .memsec import build_memsec_store
+from .fixtures import PROBES, Probe, poison_ids
+from .memsec import ATTACK_CLASSES, build_memsec_store
+from .testsuite_fixtures import TESTSUITE_PROBES, build_testsuite_store
 
 CONDITIONS = ("flat", "honest", "attacked")
 # How the recall component is scaled. "peak" is what ships; "saturating" is
 # the counterfactual that tests whether peak-normalisation IS the mechanism.
 RECALL_NORMS = ("peak", "saturating")
+# Two independent corpora, so a margin cannot be a property of one fixture.
+# They differ in size (16 vs 20 entries), in poison count, in vocabulary, and
+# in what the poison claims; both tag it with the same POISON_SOURCE, which is
+# what lets `poison_ids` read either one.
+STORE_FAMILIES = ("memsec", "testsuite")
+
+
+def build_store(
+    family: str, attack: str, upkeep: float
+) -> tuple[MemoryStore, list[Probe]]:
+    """The store for one family, with the honest traffic that belongs to it.
+
+    The probes must match the corpus: driving the TestSuiteEnv store with
+    StorageEnv's file-deletion questions would retrieve nothing, leave every
+    honest entry at zero recalls, and hand the attacker an uncontested peak —
+    which would manufacture the very result this sweep exists to check.
+    """
+    if family == "memsec":
+        return build_memsec_store(attack, upkeep=upkeep), PROBES
+    if family == "testsuite":
+        return build_testsuite_store(upkeep=upkeep), TESTSUITE_PROBES
+    raise ValueError(f"unknown store family {family!r}; expected {STORE_FAMILIES}")
 
 
 @dataclass(frozen=True)
@@ -112,7 +136,9 @@ class ConditionResult:
         return self.poison_starve_cycle - self.benign_starve_cycle
 
 
-def _honest_recalls(store: MemoryStore, organic: OrganicMemory) -> None:
+def _honest_recalls(
+    store: MemoryStore, organic: OrganicMemory, probes: list[Probe]
+) -> None:
     """One cycle of ordinary traffic: recall the best hit for each probe.
 
     ``rank`` is pure --- it scores and returns, touching no state --- so the
@@ -120,7 +146,7 @@ def _honest_recalls(store: MemoryStore, organic: OrganicMemory) -> None:
     the two differing in anything but which ids get asked for.
     """
     alive = store.alive()
-    for probe in PROBES:
+    for probe in probes:
         ranked = store.retriever.rank(probe.query, alive)
         if ranked:
             organic.recall(ranked[0][0].id)
@@ -176,6 +202,7 @@ def run_condition(
     upkeep: float,
     attacker_queries: int,
     recall_norm: str = "peak",
+    family: str = "memsec",
 ) -> ConditionResult:
     if condition not in CONDITIONS:
         raise ValueError(f"unknown condition {condition!r}; expected {CONDITIONS}")
@@ -183,7 +210,7 @@ def run_condition(
         raise ValueError(
             f"unknown recall_norm {recall_norm!r}; expected {RECALL_NORMS}"
         )
-    store = build_memsec_store(attack, upkeep=upkeep)
+    store, probes = build_store(family, attack, upkeep)
     organic = OrganicMemory(store)
     if recall_norm == "saturating":
         organic.earned = SaturatingImportance()
@@ -194,7 +221,7 @@ def run_condition(
     min_scale = 1.0
 
     for cycle in range(1, cycles + 1):
-        _honest_recalls(store, organic)
+        _honest_recalls(store, organic, probes)
         if condition == "attacked":
             # The whole attack: ask for your own entries. No write path is
             # touched, so no write-time filter and no settler is involved.
@@ -269,6 +296,110 @@ def summarise(rows: list[ConditionResult]) -> dict[str, float | None]:
     return out
 
 
+def sweep(
+    cycles: int,
+    attacker_queries: int,
+    upkeeps: list[float],
+    attacks: list[str],
+) -> dict[str, Any]:
+    """The same question over a grid, so the margin is a rate and not an anecdote.
+
+    The single-store run answers "the lever exists and is worth about four
+    cycles here". It cannot distinguish a property of the mechanism from a
+    property of one fixture at one upkeep, which is the caveat the paper
+    carries. This varies the two things that could be doing the work --- the
+    corpus (two independent families, different sizes, vocabularies and poison
+    counts) and the upkeep (which sets the whole starvation timescale) --- and
+    reports, per cell, whether the attacker gained a margin under each
+    normalisation.
+
+    What the grid is for is the CONJUNCTION, not the average: peak-normalised
+    cells should show a positive margin and saturating ones exactly zero. A
+    single saturating cell with a margin would refute the mechanism; a single
+    peak cell without one would bound the claim to particular tunings. Averaging
+    cycle counts across upkeeps would be meaningless --- the horizon itself
+    scales with upkeep --- so the summary counts cells, and keeps every cell.
+    """
+    cells: list[dict[str, Any]] = []
+    for family in STORE_FAMILIES:
+        # The testsuite corpus has one fixed poison set; attack classes are a
+        # memsec construction, so running them against it would repeat one cell
+        # under three names.
+        family_attacks = attacks if family == "memsec" else ["fixed"]
+        for attack in family_attacks:
+            for upkeep in upkeeps:
+                for norm in RECALL_NORMS:
+                    rows = {
+                        c: run_condition(
+                            c, attack, cycles, upkeep, attacker_queries, norm, family
+                        )
+                        for c in CONDITIONS
+                    }
+                    attacked = rows["attacked"]
+                    margin = attacked.poison_outlives_benign
+                    horizon = attacked.poison_starve_cycle
+                    cells.append(
+                        {
+                            "family": family,
+                            "attack": attack,
+                            "upkeep": upkeep,
+                            "recall_norm": norm,
+                            "poison_entries": attacked.poison_entries,
+                            # Absolute cycles are not comparable across upkeeps
+                            # --- upkeep sets the whole timescale, so a margin of
+                            # 1 at a horizon of 8 is the same attack as 8 at 71.
+                            # The fraction is what can be compared, and it is
+                            # also what an operator can act on.
+                            "attacked_margin_fraction": (
+                                round(margin / horizon, 3)
+                                if margin is not None and horizon
+                                else None
+                            ),
+                            **{
+                                f"{c}_margin": r.poison_outlives_benign
+                                for c, r in rows.items()
+                            },
+                            **{
+                                f"{c}_starve": r.poison_starve_cycle
+                                for c, r in rows.items()
+                            },
+                        }
+                    )
+
+    peak = [c for c in cells if c["recall_norm"] == "peak"]
+    sat = [c for c in cells if c["recall_norm"] == "saturating"]
+
+    def _gained(rows: list[dict[str, Any]]) -> int:
+        return sum(1 for c in rows if (c["attacked_margin"] or 0) > 0)
+
+    def _median_fraction(rows: list[dict[str, Any]]) -> float | None:
+        vals = sorted(
+            float(c["attacked_margin_fraction"])
+            for c in rows
+            if c["attacked_margin_fraction"] is not None
+        )
+        if not vals:
+            return None
+        mid = len(vals) // 2
+        return round(vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2, 3)
+
+    return {
+        "cells": cells,
+        "peak_cells": len(peak),
+        "peak_cells_attacker_gained": _gained(peak),
+        "peak_median_margin_fraction": _median_fraction(peak),
+        "saturating_cells": len(sat),
+        "saturating_cells_attacker_gained": _gained(sat),
+        "saturating_median_margin_fraction": _median_fraction(sat),
+        # The control: with no attacker, potentiation must not favour the
+        # poison. If this is not ~0 everywhere the margin is not the attack.
+        "peak_cells_honest_gained": sum(
+            1 for c in peak if (c["honest_margin"] or 0) > 0
+        ),
+        "flat_cells_gained": sum(1 for c in cells if (c["flat_margin"] or 0) > 0),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--attack", default="inert")
@@ -290,8 +421,35 @@ def main() -> int:
             "peak-normalisation is what carries the attacker's margin"
         ),
     )
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="run the grid (both corpus families x upkeeps x both norms) "
+        "instead of one store, turning the margin into a rate",
+    )
+    parser.add_argument(
+        "--sweep-upkeeps",
+        default="0.02,0.05,0.1,0.2",
+        help="comma-separated upkeep values for --sweep",
+    )
     parser.add_argument("--out", default="")
     args = parser.parse_args()
+
+    if args.sweep:
+        report = {
+            "cycles": args.cycles,
+            "attacker_queries": args.attacker_queries,
+            **sweep(
+                args.cycles,
+                args.attacker_queries,
+                [float(u) for u in args.sweep_upkeeps.split(",")],
+                list(ATTACK_CLASSES),
+            ),
+        }
+        print(json.dumps(report, indent=2))
+        if args.out:
+            Path(args.out).write_text(json.dumps(report, indent=2) + "\n")
+        return 0
 
     rows = [
         run_condition(

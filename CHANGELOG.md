@@ -8,6 +8,27 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `bench.potentiation --sweep`: the query-only retention attack over a 32-cell
+  grid — two independent corpora (memsec, 16 entries; TestSuiteEnv, 20 entries,
+  different vocabulary and poison) × four upkeeps × both normalisations, ~25s,
+  still no model and no seed. It discharges the `n=1` caveat the single-store
+  run shipped with, and it corrects two things that run got wrong. **The
+  default is safe in every cell**: flat upkeep favours the poison in 0 of 32.
+  **The attack is a property of the mechanism, not a fixture**: the attacker
+  gains in 16 of 16 potentiated cells, both corpora, all three attack classes.
+  But the headline "4 cycles" was an upkeep artefact — the absolute margin runs
+  8–10 cycles at upkeep 0.02 and 1 cycle at 0.2, while the *fraction* of the
+  starvation horizon holds at 0.11–0.17 throughout. **The durable figure is
+  that a query-only adversary owns roughly the last 13% of the store's life**,
+  at whatever timescale upkeep sets. The counterfactual is also bounded more
+  honestly: `saturating` normalisation does not "remove the margin" as one
+  store suggested — it still shows one in 11 of 16 cells, every one of them
+  exactly one cycle, tracking `1/horizon`. That is the measurement floor, so
+  peak-normalisation is the dominant contributor and not provably the only one.
+  Incidentally: on the TestSuiteEnv corpus, potentiation *without* an attacker
+  starves the poison 18 cycles **before** the benign entries — potentiation is
+  not inherently poison-friendly, and the margin is the adversary's doing.
+
 - `bench.potentiation`: the query-only retention attack on the organic layer's
   Phase 4. `docs/threat-model.md` said a query-only adversary's poison "dies on
   the same schedule as any other unused entry, with no acceleration from its

@@ -751,16 +751,52 @@ peak for a fixed cap — and changes nothing else. Centrality is left
 attacker-drivable on purpose, and credit keeps its peak-normalisation
 because the attacker cannot move it either way.
 
-| recall term | horizon (attacked) | poison outlives benign |
-| --- | --- | --- |
-| `peak` (ships) | ×1.45 | **4** |
-| `saturating` | ×1.45 | **0** |
+**And the grid, because one store cannot tell a mechanism from a fixture.**
 
-The margin disappears and potentiation still works. So the exploitable
-property is not "usage is a retention signal" — it is that the signal is
-*relative*, which makes one entry's score a function of every other
-entry's traffic. Centrality is attacker-drivable too and produces no
-margin by itself, because it is absolute.
+```
+python -m bench.potentiation --sweep --attacker-queries 3
+```
+
+32 cells: two independent corpora (the memsec store, 16 entries; the
+TestSuiteEnv store, 20 entries, different vocabulary and different poison)
+× four upkeeps × both normalisations, ~25s total.
+
+| | cells | attacker gained | median margin / horizon |
+| --- | --- | --- | --- |
+| `flat` (ships) | 32 | **0** | — |
+| `peak` potentiation | 16 | **16** | **0.133** |
+| `saturating` | 16 | 11 | 0.050 |
+
+Three things the single store could not establish. **The default is
+safe**: flat upkeep favoured the poison in zero cells out of 32.
+**The attack is a property of the mechanism, not of a fixture**: it gained
+in 16 of 16 peak cells, across both corpora and all three attack classes.
+And the right unit is a **fraction of the starvation horizon, not a cycle
+count** — the absolute margin runs 8–10 cycles at upkeep 0.02 and 1 cycle
+at 0.2, but as a fraction it sits in 0.11–0.17 throughout. The attacker
+owns roughly the last **13%** of the store's life, whatever the timescale.
+
+The counterfactual survives, but not in the form one store suggested. It
+reported "the margin disappears"; across the grid `saturating` still shows
+a margin in 11 of 16 cells. Every one of those is **exactly one cycle** —
+the smallest observable value — and the fraction tracks `1/horizon`
+precisely (0.125 at horizon 8, 0.067 at 15, 0.033 at 30, 0.014 at 71,
+0.0 where it rounds away). So saturating normalisation holds the margin at
+or below the measurement floor rather than removing it outright, and the
+honest claim is that peak-normalisation is the **dominant** contributor,
+not the sole cause. On one store at one upkeep that distinction was
+invisible.
+
+So the exploitable property is that the signal is *relative*, which makes
+one entry's score a function of every other entry's traffic. Centrality is
+attacker-drivable too and contributes at most the residual cycle, because
+it is absolute.
+
+One more thing the grid shows that the single store hid: on the
+TestSuiteEnv corpus, `honest` potentiation makes the poison starve
+**before** the benign entries (margin −18 at upkeep 0.02, −7 at 0.05).
+Potentiation is not inherently poison-friendly. The attacker is doing all
+of the work.
 
 `SaturatingImportance` lives in `bench/potentiation.py` and is wired into
 nothing: it is a measuring instrument, not a proposed fix. Whether the
@@ -769,9 +805,10 @@ retrieval ranking as well as retention.
 
 Caveats:
 
-- One store, one corpus, three poisoned entries. The margin is a
-  demonstration that the lever exists and roughly what it is worth, not a
-  rate over a population of stores.
+- Two corpora and four upkeeps is a grid, not a population of real
+  deployments. The 0.133 fraction is stable across every cell measured,
+  which is stronger than the original one-store demonstration, but both
+  corpora are this repo's own fixtures and share a retrieval stack.
 - The attack is cheap and it saturates early. One recall per poisoned
   entry per cycle — the CLI default — already buys 3 of the 4 cycles, and
   spending more than three buys nothing at all, because the attacker is
