@@ -16,9 +16,21 @@ victims by recency+importance and killed poison in 0.20 of runs against
 random eviction's 0.80 and survival's 1.00, because usage cannot tell
 "used" from "useful" — consulted poison gets shielded. That arm is the
 stronger form (importance picks the victim); this is the gentler one
-(importance slows the burn). Nothing in darwin-memo calls ``upkeep_scale()``
-for you: ``SurvivalLoop`` and ``Ledger`` charge flat upkeep exactly as
-before. Wire it deliberately, and measure your own store when you do.
+(importance slows the burn).
+
+It is also an attack surface, which the salience arm did not test: recalls
+and centrality both move on QUERY alone (``OrganicMemory.recall`` strengthens
+the Hebbian links that centrality later reads), so an adversary who never
+writes and never settles still drives two of these three components. Because
+they are normalised against the live population's peak, driving them up
+deflates every other entry's score — and ``bench/potentiation.py`` measures
+what that buys: the poison outlives every benign entry by 4 cycles under a
+query-only attacker, against 0 under the flat upkeep that ships. See
+``docs/threat-model.md``.
+
+Nothing in darwin-memo calls ``upkeep_scale()`` for you: ``SurvivalLoop`` and
+``Ledger`` charge flat upkeep exactly as before. Wire it deliberately, and
+measure your own store when you do.
 """
 
 from __future__ import annotations

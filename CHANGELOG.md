@@ -8,6 +8,31 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- `bench.potentiation`: the query-only retention attack on the organic layer's
+  Phase 4. `docs/threat-model.md` said a query-only adversary's poison "dies on
+  the same schedule as any other unused entry, with no acceleration from its
+  being adversarial" — true of the flat upkeep that ships, and false once an
+  operator opts into `charge_upkeep(scale=upkeep_scale())`. Earned importance
+  is recalls + credit + centrality, and an attacker who never writes and never
+  settles drives two of the three: recalls directly, centrality through the
+  Hebbian links each recall strengthens. Measured on the memsec corpus, 400
+  cycles: potentiation stretches the starvation horizon ×1.45 for everybody
+  (economics, and the poison gains nothing), but under a query-only attacker
+  **the poison outlives every benign entry by 4 cycles**, against 0 under flat
+  upkeep and 0 under potentiation with honest traffic only. The mechanism is
+  peak-normalisation — importance is a standing within the live population, so
+  inflating your own recall count deflates everyone else's, and the margin is
+  taken out of the benign entries' lifetime. Ceiling is exactly 2/3 importance
+  (credit is the third the attacker cannot earn), and the margin is identical
+  across all three attack classes because this path reads usage, never text.
+  Needs no model, no environment and no seed. The mechanism is *measured*, not
+  inferred: `--recall-norm saturating` swaps the recall term's denominator (the
+  live population's peak for a fixed cap) and changes nothing else, and the
+  margin falls to 0 while the horizon stays at ×1.45 — with centrality left
+  attacker-drivable throughout. So the exploitable property is not that usage
+  is a retention signal but that the signal is *relative*, making one entry's
+  standing a function of every other entry's traffic. `SaturatingImportance` is
+  a measuring instrument wired into nothing, not a proposed fix.
 - `bench.swebench_cl.recall`: gold-file recall measurement for the real-task
   leg, needing no model, no docker and no evaluation harness — the question is
   whether the prompt contains the file the gold patch touches, not whether the
@@ -104,6 +129,20 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **The organic layer's neighbour ranking was not reproducible across
+  processes** — the same bug as `budget_relevance` below, in a second place,
+  found by `bench.potentiation` reporting a different margin run to run.
+  `BruteForceBackend.search` resolved equal cosines by vector-dict insertion
+  order, and `OrganicMemory.sync()` filled that dict from a *set difference*,
+  so top-k moved with `PYTHONHASHSEED`; `OrganicMemory.related` then broke its
+  own ties on `entry.id`, which is `uuid4().hex[:12]` and random per process.
+  Ties are the common case here, not a corner one — an embedder puts unrelated
+  entries at cosine 0.0 in bulk — and centrality, earned importance and upkeep
+  relief all read that ranking. `sync()` now adds in store order, `search()`
+  sorts on the score alone and lets Python's stable sort keep insertion order,
+  and `related()` breaks ties on the new `AssociativeGraph.ordinal()` instead
+  of the id. No committed bench result changes: nothing in `bench/` wires the
+  organic layer into an arm.
 - **`budget_relevance` was nondeterministic at a fixed seed**, contradicting its
   own docstring. Eviction ties broke on `entry.id`, which defaults to
   `uuid4().hex[:12]` — and because `LexicalRetriever.rank` drops everything under

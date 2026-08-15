@@ -216,12 +216,49 @@ earns nor is blamed, and it dies only when upkeep starves it — on the
 same schedule as any other unused entry, with no acceleration from its
 being adversarial.
 
-Two things follow. First, the write channel is the host agent's
+That last clause holds for what ships, and only for what ships.
+`SurvivalLoop` and `Ledger` charge flat upkeep, under which a dormant
+poisoned entry starves on exactly the benign schedule (measured: margin
+0 cycles). An operator who opts into the organic layer's potentiation —
+`charge_upkeep(scale=OrganicMemory.upkeep_scale())` — hands this
+adversary a lever, because earned importance is fed by recall count and
+by graph centrality, and a query-only attacker drives both: recalls
+directly, and centrality through the Hebbian links each recall
+strengthens. Only the credit component needs a settled outcome, so the
+reachable ceiling is 2/3 importance and 1/3 upkeep relief.
+
+`python -m bench.potentiation` measures the consequence on the memsec
+corpus. The starvation horizon stretches ×1.45 under potentiation
+whether or not anyone is attacking — that part is economics. What the
+attack adds is a *margin*: the poison outlives every benign entry by 4
+cycles, against 0 under flat upkeep and 0 under potentiation with
+honest traffic only. The mechanism is peak-normalisation. Importance is
+a standing within the live population, so inflating your own recall
+count deflates everyone else's, and the attacker's extra life is
+subtracted from the benign entries rather than added to its own. The
+margin is identical for the strong-signal payload and the inert one:
+this path reads usage and never text, so no content filter sits on it.
+
+That mechanism is measured, not inferred. `--recall-norm saturating`
+replaces the recall term's denominator — population peak for a fixed cap
+— and changes nothing else; the margin falls to 0 while the horizon
+stays at ×1.45. Centrality is left attacker-drivable in that run and
+produces no margin on its own. So the exploitable property is not that
+usage is a retention signal, but that the signal is *relative*: one
+entry's standing is a function of every other entry's traffic. Note
+what this rules out as a defence — the attack saturates at three recalls
+per poisoned entry per cycle and one already buys three of the four
+cycles, so there is no query budget an operator can price it out of.
+
+Three things follow. First, the write channel is the host agent's
 concern, not this library's: if your agent writes memory from
 untrusted text without provenance, darwin-memo inherits whatever that
 channel admits. Second, upkeep is the only thing acting on dormant
 poison, which makes the starvation horizon a security parameter and
-not merely an economic one.
+not merely an economic one. Third, potentiation is a security decision
+and not a tuning one — the default is flat upkeep for this reason, and
+an operator who turns it on should run `bench.potentiation` against
+their own store first.
 
 [minja]: https://arxiv.org/abs/2503.03704
 
