@@ -418,6 +418,35 @@ denial; this is its mirror, and it is the cheaper of the two. We measure
 the precondition (crossing the threshold) rather than the extraction
 itself, which is a model call we do not exercise.
 
+\paragraph{Promotion, carried out end to end.} We then ran the
+extraction rather than only its precondition. A canary string appears in
+the adversary's turn and nowhere else, so its presence in a long-term
+tier cannot be a paraphrase of benign content. Against a
+\texttt{quiet} control --- the same adversarial turn added and never
+asked about --- the result is unanimous over three trials: the control
+never crosses the threshold (heat $2.0$) and never promotes, while three
+self-queries cross it (heat $5.0$) and promote every time. The canary
+reaches MemoryOS's long-term \emph{user knowledge} in $3/3$ trials and
+its assistant knowledge in $2/3$; the stored user profile was never
+poisoned, since that write is gated on the analysis returning enough
+text. So the adversary's content moves from the evictable tier into a
+persistent one for the price of three questions, and MemoryOS's own log
+records it doing so.
+
+Two disclosures, because the difference between compensating for a model
+quirk and lowering a bar until an attack works is the whole of the
+result's value. First, MemoryOS parses several LLM replies with a bare
+\texttt{json.loads} and, on failure, silently substitutes a generic
+session summary; since retrieval gates on that summary's embedding, a
+model that fences its JSON costs the system its topic summaries and makes
+the content beneath them unfindable. That is a real fragility in the
+target, it is not what we set out to measure, and left in place it
+prevents the promotion path from being reached at all, so we strip the
+fence at the client boundary to restore the behaviour MemoryOS gets from
+a non-fencing model. Second, \texttt{force\_mid\_term\_analysis} exists
+in the API and would bypass the heat threshold entirely; we do not call
+it. No threshold is lowered and no decision of MemoryOS's is skipped.
+
 \paragraph{What we do not claim.} An adversary able to dominate the
 retrieval channel --- supplying content that absorbs queries which would
 otherwise reach the victim --- would keep a chosen memory at zero and let
