@@ -345,8 +345,26 @@ reproduction claim; regenerating them is optional.
 
 Prerequisites: a running Docker daemon (the official SWE-bench harness
 builds and runs real repository test suites, under `linux/amd64`
-emulation on Apple Silicon), `pip install swebench`, and the pinned
-dataset:
+emulation on Apple Silicon), **`pip install 'swebench>=3,<5'`**, and the
+pinned dataset:
+
+> The version bound is load-bearing and was unstated until 2026-08-17.
+> `bench/swebench_cl/executor.py` invokes
+> `swebench.harness.run_evaluation` with `--namespace` and `--cache_level`.
+> **swebench 5.0.0 accepts neither and exits with
+> `unrecognized arguments`**, so a fresh `pip install swebench` today
+> cannot evaluate anything. 4.0.4 and 3.0.15 both work; 2.1.8 does not
+> have `--namespace`.
+>
+> Worse, the failure is easy to miss. A task whose model output yields an
+> **empty patch** never reaches the harness — the executor short-circuits
+> and records `notes: "docker: empty patch, evaluated as base behavior"`
+> with `eval_executed: true`. So a run with no `swebench` installed at all
+> still produces plausible-looking result rows for every empty-patch task,
+> and only a task that actually produces a patch surfaces the problem.
+> That is how this went unnoticed: a one-task smoke run happened to draw
+> an empty-patch task and looked fine.
+
 
 ```bash
 python -m bench.swebench_cl.run pin \

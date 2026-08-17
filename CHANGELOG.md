@@ -8,6 +8,25 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **A run can complete with the evaluation harness absent, and look fine.**
+  `DockerExecutor.evaluate` returns before touching `swebench` when the model
+  produces an empty patch — and the paper reports that roughly forty percent of
+  SWE-Bench tasks produce no test movement — so a whole matrix can be written
+  with plausible rows and no harness installed. That is how it presented: a
+  one-task smoke run drew an empty-patch task, reported
+  `eval_executed: true`, and the missing dependency surfaced only when a later
+  task produced a real patch. Added `DockerExecutor.preflight()`, called on the
+  path that needs the harness, and changed that branch's note from "evaluated as
+  base behavior" to "base behavior assumed (harness not called)" — the wording
+  the stub executor has always used for identical behaviour. `eval_executed`
+  itself stays True, because `delta_from_eval` reads it and the settled delta is
+  0.0 either way; no committed number changes.
+- **`swebench` was unpinned, and the current release cannot run this harness.**
+  The executor passes `--namespace` and `--cache_level`; **swebench 5.0.0 accepts
+  neither** and exits `unrecognized arguments`, so `pip install swebench` today
+  reproduces nothing. 4.0.4 and 3.0.15 work, 2.1.8 lacks `--namespace`.
+  `paper/reproduce.md` now says `pip install 'swebench>=3,<5'` and explains why
+  the bound is load-bearing.
 - **The recorded reproduction command did not reproduce the run, for all 80
   SWE-Bench-CL cells — found by running it.** `reproduce.md` points readers at
   each manifest entry's `command`, and `manifest_failures` only ever checked that

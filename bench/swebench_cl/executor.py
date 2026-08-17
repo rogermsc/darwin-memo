@@ -24,6 +24,7 @@ Two executors share one report shape:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -206,6 +207,32 @@ class DockerExecutor:
 
     mode = "docker"
 
+    def preflight(self) -> None:
+        """Fail loudly if the harness cannot evaluate, before any task claims it did.
+
+        Two ways this goes wrong, both silent without this check because the
+        empty-patch branch above never touches the harness:
+
+        * ``swebench`` is not installed at all in the running interpreter;
+        * it is installed but too new. This executor passes ``--namespace`` and
+          ``--cache_level``, and **swebench 5.0.0 accepts neither** --- a fresh
+          ``pip install swebench`` today exits with ``unrecognized arguments``.
+          3.x and 4.x both work.
+
+        Only called on the path that actually needs the harness, so a stub run
+        and an all-empty-patch run stay dependency-free, and injected
+        ``runner_fn`` tests are untouched.
+        """
+        if self.runner_fn is not None:
+            return  # a test supplied its own runner; there is no harness to check
+        spec = importlib.util.find_spec("swebench.harness.run_evaluation")
+        if spec is None:
+            raise RuntimeError(
+                "the docker executor needs the official harness: "
+                "pip install 'swebench>=3,<5' (5.0.0 removed the --namespace and "
+                "--cache_level flags this executor passes)"
+            )
+
     def evaluate(self, task: TaskRecord, patch: str) -> EvalReport:
         report = EvalReport(
             instance_id=task.instance_id,
@@ -217,11 +244,25 @@ class DockerExecutor:
             # The official harness rejects empty predictions; the empty
             # patch settles at base behavior without ever needing the
             # image, so the guard and the pull are skipped entirely.
+            #
+            # ``eval_executed`` stays True because ``delta_from_eval`` reads it
+            # and the settled delta is 0.0 either way -- an empty patch cannot
+            # move a test. But the harness did NOT run here, and on roughly
+            # forty percent of SWE-Bench tasks no patch is produced, so this
+            # branch can carry a whole run while the harness is absent or
+            # version-incompatible and nothing looks wrong. That is not
+            # hypothetical: it masked a missing ``swebench`` install until a
+            # task finally produced a patch. Hence the preflight below, and the
+            # note now says "assumed" rather than "evaluated", matching what
+            # the stub executor has always said for identical behaviour.
             report.empty_patch = True
             report.eval_executed = True
             report.p2p_passed = report.p2p_total
-            report.notes = "docker: empty patch, evaluated as base behavior"
+            report.notes = (
+                "docker: empty patch, base behavior assumed (harness not called)"
+            )
             return report
+        self.preflight()
         check_disk_guard(
             image_for(task.instance_id),
             floor_gb=self.floor_gb,

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -105,3 +106,72 @@ def test_retrieval_file_count_is_recorded_when_retrieval_ran(
         f"{name}: command allows {recorded} files but a task retrieved "
         f"{retrieved}; the command could not have produced this run"
     )
+
+
+def test_docker_executor_preflights_the_harness() -> None:
+    """A missing or incompatible ``swebench`` must fail loudly, not silently.
+
+    The empty-patch branch of ``DockerExecutor.evaluate`` returns without
+    touching the harness, and roughly forty percent of SWE-Bench tasks produce
+    no patch -- so a whole run can complete, writing plausible result rows, with
+    no harness installed at all. That happened: a one-task smoke run drew an
+    empty-patch task, looked healthy, and the missing dependency only surfaced
+    when a later task produced a real patch.
+
+    Mutation: delete ``preflight``'s call site in ``evaluate`` and this fires.
+    An injected ``runner_fn`` is exempt, because such a test supplies its own
+    harness and there is nothing to import.
+    """
+    import inspect
+
+    from bench.swebench_cl.executor import DockerExecutor
+
+    source = inspect.getsource(DockerExecutor.evaluate)
+    assert "self.preflight()" in source, (
+        "DockerExecutor.evaluate no longer preflights the harness; a missing "
+        "swebench would then be masked by every empty-patch task"
+    )
+
+    # And the preflight itself has to be able to fail.
+    import sys
+    from unittest import mock
+
+    executor = DockerExecutor()
+    with mock.patch.object(
+        sys.modules["importlib.util"], "find_spec", return_value=None
+    ):
+        try:
+            executor.preflight()
+        except RuntimeError as exc:
+            assert "swebench" in str(exc)
+        else:  # pragma: no cover - the guard did nothing
+            raise AssertionError("preflight accepted a missing harness")
+
+
+def test_docker_empty_patch_note_says_the_harness_did_not_run() -> None:
+    """``eval_executed`` stays True on that branch because the settled delta is
+    0.0 either way, so the note is the only place a reader learns no tests ran.
+    It used to say "evaluated as base behavior", which reads as the opposite of
+    what happened; the stub executor has always said "assumed"."""
+    from bench.swebench_cl.dataset import TaskRecord
+    from bench.swebench_cl.executor import DockerExecutor
+
+    task = TaskRecord(
+        instance_id="x__y-1",
+        repo="x/y",
+        base_commit="0" * 40,
+        problem_statement="p",
+        gold_patch="",
+        fail_to_pass=["t1"],
+        pass_to_pass=["t2"],
+        order=0,
+    )
+
+    def never_called(
+        command: list[str], cwd: Path
+    ) -> subprocess.CompletedProcess[str]:  # pragma: no cover
+        raise AssertionError("the empty-patch branch must not invoke the harness")
+
+    report = DockerExecutor(runner_fn=never_called).evaluate(task, "   ")
+    assert report.empty_patch
+    assert "assumed" in report.notes and "harness not called" in report.notes
