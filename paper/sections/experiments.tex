@@ -27,23 +27,27 @@ columns.
 \small
 \caption{Storage environment, 10 seeds. \emph{Kill}: fraction of seeds
 where no alive entry from the poisoned source advises a positive action.
-\emph{Cum $\Delta$}: cumulative true resource delta (M bytes).
+\emph{Alive}: poisoned entries surviving at cycle 30 counted by
+\emph{provenance}, whether or not they advise anything---the two poison
+columns are reported together throughout this paper, because \emph{kill}
+alone reads $1.00$ for a mechanism that merely never acted on what it
+kept. \emph{Cum $\Delta$}: cumulative true resource delta (M bytes).
 \emph{Benign}: benign-probe correctness. \emph{Pop}: final population.
 Survival's wins over keep/random/recency/ttl/salience are all 10/0/0,
 Holm-adjusted $p \le 0.014$.}
 \label{tab:headline}
-\begin{tabular}{lccrcc}
+\begin{tabular}{lcccrcc}
 \toprule
-arm & kill & kill cyc.\ (med) & cum $\Delta$ (M) & benign & pop \\
+arm & kill & alive & kill cyc.\ (med) & cum $\Delta$ (M) & benign & pop \\
 \midrule
-\textbf{survival}        & \textbf{1.00} & \textbf{0}  & $\mathbf{+12.59}$ & \textbf{1.00} & \textbf{4} \\
-survival\_embedding      & 1.00 & 19 & $+13.52$ & 1.00 & 4 \\
-evict\_on\_negative ($k{=}1$) & 1.00 & 0  & $+12.78$ & 1.00 & 15 \\
-recency                  & 0.00 & --- & $+4.98$  & 1.00 & 7  \\
-salience\_matched (GA)   & 0.20 & 26 & $-2.76$  & 0.83 & 6  \\
-random\_matched          & 0.80 & 19 & $-7.67$  & 0.40 & 6  \\
-ttl                      & 1.00 & 10 & $-3.63$  & 0.00 & 0  \\
-keep\_everything         & 0.00 & --- & $-9.08$  & 1.00 & 16 \\
+\textbf{survival}        & \textbf{1.00} & \textbf{0.0} & \textbf{0}  & $\mathbf{+12.59}$ & \textbf{1.00} & \textbf{4} \\
+survival\_embedding      & 1.00 & 0.0 & 19 & $+13.52$ & 1.00 & 4 \\
+evict\_on\_negative ($k{=}1$) & 1.00 & 2.0 & 0  & $+12.78$ & 1.00 & 15 \\
+recency                  & 0.00 & 1.0 & --- & $+4.98$  & 1.00 & 7  \\
+salience\_matched (GA)   & 0.20 & 0.8 & 26 & $-2.76$  & 0.83 & 6  \\
+random\_matched          & 0.80 & 1.1 & 19 & $-7.67$  & 0.40 & 6  \\
+ttl                      & 1.00 & 0.0 & 10 & $-3.63$  & 0.00 & 0  \\
+keep\_everything         & 0.00 & 3.0 & --- & $-9.08$  & 1.00 & 16 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -61,13 +65,27 @@ winning queries it is \emph{consulted}, which raises both its recency and
 its frequency-importance, so a usage-based salience score actively shields
 it. A score that rewards use cannot distinguish ``used'' from ``useful'';
 only the outcome-grounded ledger can, and it beats salience on all ten
-seeds ($+15.3$M, Holm $p = 0.0039$). That result has a sharper form, and it is a second attack rather than a footnote to this one: \S\ref{sec:potentiation}.
-Third, \textbf{the honest tie}: on
-this deterministic world the one-line \texttt{evict\_on\_negative}
+seeds ($+15.3$M, Holm $p = 0.0039$). The two poison columns rank salience
+and random in \emph{opposite} orders, which is the sharpest available
+argument for reporting both: salience holds fewer poisoned entries than
+random ($0.8$ vs $1.1$) and yet a far lower kill rate ($0.20$ vs $0.80$),
+because what it preserves is specifically the poison that gets consulted,
+which is the one that does damage. That result has a sharper form, and it is a second attack rather than a footnote to this one: \S\ref{sec:potentiation}.
+Third, \textbf{the tie is narrower than the outcome columns make it look}:
+on this deterministic world the one-line \texttt{evict\_on\_negative}
 heuristic matches the full ledger on outcomes ($+12.78$ vs $+12.59$M, an
-official tie). What the ledger buys here is leanness (population 4 vs 15:
-it starves dead weight the if-statement hoards) and, as the next section
-shows, forgiveness under noise.
+official tie) and on the kill rate ($1.00$ each). Counted by provenance it
+does not tie at all---the counter ends every seed still holding
+\emph{two} poisoned entries and never starves one, against none for the
+ledger---because an entry it never settles negatively is an entry it never
+removes. So what the ledger buys here is leanness (population 4 vs 15: it
+starves dead weight the if-statement hoards), completeness on the same
+cell, and, as the next section shows, forgiveness under noise. Read the
+kill column alone and the counter looks equal on defence; it is equal only
+on the poison that acted. The converse trap sits two rows down:
+\texttt{ttl} scores a perfect $1.00$ kill and a perfect $0.0$ alive by
+deleting the entire store, benign capability $0.00$. Neither poison column
+means anything without the capability column beside it.
 
 \subsection{Forgiveness: the ledger vs.\ strike counters under lying measurements}
 We corrupt the \emph{measurement} while keeping the world real (files are
@@ -154,6 +172,20 @@ capability at $1.00$ through $b{=}4$ only by never removing anything,
 and their poison-kill rate collapses to $0.07$ and $0.00$ while they run
 millions of bytes underwater. Read the two halves jointly or a mechanism
 that defends nothing looks safe.
+
+Counted by provenance the same grid is more one-sided than the capability
+columns show, and in the ledger's favour at every budget. The ledger ends
+with $0.00$ poisoned entries at $b \le 2$, $0.03$ at $b{=}4$ and $1.00$ at
+$b{=}8$; no other arm ever ends with fewer than $2.00$, at any budget
+\emph{including zero}. Every counter, the quarantine policy and the bandit
+carry the dormant poison from the first cycle to the last whether or not
+an adversary is present, so at $b{=}8$---the budget at which we concede
+the ledger has fallen---it still holds a third of what the arms that
+survive on retention hold ($1.00$ against $2.77$--$3.00$). We report this
+as a strengthening of the same claim rather than a new one: the property
+that separates the mechanisms on capability is a credit buffer, and the
+property that separates them on the store's final contents is that only
+one of them charges for existing.
 
 We publish the ledger's own boundary rather than stopping at the win.
 Between two and four lies per cycle it breaks---at $b{=}4$ benign

@@ -92,26 +92,29 @@ def test_reproduce_table_commits_match_the_manifest() -> None:
 
 
 @pytest.mark.parametrize("name", sorted(manifest_files()))
-def test_manifest_source_commit_is_reachable_or_declared(name: str) -> None:
-    """A ``source_commit`` the repository does not contain cannot be checked out.
+def test_manifest_source_commit_is_in_published_history(name: str) -> None:
+    """The recorded commit has to be one a *reader* can check out.
 
     ``reproduce.md`` prescribes "checking out each file's manifest
-    ``source_commit``" as the byte-exact path. For four files that is
-    impossible: the results were generated on a PR branch, the manifest
-    recorded the branch commit, and the squash-merge that landed them replaced
-    it — so the recorded sha exists nowhere. That is a real limit on the
-    package and the document now names it. This test fails when a NEW
-    unreachable commit appears, so the list cannot grow silently.
+    ``source_commit``" as the byte-exact path, so the question is not whether
+    the sha exists somewhere but whether it is in the history this repository
+    publishes. Those are very different questions and the difference hid the
+    real damage: this test used to ask ``git cat-file -e``, which passes for
+    any object in the *local* store -- including pre-squash branch commits that
+    survive in the clone of whoever generated the file and nowhere else. On
+    that check exactly four entries looked broken and a declared allow-list
+    covered them. Asked as ancestry instead, **eighteen of twenty-one** were
+    unreachable for a reader: essentially every source_commit in the repo named
+    a branch commit that the squash-merge discarded.
 
-    Skipped when git is unavailable or the checkout is shallow, since neither
-    tells us anything about the manifest.
+    Every entry now names a commit in published history -- the commit that
+    landed the file, or for freshly regenerated files the tree they were run
+    from -- with a ``source_commit_note`` when that differs from the sha the
+    generator originally recorded. So there is nothing left to exempt.
+
+    Ancestry is measured against ``HEAD``, which on a CI pull-request checkout
+    is the merge commit and therefore contains the base branch's history.
     """
-    known_unreachable = {
-        "bandit.json",
-        "judge-llama.json",
-        "judge-qwen.json",
-        "llm-qwen.json",
-    }
     entry = manifest_files()[name]
     commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
     if not commit:
@@ -128,17 +131,61 @@ def test_manifest_source_commit_is_reachable_or_declared(name: str) -> None:
         pytest.skip("git unavailable")
     if shallow == "true":
         pytest.skip("shallow checkout cannot answer reachability")
-    reachable = (
+    published = (
         subprocess.run(
-            ["git", "cat-file", "-e", commit], cwd=ROOT, capture_output=True
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
         ).returncode
         == 0
     )
-    if name in known_unreachable:
-        return  # already declared in reproduce.md; not a new regression
-    assert reachable, (
-        f"{name} records source_commit {commit}, which is not in this "
-        "repository. If this came from a squash-merged branch, regenerate the "
-        "file on main so the package can point at a commit that exists, or "
-        "declare it in paper/reproduce.md alongside the four known cases."
+    assert published, (
+        f"{name} records source_commit {commit}, which is not an ancestor of "
+        "HEAD. A sha that resolves only in the generating machine's clone is "
+        "not a reproduction pointer: record the commit that landed the file, "
+        "or regenerate it, and say which in source_commit_note."
     )
+
+
+@pytest.mark.parametrize("name", sorted(manifest_files()))
+def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
+    """Reachable is not the same as possible, and one entry was only reachable.
+
+    ``adversary.json`` recorded ``41a1399`` — a real commit, six weeks before
+    the adversary suite existed and a tree in which ``--suite adversary`` is not
+    a choice in ``bench/run.py``. The reachability test above passes it, because
+    the sha resolves. A pointer that resolves to a tree that cannot run the
+    suite is the worst of the three cases: it reads as verified provenance.
+
+    So check the weakest thing that catches it — the suite name has to appear in
+    ``bench/run.py`` at the recorded commit. Suites whose runner is not
+    ``bench.run`` are skipped rather than guessed at, and so are commits the
+    repository does not contain (that is the other test's business).
+    """
+    entry = manifest_files()[name]
+    commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
+    suite = entry.get("suite")
+    if not commit or not isinstance(suite, str):
+        pytest.skip("no single suite or no source_commit recorded")
+    try:
+        shown = subprocess.run(
+            ["git", "show", f"{commit}:bench/run.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:  # pragma: no cover - git absent
+        pytest.skip("git unavailable")
+    if shown.returncode != 0:
+        pytest.skip(f"{commit} or its bench/run.py is not in this checkout")
+    if f'"{suite}"' not in shown.stdout and f"'{suite}'" not in shown.stdout:
+        # Suites driven by their own module (bench.potentiation, the
+        # SWE-Bench-CL matrices) never appear in run.py's choices.
+        driven_elsewhere = str(entry.get("command", "")).startswith(
+            "python -m bench.run"
+        )
+        assert not driven_elsewhere, (
+            f"{name} records source_commit {commit}, whose bench/run.py has no "
+            f"{suite!r} suite — that tree cannot have produced this file. "
+            "Regenerate on a commit that can run it."
+        )

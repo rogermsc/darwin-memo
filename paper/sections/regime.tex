@@ -140,9 +140,20 @@ upkeep so the time constant fits the horizon.
 Three needs select the ledger regardless of the above, because no other
 mechanism we tested provides them. \emph{Leanness}: only the energy
 ledger starves never-consulted entries; counters and the bandit hoard
-them (population 15--16 vs 4). \emph{Completeness}: the ledger is the
-only arm that ends with no poisoned entry alive, acting or dormant. Note
-this is completeness and not speed---in the deterministic suites it kills
+them (population 15--16 vs 4). \emph{Completeness}: among arms that
+retain any capability, the ledger is the only one that ends with no
+poisoned entry alive, acting or dormant---every counter, quarantine
+policy and bandit we test ends holding two or three poisoned entries at
+\emph{every} attack budget including zero, and \texttt{ttl} matches the
+ledger's zero only by emptying the store (benign capability $0.00$). Two
+scope conditions belong on this claim rather than in a footnote, because
+both are measured in this paper. It holds \emph{unattacked}: a
+persistence adversary takes the ledger to $1.0$ poisoned entries alive
+(\S\ref{sec:persistence}), which is still fewer than any counter holds
+with no attacker present, but it is not zero. And it does not hold on
+real tasks: on SWE-Bench-CL no arm removed poison at all, the ledger
+included (\S\ref{sec:swebench-attack}). Note also that this is
+completeness and not speed---in the deterministic suites it kills
 actionable poison within one cycle, but with a real model deciding
 adoption a one-line counter revokes five to nine cycles sooner and the
 ledger's advantage is that it finishes the job

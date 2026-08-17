@@ -61,33 +61,31 @@ manifest at the time this package was frozen:
 
 | file                       | suite           | seeds | runs | source_commit |
 |----------------------------|-----------------|-------|------|---------------|
-| ablation.json              | ablation        | 5     | 95   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| adversary.json             | adversary       | 30    | 1050 | 41a1399d9726d3d6f15b78949880a5a4cf5e36b4-dirty |
-| bandit.json                | bandit          | 10    | 240  | a5fd4c3940c64a6c961fe021ece07057f6d927bb |
-| distill.json               | distill         | 5     | 30   | 8ddc6e22ffb1aaf14e2fe92371548e9af8496014-dirty |
-| distill_merge.json         | distill_merge   | 5     | 35   | 118327e1cb1b213664b43c20c33a4fe78c4b0048-dirty |
-| distill_noisy.json         | distill_noisy   | 5     | 45   | 0a16f8a041006ed6cfe132dbc1bdba4c5e978b92-dirty |
-| distill_rule.json          | distill_rule    | 5     | 30   | 9064ce9b250831241d5279e4898eb280b454133b-dirty |
-| headline.json              | headline        | 10    | 80   | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| judge-llama.json           | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
-| judge-qwen.json            | judge           | 5     | 10   | a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty |
-| llm-llama.json             | llm             | 5     | 20   | 7a1de5347e8314e3e80a436c26d9de175cae57a5-dirty |
-| llm-qwen.json              | llm             | 2     | 2    | 93564dae78cd5a9a9215b8667e6560bc1d535141-dirty |
-| memsec.json                | memsec          | 10    | 120  | 22048c9eb433a4c5a2036f2dea46f03d33cf9ae7-dirty |
-| neighbours.json            | neighbours      | 10    | 30   | b57fef6a87b1e82371ee86343c56395281c86b4f-dirty |
-| noisy.json                 | noisy           | 30    | 2640 | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| persistence.json           | persistence     | 10    | 400  | 04959d904667d60ce33ee6dd4a1f2a33d3b561ad-dirty |
-| salience.json              | salience        | 10    | 30   | e1407e7d30bdd781a9d72e33c107925327df7eae-dirty |
-| testsuite.json             | testsuite       | 10    | 80   | 320c2a687e7f52d53201fd62b130a9657b21308b |
-| testsuite_noisy.json       | testsuite_noisy | 30    | 1050 | 320c2a687e7f52d53201fd62b130a9657b21308b |
-| wef-llama32.json           | wef             | 3     | 18   | 711bd4ff79c72588bf2ed914285a6ec2bb075481-dirty |
-| wef-llama32-counter.json   | wef             | 3     | 9    | 47ea87b80dbc74c3cb50d7cf3a54d8bcc373cc93-dirty |
+| ablation.json              | ablation        | 5     | 95   | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| adversary.json             | adversary       | 30    | 1050 | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| bandit.json                | bandit          | 10    | 240  | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| distill.json               | distill         | 5     | 30   | a68d2cc2aa2a5ce2a721b1fef27c8ccdc1896b2a |
+| distill_merge.json         | distill_merge   | 5     | 35   | a68d2cc2aa2a5ce2a721b1fef27c8ccdc1896b2a |
+| distill_noisy.json         | distill_noisy   | 5     | 45   | 112d02595f17b57639620ff45b52e8abb6538d5d |
+| distill_rule.json          | distill_rule    | 5     | 30   | 112d02595f17b57639620ff45b52e8abb6538d5d |
+| headline.json              | headline        | 10    | 80   | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| judge-llama.json           | judge           | 5     | 10   | 519118ea714e9df9ac71843f79e7b12d43538079 |
+| judge-qwen.json            | judge           | 5     | 10   | 519118ea714e9df9ac71843f79e7b12d43538079 |
+| llm-llama.json             | llm             | 5     | 20   | 9eef3df8758a467cef3a5617634de7969bfbbb3d |
+| llm-qwen.json              | llm             | 2     | 2    | 9eef3df8758a467cef3a5617634de7969bfbbb3d |
+| memsec.json                | memsec          | 10    | 120  | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| neighbours.json            | neighbours      | 10    | 30   | 92433ffb5a7996ed74cbe4aecb404a3ccaf5cd9f |
+| noisy.json                 | noisy           | 30    | 2640 | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| persistence.json           | persistence     | 10    | 400  | 04959d904667d60ce33ee6dd4a1f2a33d3b561ad |
+| salience.json              | salience        | 10    | 30   | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| testsuite.json             | testsuite       | 10    | 80   | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| testsuite_noisy.json       | testsuite_noisy | 30    | 1050 | 948870223a2ad897401e28e30550bfa1cfe5971d |
+| wef-llama32-counter.json   | wef             | 3     | 9    | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
+| wef-llama32.json           | wef             | 3     | 18   | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 
-The `-dirty` suffix is recorded as-is and means the producing tree
-carried uncommitted content when the manifest was written, most often
-the freshly regenerated results themselves. The named commit brackets
-the producing code rather than pinning it exactly; the deterministic
-suites carry clean commits.
+Every commit in that column is in this repository's published history, so
+`git checkout <sha>` works for all of them. That was not true until
+2026-08-17 and the next section is the accounting.
 
 This table is generated from `bench/results/MANIFEST.json` and the
 manifest is the authority. If the two ever disagree, the manifest wins
@@ -100,30 +98,56 @@ enforced before, and the two had drifted — `distill_noisy`,
 on every push and cited in `docs/benchmarks.md`, while this package
 described neither them nor their commits.
 
-**Four commits in the table above are not in the repository**, so for
-these files the "check out the `source_commit`" path does not work:
+### The code pointer was wrong in two ways, and both are now checked
 
-| file | recorded commit | why |
-|---|---|---|
-| `bandit.json` | `a5fd4c39…` | generated on a branch that was squash-merged |
-| `judge-llama.json` | `a6a60f98…` | same branch |
-| `judge-qwen.json` | `a6a60f98…` | same branch |
-| `llm-qwen.json` | `93564dae…` | generated on a branch that was squash-merged |
+`config_hash` binds a file to its run grid, and that has always been
+enforced. `source_commit` binds it to the *code that walked the grid*, and
+until now nothing checked it at all. Two failures had accumulated.
 
-A squash-merge replaces a branch's commits with one new commit and the
-branch is then deleted, so a sha recorded during development ceases to
-exist once the work lands. Nothing detected this because the manifest
-records the sha of the tree that *produced* the file, which cannot know
-what sha will later carry it onto `main`. For these four, the `config_hash`
-binding and the recorded command still hold and `--check` still verifies
-them; what is lost is the exact producing tree. The three sampled-model
-files among them (`judge-*`, `llm-qwen`) were never byte-reproducible
-anyway — model sampling is not deterministic — so the practical loss is
-`bandit.json`, whose suite is deterministic.
+**Commits a reader cannot check out — eighteen of twenty-one.** A
+squash-merge replaces a branch's commits with one new commit and deletes the
+branch, so a sha recorded during development ceases to exist in the
+published history once the work lands, and the manifest cannot know in
+advance what sha will carry it onto `main`. Almost every entry here was
+recorded that way.
 
-The test above fails if a *new* unreachable commit appears, so this list
-cannot grow quietly. To avoid adding to it, regenerate result files on
-`main` rather than on a branch that will be squashed.
+The reason the damage was understated for so long is the check itself. The
+guard asked `git cat-file -e`, which passes for any object in the **local**
+object store — and a pre-squash branch commit survives indefinitely in the
+clone of whoever generated the file. On that check exactly four entries
+looked broken (`bandit.json`, `judge-*.json`, `llm-qwen.json`) and this
+document declared them as a known limit. Asked as *ancestry of published
+history*, the true count was **eighteen**. The lesson is not about git: a
+validation that can pass for a reason unavailable to the reader is not
+validating the thing it names.
+
+Every entry now records a commit in published history — the commit that
+landed the file, or for the files regenerated in the provenance-metric
+audit the tree they were run from — with a `source_commit_note` wherever
+that differs from the sha the generator originally wrote.
+`test_manifest_source_commit_is_in_published_history` asks ancestry, carries
+no allow-list, and runs in CI (which needed `fetch-depth: 0`, without which
+it silently skipped on every push — the reason it never caught any of this).
+
+**Commits that resolve but could not have produced the file.** Worse than
+the above, because it reads as verified provenance. Three entries recorded
+the commit immediately *before* the one that added their suite —
+`adversary.json` named a tree from six weeks earlier in which `--suite
+adversary` is not a choice in `bench/run.py`, and `memsec.json` and
+`wef-llama32.json` did the same for their own suites. The cause is
+`_git_commit()` reading `HEAD` while the suite's code was still uncommitted
+in the working tree; the `-dirty` suffix flags exactly this and says the
+commit "brackets the producing code rather than pinning it exactly", with
+the instruction to update it at commit time. That follow-up was skipped
+three times, and once the sha was recorded clean with no `-dirty` at all.
+`test_manifest_source_commit_could_have_produced_the_file` now checks the
+recorded tree exposes the suite named in the entry.
+
+To avoid adding to either list: when results land, update the entry to a
+commit in `main` — the landing commit if the file is not being regenerated,
+or the tree it was run from if it is — and say which in
+`source_commit_note`. `_git_commit()` records the generating machine's
+`HEAD`, which is a starting point and not the answer.
 
 ## The exact commands
 

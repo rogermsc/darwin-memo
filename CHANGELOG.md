@@ -8,6 +8,83 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **Audited every poison claim in the paper on the provenance metric, after
+  the same metric flattered a mechanism twice.** #64 corrected the persistence
+  suite; this audit asks the same question of the other five deterministic
+  suites and the headline table, which nobody had. All six re-run byte-identical
+  on their pre-existing keys, so nothing about the mechanism changes — but the
+  metric was missing from the committed evidence of **15 of 21 result files**,
+  because `bench/report.py`'s required-key set never asked for it. Findings:
+  - **The headline table's "honest tie" is not a tie on completeness.** At the
+    same configuration `evict_on_negative` matches the ledger on outcomes
+    (+12.78 vs +12.59M) *and* on kill rate (1.00 each) while ending every seed
+    holding **two poisoned entries it never starves**, against none for the
+    ledger. This correction runs in our favour, which is why the pattern is now
+    stated as a threat to validity rather than filed as three separate bugs.
+  - **The adversary grid is more one-sided by provenance than by capability.**
+    The ledger ends with 0.00 poisoned entries at b ≤ 2 and 1.00 at b = 8; no
+    other arm ever ends below 2.00 at *any* budget including zero. At b = 8,
+    where we concede the ledger has fallen, it still holds a third of what the
+    retention-based arms hold.
+  - **The two poison metrics rank `salience_matched` and `random_matched` in
+    opposite orders** (0.8 vs 1.1 alive; 0.20 vs 0.80 kill). Salience preserves
+    specifically the poison that gets consulted, which is the one that acts —
+    the sharpest available argument for always printing both.
+  - **`sec:memsec` was already clean**: `tab:memsec` reports `alive@30` and
+    `starve`, both provenance metrics, and has no kill column. The
+    second-environment and noise legs scope their claims to *actionable* poison
+    explicitly. So one defect, one over-claim, and no reversals.
+  - **Axis 6's completeness claim was over-general.** "The ledger is the only
+    arm that ends with no poisoned entry alive" is false as written — `ttl` also
+    ends with zero, by emptying the store (benign 0.00) — and it does not
+    survive either attack leg. Now scoped to unattacked runs and to arms that
+    retain capability, with both exceptions named.
+- **The reproduction package's central instruction did not work for 18 of 21
+  result files, and the guard that was supposed to catch it had been asking the
+  wrong question.** `paper/reproduce.md` prescribes "check out each file's
+  manifest `source_commit`" as the byte-exact path. The guard asked
+  `git cat-file -e`, which passes for any object in the **local** store —
+  and a pre-squash branch commit survives indefinitely in the clone of whoever
+  generated the file. On that check exactly four entries looked broken and the
+  package declared them as a known limit. Asked as *ancestry of published
+  history* — the only history a reader has — the real count is **eighteen**:
+  essentially every `source_commit` in the repo named a branch commit the
+  squash-merge discarded. A validation that can pass for a reason unavailable
+  to the reader is not validating what it names. Every entry now records a
+  commit in `main` (the landing commit, or for regenerated files the tree they
+  were run from) with a `source_commit_note` where that differs from the
+  originally recorded sha, and the allow-list is deleted.
+- **A `source_commit` can also resolve and still be impossible.** Three entries
+  recorded the commit immediately *before* the one that added their suite:
+  `adversary.json` named a tree six weeks earlier in which `--suite adversary`
+  is not a choice in `bench/run.py`, and `memsec.json` and `wef-llama32.json`
+  did the same for theirs. Cause: `_git_commit()` reading `HEAD` while the
+  suite was still uncommitted, which `-dirty` was designed to flag and which
+  was never followed up (once the sha was even recorded clean). Reachability
+  cannot see this class, so
+  `test_manifest_source_commit_could_have_produced_the_file` now checks the
+  recorded tree exposes the entry's suite.
+- **Both manifest guards were skipping in CI**, because `actions/checkout`
+  defaults to `fetch-depth: 1` and neither can resolve a commit without
+  history. That is why a reachability guard sat green while four entries named
+  commits that do not exist. Fixed with `fetch-depth: 0`. This is the second
+  guard in this repo found green-while-skipping (the paper build guard needs
+  tectonic, which CI does not install), so the rule is now stated in the
+  workflow: a guard that cannot run in CI is not a guard.
+
+### Changed
+
+- `bench/report.py` requires `poison_alive_final` and `poison_starve_cycle` in
+  committed evidence, and `aggregate()` prints a `poison alive (prov)` column
+  beside `kill rate` so the flattering metric can no longer appear alone. The
+  two model-backed suites (`judge`, `llm`) are exempted by name — every row is
+  an Ollama call, so their evidence cannot be regenerated deterministically —
+  and no poison claim in the paper rests on them.
+- Regenerated `headline`, `noisy`, `ablation`, `testsuite`, `testsuite_noisy`,
+  `adversary`, `salience` and `bandit` results under the current code. Verified
+  zero drift on every pre-existing metric key: this adds columns, it does not
+  move a number.
+
 - **#63's conclusion was wrong, and wrong in a way this repo had already
   documented.** It read the persistence suite off `poison_killed` alone and
   concluded the regime map's recommendation flips — that for a
