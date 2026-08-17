@@ -27,8 +27,28 @@ Committed under `bench/results/`:
   `judge-llama.json`, `judge-qwen.json`,
   `llm-llama.json`, `llm-qwen.json`, `wef-llama32.json`,
   `wef-llama32-counter.json`.
-- The SWE-Bench-CL matrix under `bench/results/swebench_cl/`, one file
-  per (arm, sequence, seed) with its own sibling `MANIFEST.json`.
+- The SWE-Bench-CL matrices, one file per (arm, sequence, seed), each
+  directory with its own sibling `MANIFEST.json`: the pilot under
+  `bench/results/swebench_cl/` (30 cells), the long matrix under
+  `swebench_cl_long/` (30), and the curation-targeted attack under
+  `swebench_cl_adversary/` (20). Those 80 entries are validated by CI on
+  every push exactly as the root manifest's are, and as of 2026-08-17 by
+  the same `source_commit` guards — which had been scoped to the root
+  manifest alone, so all 80 went unchecked, and all 80 named a pre-squash
+  branch commit absent from published history.
+
+  **Two cells in `swebench_cl_adversary/` enter no analysis, and this is
+  the only place that says so.** `memory_on-sympy_sympy_sequence-seed0-b2`
+  and `-seed1-b2` are complete, fully docker-evaluated 50-task runs (13
+  and 12 resolved). They are the surviving half of the abandoned attempt
+  at a second sequence: the paired design needs each attacked cell's
+  *unattacked twin*, and a twin here carries the seeded poison, so the
+  `sympy` cells in `swebench_cl_long/` are a different configuration and
+  cannot stand in for them (their `config_hash` differs, and the command
+  differs by `--seed-poison`). Ten of the twelve cells a two-sequence
+  result needs are missing. The two files are kept rather than deleted
+  because they are real evaluated evidence and deleting them would make
+  the gap invisible, but no number in the paper reads them.
 - `bench/results/MANIFEST.json`, which binds each result file to its
   suite, seeds, run count, config hash, exact reproduction command,
   library version, and producing git commit (`source_commit`).
@@ -84,8 +104,11 @@ manifest at the time this package was frozen:
 | wef-llama32.json           | wef             | 3     | 18   | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 
 Every commit in that column is in this repository's published history, so
-`git checkout <sha>` works for all of them. That was not true until
-2026-08-17 and the next section is the accounting.
+`git checkout <sha>` works for all of them — as it now does for the 80
+entries in the three SWE-Bench-CL sub-manifests, which are not tabulated
+here only because 80 rows of one repeated commit would be noise. That was
+not true of any of them until 2026-08-17 and the next section is the
+accounting.
 
 This table is generated from `bench/results/MANIFEST.json` and the
 manifest is the authority. If the two ever disagree, the manifest wins
@@ -104,7 +127,9 @@ described neither them nor their commits.
 enforced. `source_commit` binds it to the *code that walked the grid*, and
 until now nothing checked it at all. Two failures had accumulated.
 
-**Commits a reader cannot check out — eighteen of twenty-one.** A
+**Commits a reader cannot check out — 98 of 101 entries.** Eighteen of the
+root manifest's twenty-one, and *all eighty* in the three SWE-Bench-CL
+sub-manifests, which the guard was not looking at. A
 squash-merge replaces a branch's commits with one new commit and deletes the
 branch, so a sha recorded during development ceases to exist in the
 published history once the work lands, and the manifest cannot know in
@@ -121,13 +146,18 @@ history*, the true count was **eighteen**. The lesson is not about git: a
 validation that can pass for a reason unavailable to the reader is not
 validating the thing it names.
 
-Every entry now records a commit in published history — the commit that
-landed the file, or for the files regenerated in the provenance-metric
-audit the tree they were run from — with a `source_commit_note` wherever
-that differs from the sha the generator originally wrote.
+Every entry in all four manifests now records a commit in published
+history — the commit that landed the file, or for the files regenerated in
+the provenance-metric audit the tree they were run from — with a
+`source_commit_note` wherever that differs from the sha the generator
+originally wrote.
 `test_manifest_source_commit_is_in_published_history` asks ancestry, carries
-no allow-list, and runs in CI (which needed `fetch-depth: 0`, without which
+no allow-list, walks **every** manifest under `bench/results/` rather than
+the root one, and runs in CI (which needed `fetch-depth: 0`, without which
 it silently skipped on every push — the reason it never caught any of this).
+Three defects had to line up for 98 entries to go unnoticed: the guard asked
+a question that passed locally, it never executed in CI, and it was pointed
+at 21 of the 101 entries.
 
 **Commits that resolve but could not have produced the file.** Worse than
 the above, because it reads as verified provenance. Three entries recorded
