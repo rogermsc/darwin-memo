@@ -229,6 +229,33 @@ claim the experiment supports is directional---content inspection
 degrades sharply on payloads written to look ordinary, where consequence
 does not---and not a numerical comparison against any named filter.
 
+\paragraph{Our own defence metric flattered three readings before we
+audited it.}
+The natural way to score a memory defence is to ask whether the bad thing
+is still happening---here, whether any surviving poisoned entry currently
+advises action. That question is silent about a mechanism that never
+removed the payload and merely never acted on it, and it read as immunity
+three separate times in this work: once on real tasks, where consolidation
+made fifty poisoned sources report as one live entry
+(\S\ref{sec:swebench-attack}); once on the persistence adversary, where
+flat counter kill rates were published as resistance before the
+provenance count showed the counters had never eliminated anything
+(\S\ref{sec:persistence}); and once in the headline table, where the
+``tie'' with a one-line counter held on outcomes and on kill rate while
+the counter carried two poisoned entries to the end of every seed. The
+first two corrections cost us a conclusion; the third turned out to
+favour us, which is exactly why the pattern is worth stating as a threat
+to validity rather than as three fixed bugs. We now report both readings
+in every table and require the provenance count in the committed
+evidence, but the general lesson is not specific to poison: any metric of
+the form ``is the bad thing currently happening'' will flatter whichever
+mechanism never removed the bad thing, and needs a count of what is still
+\emph{present} beside it. Related, and unfixed: the code pointer in our
+results manifest went unvalidated long enough for four of twenty-one
+entries to name commits absent from the repository and one to name a
+commit predating the suite that produced its file. The run grid was bound
+by a hash the whole time; the code that walked it was not.
+
 \paragraph{Consolidation is a laundering surface.}
 Our own merge machinery carried a poisoned fragment to the end of every
 seed in one cell by pooling it with a correct entry that earns

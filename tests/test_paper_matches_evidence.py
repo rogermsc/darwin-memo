@@ -59,19 +59,32 @@ def _clean(cell: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def headline_rows() -> dict[str, list[str]]:
-    """Arm -> cells, parsed from the tab:headline tabular."""
+def headline_rows() -> dict[str, dict[str, str]]:
+    """Arm -> {column name: cell}, parsed from the tab:headline tabular.
+
+    Keyed by the table's own header rather than by cell position. Positional
+    indices were the original design and they failed the first time a column
+    was inserted: adding the provenance poison column shifted ``cum delta`` and
+    ``pop`` by one, and every cell test compared the wrong pair of numbers
+    while still looking like a real comparison. A header-keyed parser cannot
+    misalign that way -- it either finds the column or raises.
+    """
     text = EXPERIMENTS.read_text()
     start = text.index("\\label{tab:headline}")
     body = text[start : text.index("\\end{tabular}", start)]
-    rows: dict[str, list[str]] = {}
+    header: list[str] | None = None
+    rows: dict[str, dict[str, str]] = {}
     for line in body.splitlines():
         if "&" not in line or "\\midrule" in line:
             continue
         cells = [_clean(c) for c in line.split("\\\\")[0].split("&")]
-        arm = cells[0].replace("_", "_").split(" (")[0].strip()
+        if header is None:
+            header = [c.split("(")[0].strip().lower() for c in cells]
+            continue
+        arm = cells[0].split(" (")[0].strip()
         if arm in ARM_SOURCE:
-            rows[arm] = cells
+            rows[arm] = dict(zip(header, cells, strict=True))
+    assert header is not None, "tab:headline has no header row"
     return rows
 
 
@@ -106,8 +119,7 @@ def test_the_table_parses_at_all() -> None:
 def test_headline_cum_delta_matches_committed_runs(arm: str) -> None:
     """The paper prints cumulative delta in millions to 2dp; the evidence
     carries bytes. Mutation: edit a digit in the table and this fails."""
-    cells = headline_rows()[arm]
-    printed = float(_clean(cells[3]).replace("+", ""))
+    printed = float(headline_rows()[arm]["cum delta"].replace("+", ""))
     measured = float(str(evidence()[arm]["cum delta"]).split(" [")[0].replace(",", ""))
     assert printed == pytest.approx(measured / 1e6, abs=0.01), (
         f"{arm}: paper says {printed}M, committed runs say {measured / 1e6:.2f}M"
@@ -118,7 +130,7 @@ def test_headline_cum_delta_matches_committed_runs(arm: str) -> None:
 def test_headline_kill_rate_matches_committed_runs(arm: str) -> None:
     """Mutation: the security claim rests on this column, so a drifted kill
     rate is the most consequential single digit in the paper."""
-    printed = float(_clean(headline_rows()[arm][1]))
+    printed = float(headline_rows()[arm]["kill"])
     measured = float(str(evidence()[arm]["kill rate"]).split(" [")[0])
     assert printed == pytest.approx(measured, abs=0.005), (
         f"{arm}: paper says kill {printed}, committed runs say {measured}"
@@ -126,10 +138,26 @@ def test_headline_kill_rate_matches_committed_runs(arm: str) -> None:
 
 
 @pytest.mark.parametrize("arm", sorted(ARM_SOURCE))
+def test_headline_poison_alive_matches_committed_runs(arm: str) -> None:
+    """The column that exists because ``kill`` alone flattered three readings.
+
+    Mutation: drift a cell here and the paper's completeness claim -- the
+    ledger ends with none where the counter ends with two -- loses the only
+    number that distinguishes eliminating poison from never acting on it.
+    """
+    printed = float(headline_rows()[arm]["alive"])
+    measured = float(str(evidence()[arm]["poison alive (prov)"]).split(" [")[0])
+    assert printed == pytest.approx(measured, abs=0.05), (
+        f"{arm}: paper says {printed} poison alive by provenance, "
+        f"committed runs say {measured}"
+    )
+
+
+@pytest.mark.parametrize("arm", sorted(ARM_SOURCE))
 def test_headline_final_population_matches_committed_runs(arm: str) -> None:
     """Population is the leanness claim. Mutation: drift here and the
     'starves dead weight the if-statement hoards' argument loses its number."""
-    printed = float(_clean(headline_rows()[arm][5]))
+    printed = float(headline_rows()[arm]["pop"])
     measured = float(str(evidence()[arm]["final pop"]).split(" [")[0])
     assert printed == pytest.approx(measured, abs=0.51), (
         f"{arm}: paper says pop {printed}, committed runs say {measured}"

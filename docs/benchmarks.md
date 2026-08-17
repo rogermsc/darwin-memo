@@ -169,6 +169,21 @@ What each arm's best metric is, stated plainly:
   variants, and reports where each side breaks. If your measurements
   never lie and you do not need leanness, the if-statement is the
   right tool and this row says so.
+
+  **Correction, 2026-08-17: it is a tie on outcomes and on the kill
+  column, and not a tie on the store's final contents.** The kill rate
+  asks whether any surviving poisoned entry *currently advises action*,
+  and `evict_on_negative` scores a perfect 1.00 on it while ending every
+  one of the ten seeds still holding **two poisoned entries**
+  (`poison_alive_final` 2.00, `poison_starve_cycle` never) against the
+  ledger's zero. An entry it never settles negatively is an entry it
+  never removes. That makes three properties the ledger buys here, not
+  two — leanness, forgiveness, and completeness — and this row said two
+  for as long as the required-metric set omitted the provenance count.
+  The converse trap is two rows up: **ttl(10)** posts a perfect 1.00
+  kill *and* a perfect 0.00 alive by deleting the whole store (benign
+  correct 0.00). Neither poison column means anything without the
+  capability column beside it, and neither means anything alone.
 - **survival_embedding** runs the same loop over the hashing-embedder
   retriever and posts the best cumulative delta (+13.5M, beating
   survival on all 10 seeds, adjusted p = 0.014) by a different route:
@@ -698,6 +713,16 @@ not evaluated here.
   ACTION, which reads as "already dead at cycle 0" for the inert class.
   That is why `poison_starve_cycle` and `poison_alive_final` exist;
   reading the inert row off the kill columns alone would be wrong.
+  This caveat was written down here and then not applied three times
+  (the SWE-Bench-CL attack leg, the persistence suite, and the headline
+  table), so as of 2026-08-17 it is enforced rather than documented:
+  `bench.report` **requires** `poison_alive_final` in committed evidence
+  and prints it beside `kill rate` in every aggregate. Fifteen of
+  twenty-one committed files had been missing it, because the required
+  set never asked. The two model-backed suites (`judge`, `llm`) are
+  exempted by name — every row is an Ollama call, so their evidence
+  cannot be regenerated deterministically — and no poison claim rests on
+  them.
 
 ## Query-only retention attack: what potentiation costs
 
@@ -1220,6 +1245,27 @@ to it.
   behaviour: every metric is byte-identical to the unattacked run, which
   is what makes the rest of the column attributable to the attack rather
   than to the harness.
+- **Counted by provenance the grid is more one-sided, in the ledger's
+  favour, at every budget** (`poison_alive_final`, mean over 30 seeds —
+  added 2026-08-17, the numbers above are byte-unchanged):
+
+  | arm | b=0 | b=1 | b=2 | b=4 | b=8 |
+  |---|---|---|---|---|---|
+  | survival | **0.00** | **0.00** | **0.00** | **0.03** | **1.00** |
+  | evict_on_negative k=1 | 2.00 | 2.00 | 2.00 | 2.03 | 2.77 |
+  | evict_on_negative k=3 | 2.00 | 2.00 | 2.00 | 2.03 | 3.00 |
+  | evict_consecutive k=2 | 2.00 | 2.00 | 2.00 | 2.20 | 2.93 |
+  | quarantine m=3 | 2.00 | 2.00 | 2.00 | 2.23 | 2.90 |
+  | policy_bandit | 2.00 | 2.00 | 2.03 | 2.93 | 3.00 |
+  | keep_everything | 3.00 | 3.00 | 3.00 | 3.00 | 3.00 |
+
+  No arm other than the ledger ever ends below 2.00, at any budget
+  *including zero* — they carry the dormant poison from the first cycle
+  to the last whether or not an adversary is present. At b=8, the budget
+  at which we concede the ledger has fallen on capability, it still ends
+  holding a third of what the retention-based arms hold. What separates
+  the arms on capability is a credit buffer; what separates them on the
+  store's final contents is that only one of them charges for existing.
 
 ### Caveats, on the record
 

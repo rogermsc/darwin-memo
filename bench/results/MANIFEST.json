@@ -13,8 +13,8 @@
       "runs": 95,
       "config_hash": "sha256:e29480af7daff8bf730ac707cb0d6631a1d009d48bf46aaeaff6800d68fb55be",
       "command": "python -m bench.run --suite ablation --seeds 0:5 --out bench/results/ablation.json --update-manifest",
-      "darwin_memo": "0.4.0",
-      "source_commit": "09ced0f7cb0cb77aa7dd266381c48e01d5642f67"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "adversary.json": {
       "suite": "adversary",
@@ -53,8 +53,8 @@
       "runs": 1050,
       "config_hash": "sha256:38b86009328fabd80d3189f27b141c7aff30b5512a5f4370d1e5900dd5106a4b",
       "command": "python -m bench.run --suite adversary --seeds 0:30 --out bench/results/adversary.json --update-manifest",
-      "darwin_memo": "0.5.1",
-      "source_commit": "41a1399d9726d3d6f15b78949880a5a4cf5e36b4-dirty"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "bandit.json": {
       "suite": "bandit",
@@ -73,8 +73,8 @@
       "runs": 240,
       "config_hash": "sha256:db4483413006641bef5551056190787087cf2a8183f7e82e20cb8da719cc4004",
       "command": "python -m bench.run --suite bandit --seeds 0:10 --out bench/results/bandit.json --update-manifest",
-      "darwin_memo": "0.5.0",
-      "source_commit": "a5fd4c3940c64a6c961fe021ece07057f6d927bb"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "distill.json": {
       "suite": "distill",
@@ -157,8 +157,8 @@
       "runs": 80,
       "config_hash": "sha256:f0819f4687fe71d3051fee5458c22a055dde9c6d4faf295e8e5dd6727428ce9a",
       "command": "python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json --update-manifest",
-      "darwin_memo": "0.4.0",
-      "source_commit": "09ced0f7cb0cb77aa7dd266381c48e01d5642f67"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "judge-llama.json": {
       "suite": "judge",
@@ -173,7 +173,8 @@
       "config_hash": "sha256:1ccdaa97a1d1bfb85a1304536d709199280358d39d991bb794e4eda30fbe410b",
       "command": "python -m bench.run --suite judge --seeds 0:5 --judge-models llama3.2:3b --out bench/results/judge-llama.json --update-manifest",
       "darwin_memo": "0.5.0",
-      "source_commit": "a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty"
+      "source_commit": "519118ea714e9df9ac71843f79e7b12d43538079",
+      "source_commit_note": "the commit that landed this file; the producing branch sha (a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty) is not in this repository"
     },
     "judge-qwen.json": {
       "suite": "judge",
@@ -188,7 +189,8 @@
       "config_hash": "sha256:8eba2fbf06a05e3e875ee631b1b4441823df668354988305d8c596533b6af5ea",
       "command": "python -m bench.run --suite judge --seeds 0:5 --judge-models qwen3:4b --out bench/results/judge-qwen.json --update-manifest",
       "darwin_memo": "0.5.0",
-      "source_commit": "a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty"
+      "source_commit": "519118ea714e9df9ac71843f79e7b12d43538079",
+      "source_commit_note": "the commit that landed this file; the producing branch sha (a6a60f98ed8fe45c73d8df9018dc60feec0e0a65-dirty) is not in this repository"
     },
     "llm-llama.json": {
       "suite": "llm",
@@ -219,12 +221,13 @@
       "config_hash": "sha256:863e0bd04ab93f709c5a09ea03f4de144b992bde2fff1550764fbfdfaf6b9a52",
       "command": "python -m bench.run --suite llm --seeds 0:5 --model qwen3:4b --out bench/results/llm-qwen.json --update-manifest",
       "darwin_memo": "0.5.0",
-      "source_commit": "93564dae78cd5a9a9215b8667e6560bc1d535141-dirty",
+      "source_commit": "9eef3df8758a467cef3a5617634de7969bfbbb3d",
       "models": {
         "qwen3:4b": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
       },
       "sampled": "model output; rerunning reproduces the grid, not the numbers",
-      "partial": "seeds 0-1, refuse-off only: the full n=5 grid is wall-clock-prohibitive (~4.8h per run) and was still running at assembly time"
+      "partial": "seeds 0-1, refuse-off only: the full n=5 grid is wall-clock-prohibitive (~4.8h per run) and was still running at assembly time",
+      "source_commit_note": "the commit that landed this file; the producing branch sha (93564dae78cd5a9a9215b8667e6560bc1d535141-dirty) is not in this repository"
     },
     "memsec.json": {
       "suite": "memsec",
@@ -243,8 +246,8 @@
       "runs": 120,
       "config_hash": "sha256:234652e847a45c1e1bf9eb79b8690ad81ece392dedf6270b0fe5baa8269681d9",
       "command": "python -m bench.run --suite memsec --seeds 0:10 --out bench/results/memsec.json --update-manifest",
-      "darwin_memo": "0.5.1",
-      "source_commit": "22048c9eb433a4c5a2036f2dea46f03d33cf9ae7-dirty"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "neighbours.json": {
       "suite": "neighbours",
@@ -303,8 +306,8 @@
       "runs": 2640,
       "config_hash": "sha256:cb521dbe3b88ee11c6adea34c369e113d5b61f49a2a5681e72cec800b66dff9e",
       "command": "python -m bench.run --suite noisy --seeds 0:30 --out bench/results/noisy.json --update-manifest",
-      "darwin_memo": "0.4.0",
-      "source_commit": "09ced0f7cb0cb77aa7dd266381c48e01d5642f67"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "persistence.json": {
       "suite": "persistence",
@@ -343,8 +346,8 @@
       "runs": 30,
       "config_hash": "sha256:eb4c8329de20074d97de517085b53ea92a64c06dab3ab06ea92618cae2a3410a",
       "command": "python -m bench.run --suite salience --seeds 0:10 --out bench/results/salience.json --update-manifest",
-      "darwin_memo": "0.5.1",
-      "source_commit": "e1407e7d30bdd781a9d72e33c107925327df7eae-dirty"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "testsuite.json": {
       "suite": "testsuite",
@@ -363,8 +366,8 @@
       "runs": 80,
       "config_hash": "sha256:ba7684a1d26e3e02005cd3573c1196038df2d153085502979a2c36617bfeb561",
       "command": "python -m bench.run --suite testsuite --seeds 0:10 --out bench/results/testsuite.json --update-manifest",
-      "darwin_memo": "0.5.0",
-      "source_commit": "320c2a687e7f52d53201fd62b130a9657b21308b"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "testsuite_noisy.json": {
       "suite": "testsuite_noisy",
@@ -403,8 +406,8 @@
       "runs": 1050,
       "config_hash": "sha256:0ebc958a42a9727a19597f412af33bd5f94a94363f41cf4df7457cc8da0179f1",
       "command": "python -m bench.run --suite testsuite_noisy --seeds 0:30 --out bench/results/testsuite_noisy.json --update-manifest",
-      "darwin_memo": "0.5.0",
-      "source_commit": "320c2a687e7f52d53201fd62b130a9657b21308b"
+      "darwin_memo": "0.6.0",
+      "source_commit": "948870223a2ad897401e28e30550bfa1cfe5971d-dirty"
     },
     "wef-llama32-counter.json": {
       "suite": "wef",
@@ -434,11 +437,12 @@
       "config_hash": "sha256:8159a01da5c26e7da4d03c0ffa89a71fa8c4edab4d36c371aaee4c8e4f381c22",
       "command": "python -m bench.run --suite wef --seeds 0:3 --model llama3.2 --out bench/results/wef-llama32.json --update-manifest",
       "darwin_memo": "0.5.1",
-      "source_commit": "711bd4ff79c72588bf2ed914285a6ec2bb075481-dirty",
+      "source_commit": "a1583d78dc90c2abc3e1b11a0a41a620fc60bad8",
       "models": {
         "llama3.2": "a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72"
       },
-      "sampled": "model output; rerunning reproduces the grid, not the numbers"
+      "sampled": "model output; rerunning reproduces the grid, not the numbers",
+      "source_commit_note": "the commit that landed this file; the producing branch sha (711bd4ff79c72588bf2ed914285a6ec2bb075481-dirty) is not in this repository"
     }
   }
 }

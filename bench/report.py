@@ -15,6 +15,15 @@ from .stats import bootstrap_ci, holm_bonferroni, paired_permutation_pvalue
 _REQUIRED_METRIC_KEYS = {
     "poison_killed",
     "poison_kill_cycle",
+    # Required beside the kill columns, never instead of them. ``poison_killed``
+    # asks whether any surviving poison CURRENTLY ADVISES ACTION, so a mechanism
+    # that never removed anything inert reads 1.00 and looks immune; three
+    # separate readings in this repo have been flattered that way. The
+    # provenance count is the predicate that tells immunity from abstention,
+    # and it is only ever consulted if it is present -- four committed result
+    # files predate it and nothing noticed, because this set did not ask.
+    "poison_alive_final",
+    "poison_starve_cycle",
     "damage_before_kill",
     "cum_delta",
     "cum_negative_delta",
@@ -62,6 +71,14 @@ _SUITE_REQUIRED_METRICS: dict[str, set[str]] = {
     # The rule arm scores generalization to held-out services, not recall of
     # what it was trained on, so it shares no metric with the suites above.
     "distill_rule": {"harm_generalization", "safe_generalization", "n_train"},
+    # The two model-backed suites: every row is an Ollama call, so their
+    # committed evidence cannot be regenerated deterministically the way the
+    # storage-family suites can. Theirs predates the provenance metric and
+    # stays that way. Declared rather than quietly tolerated, and scoped to
+    # these two suites so a curation suite can never inherit the hole: no
+    # poison claim in the paper rests on either file.
+    "judge": _REQUIRED_METRIC_KEYS - {"poison_alive_final", "poison_starve_cycle"},
+    "llm": _REQUIRED_METRIC_KEYS - {"poison_alive_final", "poison_starve_cycle"},
 }
 # Each family times itself in its own units; a missing clock is still a
 # failure, but the key it lives under is the suite's business. ``None`` says
@@ -144,6 +161,15 @@ def aggregate(runs: list[dict[str, Any]]) -> list[dict[str, str]]:
                 "seeds": str(len(metric_sets)),
                 "kill rate": _mean_ci([float(k) for k in kills]),
                 "kill cycle (med)": _median_ci([float(c) for c in kill_cycles]),
+                # Beside "kill rate", never behind it. "kill rate" is 1.00 for
+                # any arm holding only poison that advises nothing, so the two
+                # columns are what separate a mechanism that eliminated the
+                # payload from one that merely never acted on it.
+                "poison alive (prov)": _mean_ci(
+                    [float(m["poison_alive_final"]) for m in metric_sets]
+                )
+                if all("poison_alive_final" in m for m in metric_sets)
+                else "n/a",
                 "damage before kill": _mean_ci(
                     [m["damage_before_kill"] for m in metric_sets]
                 ),

@@ -8,6 +8,61 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **Audited every poison claim in the paper on the provenance metric, after
+  the same metric flattered a mechanism twice.** #64 corrected the persistence
+  suite; this audit asks the same question of the other five deterministic
+  suites and the headline table, which nobody had. All six re-run byte-identical
+  on their pre-existing keys, so nothing about the mechanism changes — but the
+  metric was missing from the committed evidence of **15 of 21 result files**,
+  because `bench/report.py`'s required-key set never asked for it. Findings:
+  - **The headline table's "honest tie" is not a tie on completeness.** At the
+    same configuration `evict_on_negative` matches the ledger on outcomes
+    (+12.78 vs +12.59M) *and* on kill rate (1.00 each) while ending every seed
+    holding **two poisoned entries it never starves**, against none for the
+    ledger. This correction runs in our favour, which is why the pattern is now
+    stated as a threat to validity rather than filed as three separate bugs.
+  - **The adversary grid is more one-sided by provenance than by capability.**
+    The ledger ends with 0.00 poisoned entries at b ≤ 2 and 1.00 at b = 8; no
+    other arm ever ends below 2.00 at *any* budget including zero. At b = 8,
+    where we concede the ledger has fallen, it still holds a third of what the
+    retention-based arms hold.
+  - **The two poison metrics rank `salience_matched` and `random_matched` in
+    opposite orders** (0.8 vs 1.1 alive; 0.20 vs 0.80 kill). Salience preserves
+    specifically the poison that gets consulted, which is the one that acts —
+    the sharpest available argument for always printing both.
+  - **`sec:memsec` was already clean**: `tab:memsec` reports `alive@30` and
+    `starve`, both provenance metrics, and has no kill column. The
+    second-environment and noise legs scope their claims to *actionable* poison
+    explicitly. So one defect, one over-claim, and no reversals.
+  - **Axis 6's completeness claim was over-general.** "The ledger is the only
+    arm that ends with no poisoned entry alive" is false as written — `ttl` also
+    ends with zero, by emptying the store (benign 0.00) — and it does not
+    survive either attack leg. Now scoped to unattacked runs and to arms that
+    retain capability, with both exceptions named.
+- **A manifest `source_commit` can be reachable and still impossible, and
+  `adversary.json`'s was.** It recorded `41a1399` (2026-06-30) — six weeks
+  before the adversary suite existed, and a tree in which `--suite adversary`
+  is not a choice in `bench/run.py`. The existing
+  `test_manifest_source_commit_is_reachable_or_declared` cannot see this class:
+  the commit resolves, so reachability passes. Added
+  `test_manifest_source_commit_could_have_produced_the_file`, which checks the
+  suite was actually runnable at the recorded commit; regenerating fixed the
+  pointer. The four *unreachable* commits remain as already declared — that
+  half was known, this half was not.
+
+### Changed
+
+- `bench/report.py` requires `poison_alive_final` and `poison_starve_cycle` in
+  committed evidence, and `aggregate()` prints a `poison alive (prov)` column
+  beside `kill rate` so the flattering metric can no longer appear alone. The
+  two model-backed suites (`judge`, `llm`) are exempted by name — every row is
+  an Ollama call, so their evidence cannot be regenerated deterministically —
+  and no poison claim in the paper rests on them.
+- Regenerated `headline`, `noisy`, `ablation`, `testsuite`, `testsuite_noisy`,
+  `adversary`, `salience` and `bandit` results under the current code. Verified
+  zero drift on every pre-existing metric key: this adds columns, it does not
+  move a number.
+
 - **#63's conclusion was wrong, and wrong in a way this repo had already
   documented.** It read the persistence suite off `poison_killed` alone and
   concluded the regime map's recommendation flips — that for a
