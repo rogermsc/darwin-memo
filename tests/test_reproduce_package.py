@@ -92,20 +92,28 @@ def test_reproduce_table_commits_match_the_manifest() -> None:
 
 
 @pytest.mark.parametrize("name", sorted(manifest_files()))
-def test_manifest_source_commit_is_reachable(name: str) -> None:
-    """A ``source_commit`` the repository does not contain cannot be checked out.
+def test_manifest_source_commit_is_in_published_history(name: str) -> None:
+    """The recorded commit has to be one a *reader* can check out.
 
     ``reproduce.md`` prescribes "checking out each file's manifest
-    ``source_commit``" as the byte-exact path. Four files used to make that
-    impossible — generated on a PR branch, manifest recording the branch
-    commit, squash-merge replacing it, recorded sha existing nowhere — and this
-    test carried them as a declared allow-list. The allow-list is gone: the
-    deterministic one was regenerated on main and the three model-backed ones
-    now name the commit that *landed* them, which resolves and can run their
-    suite. There is no longer a case to exempt, so any failure here is new.
+    ``source_commit``" as the byte-exact path, so the question is not whether
+    the sha exists somewhere but whether it is in the history this repository
+    publishes. Those are very different questions and the difference hid the
+    real damage: this test used to ask ``git cat-file -e``, which passes for
+    any object in the *local* store -- including pre-squash branch commits that
+    survive in the clone of whoever generated the file and nowhere else. On
+    that check exactly four entries looked broken and a declared allow-list
+    covered them. Asked as ancestry instead, **eighteen of twenty-one** were
+    unreachable for a reader: essentially every source_commit in the repo named
+    a branch commit that the squash-merge discarded.
 
-    Skipped when git is unavailable or the checkout is shallow, since neither
-    tells us anything about the manifest.
+    Every entry now names a commit in published history -- the commit that
+    landed the file, or for freshly regenerated files the tree they were run
+    from -- with a ``source_commit_note`` when that differs from the sha the
+    generator originally recorded. So there is nothing left to exempt.
+
+    Ancestry is measured against ``HEAD``, which on a CI pull-request checkout
+    is the merge commit and therefore contains the base branch's history.
     """
     entry = manifest_files()[name]
     commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
@@ -123,17 +131,19 @@ def test_manifest_source_commit_is_reachable(name: str) -> None:
         pytest.skip("git unavailable")
     if shallow == "true":
         pytest.skip("shallow checkout cannot answer reachability")
-    reachable = (
+    published = (
         subprocess.run(
-            ["git", "cat-file", "-e", commit], cwd=ROOT, capture_output=True
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
         ).returncode
         == 0
     )
-    assert reachable, (
-        f"{name} records source_commit {commit}, which is not in this "
-        "repository. If this came from a squash-merged branch, regenerate the "
-        "file on main, or record the commit that landed it (which resolves and "
-        "carries the code that produced it) with a source_commit_note saying so."
+    assert published, (
+        f"{name} records source_commit {commit}, which is not an ancestor of "
+        "HEAD. A sha that resolves only in the generating machine's clone is "
+        "not a reproduction pointer: record the commit that landed the file, "
+        "or regenerate it, and say which in source_commit_note."
     )
 
 

@@ -39,16 +39,38 @@ project uses [SemVer](https://semver.org/).
     ends with zero, by emptying the store (benign 0.00) — and it does not
     survive either attack leg. Now scoped to unattacked runs and to arms that
     retain capability, with both exceptions named.
-- **A manifest `source_commit` can be reachable and still impossible, and
-  `adversary.json`'s was.** It recorded `41a1399` (2026-06-30) — six weeks
-  before the adversary suite existed, and a tree in which `--suite adversary`
-  is not a choice in `bench/run.py`. The existing
-  `test_manifest_source_commit_is_reachable_or_declared` cannot see this class:
-  the commit resolves, so reachability passes. Added
-  `test_manifest_source_commit_could_have_produced_the_file`, which checks the
-  suite was actually runnable at the recorded commit; regenerating fixed the
-  pointer. The four *unreachable* commits remain as already declared — that
-  half was known, this half was not.
+- **The reproduction package's central instruction did not work for 18 of 21
+  result files, and the guard that was supposed to catch it had been asking the
+  wrong question.** `paper/reproduce.md` prescribes "check out each file's
+  manifest `source_commit`" as the byte-exact path. The guard asked
+  `git cat-file -e`, which passes for any object in the **local** store —
+  and a pre-squash branch commit survives indefinitely in the clone of whoever
+  generated the file. On that check exactly four entries looked broken and the
+  package declared them as a known limit. Asked as *ancestry of published
+  history* — the only history a reader has — the real count is **eighteen**:
+  essentially every `source_commit` in the repo named a branch commit the
+  squash-merge discarded. A validation that can pass for a reason unavailable
+  to the reader is not validating what it names. Every entry now records a
+  commit in `main` (the landing commit, or for regenerated files the tree they
+  were run from) with a `source_commit_note` where that differs from the
+  originally recorded sha, and the allow-list is deleted.
+- **A `source_commit` can also resolve and still be impossible.** Three entries
+  recorded the commit immediately *before* the one that added their suite:
+  `adversary.json` named a tree six weeks earlier in which `--suite adversary`
+  is not a choice in `bench/run.py`, and `memsec.json` and `wef-llama32.json`
+  did the same for theirs. Cause: `_git_commit()` reading `HEAD` while the
+  suite was still uncommitted, which `-dirty` was designed to flag and which
+  was never followed up (once the sha was even recorded clean). Reachability
+  cannot see this class, so
+  `test_manifest_source_commit_could_have_produced_the_file` now checks the
+  recorded tree exposes the entry's suite.
+- **Both manifest guards were skipping in CI**, because `actions/checkout`
+  defaults to `fetch-depth: 1` and neither can resolve a commit without
+  history. That is why a reachability guard sat green while four entries named
+  commits that do not exist. Fixed with `fetch-depth: 0`. This is the second
+  guard in this repo found green-while-skipping (the paper build guard needs
+  tectonic, which CI does not install), so the rule is now stated in the
+  workflow: a guard that cannot run in CI is not a guard.
 
 ### Changed
 
