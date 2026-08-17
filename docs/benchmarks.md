@@ -1009,6 +1009,52 @@ its mirror, and it is the cheaper of the two. Measured here is the
 precondition (crossing the threshold), not the extraction itself, which
 is a model call and is not exercised.
 
+### Promotion, carried out end to end
+
+```
+python -m bench.external.memoryos_promotion_e2e \
+    --memoryos-path MemoryOS/memoryos-pypi --model glm-5.2:cloud --trials 3
+```
+
+The threshold measurement above stopped at the precondition. This runs the
+extraction. A canary string appears in the adversary's turn and nowhere
+else, so finding it in a long-term tier cannot be a paraphrase of
+anything benign. Three trials, against a `quiet` control that adds the
+same adversarial turn and never asks about it:
+
+| condition | self-queries | heat | threshold crossed | promoted |
+| --- | --- | --- | --- | --- |
+| `quiet` | 0 | 2.0 | 0 / 3 | **0 / 3** |
+| `queried` | 3 | 5.0 | 3 / 3 | **3 / 3** |
+
+Where it landed: long-term **user knowledge 3/3**, assistant knowledge
+2/3, stored user profile 0/3 (that write is gated on the analysis
+returning ≥30 characters). MemoryOS's own log records the promotion —
+`Mid-term session ... heat (5.00) exceeded threshold. Analyzing 1 pages
+for profile/knowledge update.`
+
+So adversary content moves from the evictable tier into a persistent one
+for the price of three questions.
+
+**Two disclosures.** The difference between compensating for a model
+quirk and lowering a bar until an attack works is the whole value of the
+result, so both are stated:
+
+1. MemoryOS parses several LLM replies with a bare `json.loads` and, on
+   failure, silently substitutes the generic summary `"General
+   conversation segment from short-term memory."`. Retrieval gates on
+   that summary's embedding, so **a model that fences its JSON in
+   ` ```json ` costs MemoryOS its topic summaries and makes the content
+   beneath them semantically unfindable** — a real availability bug in
+   the target, found incidentally. It is not what this measures, and left
+   in place it stops the promotion path being reached at all, so the
+   fence is stripped at the client boundary to restore the behaviour
+   MemoryOS gets from a non-fencing model such as its default
+   `gpt-4o-mini`.
+2. `force_mid_term_analysis()` exists in the API and would bypass the
+   heat threshold outright. It is **not** used. No threshold is lowered
+   and no MemoryOS decision is skipped.
+
 **What is not claimed.** An adversary able to dominate the retrieval
 channel would keep a chosen memory at zero and let the curator delete it
 in favour of the adversary's own fresh content. Demonstrated here is the

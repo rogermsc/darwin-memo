@@ -8,6 +8,32 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **`bench.external.memoryos_promotion_e2e`: the promotion attack carried out
+  end to end — adversary content reaches MemoryOS's persistent tier for the
+  price of three questions.** #61 measured the precondition and said the
+  extraction was a model call it had not exercised; this exercises it. A canary
+  appears only in the adversary's turn, so a hit in a long-term tier cannot be
+  a paraphrase of benign content. Against a `quiet` control that adds the same
+  turn and never asks about it, three trials are unanimous: control never
+  crosses the threshold (heat 2.0) and never promotes; **three self-queries
+  cross it (heat 5.0) and promote 3/3**. The canary lands in long-term user
+  knowledge 3/3 and assistant knowledge 2/3; the stored profile was never
+  poisoned (that write is gated on the analysis returning ≥30 characters).
+  MemoryOS's own log records the promotion.
+  **Two disclosures, because the difference between compensating for a model
+  quirk and lowering a bar until an attack works is the whole value of the
+  result.** (1) MemoryOS parses several LLM replies with a bare `json.loads`
+  and silently substitutes a generic session summary on failure; since
+  retrieval gates on that summary's embedding, a model that fences its JSON
+  costs MemoryOS its topic summaries *and* makes the content beneath
+  semantically unfindable — a real availability bug in the target, found
+  incidentally, reported, and compensated for at the client boundary because
+  left in place it prevents the path under test from being reached at all.
+  (2) `force_mid_term_analysis()` would bypass the heat threshold outright and
+  is **not** used. No threshold lowered, no MemoryOS decision skipped.
+
+### Added
+
 - **`bench.external.memoryos_lfu_attack`: the threat model finally has a
   deployed target — MemoryOS (EMNLP 2025) — and the result is not the one
   predicted.** Mem0 resisted because its curator is an LLM that can decline,
