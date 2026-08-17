@@ -40,6 +40,28 @@ def manifest_files() -> dict[str, dict[str, Any]]:
     return files
 
 
+def all_manifest_entries() -> dict[str, dict[str, Any]]:
+    """Every entry in every committed manifest, keyed "<manifest dir>/<file>".
+
+    The root manifest is not the whole of the evidence. Three sibling manifests
+    under ``swebench_cl``, ``swebench_cl_long`` and ``swebench_cl_adversary``
+    carry the real-task leg -- 80 entries, every docker-evaluated task in the
+    paper -- and CI validates those result files by the same glob it uses for
+    the root ones. The ``source_commit`` guards, however, were parametrised over
+    the root manifest alone, so all 80 went unchecked: **every one of them named
+    a pre-squash branch commit absent from published history.** Scope the guard
+    to the evidence, not to the file that happens to sit at the top.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for path in sorted((ROOT / "bench" / "results").glob("**/MANIFEST.json")):
+        data: dict[str, Any] = json.loads(path.read_text())
+        files: dict[str, dict[str, Any]] = data.get("files", data)
+        rel = path.parent.relative_to(ROOT / "bench" / "results")
+        for name, entry in files.items():
+            out[f"{rel}/{name}" if str(rel) != "." else name] = entry
+    return out
+
+
 def table_rows(doc: str) -> set[str]:
     """Result filenames in the leading column of any markdown table row."""
     return set(re.findall(r"^\|\s*([\w.\-]+\.json)\s*\|", doc, re.M))
@@ -91,7 +113,7 @@ def test_reproduce_table_commits_match_the_manifest() -> None:
     assert not mismatched, f"table commit differs from manifest: {mismatched}"
 
 
-@pytest.mark.parametrize("name", sorted(manifest_files()))
+@pytest.mark.parametrize("name", sorted(all_manifest_entries()))
 def test_manifest_source_commit_is_in_published_history(name: str) -> None:
     """The recorded commit has to be one a *reader* can check out.
 
@@ -115,7 +137,7 @@ def test_manifest_source_commit_is_in_published_history(name: str) -> None:
     Ancestry is measured against ``HEAD``, which on a CI pull-request checkout
     is the merge commit and therefore contains the base branch's history.
     """
-    entry = manifest_files()[name]
+    entry = all_manifest_entries()[name]
     commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
     if not commit:
         pytest.skip("no source_commit recorded")
@@ -147,7 +169,7 @@ def test_manifest_source_commit_is_in_published_history(name: str) -> None:
     )
 
 
-@pytest.mark.parametrize("name", sorted(manifest_files()))
+@pytest.mark.parametrize("name", sorted(all_manifest_entries()))
 def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
     """Reachable is not the same as possible, and one entry was only reachable.
 
@@ -157,35 +179,41 @@ def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
     the sha resolves. A pointer that resolves to a tree that cannot run the
     suite is the worst of the three cases: it reads as verified provenance.
 
-    So check the weakest thing that catches it — the suite name has to appear in
-    ``bench/run.py`` at the recorded commit. Suites whose runner is not
-    ``bench.run`` are skipped rather than guessed at, and so are commits the
-    repository does not contain (that is the other test's business).
+    So check the weakest thing that catches it: the runner named in the entry's
+    own ``command`` has to exist at the recorded commit, and where that runner
+    is ``bench.run`` its ``--suite`` choices have to include this suite. The
+    entry states which module produced it, so nothing has to be guessed.
     """
-    entry = manifest_files()[name]
+    entry = all_manifest_entries()[name]
     commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
     suite = entry.get("suite")
+    command = str(entry.get("command", ""))
     if not commit or not isinstance(suite, str):
         pytest.skip("no single suite or no source_commit recorded")
+    module = re.search(r"python -m ([\w.]+)", command)
+    if module is None:
+        pytest.skip("entry names no runner module to check")
+    runner = module.group(1).replace(".", "/") + ".py"
     try:
         shown = subprocess.run(
-            ["git", "show", f"{commit}:bench/run.py"],
+            ["git", "show", f"{commit}:{runner}"],
             cwd=ROOT,
             capture_output=True,
             text=True,
         )
     except OSError:  # pragma: no cover - git absent
         pytest.skip("git unavailable")
-    if shown.returncode != 0:
-        pytest.skip(f"{commit} or its bench/run.py is not in this checkout")
-    if f'"{suite}"' not in shown.stdout and f"'{suite}'" not in shown.stdout:
-        # Suites driven by their own module (bench.potentiation, the
-        # SWE-Bench-CL matrices) never appear in run.py's choices.
-        driven_elsewhere = str(entry.get("command", "")).startswith(
-            "python -m bench.run"
-        )
-        assert not driven_elsewhere, (
-            f"{name} records source_commit {commit}, whose bench/run.py has no "
-            f"{suite!r} suite — that tree cannot have produced this file. "
-            "Regenerate on a commit that can run it."
-        )
+    assert shown.returncode == 0, (
+        f"{name} records source_commit {commit}, which has no {runner} — the "
+        f"runner its own command names. That tree cannot have produced this "
+        "file."
+    )
+    if module.group(1) != "bench.run":
+        # Its own module (bench.swebench_cl.run, bench.potentiation); existence
+        # is all this check can assert without hardcoding each CLI's shape.
+        return
+    assert f'"{suite}"' in shown.stdout or f"'{suite}'" in shown.stdout, (
+        f"{name} records source_commit {commit}, whose bench/run.py has no "
+        f"{suite!r} suite — that tree cannot have produced this file. "
+        "Regenerate on a commit that can run it."
+    )

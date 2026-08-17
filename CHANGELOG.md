@@ -8,6 +8,37 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **The provenance fix in #65 was scoped to 21 of 101 manifest entries.** Three
+  sibling manifests under `swebench_cl/`, `swebench_cl_long/` and
+  `swebench_cl_adversary/` carry the real-task leg — 80 entries, every
+  docker-evaluated task in the paper — and CI validates those result files by
+  the same glob it uses for the root ones. The `source_commit` guards were
+  parametrised over the root manifest alone, so all 80 went unchecked, and
+  **all 80 named a pre-squash branch commit absent from published history.**
+  Repo-wide the count is 98 of 101. Three defects had to line up for that to go
+  unnoticed: the guard asked a question that passes against the local object
+  store, it never executed in CI (`fetch-depth: 1`), and it was pointed at a
+  fifth of the evidence. All three are now closed; the guards walk every
+  manifest under `bench/results/` and cover 101 entries (205 tests, was 45).
+- `test_manifest_source_commit_could_have_produced_the_file` now derives the
+  runner from the entry's own `command` rather than assuming `bench.run`, so it
+  checks the SWE-Bench-CL cells too — previously they fell through its
+  `driven_elsewhere` branch and asserted nothing. Mutation-tested both ways: a
+  fabricated sha and a *published* commit predating the runner each fail, and
+  the second fails only the could-have-produced guard.
+- **`sec:swebench-attack` understated what the abandoned second sequence
+  produced.** It said the `sympy` and `sphinx` attempts "neither completed".
+  In fact two `sympy` cells completed in full and are committed —
+  `memory_on` seeds 0 and 1 under attack, 50 docker-evaluated tasks each,
+  13 and 12 resolved. What never completed is what the paired design needs:
+  their *unattacked twins*, which carry the seeded poison and so cannot be
+  substituted by the `swebench_cl_long/` `sympy` cells (different
+  `config_hash`; the command differs by `--seed-poison`), plus the third seed
+  and the other two arms. Ten of twelve cells are still missing. The paper now
+  says this precisely and `paper/reproduce.md` documents the two orphan cells,
+  which no number reads and which are kept rather than deleted so the gap stays
+  visible.
+
 - **Audited every poison claim in the paper on the provenance metric, after
   the same metric flattered a mechanism twice.** #64 corrected the persistence
   suite; this audit asks the same question of the other five deterministic
