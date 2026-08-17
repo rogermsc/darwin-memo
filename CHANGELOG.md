@@ -8,6 +8,39 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **The paper's strongest claim about itself is now checked for every table, not
+  one.** `paper/reproduce.md` says "No number in the report was produced outside
+  this committed evidence", and only `tab:headline` enforced it. The other eight
+  tables are now recomputed from committed per-seed JSON in CI
+  (`tests/test_paper_tables_match_evidence.py`): 92 checks covering 232 printed
+  numbers across the noise grid, the adversary grid, persistence, memsec, the
+  Write-Execute-Forget table and both SWE-Bench-CL matrices.
+  **The audit found the paper correct in every cell** — this is a guard on a true
+  claim, not a fix. Each table is mutation-tested (edit one digit, exactly one
+  test fails) and each has a parse guard, without which a reformatted table would
+  parametrise zero cases and pass green.
+  - The reason the old file gave for not generalising — "a fragile parser that
+    fails on reformatting would be worse than none" — was right about its own
+    positional parser, which misaligned the moment a column was inserted in #65.
+    Keying on the table's own header removes that failure mode.
+  - **Design rule, learned the hard way three times in one afternoon: group by
+    the complete run identity and treat ambiguity as an error.** `noisy.json`
+    carries `resource_scale` and `adversary.json` carries `strikes`, so a subset
+    key silently averages two cells into a number that appears in no table and no
+    run. That produced a phantom 840-value "drift", two phantom `tab:noise`
+    mismatches, and a wrong claim that all 21 manifest commits resolved. `pick()`
+    now asserts exactly one match; both ambiguity cases are covered by tests.
+  - `tab:wef` was nearly excluded as "not a deterministic function of committed
+    data" because a local model sampled its answers. That confuses *reproducing*
+    a run with *reading* one — the run happened and its per-seed metrics are
+    committed. Checked instead of assumed. The only column not covered anywhere
+    is its `kill`, whose cell is a hand-written range (`1--3`, `starve 19`), and
+    that omission is stated in `reproduce.md` rather than left silent.
+  - The coverage figures quoted in `reproduce.md` are themselves derived by a
+    test. Both were wrong when first written — invented from a mental tally
+    instead of counted, while writing the file whose entire purpose is catching
+    exactly that.
+
 - **`paper/abstract-arxiv.txt`, because the paper could not have been
   submitted.** arXiv's metadata instructions state that "abstracts longer than
   1920 characters will not be accepted"

@@ -63,6 +63,28 @@ The numbers in the report are read from these files and re-derived with
 `python -m bench.report`. No number in the report was produced outside this
 committed evidence.
 
+That sentence is the repo's strongest claim about itself, so it is checked
+rather than asserted. Every cell of every table in the paper that has
+committed evidence behind it is recomputed from that evidence in CI:
+`tab:headline` in `tests/test_paper_matches_evidence.py` and the other eight
+tables in `tests/test_paper_tables_match_evidence.py` — 92 checks covering 232
+printed numbers, across the noise grid, the adversary grid, persistence, memsec,
+the Write-Execute-Forget table and both SWE-Bench-CL matrices. When the check was
+first written it found the paper **correct in every cell**; it is here because an
+unenforced true claim is the kind that goes quietly stale, and because this repo
+has twice shipped a number that did not trace to its source. Each table's check
+is mutation-tested (edit one digit, one test fails) and each carries a parse
+guard, without which a reformatted table would parametrise zero cases and pass
+vacuously.
+
+`tab:wef` was nearly excluded on the grounds that a sampled model's output is
+not a deterministic function of committed data. That confuses *reproducing* a
+run with *reading* one: the run happened, its per-seed metrics are committed, and
+the table's means over them are as checkable as any other. It is covered. The
+one column not checked anywhere is that table's `kill`, whose cell is a
+hand-written range or annotation (`1--3`, `starve 19`, `never`) rather than a
+single statistic — stated here rather than left as a silent gap.
+
 ## How the manifest binds results to a config hash
 
 Each entry in `MANIFEST.json` carries a `config_hash` (a sha256 over the
