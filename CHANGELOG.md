@@ -6,6 +6,44 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **#63's conclusion was wrong, and wrong in a way this repo had already
+  documented.** It read the persistence suite off `poison_killed` alone and
+  concluded the regime map's recommendation flips — that for a
+  persistence-seeking attacker the one-line heuristic is the better choice.
+  `poison_killed` asks whether any surviving poisoned entry *currently advises
+  action*. Counted by provenance (`poison_alive_final`, all poison regardless
+  of behaviour) the counters never removed it: `evict_on_negative` ends with
+  **two poisoned entries alive at every budget including zero**,
+  `evict_consecutive` 2.0 → 2.4, and quarantine ends *worse* under attack than
+  without one (2.0 → 2.8) as evicted entries return. The unattacked ledger ends
+  with none, and under the heaviest attack with 1.0 — **still fewer than any
+  counter with no attacker present (2.0; mean difference −1.0, p = 0.0020).**
+  A mechanism retaining inert poison indefinitely has nothing left for a
+  persistence adversary to take: abstention, not defence.
+  The attack on the ledger is real and stands (kill 1.00 → 0.00, p = 0.0039,
+  benign capability never moving so the guarantee vanishes silently). What is
+  corrected is the conclusion drawn from it: **persistence narrows the ledger's
+  advantage from total elimination to partial and costs it the guarantee,
+  without reversing the recommendation.** Abstract, `sec:regime` Axis 2a,
+  `sec:persistence` and the benchmark docs all updated.
+  This is the trap `sec:swebench-attack` already records — *measure poison by
+  provenance, treat elimination as a predicate rather than a count* — and it is
+  the second time in this project a poison count has flattered a mechanism that
+  simply never eliminated anything.
+
+### Added
+
+- Refundability counterfactual on the `persistence` suite: `evict_consecutive`
+  (a success wipes the strike count) and `quarantine` (evicted, then restored
+  after a cooldown) join `evict_on_negative`, so the arms now span whether a
+  blame can be undone while holding the mechanism family fixed. This is what
+  showed the flat kill rate to be a measurement artefact rather than a property
+  of irreversibility, which was #63's stated-but-untested explanation. The
+  three original arms reproduce #63's numbers exactly, which is the determinism
+  check that adding arms does not perturb existing worlds.
+
 ### Added
 
 - **`persistence` suite: the adversary's *objective* is a new axis, and adding

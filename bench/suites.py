@@ -275,7 +275,24 @@ ADVERSARY_VARIANTS: list[tuple[str, dict[str, Any], str]] = [
 # real system, and the paper had no experiment in that direction; this is it.
 # Kept out of the adversary suite so bench/results/adversary.json stays
 # byte-stable, for the reason SALIENCE_ARMS and NEIGHBOUR_ARMS are separate.
-PERSISTENCE_ARMS = ("survival", "evict_on_negative", "keep_everything")
+# Ordered by whether a blame can be UNDONE, which is the property the
+# persistence objective turns out to exploit:
+#   evict_on_negative  k=1 lifetime strike -- a spent life is never refunded
+#   evict_consecutive  a success resets the count -- refundable
+#   quarantine         evicted, then returns after a cooldown -- refundable
+#   survival           energy an entry can earn back -- refundable
+#   keep_everything    removes nothing, the null
+# evict_consecutive is the load-bearing comparison: it is the same family as
+# evict_on_negative (a mechanical strike counter, no energy) and differs from
+# it in refundability alone, so if refundability is what persistence exploits,
+# these two must separate while both remain counters.
+PERSISTENCE_ARMS = (
+    "survival",
+    "evict_on_negative",
+    "evict_consecutive",
+    "quarantine",
+    "keep_everything",
+)
 PERSISTENCE_BUDGETS = (0, 1, 2, 4)
 
 

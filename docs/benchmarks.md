@@ -1104,32 +1104,55 @@ spending a lie on a benign entry it does not need removed.
 Budget 0 is the canary: both objectives reproduce the unattacked run
 exactly, so the objective flag adds no behaviour of its own.
 
-**The objectives have opposite preferred victims.** Destruction destroys
-the counter and leaves the ledger standing. Persistence leaves the
-counter untouched and takes the ledger's poison-kill guarantee away
-entirely — 1.00 → 0.10 at two lies per cycle, → 0.00 at four, paired
-permutation **p = 0.0039** on 10 seeds, against `evict_on_negative`'s
-1.00 at every budget (p = 1).
+**The attack is real against the ledger.** Survival's poison-kill rate
+falls 1.00 → 0.10 at two lies per cycle and → 0.00 at four (paired
+permutation **p = 0.0039**, 10 seeds) while benign capability never
+leaves 1.00 — the guarantee disappears and nothing moves in the metric an
+operator watches. Only `cum_delta` records it (12.59M → −0.66M).
 
-The persistence attack is also **quieter**: benign capability never
-leaves 1.00, so nothing moves in the metric an operator watches. Only
-`cum_delta` records it (12.59M → −0.66M at budget 2).
+Why: bounded credit with earn-back forgives a lie the defender did not
+deserve, and equally lets a *paid* poison earn its way back above the
+floor. The adversary need not prevent every blame, only keep the balance
+positive.
 
-**Why, and it is this project's own mechanism seen from the other side.**
-Bounded credit with earn-back is what lets the ledger forgive a lie it
-did not deserve — and equally what lets a *paid* poison earn its way back
-above the floor, so the adversary need not prevent every blame, only keep
-the balance positive. The counter cannot forgive, which is why
-destruction ruins it, and cannot be refunded either, so one uncovered
-negative is irreversible and a per-cycle budget cannot cover every
-negative indefinitely. Its kill is *delayed* by the attack (median cycle
-0 → 8 as budget rises) and never prevented.
+**But the counters' flat kill rate is not immunity, and reading it that
+way is a documented trap.** `kill` asks whether any surviving poisoned
+entry *currently advises action*. Counted by provenance —
+`poison_alive_final`, all poison regardless of behaviour — the counters
+never removed it:
 
-Forgiveness is a defence against accidental noise and a liability against
-a patient adversary. Ruthlessness is exactly the reverse. This is
-reported as a correction to the regime map, not a new win: on the axis
-this project is about, the right recommendation depends on what the
-attacker wants.
+| arm (persist) | poison alive, budget 0 | budget 2 | budget 4 |
+| --- | --- | --- | --- |
+| **survival** | **0.00** | 0.90 | 1.00 |
+| `evict_on_negative` | 2.00 | 2.00 | 2.00 |
+| `evict_consecutive` | 2.00 | 2.00 | 2.40 |
+| `quarantine` | 2.00 | 2.40 | **2.80** |
+| `keep_everything` | 3.00 | 3.00 | 3.00 |
+
+`evict_on_negative` holds two poisoned entries at **every budget
+including zero**. Quarantine ends *worse* under attack than without one,
+as evicted entries return. And the ledger under the heaviest attack still
+holds fewer poisoned entries (1.00) than any counter holds with no
+attacker present (2.00) — mean difference −1.00, **p = 0.0020**.
+
+A mechanism that retains the inert poison indefinitely has nothing left
+for a persistence adversary to take. That is abstention, not defence —
+the same reading this document gives the bandit and `keep_everything`.
+
+**The honest statement**, narrower than a flip: persistence costs the
+ledger its guarantee and narrows its advantage from total elimination to
+partial, without making any counter preferable. Worth publishing because
+a guarantee that can be removed silently is one an operator should know
+about.
+
+**A note on how this was nearly reported wrong.** The first reading of
+this suite used `kill` alone and concluded the recommendation flipped —
+that for a persistence-seeking attacker the one-line heuristic was the
+better choice. That was the trap the
+[SWE-Bench attack leg](#the-attack-on-real-tasks-what-transfers-and-what-does-not)
+had already documented: *measure poison by provenance, and treat
+elimination as a predicate rather than a count.* The corrected reading is
+above; the wrong one shipped briefly in #63 and is fixed here.
 
 ## Curation-targeted attack: denial of memory
 
