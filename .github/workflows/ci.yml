@@ -57,6 +57,11 @@ jobs:
         run: |
           python -m bench.run --suite smoke --out "${RUNNER_TEMP:-/tmp}/smoke.json"
           python -m bench.report "${RUNNER_TEMP:-/tmp}/smoke.json" --check
+      - name: The paper's figures must match the runs they are drawn from
+        # A hand-edited coordinate is a number in the paper that does not trace
+        # to committed evidence, which is the failure every other guard here
+        # exists to prevent. Cheap, deterministic, no model.
+        run: python -m bench.figures --check
       - name: Validate committed benchmark results against their manifest
         # The LLM suite itself NEVER runs in CI (sampled model output is
         # not deterministic); CI only validates the committed evidence.

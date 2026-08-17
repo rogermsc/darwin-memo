@@ -1065,13 +1065,23 @@ for the price of three questions.
 quirk and lowering a bar until an attack works is the whole value of the
 result, so both are stated:
 
-1. MemoryOS parses several LLM replies with a bare `json.loads` and, on
-   failure, silently substitutes the generic summary `"General
-   conversation segment from short-term memory."`. Retrieval gates on
-   that summary's embedding, so **a model that fences its JSON in
-   ` ```json ` costs MemoryOS its topic summaries and makes the content
-   beneath them semantically unfindable** — a real availability bug in
-   the target, found incidentally. It is not what this measures, and left
+1. MemoryOS parses its multi-topic summary reply with a bare `json.loads`
+   (`utils.py:259` — the only such call in the package). On
+   `JSONDecodeError` it prints `Warning: Could not parse multi-summary
+   JSON`, returns no themes, and `updater.py`'s `else` branch files the
+   whole batch as one session under the constant summary `"General
+   conversation segment from short-term memory."` with an **empty keyword
+   list**. Retrieval scores a session on `semantic_sim +
+   keyword_alpha * s_topic_keywords`, so both terms are degraded at once:
+   **a model that fences its JSON in ` ```json ` costs MemoryOS the topic
+   structure of that batch and makes the content beneath it hard to
+   reach** — a real availability bug in the target, found incidentally.
+
+   *Corrected 2026-08-17:* this said "several LLM replies" and "silently".
+   There is one such call, and it logs a warning. Verified against the
+   upstream source while preparing the maintainer disclosure; the
+   substance holds and is sharper than what was written, since the empty
+   keyword list degrades the second retrieval term too. It is not what this measures, and left
    in place it stops the promotion path being reached at all, so the
    fence is stripped at the client boundary to restore the behaviour
    MemoryOS gets from a non-fencing model such as its default

@@ -171,7 +171,8 @@ not defence: the bandit and \texttt{keep\_everything} hold benign
 capability at $1.00$ through $b{=}4$ only by never removing anything,
 and their poison-kill rate collapses to $0.07$ and $0.00$ while they run
 millions of bytes underwater. Read the two halves jointly or a mechanism
-that defends nothing looks safe.
+that defends nothing looks safe; Figure~\ref{fig:adversary} plots them
+side by side for that reason.
 
 Counted by provenance the same grid is more one-sided than the capability
 columns show, and in the ledger's favour at every budget. The ledger ends
@@ -221,6 +222,8 @@ keep\_everything      & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.84 / 1.00 & $-$8.
 \bottomrule
 \end{tabular}
 \end{table}
+
+\input{figures/adversary}
 
 \subsection{A retention attack that never writes}
 \label{sec:potentiation}
@@ -467,11 +470,17 @@ records it doing so.
 
 Two disclosures, because the difference between compensating for a model
 quirk and lowering a bar until an attack works is the whole of the
-result's value. First, MemoryOS parses several LLM replies with a bare
-\texttt{json.loads} and, on failure, silently substitutes a generic
-session summary; since retrieval gates on that summary's embedding, a
-model that fences its JSON costs the system its topic summaries and makes
-the content beneath them unfindable. That is a real fragility in the
+result's value. First, MemoryOS parses its multi-topic summary reply with a bare
+\texttt{json.loads}; on \texttt{JSONDecodeError} it warns, returns no
+themes, and the updater then files the whole batch as a single session
+under the constant string ``General conversation segment from short-term
+memory.'' with an empty keyword list. Retrieval scores a session on its
+summary embedding \emph{and} its keywords, so both terms lose their
+discriminating power at once, and a model that fences its JSON costs
+MemoryOS the topic structure of that batch and makes the content beneath
+it hard to reach. The failure is logged rather than silent --- we
+originally wrote otherwise, and checked the source instead of our own
+prose only when preparing the maintainer disclosure. That is a real fragility in the
 target, it is not what we set out to measure, and left in place it
 prevents the promotion path from being reached at all, so we strip the
 fence at the client boundary to restore the behaviour MemoryOS gets from

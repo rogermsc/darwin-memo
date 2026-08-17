@@ -16,6 +16,9 @@
 \usepackage{algpseudocode}
 \usepackage{xcolor}
 \usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{microtype}
@@ -51,70 +54,46 @@ and What Survives Them}}
 % because "same claims, different length" is not mechanically checkable.
 \begin{abstract}
 Agent memory that only grows is eventually dominated by stale and
-poisoned entries, so every practical system curates. Every curator
+poisoned entries, so every practical system curates, and every curator
 decides on some signal---a classifier's verdict, a judge's rating, a
-measured outcome---and the memory-security literature defends that store
-at \emph{write} (does this text look malicious?) and at \emph{retrieval}
-(should this be injected?). Recent work names a third possibility
-without measuring it: an adversary who attacks the deciding signal
-itself. We make that threat quantitative. In a
+measured outcome. The memory-security literature defends the store at
+\emph{write} and at \emph{retrieval}, and both read content. Recent work
+names a third possibility without measuring it: an adversary who attacks
+the deciding signal itself. We make that threat quantitative. In a
 \emph{curation-targeted attack} the adversary injects no poison at all
-and instead corrupts settlement so that the defence starves the
-defender's own memory---denial of memory---and we measure six curation
-mechanisms against it at five attack budgets over 30 seeds.
+and instead corrupts settlement so that the defence starves the memory
+it protects---denial of memory---and we measure six curation mechanisms
+against it at five attack budgets over 30 seeds.
+
 The separation is sharp and so is its boundary. At one corrupted
 measurement per cycle, every strike counter and quarantine policy we
-test loses most or all benign capability---an evict-on-negative
-counter loses all of it---while a bounded-credit energy ledger loses
-none and retains $99.4\%$ of its unattacked outcome. A
-Thompson-sampling bandit also keeps capability, but only by never
-removing anything: it hoards dead weight and its poison-kill rate falls
-to $0.07$ by four lies per cycle. Retention is not defence. The ledger's
-own failure boundary lies between two and four lies per cycle and we
-publish it rather than stopping at the win.
-That separation holds for an adversary buying \emph{destruction}, and we
-report what happens when the adversary buys \emph{persistence} instead:
-one that spends the same budget only on keeping its poison alive, never
-wasting a lie on a benign entry. It takes the ledger's poison-kill rate
-from $1.00$ to $0.00$ at four lies per cycle (paired $p = 0.0039$) while
+test loses most or all benign capability---an evict-on-negative counter
+loses all of it---while a bounded-credit energy ledger loses none and
+retains $99.4\%$ of its unattacked outcome. A Thompson-sampling bandit
+also keeps capability, but only by never removing anything: its
+poison-kill rate falls to $0.07$ by four lies per cycle. Retention is
+not defence. The ledger's own failure boundary lies between two and four
+lies per cycle and we publish it rather than stopping at the win. An
+adversary that buys \emph{persistence} instead of destruction takes its
+poison-kill rate from $1.00$ to $0.00$ (paired $p = 0.0039$) while
 benign capability never moves, so the guarantee disappears without
-anything changing in the metric an operator watches. The cause is the
-same buffer: earn-back forgives a lie the defender did not deserve and
-equally lets a paid poison earn its way back. It does not, however,
-make a strike counter preferable --- counted by provenance rather than
-by current behaviour, the counters never removed the poison at all
-(two entries alive at every budget including zero), and the ledger under
-the heaviest attack still holds fewer than any counter holds unattacked
-($1.0$ vs $2.0$, $p = 0.0020$). Persistence narrows the ledger's
-advantage from total elimination to partial and costs it the guarantee;
-it does not reverse the recommendation.
-We then run the same attack on real software-engineering tasks, and
-report which half of that result survives contact with them. Capability
-does not separate there and no mechanism clears the poison, because on
-that benchmark memory buys no measurable capability to begin with---an
-attack on memory cannot cost more than the memory was worth. What does
-transfer is the mechanism in its proper currency: at $17\%$ of
-settlements corrupted, the counter's deletion of \emph{benign} memory
-roughly triples while the ledger's barely moves, on every seed. That leg
-is one repository at three seeds, too few to carry a $p$-value, and we
-report it as effect size and unanimity rather than dressing it as
-significance.
-The ledger we defend with is \textsc{darwin-memo}, in which each entry
-pays energy upkeep and earns only from a conserved resource the
-environment already measures---no reward model, no judge, no labels.
-We are equally precise about where it is unnecessary. Absent an
-adversary a one-line heuristic ties it on outcomes, a confidence bandit
-matches it under one-sided noise, and on real software-engineering tasks
-it shows no advantage over a token-matched random control---across
-$2{,}115$ evaluated SWE-Bench-CL tasks on four sequences, including a
-matrix long enough that the mechanism verifiably removes half of what it
-writes, no memory arm beat carrying no memory at all. What it does buy
-there is leanness: the same capability from half the store. We give the
-regime map that says which tool to use when, and report every one of
-those losses. Every number comes from a stdlib-only harness with
-pre-registered hypotheses, seed-level bootstrap intervals, exact paired
-permutation tests, and committed per-seed data validated against its
-manifest in CI.
+anything changing in the metric an operator watches.
+
+We are equally precise about where the mechanism is unnecessary. Absent
+an adversary a one-line heuristic ties it on outcomes and a confidence
+bandit matches it under one-sided noise; across $2{,}115$ evaluated
+SWE-Bench-CL tasks no memory arm beat carrying no memory at all, and
+what it buys there is leanness---the same capability from half the
+store. Capability therefore cannot separate under attack on those tasks
+either, but the mechanism still does, in its proper currency: the
+counter's deletion of \emph{benign} memory roughly triples where the
+ledger's barely moves. The ledger is \textsc{darwin-memo}, in which each
+entry pays energy upkeep and earns only from a conserved resource the
+environment already measures: no reward model, no judge, no labels. We
+give the regime map that says which curator to use when, and report
+every one of those losses. Every number comes from a stdlib-only harness
+with pre-registered hypotheses, exact paired permutation tests, and
+committed per-seed data validated against its manifest in CI.
 \end{abstract}
 
 \input{sections/intro}
