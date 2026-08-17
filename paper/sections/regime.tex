@@ -51,45 +51,45 @@ because a defence with an unstated limit is one nobody can deploy
 safely.
 
 \paragraph{Axis 2a: If measurements lie on purpose, \emph{what is the
-liar buying}?} This axis was not in the first version of the map, and
-adding it changes the map's advice rather than refining it. Our
-adversary was written to buy destruction --- it spends its budget on
-every measured outcome, blaming benign entries as well as paying the
-poison. A deployed system suggested the other objective is the one an
-attacker would actually choose (\S\ref{sec:memoryos}), so we ran it: an
-adversary identical in every respect except that it lies \emph{only}
-when the poison has just done damage, never wasting a lie on a benign
-entry it does not need removed.
+liar buying}?} Our adversary was written to buy destruction: it spends
+its budget on every measured outcome, blaming benign entries as well as
+paying the poison. A deployed system suggested the other objective is
+the one an attacker would actually choose (\S\ref{sec:memoryos}), so we
+ran it --- an adversary identical in every respect except that it lies
+\emph{only} when the poison has just done damage.
 
-The two objectives have opposite preferred victims, and the property
-that decides both is the same one. Against destruction the ledger holds
-and the counter collapses; against persistence the counter holds and the
-ledger loses its poison-kill guarantee entirely --- $1.00$ to $0.10$ at
-two lies per cycle and to $0.00$ at four, on $10$ seeds, paired
-$p = 0.0039$, while \texttt{evict\_on\_negative} stays at $1.00$
-throughout ($p = 1$). Benign capability under the persistence adversary
-never moves from $1.00$, so the attack does not appear in the metric an
-operator watches; only the cumulative delta drops.
+Persistence is a real attack on the ledger and we report it as one. Its
+poison-kill rate falls from $1.00$ to $0.10$ at two lies per cycle and
+to $0.00$ at four (paired $p = 0.0039$, 10 seeds), and it does so
+without moving benign capability at all, so nothing appears in the
+metric an operator watches. The cause is our own central mechanism read
+from the other side: bounded credit with earn-back is what forgives a
+lie the defender did not deserve, and equally what lets a \emph{paid}
+poison earn its way back above the floor.
 
-The mechanism is the paper's own central claim, read from the other
-side. A bounded credit buffer with earn-back is what lets the ledger
-forgive a lie it did not deserve --- and equally what lets a \emph{paid}
-poison earn its way back above the floor, so an adversary need only keep
-the balance positive. A strike counter cannot forgive, which is why
-destruction destroys it; but a spent life cannot be refunded either, so
-one uncovered negative is irreversible and a per-cycle budget cannot
-cover every negative forever. The counter's kill is delayed by the
-attack (median cycle $0 \rightarrow 8$ as budget rises) and never
-prevented. Forgiveness is a defence against noise and a liability
-against a patient attacker, and the same is true in reverse for
-ruthlessness.
+What it does \emph{not} do is reverse the recommendation, and getting
+that wrong is a trap this paper has already fallen into once
+(\S\ref{sec:swebench-attack}). The strike counters' kill rate is
+unmoved by the attack, which reads as immunity until one counts poison
+by \emph{provenance} rather than by whether it currently advises action.
+On that predicate the counters never removed the poison at all: two
+poisoned entries survive in \texttt{evict\_on\_negative} at every
+budget \emph{including zero}, against none for the unattacked ledger,
+and quarantine ends worse under attack than it began ($2.0
+\rightarrow 2.8$). The ledger under the heaviest attack we run still
+holds fewer poisoned entries ($1.0$) than any counter holds with no
+attacker present ($2.0$; mean difference $-1.0$, $p = 0.0020$). A
+mechanism that keeps the inert poison forever has nothing left for a
+persistence adversary to take, which is abstention rather than defence
+--- the same reading we give the bandit and \texttt{keep\_everything}
+on Axis 2.
 
-The practical consequence for this map is uncomfortable and we state it
-plainly: \emph{our recommendation on Axis 2 depends on the adversary's
-objective, and for a persistence-seeking attacker the one-line heuristic
-is the better choice.} What the ledger still buys in that regime is
-leanness and forgiveness under accidental noise, neither of which the
-counter provides.
+The honest statement is therefore narrower than a flip: \emph{persistence
+narrows the ledger's advantage from total elimination to partial, and
+costs it the guarantee, without making any counter preferable.} The
+attack is worth publishing because a defence whose guarantee can be
+removed silently is one an operator should know about, not because the
+alternative is better.
 
 \paragraph{Axis 3: Do measurements lie by accident?}
 When measurements are truthful and deterministic, a one-line

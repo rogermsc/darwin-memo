@@ -494,34 +494,44 @@ evict\_on\_negative & 0 & 1.00 & 1.00 & 1.00 & 1.00 \\
 \end{tabular}
 \end{table}
 
-The objectives have opposite preferred victims
-(Table~\ref{tab:persistence}). Destruction destroys the counter and
-leaves the ledger standing; persistence leaves the counter untouched and
-takes the ledger's poison-kill guarantee away entirely --- $1.00$ to
-$0.10$ at two lies per cycle and $0.00$ at four, paired permutation
-$p = 0.0039$ on 10 seeds, against \texttt{evict\_on\_negative}'s $1.00$
-at every budget ($p = 1$). The persistence attack is also quieter:
-benign capability never leaves $1.00$, so nothing moves in the metric an
-operator is watching, and only the cumulative delta records the damage.
+The attack works, and the table understates what it costs the ledger
+until one is careful about what ``kill'' means. Survival's poison-kill
+rate falls from $1.00$ to $0.10$ at two lies per cycle and to $0.00$ at
+four (paired permutation $p = 0.0039$, 10 seeds) while benign capability
+never leaves $1.00$: the guarantee disappears and nothing moves in the
+metric an operator is watching. The explanation is our own central
+mechanism from the other side. Bounded credit with earn-back forgives a
+lie the defender did not deserve, and equally lets a \emph{paid} poison
+earn its way back above the floor; the adversary need not prevent every
+blame, only keep the balance positive.
 
-The explanation is our own central mechanism, seen from the other side.
-Bounded credit with earn-back is what lets the ledger forgive a lie it
-did not deserve, and it is equally what lets a \emph{paid} poison earn
-its way back above the floor: the adversary does not need to prevent
-every blame, only to keep the balance positive. The counter cannot
-forgive, which is why destruction ruins it --- and cannot be refunded
-either, so a single uncovered negative is irreversible and a per-cycle
-budget cannot cover every negative indefinitely. Its kill is delayed by
-the attack (median cycle $0 \rightarrow 8$ as the budget rises) and never
-prevented. Forgiveness is a defence against accidental noise and a
-liability against a patient adversary; ruthlessness is exactly the
-reverse.
+The strike counters' kill rate does not move under the attack, and it
+would be easy --- and wrong --- to read that as immunity. \emph{Kill}
+here asks whether any surviving poisoned entry currently advises action.
+Counted by provenance instead, the counters never removed the poison at
+all: \texttt{evict\_on\_negative} ends with two poisoned entries alive at
+every budget \emph{including zero}, \texttt{evict\_consecutive} with
+$2.0$ rising to $2.4$, and quarantine \emph{worse} under attack than
+without one ($2.0 \rightarrow 2.8$) as evicted entries return. The
+unattacked ledger ends with none, and under the heaviest attack we run it
+ends with $1.0$ --- still fewer than any counter with no attacker present
+($2.0$; mean difference $-1.0$, $p = 0.0020$). A mechanism that retains
+the inert poison indefinitely has nothing left for a persistence
+adversary to take, which is abstention rather than defence.
 
-We report this as a correction to our own regime map rather than as a
-new win (\S\ref{sec:regime}): on the axis this paper is about, the right
-recommendation depends on what the attacker wants, and for a
-persistence-seeking attacker the one-line heuristic is the better
-choice.
+Two lessons, one of them about us. The attack is real and the ledger's
+guarantee is removable silently, which an operator should know. And this
+is the second time in this paper that a poison count has flattered a
+mechanism that had simply never eliminated anything
+(\S\ref{sec:swebench-attack}); the predicate our own harness prescribes
+--- poison by provenance, elimination as a predicate rather than a
+count --- is the one that gives the defensible reading, and we applied it
+only after first reaching the opposite conclusion.
+
+We report this in \S\ref{sec:regime} as a narrowing of our own claim
+rather than a reversal of it: persistence costs the ledger its guarantee
+and reduces its advantage from total elimination to partial, without
+making a counter the better choice.
 
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}

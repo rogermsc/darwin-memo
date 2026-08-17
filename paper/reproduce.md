@@ -76,7 +76,7 @@ manifest at the time this package was frozen:
 | memsec.json                | memsec          | 10    | 120  | 22048c9eb433a4c5a2036f2dea46f03d33cf9ae7-dirty |
 | neighbours.json            | neighbours      | 10    | 30   | b57fef6a87b1e82371ee86343c56395281c86b4f-dirty |
 | noisy.json                 | noisy           | 30    | 2640 | 09ced0f7cb0cb77aa7dd266381c48e01d5642f67 |
-| persistence.json           | persistence     | 10    | 240  | 5e91ed7bdc1de86ec3749cd2ba725ca1f4679014-dirty |
+| persistence.json           | persistence     | 10    | 400  | 04959d904667d60ce33ee6dd4a1f2a33d3b561ad-dirty |
 | salience.json              | salience        | 10    | 30   | e1407e7d30bdd781a9d72e33c107925327df7eae-dirty |
 | testsuite.json             | testsuite       | 10    | 80   | 320c2a687e7f52d53201fd62b130a9657b21308b |
 | testsuite_noisy.json       | testsuite_noisy | 30    | 1050 | 320c2a687e7f52d53201fd62b130a9657b21308b |
