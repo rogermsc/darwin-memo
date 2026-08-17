@@ -42,6 +42,13 @@ and What Survives Them}}
 \begin{document}
 \maketitle
 
+% This abstract is ~4,150 characters. arXiv's metadata field rejects anything
+% over 1920 ("abstracts longer than 1920 characters will not be accepted",
+% info.arxiv.org/help/prep.html), so the text pasted into the submission form
+% CANNOT be this one. The form's copy lives in paper/abstract-arxiv.txt and is
+% guarded by tests/test_arxiv_metadata.py for length, TeX-isms and unicode.
+% Edit the two together: nothing checks that they still say the same thing,
+% because "same claims, different length" is not mechanically checkable.
 \begin{abstract}
 Agent memory that only grows is eventually dominated by stale and
 poisoned entries, so every practical system curates. Every curator

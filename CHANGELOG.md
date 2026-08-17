@@ -6,6 +6,24 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`paper/abstract-arxiv.txt`, because the paper could not have been
+  submitted.** arXiv's metadata instructions state that "abstracts longer than
+  1920 characters will not be accepted"
+  ([prep.html](https://info.arxiv.org/help/prep.html)). The paper's abstract is
+  **4,145 characters** — 2.16x a hard limit enforced by the submission form.
+  The limit applies to the metadata field and not to the PDF, so the fix is not
+  to cut the author's prose: it is that the form's copy is a *different artifact*
+  which has to exist and stay correct. This one is 1,885 characters as the form
+  receives it (arXiv strips newlines not followed by whitespace, so the count is
+  taken after flattening — counting the raw file over-counts by a character per
+  line and could reject a submittable abstract).
+  `tests/test_arxiv_metadata.py` enforces the four rules the form applies and
+  that would otherwise be discovered at submission time: the length cap, no TeX
+  macros, no unicode, no leading "Abstract". Mutation-tested by pasting the PDF's
+  abstract in, which fails on length *and* on `\emph`/`$math$`.
+
 ### Fixed
 
 - **The provenance fix in #65 was scoped to 21 of 101 manifest entries.** Three
