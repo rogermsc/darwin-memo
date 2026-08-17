@@ -34,6 +34,7 @@ import json
 import re
 import statistics
 from collections import defaultdict
+from collections.abc import Callable, Sequence
 from functools import cache, lru_cache
 from pathlib import Path
 from typing import Any
@@ -132,7 +133,7 @@ def median_starve(metrics: tuple[dict[str, Any], ...]) -> str:
 # --------------------------------------------------------------------------
 # tab:noise -- false-bad noise grid, 30 seeds. Cells are "cum delta / benign".
 # --------------------------------------------------------------------------
-NOISE_ARMS = {
+NOISE_ARMS: dict[str, dict[str, Any]] = {
     "survival": {"arm": "survival", "strikes": None},
     "evict k=1": {"arm": "evict_on_negative", "strikes": 1},
     "consecutive k=2": {"arm": "evict_consecutive", "strikes": 2},
@@ -157,15 +158,15 @@ def test_noise_grid_matches_committed_runs(arm: str, rate: float, cell: str) -> 
     the ``flip`` model at rate 0 -- identical by construction, and stated here
     rather than left for a reader to infer from a missing cell.
     """
-    want = dict(
-        NOISE_ARMS[arm],
-        flake_rate=rate,
-        noise_model="false_bad" if rate > 0 else "flip",
-        cycles=30,
-        files_per_cycle=12,
-        resource_scale=None,
-        suspend=None,
-    )
+    want: dict[str, Any] = {
+        **NOISE_ARMS[arm],
+        "flake_rate": rate,
+        "noise_model": "false_bad" if rate > 0 else "flip",
+        "cycles": 30,
+        "files_per_cycle": 12,
+        "resource_scale": None,
+        "suspend": None,
+    }
     metrics = pick("noisy.json", **want)
     printed_delta, printed_benign = (float(x) for x in cell.split("/"))
     assert printed_delta == pytest.approx(
@@ -179,7 +180,7 @@ def test_noise_grid_matches_committed_runs(arm: str, rate: float, cell: str) -> 
 # --------------------------------------------------------------------------
 # tab:adversary -- the paper's central table. 30 seeds, five budgets.
 # --------------------------------------------------------------------------
-ADVERSARY_ARMS = {
+ADVERSARY_ARMS: dict[str, dict[str, Any]] = {
     "survival": {"arm": "survival", "strikes": None, "suspend": None},
     "evict k=1": {"arm": "evict_on_negative", "strikes": 1},
     "evict k=3": {"arm": "evict_on_negative", "strikes": 3},
@@ -207,7 +208,8 @@ def test_adversary_grid_matches_committed_runs(
     """The table the paper's central claim is read off. Mutation: drift one cell
     and the separation between counters and the ledger stops being the measured
     one, with nothing else in the repo noticing."""
-    metrics = pick("adversary.json", **dict(ADVERSARY_ARMS[arm], lie_budget=budget))
+    want: dict[str, Any] = {**ADVERSARY_ARMS[arm], "lie_budget": budget}
+    metrics = pick("adversary.json", **want)
     printed_delta, printed_benign = (float(x) for x in cell.split("/"))
     assert printed_delta == pytest.approx(
         mean(metrics, "cum_delta", 1e6), abs=DELTA_TOL
@@ -281,11 +283,12 @@ def _memsec_by_label() -> dict[str, tuple[dict[str, Any], ...]]:
 
 
 def _memsec_rows() -> list[tuple[str, str, str, str, str, str, str]]:
-    out = []
+    out: list[tuple[str, str, str, str, str, str, str]] = []
     for row in data_rows("tab:memsec"):
         if len(row) < 7 or row[0] not in MEMSEC_ATTACK:
             continue
-        out.append((MEMSEC_ATTACK[row[0]], *row[1:7]))
+        d, tpr, harm, cum, starve, alive = row[1:7]
+        out.append((MEMSEC_ATTACK[row[0]], d, tpr, harm, cum, starve, alive))
     return out
 
 
@@ -390,7 +393,7 @@ def _wef_by_cell() -> dict[tuple[str, str], tuple[dict[str, Any], ...]]:
 
 
 def _wef_rows() -> list[tuple[str, str, tuple[str, ...]]]:
-    out = []
+    out: list[tuple[str, str, tuple[str, ...]]] = []
     for row in data_rows("tab:wef"):
         if len(row) < 7 or row[1] not in WEF_ARMS:
             continue
@@ -422,7 +425,7 @@ def test_wef_rows_match_committed_runs(
 # Guards on the guards. Without these, a restructured table silently
 # parametrises zero cases and every test above passes vacuously.
 # --------------------------------------------------------------------------
-EXPECTED_CELLS = {
+EXPECTED_CELLS: dict[str, tuple[Callable[[], Sequence[object]], int]] = {
     "noise": (_noise_cells, 15),
     "adversary": (_adversary_cells, 35),
     "persistence": (_persistence_cells, 16),
