@@ -65,6 +65,20 @@ removing anything: it hoards dead weight and its poison-kill rate falls
 to $0.07$ by four lies per cycle. Retention is not defence. The ledger's
 own failure boundary lies between two and four lies per cycle and we
 publish it rather than stopping at the win.
+That separation holds for an adversary buying \emph{destruction}, and we
+found it does not survive changing what the adversary buys. An attacker
+that spends the same budget only on \emph{keeping its poison alive} ---
+never wasting a lie on a benign entry --- inverts the result: the ledger's
+poison-kill rate falls from $1.00$ to $0.10$ at two lies per cycle and to
+$0.00$ at four (paired $p = 0.0039$) while the counter that destruction
+destroys is untouched at $1.00$, and benign capability never moves, so
+nothing appears in the metric an operator watches. The cause is the same
+bounded credit buffer: earn-back forgives a lie the defender did not
+deserve and equally lets a paid poison earn its way back above the floor,
+whereas a spent strike cannot be refunded. Forgiveness defends against
+accidental noise and is a liability against a patient adversary. We
+therefore report our own recommendation as conditional on the attacker's
+objective rather than on the presence of an attacker.
 A second and weaker adversary closes a second named-but-unmeasured gap:
 one who never writes, never settles, and only asks questions still drives
 a usage-based retention score, and thereby owns roughly the last $13\%$
