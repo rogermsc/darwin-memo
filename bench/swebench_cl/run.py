@@ -112,17 +112,53 @@ def _cmd_run(args: argparse.Namespace) -> int:
         f"(arm={args.arm}, executor={executor.mode}, resolved={resolved})"
     )
     if args.update_manifest:
-        command = (
-            f"python -m bench.swebench_cl.run run --manifest {args.manifest} "
-            f"--dataset <pinned> --sequence {args.sequence} --arm {args.arm} "
-            f"--executor {args.executor} --seed {args.seed} "
-            f"--lie-budget {args.lie_budget} "
-            + ("--seed-poison " if args.seed_poison else "")
-            + f"--out {args.out} --update-manifest"
-        )
-        manifest_path = update_manifest(args.out, runs, command)
+        manifest_path = update_manifest(args.out, runs, _reproduction_command(args))
         print(f"updated {manifest_path}")
     return 0
+
+
+def _reproduction_command(args: argparse.Namespace) -> str:
+    """The command that actually reproduces this run, including retrieval.
+
+    This used to omit ``--code-context-chars``, ``--base-url`` and ``--model``,
+    all of which default to something else -- so the recorded command for all 80
+    committed SWE-Bench-CL cells described a *blind* run against a local
+    endpoint, while the cells themselves were produced with 300,000 characters
+    of BM25 context and ``gpt-4.1``. Running what the manifest said produced a
+    1,244-character prompt against the wrong model, which is how this was found.
+
+    The per-run ``config`` recorded the truth the whole time. Anything that
+    changes what the model sees, or which model sees it, belongs here.
+    """
+    parts = [
+        "python -m bench.swebench_cl.run run",
+        f"--manifest {args.manifest}",
+        "--dataset <pinned>",
+        f"--sequence {args.sequence}",
+        f"--arm {args.arm}",
+        f"--executor {args.executor}",
+        f"--seed {args.seed}",
+        f"--lie-budget {args.lie_budget}",
+    ]
+    if args.seed_poison:
+        parts.append("--seed-poison")
+    # Retrieval and endpoint: silent defaults that change the experiment.
+    parts.append(f"--code-context-chars {args.code_context_chars}")
+    if args.code_context_chars > 0:
+        parts.append(f"--code-max-files {args.code_max_files}")
+    if args.oracle_retrieval:
+        parts.append("--oracle-retrieval")
+    parts.append(f"--k {args.k}")
+    parts.append(f"--max-prompt-chars {args.max_prompt_chars}")
+    parts.append(f"--base-url {args.base_url}")
+    parts.append(f"--model {args.model}")
+    if args.api_key_env:
+        parts.append(f"--api-key-env {args.api_key_env}")
+    if args.max_tasks is not None:
+        parts.append(f"--max-tasks {args.max_tasks}")
+    parts.append(f"--out {args.out}")
+    parts.append("--update-manifest")
+    return " ".join(parts)
 
 
 def main(argv: list[str] | None = None) -> int:

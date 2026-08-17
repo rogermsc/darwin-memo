@@ -8,6 +8,29 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **The recorded reproduction command did not reproduce the run, for all 80
+  SWE-Bench-CL cells — found by running it.** `reproduce.md` points readers at
+  each manifest entry's `command`, and `manifest_failures` only ever checked that
+  the field was non-empty. The stored string omitted `--code-context-chars`,
+  `--base-url` and `--model`, all of which default to something else, so the
+  documented command describes a **blind prompt against a local llama3.2** where
+  the cells were produced with **300,000 characters of BM25 code context and
+  gpt-4.1**. A one-task smoke run issued exactly the recorded command and
+  returned a **1,244-character** prompt against the committed mean of **279,643**.
+  - Each run's own `config` had recorded the truth all along
+    (`code_context_chars`, `endpoint.base_url`, `endpoint.model`, the retrieved
+    file list), so all 80 commands were reconstructed from the runs and carry a
+    `command_note` saying so. `--code-max-files` is the paper's documented cap of
+    10, which is also the maximum any task in these matrices retrieved.
+  - `bench/swebench_cl/run.py` now emits every run-shaping flag, and
+    `tests/test_manifest_command_reproduces.py` fails when a stored command
+    disagrees with the config of the run it claims to reproduce (160 checks).
+  - Verified end to end: the repaired command yields a **301,956-character**
+    prompt with 8-file retrieval on `sympy__sympy-12096`, against 1,244 before.
+  - First reconstruction pass derived `--code-max-files` from one cell's observed
+    file count, which is a floor rather than the setting; 32 cells then failed
+    their own new guard, which is what caught it.
+
 - **Two claims about MemoryOS's JSON handling were wrong, found by reading the
   upstream source while drafting the maintainer disclosure.** The paper said
   MemoryOS "parses several LLM replies with a bare `json.loads`" and "silently

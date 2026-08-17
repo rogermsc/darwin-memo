@@ -143,6 +143,29 @@ enforced before, and the two had drifted — `distill_noisy`,
 on every push and cited in `docs/benchmarks.md`, while this package
 described neither them nor their commits.
 
+### The recorded command did not reproduce the run, for all 80 SWE-Bench-CL cells
+
+`config_hash` binds a file to its grid and `source_commit` to its code. The third
+field a reader actually types is `command`, and until 2026-08-17 nothing checked
+it beyond "is non-empty".
+
+For every one of the 80 SWE-Bench-CL cells it was wrong. The stored command
+omitted `--code-context-chars`, `--base-url` and `--model`, all of which default
+to something else — so what the manifest told a reader to run was a **blind**
+prompt against a **local llama3.2**, where the cells were produced with 300,000
+characters of BM25 code context and `gpt-4.1`. Following the instruction produced
+a 1,244-character prompt instead of the recorded ~280,000, which is how this was
+found: by running it.
+
+Each run's own `config` had recorded the truth the whole time (`code_context_chars`,
+`endpoint.base_url`, `endpoint.model`, and the retrieved file list), so the
+commands were reconstructed from the runs themselves and carry a `command_note`
+saying so. `bench/swebench_cl/run.py` now emits every run-shaping flag, and
+`tests/test_manifest_command_reproduces.py` fails when a stored command disagrees
+with the config of the run it claims to reproduce. A repaired command was checked
+end to end: it yields a 301,956-character prompt with 10-file retrieval, against
+the 1,244 the old one produced.
+
 ### The code pointer was wrong in two ways, and both are now checked
 
 `config_hash` binds a file to its run grid, and that has always been
