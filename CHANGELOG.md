@@ -6,7 +6,53 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two claims about MemoryOS's JSON handling were wrong, found by reading the
+  upstream source while drafting the maintainer disclosure.** The paper said
+  MemoryOS "parses several LLM replies with a bare `json.loads`" and "silently
+  substitutes a generic session summary". There is **one** such call
+  (`utils.py:259`) and it **prints a warning**. Every code claim is now verified
+  line by line against upstream `587ed7755c7a` and cited by file and line, and
+  the substance turns out sharper than what was written: on `JSONDecodeError`
+  the updater files the whole batch as one session under a constant summary
+  *with an empty keyword list*, and retrieval scores `semantic_sim +
+  keyword_alpha * s_topic_keywords`, so both retrieval terms degrade at once.
+  Corrected in `sec:memoryos` and `docs/benchmarks.md`. Third instance in this
+  repo of a claim reaching the paper through something other than the source.
+
 ### Added
+
+- **`docs/disclosure/2026-08-17-memoryos.md` — a coordinated-disclosure draft to
+  BAI-LAB, written and NOT sent.** Contacting a third party about their software
+  is the author's call; this exists so the text is reviewable and consistent with
+  the paper first. Covers the three findings (cheap heat-triggered promotion, a
+  single retrieval conferring eviction immunity, fenced JSON collapsing topic
+  structure), names what we did *not* demonstrate, and states which of our own
+  claims we had to correct.
+- **The paper's first figure, generated from committed evidence.** `bench/figures.py`
+  (stdlib only) emits `paper/figures/adversary.tex` from `adversary.json`;
+  `--check` runs in CI and fails if the two disagree, because a hand-plotted
+  curve would be a number in the paper that does not trace to the data. Two
+  panels — benign capability and poison-kill rate against attack budget — because
+  the result requires reading both: `keep_everything` traces a flat 1.00 on one
+  and a flat 0.00 on the other, and either panel alone hides that. Four tests,
+  mutation-tested; one of them cross-checks the figure against `tab:adversary`
+  so the two views of one file cannot drift apart.
+  - The cross-check's first stated mutation was one it provably cannot catch
+    (`evict_on_negative` k=1 vs k=3 have identical benign columns). Verified with
+    an isolating mutation instead, and the docstring now says which mutations
+    distinguish it and why the other does not.
+
+### Changed
+
+- **The in-PDF abstract is 674 words -> 408.** arXiv caps only the metadata field
+  (handled separately in `paper/abstract-arxiv.txt`), so this is an editorial cut
+  rather than a fix: the real-task result is stated once instead of twice and the
+  literature framing is compressed. Deliberately not cut further — going below
+  ~350 would mean dropping the persistence result, the published failure
+  boundary, or the honest-scope paragraph, which are the paper's distinguishing
+  features rather than padding.
 
 - **The paper's strongest claim about itself is now checked for every table, not
   one.** `paper/reproduce.md` says "No number in the report was produced outside
