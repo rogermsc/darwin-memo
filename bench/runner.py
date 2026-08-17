@@ -211,6 +211,8 @@ def run_one(
             files_per_cycle=files_per_cycle,
             seed=seed,
             lie_budget=overrides["lie_budget"],
+            # Absent, this is the destruction adversary the paper started with.
+            objective=overrides.get("adversary_objective", "destroy"),
         )
     elif "flake_rate" in overrides:
         env = FlakyStorageEnv(

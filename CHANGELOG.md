@@ -8,6 +8,36 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **`persistence` suite: the adversary's *objective* is a new axis, and adding
+  it corrects the regime map rather than refining it.** Every adversarial arm
+  in this repo spent its budget on destruction — an assumption, not a finding,
+  and the MemoryOS result (#61/#62) said it was the wrong one: there the cheap
+  attack was making the attacker's own memory permanent, not deleting the
+  defender's. `AdversarialStorageEnv` now takes `objective="destroy"|"persist"`;
+  `persist` lies **only** when the poison has just done damage, never spending
+  a lie on a benign entry it does not need removed. Same channel, same worlds,
+  same seeds.
+  **The objectives have opposite preferred victims.** Destruction destroys
+  `evict_on_negative` (benign 0.00 from budget 1) and leaves survival standing.
+  Persistence leaves the counter untouched (kill 1.00 at every budget, p = 1)
+  and takes survival's poison-kill guarantee away entirely — **1.00 → 0.10 at
+  two lies per cycle, → 0.00 at four, paired permutation p = 0.0039** on 10
+  seeds. It is also *quieter*: benign capability never leaves 1.00, so nothing
+  moves in the metric an operator watches; only `cum_delta` records it
+  (12.59M → −0.66M).
+  **The cause is this project's own central mechanism seen from the other
+  side.** Bounded credit with earn-back is what lets the ledger forgive a lie
+  it did not deserve — and equally what lets a *paid* poison earn its way back
+  above the floor. A counter cannot forgive (so destruction ruins it) and
+  cannot be refunded (so one uncovered negative is irreversible, and its kill
+  is merely *delayed*, median cycle 0 → 8). Forgiveness defends against
+  accidental noise and is a liability against a patient adversary; ruthlessness
+  is the reverse. Reported as a **correction to the regime map** — for a
+  persistence-seeking attacker the one-line heuristic is the better choice.
+  Kept in its own suite so `bench/results/adversary.json` stays byte-stable.
+
+### Added
+
 - **`bench.external.memoryos_promotion_e2e`: the promotion attack carried out
   end to end — adversary content reaches MemoryOS's persistent tier for the
   price of three questions.** #61 measured the precondition and said the

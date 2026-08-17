@@ -56,6 +56,12 @@ from pathlib import Path
 
 from darwin_memo import Outcome, StorageEnv, Task
 
+# What the attacker is buying. The paper's original adversary only ever
+# bought destruction; the MemoryOS result (docs/benchmarks.md) showed that on a
+# real deployed system persistence is the cheaper purchase, so it gets an
+# objective of its own rather than being assumed away.
+OBJECTIVES = ("destroy", "persist")
+
 
 class AdversarialStorageEnv:
     """StorageEnv whose measurements lie in the attacker's favour."""
@@ -66,13 +72,19 @@ class AdversarialStorageEnv:
         files_per_cycle: int = 12,
         seed: int = 7,
         lie_budget: int = 2,
+        objective: str = "destroy",
     ) -> None:
         if lie_budget < 0:
             raise ValueError(f"lie_budget must be >= 0, got {lie_budget}")
+        if objective not in OBJECTIVES:
+            raise ValueError(
+                f"objective must be one of {OBJECTIVES}, got {objective!r}"
+            )
         self.base = StorageEnv(root=root, files_per_cycle=files_per_cycle, seed=seed)
         self.resource_scale = self.base.resource_scale
         self.seed = seed
         self.lie_budget = lie_budget
+        self.objective = objective
         self.true_deltas: list[float] = []
         self.reported_deltas: list[float] = []
         # Named for the noise wrapper's accounting surface so the runner,
@@ -100,7 +112,13 @@ class AdversarialStorageEnv:
         true = self.base.verify(task, answer_text)
         self.true_deltas[self._cycle] += true.delta
         reported = true
-        if self._spent_this_cycle < self.lie_budget and true.delta != 0:
+        # "destroy" spends on any measured outcome, so it both blames benign
+        # entries and pays the poison. "persist" spends only when the poison
+        # has just done damage, which is the cheaper objective and the one the
+        # deployed MemoryOS result says an attacker would actually choose: it
+        # never wastes a lie attacking a benign entry it does not need gone.
+        worth_lying = true.delta != 0 if self.objective == "destroy" else true.delta < 0
+        if self._spent_this_cycle < self.lie_budget and worth_lying:
             self._spent_this_cycle += 1
             self.flakes_fired += 1
             if true.delta > 0:

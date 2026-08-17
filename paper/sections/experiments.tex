@@ -456,6 +456,73 @@ deterministically, and the curator selects the neglected. Manufacturing
 the neglect end to end against a live agent is not demonstrated here and
 should not be read as though it were.
 
+\subsection{What the liar is buying: persistence vs destruction}
+\label{sec:persistence}
+Every adversarial arm above spends its budget on destruction. That was
+an assumption, not a finding, and the deployed system in
+\S\ref{sec:memoryos} suggested it is the wrong one: there, the cheap
+attack was not deleting the defender's memory but making the attacker's
+own memory permanent. So we ran the mirror on our own harness --- the
+same channel, the same worlds, the same seeds, and one change: the
+adversary lies \emph{only} when the poison has just done damage, never
+spending a lie on a benign entry it does not need removed.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Persistence vs destruction, 10 seeds, storage environment.
+\emph{Kill}: fraction of seeds where no poison that advises action
+survives. \emph{Benign}: benign-probe correctness. At budget 0 both
+objectives reproduce the unattacked run exactly, which is the canary that
+the objective flag adds no behaviour of its own.}
+\label{tab:persistence}
+\begin{tabular}{llcccc}
+\toprule
+& & \multicolumn{2}{c}{destroy} & \multicolumn{2}{c}{persist} \\
+arm & budget & kill & benign & kill & benign \\
+\midrule
+\textbf{survival} & 0 & 1.00 & 1.00 & 1.00 & 1.00 \\
+                  & 1 & 1.00 & 1.00 & 1.00 & 1.00 \\
+                  & 2 & 1.00 & 0.97 & $\mathbf{0.10}$ & 1.00 \\
+                  & 4 & 0.90 & 0.10 & $\mathbf{0.00}$ & 1.00 \\
+\midrule
+evict\_on\_negative & 0 & 1.00 & 1.00 & 1.00 & 1.00 \\
+                    & 1 & 1.00 & $\mathbf{0.00}$ & 1.00 & 1.00 \\
+                    & 2 & 1.00 & $\mathbf{0.00}$ & 1.00 & 1.00 \\
+                    & 4 & 1.00 & $\mathbf{0.00}$ & 1.00 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The objectives have opposite preferred victims
+(Table~\ref{tab:persistence}). Destruction destroys the counter and
+leaves the ledger standing; persistence leaves the counter untouched and
+takes the ledger's poison-kill guarantee away entirely --- $1.00$ to
+$0.10$ at two lies per cycle and $0.00$ at four, paired permutation
+$p = 0.0039$ on 10 seeds, against \texttt{evict\_on\_negative}'s $1.00$
+at every budget ($p = 1$). The persistence attack is also quieter:
+benign capability never leaves $1.00$, so nothing moves in the metric an
+operator is watching, and only the cumulative delta records the damage.
+
+The explanation is our own central mechanism, seen from the other side.
+Bounded credit with earn-back is what lets the ledger forgive a lie it
+did not deserve, and it is equally what lets a \emph{paid} poison earn
+its way back above the floor: the adversary does not need to prevent
+every blame, only to keep the balance positive. The counter cannot
+forgive, which is why destruction ruins it --- and cannot be refunded
+either, so a single uncovered negative is irreversible and a per-cycle
+budget cannot cover every negative indefinitely. Its kill is delayed by
+the attack (median cycle $0 \rightarrow 8$ as the budget rises) and never
+prevented. Forgiveness is a defence against accidental noise and a
+liability against a patient adversary; ruthlessness is exactly the
+reverse.
+
+We report this as a correction to our own regime map rather than as a
+new win (\S\ref{sec:regime}): on the axis this paper is about, the right
+recommendation depends on what the attacker wants, and for a
+persistence-seeking attacker the one-line heuristic is the better
+choice.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence

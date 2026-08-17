@@ -45,6 +45,7 @@ from .suites import (
     memsec_suite,
     neighbours_suite,
     noisy_suite,
+    persistence_suite,
     salience_suite,
     scaling_suite,
     smoke_suite,
@@ -149,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             "llm",
             "bandit",
             "adversary",
+            "persistence",
             "memsec",
             "wef",
             "judge",
@@ -264,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
     elif args.suite == "adversary":
         runs = _execute(adversary_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "persistence":
+        runs = _execute(persistence_suite(_parse_seeds(args.seeds)))
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "salience":
