@@ -50,6 +50,47 @@ lies per cycle its capability collapses to $0.06$---which we publish
 because a defence with an unstated limit is one nobody can deploy
 safely.
 
+\paragraph{Axis 2a: If measurements lie on purpose, \emph{what is the
+liar buying}?} This axis was not in the first version of the map, and
+adding it changes the map's advice rather than refining it. Our
+adversary was written to buy destruction --- it spends its budget on
+every measured outcome, blaming benign entries as well as paying the
+poison. A deployed system suggested the other objective is the one an
+attacker would actually choose (\S\ref{sec:memoryos}), so we ran it: an
+adversary identical in every respect except that it lies \emph{only}
+when the poison has just done damage, never wasting a lie on a benign
+entry it does not need removed.
+
+The two objectives have opposite preferred victims, and the property
+that decides both is the same one. Against destruction the ledger holds
+and the counter collapses; against persistence the counter holds and the
+ledger loses its poison-kill guarantee entirely --- $1.00$ to $0.10$ at
+two lies per cycle and to $0.00$ at four, on $10$ seeds, paired
+$p = 0.0039$, while \texttt{evict\_on\_negative} stays at $1.00$
+throughout ($p = 1$). Benign capability under the persistence adversary
+never moves from $1.00$, so the attack does not appear in the metric an
+operator watches; only the cumulative delta drops.
+
+The mechanism is the paper's own central claim, read from the other
+side. A bounded credit buffer with earn-back is what lets the ledger
+forgive a lie it did not deserve --- and equally what lets a \emph{paid}
+poison earn its way back above the floor, so an adversary need only keep
+the balance positive. A strike counter cannot forgive, which is why
+destruction destroys it; but a spent life cannot be refunded either, so
+one uncovered negative is irreversible and a per-cycle budget cannot
+cover every negative forever. The counter's kill is delayed by the
+attack (median cycle $0 \rightarrow 8$ as budget rises) and never
+prevented. Forgiveness is a defence against noise and a liability
+against a patient attacker, and the same is true in reverse for
+ruthlessness.
+
+The practical consequence for this map is uncomfortable and we state it
+plainly: \emph{our recommendation on Axis 2 depends on the adversary's
+objective, and for a persistence-seeking attacker the one-line heuristic
+is the better choice.} What the ledger still buys in that regime is
+leanness and forgiveness under accidental noise, neither of which the
+counter provides.
+
 \paragraph{Axis 3: Do measurements lie by accident?}
 When measurements are truthful and deterministic, a one-line
 ``evict-on-negative'' heuristic \emph{ties} the full ledger on outcomes

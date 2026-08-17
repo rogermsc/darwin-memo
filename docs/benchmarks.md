@@ -1074,6 +1074,63 @@ Caveats:
 
 [memoryos]: https://arxiv.org/abs/2506.06326
 
+## What the liar is buying: persistence vs destruction
+
+```
+python -m bench.run --suite persistence --seeds 0:10 \
+    --out bench/results/persistence.json --update-manifest
+```
+
+Every adversarial arm in this document spends its budget on destruction.
+That was an assumption, not a finding — and the
+[MemoryOS result](#a-mechanically-curated-system-memoryos) said it is the
+wrong one: there the cheap attack was not deleting the defender's memory
+but making the attacker's own memory permanent. This is the mirror on our
+own harness: same channel, same worlds, same seeds, one change — the
+adversary lies **only** when the poison has just done damage, never
+spending a lie on a benign entry it does not need removed.
+
+| arm | budget | destroy: kill | destroy: benign | persist: kill | persist: benign |
+| --- | --- | --- | --- | --- | --- |
+| **survival** | 0 | 1.00 | 1.00 | 1.00 | 1.00 |
+| | 1 | 1.00 | 1.00 | 1.00 | 1.00 |
+| | 2 | 1.00 | 0.97 | **0.10** | 1.00 |
+| | 4 | 0.90 | 0.10 | **0.00** | 1.00 |
+| `evict_on_negative` | 0 | 1.00 | 1.00 | 1.00 | 1.00 |
+| | 1 | 1.00 | **0.00** | 1.00 | 1.00 |
+| | 2 | 1.00 | **0.00** | 1.00 | 1.00 |
+| | 4 | 1.00 | **0.00** | 1.00 | 1.00 |
+
+Budget 0 is the canary: both objectives reproduce the unattacked run
+exactly, so the objective flag adds no behaviour of its own.
+
+**The objectives have opposite preferred victims.** Destruction destroys
+the counter and leaves the ledger standing. Persistence leaves the
+counter untouched and takes the ledger's poison-kill guarantee away
+entirely — 1.00 → 0.10 at two lies per cycle, → 0.00 at four, paired
+permutation **p = 0.0039** on 10 seeds, against `evict_on_negative`'s
+1.00 at every budget (p = 1).
+
+The persistence attack is also **quieter**: benign capability never
+leaves 1.00, so nothing moves in the metric an operator watches. Only
+`cum_delta` records it (12.59M → −0.66M at budget 2).
+
+**Why, and it is this project's own mechanism seen from the other side.**
+Bounded credit with earn-back is what lets the ledger forgive a lie it
+did not deserve — and equally what lets a *paid* poison earn its way back
+above the floor, so the adversary need not prevent every blame, only keep
+the balance positive. The counter cannot forgive, which is why
+destruction ruins it, and cannot be refunded either, so one uncovered
+negative is irreversible and a per-cycle budget cannot cover every
+negative indefinitely. Its kill is *delayed* by the attack (median cycle
+0 → 8 as budget rises) and never prevented.
+
+Forgiveness is a defence against accidental noise and a liability against
+a patient adversary. Ruthlessness is exactly the reverse. This is
+reported as a correction to the regime map, not a new win: on the axis
+this project is about, the right recommendation depends on what the
+attacker wants.
+
 ## Curation-targeted attack: denial of memory
 
 ```

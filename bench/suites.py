@@ -267,6 +267,43 @@ ADVERSARY_VARIANTS: list[tuple[str, dict[str, Any], str]] = [
 ]
 
 
+# The persistence adversary, and why it is a separate suite rather than a knob
+# on the one above. Both spend the same channel, but they buy different things:
+# "destroy" lies on every measured outcome (blaming benign entries AND paying
+# the poison), while "persist" lies only when the poison has just done damage.
+# The deployed MemoryOS result showed persistence is the cheaper purchase on a
+# real system, and the paper had no experiment in that direction; this is it.
+# Kept out of the adversary suite so bench/results/adversary.json stays
+# byte-stable, for the reason SALIENCE_ARMS and NEIGHBOUR_ARMS are separate.
+PERSISTENCE_ARMS = ("survival", "evict_on_negative", "keep_everything")
+PERSISTENCE_BUDGETS = (0, 1, 2, 4)
+
+
+def persistence_suite(seeds: list[int]) -> list[RunSpec]:
+    """Destruction vs persistence at matched budgets, same arms, same worlds.
+
+    The comparison that matters is cost: how much of its budget each objective
+    has to spend to get what it wants. Reported per (objective, budget) so the
+    two curves can be read against each other rather than averaged.
+    """
+    return [
+        RunSpec(
+            suite="persistence",
+            arm=arm,
+            seed=seed,
+            overrides={
+                "lie_budget": budget,
+                "adversary_objective": objective,
+            },
+            label=f"objective={objective},budget={budget}",
+        )
+        for objective in ("destroy", "persist")
+        for budget in PERSISTENCE_BUDGETS
+        for arm in PERSISTENCE_ARMS
+        for seed in seeds
+    ]
+
+
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
     """Denial-of-memory: who survives an attacker aiming at the curator?
 

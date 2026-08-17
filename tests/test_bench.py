@@ -618,3 +618,41 @@ def test_potentiation_sweep_holds_across_corpora_and_upkeeps():
         "saturating normalisation must hold the margin at or below the "
         f"one-cycle measurement floor: {saturating_margins}"
     )
+
+
+def test_persist_objective_spends_only_on_the_guilty():
+    """The persistence adversary's whole economy is that it never wastes a lie.
+
+    Two mutations this catches. First, gating on ``true.delta != 0`` instead of
+    ``< 0`` turns it back into the destruction adversary it is meant to be
+    contrasted against; every number in the persistence table would then
+    duplicate the adversary table and the comparison would silently say
+    nothing. Second, at budget 0 both objectives must add exactly zero
+    behaviour — without that canary there is nothing separating "the attack
+    moved the numbers" from "the harness did".
+    """
+    from bench.adversary import AdversarialStorageEnv
+
+    def spend(objective: str, budget: int) -> tuple[int, int]:
+        """Fire one benign win then one poison disaster; report where lies went."""
+        env = AdversarialStorageEnv(lie_budget=budget, objective=objective, seed=1)
+        env.tasks(0)
+        deltas = iter([+100.0, -100.0])
+
+        def stub_verify(task, answer_text):
+            return Outcome(delta=next(deltas), detail="stub")
+
+        env.base.verify = stub_verify  # type: ignore[method-assign]
+        for _ in range(2):
+            env.verify(Task(prompt="p", context={}), "a")
+        return env.fired_false_bad, env.fired_false_good
+
+    assert spend("persist", 4) == (0, 1), (
+        "persist must pay the guilty poison once and never blame a benign "
+        "entry; blaming benign entries is what destruction does"
+    )
+    assert spend("destroy", 4) == (1, 1), "destroy must spend in both directions"
+    for objective in ("destroy", "persist"):
+        assert spend(objective, 0) == (0, 0), (
+            f"{objective} fired a lie at budget 0; the canary is broken"
+        )
