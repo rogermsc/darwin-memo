@@ -14,9 +14,16 @@ checks each cell of ``tab:headline`` against it. It does not check the table's
 prose, its ordering, or its formatting; only that each number a reader sees is
 the number the evidence carries.
 
-Kept deliberately narrow. Generalising to every table in the paper means a
-LaTeX parser, and a fragile parser that fails on reformatting would be worse
-than none: the point is a guard people trust enough to keep.
+Kept deliberately narrow at first. Generalising to every table means a LaTeX
+parser, and a fragile parser that fails on reformatting would be worse than
+none: the point is a guard people trust enough to keep. That caution was right
+about the *positional* parser this file started with, which misaligned the first
+time a column was inserted and silently compared the wrong pairs of numbers. The
+header-keyed version below cannot fail that way, and the remaining eight tables
+are now covered on the same basis in
+``tests/test_paper_tables_match_evidence.py`` -- which found the paper correct in
+all 232 printed numbers it checks, and exists because a true unenforced claim is
+the kind that rots.
 """
 
 from __future__ import annotations
