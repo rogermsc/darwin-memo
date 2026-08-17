@@ -143,6 +143,29 @@ enforced before, and the two had drifted — `distill_noisy`,
 on every push and cited in `docs/benchmarks.md`, while this package
 described neither them nor their commits.
 
+### The recorded command did not reproduce the run, for all 80 SWE-Bench-CL cells
+
+`config_hash` binds a file to its grid and `source_commit` to its code. The third
+field a reader actually types is `command`, and until 2026-08-17 nothing checked
+it beyond "is non-empty".
+
+For every one of the 80 SWE-Bench-CL cells it was wrong. The stored command
+omitted `--code-context-chars`, `--base-url` and `--model`, all of which default
+to something else — so what the manifest told a reader to run was a **blind**
+prompt against a **local llama3.2**, where the cells were produced with 300,000
+characters of BM25 code context and `gpt-4.1`. Following the instruction produced
+a 1,244-character prompt instead of the recorded ~280,000, which is how this was
+found: by running it.
+
+Each run's own `config` had recorded the truth the whole time (`code_context_chars`,
+`endpoint.base_url`, `endpoint.model`, and the retrieved file list), so the
+commands were reconstructed from the runs themselves and carry a `command_note`
+saying so. `bench/swebench_cl/run.py` now emits every run-shaping flag, and
+`tests/test_manifest_command_reproduces.py` fails when a stored command disagrees
+with the config of the run it claims to reproduce. A repaired command was checked
+end to end: it yields a 301,956-character prompt with 10-file retrieval, against
+the 1,244 the old one produced.
+
 ### The code pointer was wrong in two ways, and both are now checked
 
 `config_hash` binds a file to its run grid, and that has always been
@@ -322,8 +345,26 @@ reproduction claim; regenerating them is optional.
 
 Prerequisites: a running Docker daemon (the official SWE-bench harness
 builds and runs real repository test suites, under `linux/amd64`
-emulation on Apple Silicon), `pip install swebench`, and the pinned
-dataset:
+emulation on Apple Silicon), **`pip install 'swebench>=3,<5'`**, and the
+pinned dataset:
+
+> The version bound is load-bearing and was unstated until 2026-08-17.
+> `bench/swebench_cl/executor.py` invokes
+> `swebench.harness.run_evaluation` with `--namespace` and `--cache_level`.
+> **swebench 5.0.0 accepts neither and exits with
+> `unrecognized arguments`**, so a fresh `pip install swebench` today
+> cannot evaluate anything. 4.0.4 and 3.0.15 both work; 2.1.8 does not
+> have `--namespace`.
+>
+> Worse, the failure is easy to miss. A task whose model output yields an
+> **empty patch** never reaches the harness — the executor short-circuits
+> and records `notes: "docker: empty patch, evaluated as base behavior"`
+> with `eval_executed: true`. So a run with no `swebench` installed at all
+> still produces plausible-looking result rows for every empty-patch task,
+> and only a task that actually produces a patch surfaces the problem.
+> That is how this went unnoticed: a one-task smoke run happened to draw
+> an empty-patch task and looked fine.
+
 
 ```bash
 python -m bench.swebench_cl.run pin \
