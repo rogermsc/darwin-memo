@@ -27,6 +27,19 @@ project uses [SemVer](https://semver.org/).
     without a line number and was correct as written; only the unsent draft was
     wrong.
 
+- **A retired number survived in a fourth file for four days.** The 2026-08-14
+  review found that MPBench's "63.6% / 31.6%" detector means are not in MPBench
+  and cannot be reproduced from it, and corrected the three paper sections and
+  the research note it listed. `docs/benchmarks.md:709` still said "the 31.6%
+  the literature reports" — it was never on the list. Now cites the printed
+  per-detector values (PromptArmor 42.50%, DataFilter 10.74% on weak-signal),
+  re-verified against MPBench Table 4 today.
+  - The nearest printed figure to 31.6 in that paper is 31.67%, an *attack
+    success rate* on OpenClaw — not a detector's true-positive rate at all.
+  - Rule recorded in the review: when retiring a number, let a repo-wide grep
+    define the list of files. Writing the list from memory and then grepping
+    only those files is what left this one behind.
+
 - **The second SWE-Bench-CL sequence ran, and the paper's one transferring
   result does not replicate.** Ten cells on `sympy` (2 seeds x 3 arms x 2
   budgets, 500 docker-evaluated tasks, 6h19m, ~$70 of gpt-4.1), completing the

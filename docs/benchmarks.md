@@ -706,8 +706,19 @@ not evaluated here.
   authority, blind to a calm false statement of fact). Its TPR/FPR on
   this corpus is reported in every row so the reconstruction's own
   behaviour is visible rather than assumed. A trained classifier would
-  land somewhere else on the weak-signal class, and the 31.6% the
-  literature reports is not 0%.
+  land somewhere else on the weak-signal class: MPBench's best
+  off-the-shelf detector (PromptArmor) reports **42.50%** there and its
+  weakest (DataFilter) **10.74%**, against the 0% this reconstruction
+  achieves.
+
+  *Corrected 2026-08-18:* this said "the 31.6% the literature reports".
+  That figure is not in MPBench. It was a mean over detectors computed in
+  the 2026-08-01 note and never reproducible from the source — the
+  nearest printed 31.x is 31.67%, an *attack success rate* on OpenClaw,
+  not a detector's true-positive rate. The paper and the 2026-08-01 note
+  were corrected on 2026-08-14 to cite printed per-detector values with
+  no arithmetic of ours in the middle; this line was missed. Verified
+  against MPBench Table 4 (v2).
 - One attack per corpus, so the document-level FPR is coarse (3 docs).
 - `poison_killed`/`poison_kill_cycle` track only the poison that ADVISES
   ACTION, which reads as "already dead at cycle 0" for the inert class.
