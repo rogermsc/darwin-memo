@@ -6,6 +6,32 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The second SWE-Bench-CL sequence ran, and the paper's one transferring
+  result does not replicate.** Ten cells on `sympy` (2 seeds x 3 arms x 2
+  budgets, 500 docker-evaluated tasks, 6h19m, ~$70 of gpt-4.1), completing the
+  design the paper had abandoned. Every one of the 379 non-empty-patch tasks
+  reached the official harness.
+  - `django` (published): the counter's benign burial triples under attack,
+    2.29-3.00x, while the ledger's barely moves, 1.08-1.43x.
+  - `sympy` (new): **the tripling is absent.** Counter 0.96x and 0.93x, ledger
+    0.78x and 0.76x. Neither mechanism is meaningfully damaged.
+  - The scope condition is visible in the unattacked column and could not have
+    been seen from one repository: on `django` the counter buries 6-7 benign
+    entries with no adversary present, on `sympy` it buries **26-27**. A curator
+    already destroying four times as much benign memory at baseline leaves an
+    adversary little headroom. The tripling is a property of a curator that is
+    otherwise behaving well.
+  - **What survives both**: the counter's burial ratio exceeds the ledger's in
+    5 of 5 paired worlds, differences +0.17 to +1.92, exact paired permutation
+    p = 0.0625 — which is the *floor* at five pairs, so this is unanimity at the
+    limit of what five worlds can express, not significance. The pre-registered
+    design wants six worlds (floor 0.031); the sixth, `sympy` seed 2, is not run.
+  - Abstract, `sec:swebench-attack`, `tab:swebench-attack` (now two-sequence)
+    and the statistical-status paragraph all updated to lead with the
+    non-replication rather than bury it.
+
 ### Fixed
 
 - **A run can complete with the evaluation harness absent, and look fine.**
