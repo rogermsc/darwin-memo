@@ -67,7 +67,7 @@ That sentence is the repo's strongest claim about itself, so it is checked
 rather than asserted. Every cell of every table in the paper that has
 committed evidence behind it is recomputed from that evidence in CI:
 `tab:headline` in `tests/test_paper_matches_evidence.py` and the other eight
-tables in `tests/test_paper_tables_match_evidence.py` — 92 checks covering 232
+tables in `tests/test_paper_tables_match_evidence.py` — 98 checks covering 254
 printed numbers, across the noise grid, the adversary grid, persistence, memsec,
 the Write-Execute-Forget table and both SWE-Bench-CL matrices. When the check was
 first written it found the paper **correct in every cell**; it is here because an

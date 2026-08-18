@@ -73,13 +73,22 @@ def data_rows(label: str) -> list[list[str]]:
     name and silently shifts every remaining cell left by one -- which is how
     the first version of this parser reported ``attack=None`` for every row of
     ``tab:memsec``. The group name is carried forward instead.
+
+    The group name may itself be marked up: ``tab:swebench-attack`` groups by
+    ``\\multirow{3}{*}{\\texttt{django}}``, and a ``[^{}]*`` body could not match
+    across those inner braces. The failure was the shift above all over again --
+    the sequence column vanished and every row read one cell to the left -- so
+    the pattern allows one level of nesting and the name is stripped like any
+    other cell.
     """
     rows: list[list[str]] = []
     group = ""
     for line in tabular(label).splitlines():
-        multirow = re.search(r"\\multirow\{\d+\}\{\*\}\{([^{}]*)\}", line)
+        multirow = re.search(
+            r"\\multirow\{\d+\}\{\*\}\{((?:[^{}]|\{[^{}]*\})*)\}", line
+        )
         if multirow:
-            group = multirow.group(1).strip()
+            group = _strip(multirow.group(1))
             line = line[multirow.end() :]
         if "&" not in line or "rule" in line:
             continue
@@ -422,6 +431,93 @@ def test_wef_rows_match_committed_runs(
 
 
 # --------------------------------------------------------------------------
+# tab:swebench-attack -- the paper's central real-task claim, and until now
+# the one table in the paper nothing checked. Its numbers have moved twice:
+# once when the sympy arm landed and the burial tripling stopped replicating,
+# once when the sixth world reversed the ordering. Both edits were made by
+# hand from a tool's printed output into LaTeX, which is the transcription
+# step every other table in this file already has a guard for.
+#
+# The ratio column is a mean of *per-world* ratios, not a ratio of the two
+# printed means: django is 2.76 that way and 2.74 the other. They agree to
+# 2dp on every other row, so a ratio-of-means check would pass here while
+# encoding the wrong definition -- the same near-miss that made the headline
+# parser key on the header instead of on cell position.
+# --------------------------------------------------------------------------
+ATTACK_SEQUENCES = {
+    "django": "django_django_sequence",
+    "sympy": "sympy_sympy_sequence",
+}
+
+
+@lru_cache(maxsize=1)
+def _attack_runs() -> tuple[Any, ...]:
+    from bench.swebench_cl.curve import load_dir
+
+    return tuple(load_dir(RESULTS / "swebench_cl_adversary"))
+
+
+def _attack_buried(sequence: str, arm: str, budget: int) -> dict[Any, int]:
+    """Benign burial per world, read off the shipped analysis tool."""
+    from bench.swebench_cl.attack import benign_buried, by_world
+
+    worlds = by_world(list(_attack_runs()), budget, sequence)
+    return {k: benign_buried(v) for k, v in worlds.items() if k[0] == arm}
+
+
+def _swebench_attack_rows() -> list[tuple[str, str, str, str, str]]:
+    return [
+        (row[0], row[1], row[2], row[3], row[4])
+        for row in data_rows("tab:swebench-attack")[1:]
+    ]
+
+
+@pytest.mark.parametrize(
+    ("sequence", "arm", "buried", "ratio", "retained"), _swebench_attack_rows()
+)
+def test_swebench_attack_row_matches_committed_runs(
+    sequence: str, arm: str, buried: str, ratio: str, retained: str
+) -> None:
+    """Mutation: swap the two sympy ratios, or restore either to its
+    pre-sixth-world value, and this fires. The world count is asserted too,
+    because the failure this leg is most exposed to is a cell that did not run:
+    the sympy rows were means over two seeds for one release and read as means
+    over three, and nothing but the caption said which.
+    """
+    from bench.swebench_cl.attack import retention
+
+    sequence_id = ATTACK_SEQUENCES[sequence]
+    clean = _attack_buried(sequence_id, arm, 0)
+    attacked = _attack_buried(sequence_id, arm, 2)
+    shared = sorted(set(clean) & set(attacked))
+    assert len(shared) == 3, (
+        f"{sequence}/{arm}: {len(shared)} paired worlds in the committed runs, "
+        "but the table caption says three seeds; a cell is missing or unpaired"
+    )
+
+    printed = [float(n) for n in re.findall(r"-?\d+\.?\d*", buried)]
+    assert len(printed) == 2, f"cannot read a b=0 -> b=2 pair from {buried!r}"
+    assert statistics.fmean(clean[w] for w in shared) == pytest.approx(
+        printed[0], abs=COUNT_TOL
+    )
+    assert statistics.fmean(attacked[w] for w in shared) == pytest.approx(
+        printed[1], abs=COUNT_TOL
+    )
+
+    if ratio == "---":
+        assert not any(clean[w] for w in shared), (
+            f"{sequence}/{arm}: the table declines to print a ratio, which is "
+            "only honest while the unattacked burial is zero"
+        )
+    else:
+        measured = statistics.fmean(attacked[w] / clean[w] for w in shared)
+        assert float(ratio.removesuffix("times")) == pytest.approx(measured, abs=0.006)
+
+    result = retention(list(_attack_runs()), arm, 2, sequence=sequence_id)
+    assert float(retained) == pytest.approx(result["retained"], abs=0.0006)
+
+
+# --------------------------------------------------------------------------
 # Guards on the guards. Without these, a restructured table silently
 # parametrises zero cases and every test above passes vacuously.
 # --------------------------------------------------------------------------
@@ -431,6 +527,7 @@ EXPECTED_CELLS: dict[str, tuple[Callable[[], Sequence[object]], int]] = {
     "persistence": (_persistence_cells, 16),
     "memsec": (_memsec_rows, 7),
     "swebench": (_swebench_rows, 10),
+    "swebench-attack": (_swebench_attack_rows, 6),
     "wef": (_wef_rows, 9),
 }
 
@@ -456,8 +553,22 @@ NUMBERS_PER_CHECK = {
     "persistence": 2,
     "memsec": 5,
     "swebench": 2,
+    "swebench-attack": 4,
     "wef": 5,
 }
+
+
+def _unprinted(name: str) -> int:
+    """Cells a check verifies that are not numbers, so the tally stays honest.
+
+    ``tab:swebench-attack`` prints ``---`` rather than a ratio for the arm that
+    buries nothing, and that cell is checked (the dash is only honest while the
+    denominator is zero) but must not be counted as a printed number in a
+    sentence whose whole purpose is not over-claiming.
+    """
+    if name != "swebench-attack":
+        return 0
+    return sum(1 for row in _swebench_attack_rows() if row[3] == "---")
 
 
 def test_reproduce_md_states_the_real_coverage() -> None:
@@ -470,7 +581,8 @@ def test_reproduce_md_states_the_real_coverage() -> None:
     """
     checks = sum(len(collect()) for collect, _ in EXPECTED_CELLS.values())
     numbers = sum(
-        len(EXPECTED_CELLS[name][0]()) * per for name, per in NUMBERS_PER_CHECK.items()
+        len(EXPECTED_CELLS[name][0]()) * per - _unprinted(name)
+        for name, per in NUMBERS_PER_CHECK.items()
     )
     doc = (ROOT / "paper" / "reproduce.md").read_text()
     claim = f"{checks} checks covering {numbers}\nprinted numbers"

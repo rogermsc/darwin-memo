@@ -15,16 +15,15 @@ loses most or all benign capability - an evict-on-negative counter loses
 all of it - while a bounded-credit energy ledger loses none. A
 Thompson-sampling bandit keeps capability too, but only by never removing
 anything: retention is not defence. The ledger's own boundary lies between
-two and four lies per cycle and we publish it rather than stopping at the
-win. An adversary buying persistence rather than destruction removes the
+two and four lies per cycle and we publish it, not just the win. An adversary buying persistence rather than destruction removes the
 ledger's guarantee silently, while benign capability never moves.
 
 We then run the same attack on real software-engineering tasks.
-Capability does not separate there, because on that
-benchmark memory buys no measurable capability to begin with. What
-transfers is the mechanism in its proper currency: at 17% of settlements
-corrupted, a counter's deletion of benign memory roughly triples while the
-ledger's barely moves, on every seed. We give a regime map saying which curator
+Capability does not separate there: on that benchmark memory buys none to
+begin with. What transfers is the mechanism in its proper currency: at 17%
+of settlements corrupted, a counter's deletion of benign memory roughly
+triples while the ledger's barely moves. A second repository does not
+reproduce that; the ordering alone holds in 5 of 6 worlds. We give a regime map saying which curator
 to use when, including where a one-line heuristic wins, and
 release a stdlib-only harness with pre-registered hypotheses and
 manifest-checked per-seed data.
