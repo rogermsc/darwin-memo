@@ -8,6 +8,25 @@ project uses [SemVer](https://semver.org/).
 
 ### Changed
 
+- **The MemoryOS disclosure was sent** (2026-08-18, `baiting@bupt.edu.cn` — the
+  README contact, who is also the paper's senior author). Email rather than
+  GitHub because there is no private channel: no `SECURITY.md`, and private
+  vulnerability reporting returns `{"enabled": false}`, so a GitHub report would
+  have been public by construction. No public issue opened, and none before they
+  reply.
+  - Three references in the draft were wrong, and re-reading upstream at
+    `587ed7755c7a` is what caught them — re-reading the draft would not have.
+    The paper is *Memory OS of AI Agent*; the fallback `else` is at
+    `updater.py:186`, not `:187`; and `mid_term.py:220` is the session-*merge*
+    score in `insert_pages_into_session`, not the retrieval score, which is
+    `mid_term.py:330` in `search_sessions`.
+  - That last one sharpens Finding 3 instead of weakening it: the constant
+    summary and empty keyword list feed the merge decision as well as retrieval,
+    so a fenced JSON reply both hides a batch and leaves it liable to be merged
+    by a similarity it did not earn. `docs/benchmarks.md` stated the formula
+    without a line number and was correct as written; only the unsent draft was
+    wrong.
+
 - **The second SWE-Bench-CL sequence ran, and the paper's one transferring
   result does not replicate.** Ten cells on `sympy` (2 seeds x 3 arms x 2
   budgets, 500 docker-evaluated tasks, 6h19m, ~$70 of gpt-4.1), completing the
