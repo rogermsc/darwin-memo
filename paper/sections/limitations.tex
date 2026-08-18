@@ -25,6 +25,20 @@ and cost, not accuracy. The adversarial result is the one that survived
 every attempt to find a cheaper substitute, and it is the claim we
 would defend if forced to keep only one.
 
+\paragraph{The real-task adversarial result is scoped to one repository.}
+The pre-registered design was six paired worlds over two SWE-Bench-CL
+sequences, and we ran all six. The burial magnitude replicates on
+\texttt{django} at three seeds and is absent on \texttt{sympy} at three,
+for a reason we can state but did not predict: the counter already buries
+four times as much benign memory there with no adversary present
+(\S\ref{sec:swebench-attack}). The ordering that held in five worlds
+reverses in the sixth, leaving $5/6$ and $p = 0.0625$ where six worlds
+were run to reach $0.031$. Two sequences chosen for having enough tasks
+cannot tell us which of them is typical, so the honest scope of the
+real-task adversarial leg is one repository, and the mechanism argument
+of \S\ref{sec:adversary} rests on the synthetic suite plus a
+\texttt{django}-shaped confirmation rather than on a replicated law.
+
 \paragraph{Vocabulary coupling.}
 In the synthetic suites the corpus, the task prompts, and the
 action-reading function were written in the same vocabulary by the same

@@ -23,16 +23,64 @@ project uses [SemVer](https://semver.org/).
     already destroying four times as much benign memory at baseline leaves an
     adversary little headroom. The tripling is a property of a curator that is
     otherwise behaving well.
-  - **What survives both**: the counter's burial ratio exceeds the ledger's in
-    5 of 5 paired worlds, differences +0.17 to +1.92, exact paired permutation
-    p = 0.0625 — which is the *floor* at five pairs, so this is unanimity at the
-    limit of what five worlds can express, not significance. The pre-registered
-    design wants six worlds (floor 0.031); the sixth, `sympy` seed 2, is not run.
+  - **What survived five worlds**: the counter's burial ratio above the
+    ledger's in every one, differences +0.17 to +1.92, exact paired permutation
+    p = 0.0625 — the *floor* at five pairs, so unanimity at the limit of what
+    five worlds can express, not significance.
   - Abstract, `sec:swebench-attack`, `tab:swebench-attack` (now two-sequence)
     and the statistical-status paragraph all updated to lead with the
     non-replication rather than bury it.
 
+- **The pre-registered sixth world ran, and it reversed the surviving
+  ordering.** `sympy` seed 2, six cells / 300 docker-evaluated tasks, every one
+  through the official harness (~$44, 3h59m). It was run to move the
+  permutation floor from 0.0625 to 0.031 and returned the opposite: the
+  counter's burial ratio is 0.79 against the ledger's 0.84, a difference of
+  **-0.05**.
+  - The count is **5 of 6** paired worlds, not 6 of 6, and the exact paired
+    permutation **stays at p = 0.0625**. The reversal is small enough that
+    flipping its sign back would *raise* the mean difference, so the test cannot
+    reach the floor the sixth world was run to buy — completing the design
+    returned a negative answer, not a weaker positive one.
+  - Split by repository: `django` +1.17 to +1.92 across three seeds; `sympy`
+    +0.18, +0.17, -0.05, mean +0.10, p = 0.50. The ordering is a `django`
+    effect that `sympy` neither confirms nor contradicts, and the paper now
+    says so in the abstract, `sec:swebench-attack`, the statistical-status
+    paragraph and a new limitation.
+  - `tab:swebench-attack` sympy rows are now three seeds: counter
+    25.7 -> 23.0 (0.89x), ledger 41.7 -> 33.0 (0.79x), `keep_everything`
+    0 -> 0. Capability still does not separate (retained 1.000, 1.286, 0.966).
+  - The arXiv abstract still claimed the tripling held "on every seed", stale
+    since the previous entry; corrected, and it fits the 1920-character field
+    at 1916.
+
 ### Fixed
+
+- **`paper/reproduce.md` still described the abandoned second sequence.** It
+  said two `swebench_cl_adversary` cells "enter no analysis" and that "no number
+  in the paper reads them" — false since their unattacked twins ran in the
+  previous entry, and provably so: hide either one and the new `sympy` ledger row
+  fails. Its manifest counts were stale too (20 adversary cells and 80 entries;
+  the real figures are 36 and 96). The paragraph now points at the test that
+  keeps it honest instead of asserting the state by hand.
+
+- **The paper's central real-task table had no evidence test.**
+  `tests/test_paper_tables_match_evidence.py` covered eight tables and not
+  `tab:swebench-attack` — the one carrying the attack result — so its numbers
+  were hand-transcribed from a tool's printed output twice (when `sympy` landed,
+  and again for the sixth world) with nothing comparing them to the runs. Six
+  rows are now checked against `bench/swebench_cl/attack.py` itself: both burial
+  means, the ratio, capability retained, and the paired-world count, which
+  catches a cell that did not run. Coverage is 98 checks over 254 printed
+  numbers, up from 92 over 232.
+  - The ratio is a mean of *per-world* ratios, not a ratio of the printed means:
+    `django` is 2.76 one way and 2.74 the other. Every other row agrees to 2dp,
+    so the wrong definition would have passed silently.
+  - `data_rows` could not parse a `\multirow` whose group name carries markup
+    (`{\texttt{django}}`), because the body pattern stopped at the inner brace.
+    It dropped the group and shifted every cell of the table one column left —
+    the same defect its own docstring records for `tab:memsec`. No committed
+    table was affected; this one is the first with a marked-up group name.
 
 - **A run can complete with the evaluation harness absent, and look fine.**
   `DockerExecutor.evaluate` returns before touching `swebench` when the model

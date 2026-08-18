@@ -1028,9 +1028,10 @@ synthetic suite has already destroyed the counters and the ledger still
 holds. Three curation arms on \texttt{django} at fifty tasks, three
 seeds, poison-seeded one lesson per task, each cell paired against its
 own unattacked twin: eighteen cells, six lies fired in every one. We
-then ran the same design on \texttt{sympy} at two seeds---ten further
-cells, every task scored by the official harness---which is what makes
-the paragraph after next possible.
+then ran the same design on \texttt{sympy} at three seeds---sixteen
+further cells, every task scored by the official harness---which
+completes the pre-registered six-world design and is what makes the two
+paragraphs after next possible.
 
 \paragraph{Two of the three synthetic findings do not transfer.}
 No arm eliminated the poison at any budget. Capability did not separate
@@ -1043,7 +1044,7 @@ memory contributes no measurable capability at all
 (\S\ref{sec:swebench}), so denial of memory has nothing to deny.
 \emph{An attack on memory cannot cost more than the memory was worth.}
 
-\paragraph{What transfers is the ordering, and not the magnitude.}
+\paragraph{What transfers is a mechanism on one repository, not a law.}
 The attack's damage lands entirely on benign memory, and how much
 depends on whether removal is recoverable (Table~\ref{tab:swebench-attack}).
 On \texttt{django}, under the same six lies, the counter's benign burial
@@ -1058,25 +1059,37 @@ cannot recover, so a lie costs it an entry permanently; a ledger spends
 energy the entry earns back, so the same lie costs it almost nothing.
 
 \emph{A second repository does not reproduce the magnitude, and we lead
-with that.} We completed the \texttt{sympy} arm of this design---ten
-further cells, $500$ docker-evaluated tasks---and the tripling is absent:
-the counter's burial ratio is $0.96$ and $0.93$, the ledger's $0.78$ and
-$0.76$. Neither mechanism is meaningfully damaged by the attack there.
+with that.} We completed the \texttt{sympy} arm of this design---sixteen
+further cells, $800$ docker-evaluated tasks---and the tripling is absent:
+the counter's burial ratio is $0.96$, $0.93$ and $0.79$, the ledger's
+$0.78$, $0.76$ and $0.84$. Neither mechanism is meaningfully damaged by
+the attack there.
 The reason is visible in the unattacked column and is a scope condition
 we had no way to see from one repository: on \texttt{django} the counter
 buries $6$--$7$ benign entries with no adversary present, on
-\texttt{sympy} it buries $26$--$27$. A mechanism already destroying four
+\texttt{sympy} it buries $24$--$27$. A mechanism already destroying four
 times as much benign memory at baseline has little headroom left for an
-adversary to exploit, and the attack fired four lies there against six on
-\texttt{django}. The tripling is therefore a property of a curator that
-is otherwise behaving well, not of the attack.
+adversary to exploit, and the attack fired four lies against the counter
+there, against six on \texttt{django}. The tripling is therefore a
+property of a curator that is otherwise behaving well, not of the attack.
 
-What does survive both repositories is the ordering. The counter's
-burial ratio exceeds the ledger's in $5$ of $5$ paired worlds, differences
-$+0.17$ to $+1.92$, exact paired permutation $p = 0.0625$---which is the
-floor at five pairs, so this is unanimity at the limit of what five worlds
-can express rather than significance. Completing the pre-registered sixth
-world would put the floor at $0.031$; we report five and say so.
+\emph{The ordering does not survive the sixth world either.} Five worlds
+gave a unanimous ordering---the counter's burial ratio above the
+ledger's in every one, differences $+0.17$ to $+1.92$, exact paired
+permutation $p = 0.0625$, the floor at five pairs. We ran the
+pre-registered sixth (\texttt{sympy} seed $2$: six cells, $300$ further
+docker-evaluated tasks) to move that floor to $0.031$, and the sign
+reversed instead: the counter's ratio is $0.79$ against the ledger's
+$0.84$, a difference of $-0.05$. So the count is $5$ of $6$ rather than
+$6$ of $6$, and the permutation stays at $p = 0.0625$---the reversal is
+small enough that flipping it back would \emph{raise} the mean
+difference, which is exactly why the test cannot reach its new floor.
+Split by repository the ordering is plainly \texttt{django}'s: three
+differences of $+1.17$ to $+1.92$ there, against $+0.18$, $+0.17$ and
+$-0.05$ on \texttt{sympy}, mean $+0.10$, $p = 0.50$. We read the
+ordering as a single-repository effect that \texttt{sympy} neither
+confirms nor contradicts, and we report the completed design as having
+returned a negative answer rather than a weaker positive one.
 
 \begin{table}[t]
 \centering
@@ -1085,8 +1098,8 @@ corrupted), 50 tasks per cell, every task scored by the official docker
 harness. Benign burial is the graveyard minus the poison entries removed.
 No arm cleared the poison and no arm lost capability on either
 repository. \texttt{django} is three seeds and six lies per cell;
-\texttt{sympy} is two seeds, four lies for the counter and six for the
-ledger. The ratio column is the result and its scope condition together:
+\texttt{sympy} is three seeds, four lies for the counter and four to six
+for the ledger. The ratio column is the result and its scope condition together:
 the counter's burial triples on \texttt{django} and does not move on
 \texttt{sympy}, where it is already burying four times as much
 unattacked.}
@@ -1101,9 +1114,9 @@ sequence & arm & benign buried, $b{=}0\to2$ & ratio & capability retained \\
  & \texttt{keep\_everything}    & $0 \to 0$ & --- & $1.000$ \\
 \midrule
 \multirow{3}{*}{\texttt{sympy}}
- & \texttt{evict\_on\_negative} & $26.5 \to 25.0$ & $0.94\times$ & $1.059$ \\
- & \texttt{memory\_on}          & $41.0 \to 31.5$ & $0.77\times$ & $1.316$ \\
- & \texttt{keep\_everything}    & $0 \to 0$ & --- & $1.053$ \\
+ & \texttt{evict\_on\_negative} & $25.7 \to 23.0$ & $0.89\times$ & $1.000$ \\
+ & \texttt{memory\_on}          & $41.7 \to 33.0$ & $0.79\times$ & $1.286$ \\
+ & \texttt{keep\_everything}    & $0 \to 0$ & --- & $0.966$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1146,14 +1159,15 @@ unanimous with cleanly separated ranges and it is \emph{not} significant
 at any conventional threshold. We report effect size and unanimity
 rather than a $p$-value, and we state what would settle it: a second
 independent sequence would give six worlds and a floor of $p = 0.031$.
-The \texttt{sympy} arm has since been completed: the ten missing cells
-ran, $500$ further docker-evaluated tasks, every one with the official
-harness. That gives five paired worlds rather than three, and the honest
-reading changed with them. The counter's burial ratio still exceeds the
-ledger's in every world ($5/5$, $p = 0.0625$, the floor at five pairs),
-but the tripling is \texttt{django}-only, for the baseline reason given
-above. The pre-registered design called for six worlds and a floor of
-$p = 0.031$; the sixth (\texttt{sympy} seed $2$) is not yet run, so we
-report five and label the $p$-value as a floor rather than a finding.
+The \texttt{sympy} arm has since been completed in full: sixteen further
+cells, $800$ docker-evaluated tasks, every one with the official harness,
+which is the whole pre-registered six-world design. Both of its findings
+went against us. The tripling is \texttt{django}-only, for the baseline
+reason given above; and the ordering that was unanimous over five worlds
+reverses in the sixth, so the count is $5/6$ and the permutation stays at
+$p = 0.0625$ instead of reaching the $0.031$ that six worlds were run to
+buy. Running the design out is what turned a promising $3/3$ into a
+single-repository effect, and we report it that way rather than as a
+$p$-value that improved.
 \texttt{sphinx} produced nothing; the container host died a few minutes
 into every evaluation there.
