@@ -3,23 +3,7 @@
     "max_energy": 5.0,
     "upkeep": 0.05
   },
-  "entries": [
-    {
-      "question": "Are LLM benchmark arms safe to run in CI?",
-      "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
-      "kind": "explicit",
-      "sources": [
-        "docs/benchmarks"
-      ],
-      "energy": -0.6000007408887026,
-      "born_cycle": 0,
-      "recorded_ts": "",
-      "last_used_cycle": 23,
-      "uses": 3,
-      "lineage": [],
-      "id": "053a99cf0a4c"
-    }
-  ],
+  "entries": [],
   "graveyard": [
     {
       "question": "Can cosine embedding retrievers keep the default merge threshold?",
@@ -140,20 +124,26 @@
       "uses": 5,
       "lineage": [],
       "id": "7af78c536de1"
+    },
+    {
+      "question": "Are LLM benchmark arms safe to run in CI?",
+      "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": -0.6000007408887026,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 23,
+      "uses": 3,
+      "lineage": [],
+      "id": "053a99cf0a4c"
     }
   ],
   "ledger": {
-    "tick_count": 68,
-    "pending": [
-      {
-        "query": "Are stub-executor benchmark arms safe to validate before Docker eval images run?",
-        "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).\n[age unknown; born tick 0; last settled tick 1]",
-        "deciding_entry": "053a99cf0a4c",
-        "supporting_entries": [],
-        "born_tick": 18,
-        "id": "a899bb29d181"
-      }
-    ],
+    "tick_count": 69,
+    "pending": [],
     "history": {
       "053a99cf0a4c": [
         "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
@@ -176,6 +166,14 @@
           "credit": 0.6,
           "delta": 19.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27468140468"
+        },
+        {
+          "tick": 69,
+          "ts": "2026-08-18T18:45:30+00:00",
+          "text": "buried at tick 69 on settle",
+          "event": "buried",
+          "via": "settle",
+          "cause": "starved"
         }
       ],
       "5ee2277c20ba": [
