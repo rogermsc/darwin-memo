@@ -56,6 +56,14 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **`paper/reproduce.md` still described the abandoned second sequence.** It
+  said two `swebench_cl_adversary` cells "enter no analysis" and that "no number
+  in the paper reads them" — false since their unattacked twins ran in the
+  previous entry, and provably so: hide either one and the new `sympy` ledger row
+  fails. Its manifest counts were stale too (20 adversary cells and 80 entries;
+  the real figures are 36 and 96). The paragraph now points at the test that
+  keeps it honest instead of asserting the state by hand.
+
 - **The paper's central real-task table had no evidence test.**
   `tests/test_paper_tables_match_evidence.py` covered eight tables and not
   `tab:swebench-attack` — the one carrying the attack result — so its numbers

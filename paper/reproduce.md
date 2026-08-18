@@ -31,24 +31,26 @@ Committed under `bench/results/`:
   directory with its own sibling `MANIFEST.json`: the pilot under
   `bench/results/swebench_cl/` (30 cells), the long matrix under
   `swebench_cl_long/` (30), and the curation-targeted attack under
-  `swebench_cl_adversary/` (20). Those 80 entries are validated by CI on
+  `swebench_cl_adversary/` (36). Those 96 entries are validated by CI on
   every push exactly as the root manifest's are, and as of 2026-08-17 by
   the same `source_commit` guards — which had been scoped to the root
-  manifest alone, so all 80 went unchecked, and all 80 named a pre-squash
-  branch commit absent from published history.
+  manifest alone, so the 80 that existed then went unchecked, and all 80
+  named a pre-squash branch commit absent from published history.
 
-  **Two cells in `swebench_cl_adversary/` enter no analysis, and this is
-  the only place that says so.** `memory_on-sympy_sympy_sequence-seed0-b2`
-  and `-seed1-b2` are complete, fully docker-evaluated 50-task runs (13
-  and 12 resolved). They are the surviving half of the abandoned attempt
-  at a second sequence: the paired design needs each attacked cell's
-  *unattacked twin*, and a twin here carries the seeded poison, so the
-  `sympy` cells in `swebench_cl_long/` are a different configuration and
-  cannot stand in for them (their `config_hash` differs, and the command
-  differs by `--seed-poison`). Ten of the twelve cells a two-sequence
-  result needs are missing. The two files are kept rather than deleted
-  because they are real evaluated evidence and deleting them would make
-  the gap invisible, but no number in the paper reads them.
+  **Every cell in `swebench_cl_adversary/` now enters the analysis.** Two
+  of them — `memory_on-sympy_sympy_sequence-seed0-b2` and `-seed1-b2` —
+  did not, and this file was the only place that said so: they were the
+  surviving half of an abandoned attempt at a second sequence, missing the
+  *unattacked twins* a paired design needs (a twin carries the seeded
+  poison, so the `sympy` cells in `swebench_cl_long/` are a different
+  configuration and cannot stand in — their `config_hash` differs and the
+  command differs by `--seed-poison`). Those twins were run on 2026-08-17
+  and the third `sympy` seed on 2026-08-18, so all six worlds of
+  `tab:swebench-attack` are paired and every file is read.
+  `tests/test_paper_tables_match_evidence.py` asserts three paired worlds
+  per row, which is what keeps this paragraph from going stale again:
+  delete either of those two cells and the table's `sympy` ledger row
+  fails rather than quietly averaging over two seeds.
 - `bench/results/MANIFEST.json`, which binds each result file to its
   suite, seeds, run count, config hash, exact reproduction command,
   library version, and producing git commit (`source_commit`).
