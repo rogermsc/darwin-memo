@@ -59,6 +59,13 @@ of weak-signal attacks. What does not survive is the specific pair of numbers.
 computed mean — no arithmetic of ours in the middle. Done in this PR. The same
 correction is needed in the 2026-08-01 note, which is where the figure entered.
 
+*Follow-up, 2026-08-18:* the sweep named "three paper sections and the
+2026-08-01 note" and that is exactly what it fixed — `docs/benchmarks.md:709`
+still carried the figure four days later, because it was never on the list. The
+enumeration was the ceiling, not the search. Fixed, and worth stating as a rule:
+when retiring a number, grep for it repo-wide and let the grep define the list,
+rather than writing the list from memory and then grepping only those files.
+
 ---
 
 ## 1. Track A — why the real-task leg came back null
