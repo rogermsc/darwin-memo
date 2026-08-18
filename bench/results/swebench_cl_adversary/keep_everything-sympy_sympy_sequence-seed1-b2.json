@@ -1,0 +1,4654 @@
+{
+  "runs": [
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-12096",
+      "order": 1,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/lambdify.py",
+          "sympy/plotting/experimental_lambdify.py",
+          "sympy/core/function.py",
+          "sympy/core/relational.py",
+          "sympy/utilities/tests/test_lambdify.py",
+          "sympy/core/tests/test_evalf.py",
+          "sympy/core/basic.py",
+          "sympy/utilities/iterables.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "d80ad53e5cfd",
+          "2cabe51f53a8",
+          "4647ed36c106"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "180abcfd4d13"
+      },
+      "model": {
+        "prompt_chars": 303128,
+        "response_chars": 4453,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-12096",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 43,
+        "p2p_total": 43,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 11.0842
+      },
+      "store": {
+        "population": 51,
+        "graveyard": 0,
+        "total_energy": 51.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 0,
+        "lies_fired": 0,
+        "false_bad": 0,
+        "false_good": 0,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-12481",
+      "order": 2,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/combinatorics/permutations.py",
+          "sympy/combinatorics/polyhedron.py",
+          "sympy/utilities/iterables.py",
+          "sympy/matrices/matrices.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4647ed36c106",
+          "39ea2092f983",
+          "c2ffb73af075"
+        ],
+        "tokens": 207,
+        "budget_tokens": 207,
+        "credited": [],
+        "minted": "5f671d6081a4"
+      },
+      "model": {
+        "prompt_chars": 302813,
+        "response_chars": 3271,
+        "patch_chars": 1040,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The original code rejected non-disjoint cycles, but the correct behavior is to compose them in order, so future changes should preserve this left-to-right composition logic for cycles with repeated elements."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-12481",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 7,
+        "p2p_total": 7,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-12481/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 55.4639
+      },
+      "store": {
+        "population": 52,
+        "graveyard": 0,
+        "total_energy": 52.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 1,
+        "lies_fired": 1,
+        "false_bad": 1,
+        "false_good": 0,
+        "distortion": -2.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13372",
+      "order": 3,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/core/function.py",
+          "sympy/core/evalf.py",
+          "release/fabfile.py",
+          "sympy/core/sympify.py",
+          "sympy/integrals/integrals.py",
+          "sympy/core/compatibility.py",
+          "sympy/codegen/ast.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "5f671d6081a4",
+          "c2ffb73af075",
+          "4647ed36c106"
+        ],
+        "tokens": 189,
+        "budget_tokens": 189,
+        "credited": [],
+        "minted": "a3c9372d5ce3"
+      },
+      "model": {
+        "prompt_chars": 303404,
+        "response_chars": 2072,
+        "patch_chars": 663,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The evalf fallback logic must always initialize reprec and imprec before use, regardless of which branches are taken, to avoid UnboundLocalError."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13372",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 44,
+        "p2p_total": 44,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13372/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 68.0184
+      },
+      "store": {
+        "population": 53,
+        "graveyard": 0,
+        "total_energy": 53.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 1,
+        "lies_fired": 1,
+        "false_bad": 1,
+        "false_good": 0,
+        "distortion": -2.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13480",
+      "order": 4,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/functions/elementary/hyperbolic.py",
+          "sympy/functions/elementary/trigonometric.py",
+          "sympy/functions/special/error_functions.py",
+          "sympy/integrals/rubi/parsetools/parse.py",
+          "sympy/functions/special/elliptic_integrals.py",
+          "sympy/external/tests/test_sage.py",
+          "sympy/functions/special/gamma_functions.py",
+          "sympy/functions/special/zeta_functions.py",
+          "sympy/functions/elementary/complexes.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "d80ad53e5cfd",
+          "2cabe51f53a8",
+          "5f671d6081a4"
+        ],
+        "tokens": 189,
+        "budget_tokens": 189,
+        "credited": [],
+        "minted": "57ea133aea25"
+      },
+      "model": {
+        "prompt_chars": 302823,
+        "response_chars": 853,
+        "patch_chars": 439,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "This bug was a simple typo (cotm vs cothm) in the evaluation logic for coth, so future maintainers should be careful with variable naming consistency in similar code blocks."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13480",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 43,
+        "p2p_total": 43,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13480/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.5201
+      },
+      "store": {
+        "population": 54,
+        "graveyard": 0,
+        "total_energy": 54.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 2,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-14711",
+      "order": 5,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/physics/vector/dyadic.py",
+          "sympy/physics/vector/vector.py",
+          "sympy/physics/vector/frame.py",
+          "sympy/physics/vector/functions.py",
+          "sympy/core/compatibility.py",
+          "sympy/codegen/ast.py",
+          "sympy/physics/mechanics/functions.py",
+          "sympy/core/sympify.py",
+          "sympy/physics/mechanics/kane.py",
+          "sympy/physics/mechanics/lagrange.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cda69dd74d9f",
+          "a3c9372d5ce3",
+          "e1703108b86e"
+        ],
+        "tokens": 181,
+        "budget_tokens": 181,
+        "credited": [],
+        "minted": "58b811409993"
+      },
+      "model": {
+        "prompt_chars": 244844,
+        "response_chars": 555,
+        "patch_chars": 282,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The Vector class expects 0 to be treated as the zero vector in all operations, so _check_vector must handle 0 explicitly to avoid TypeError in mixed arithmetic."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-14711",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 2,
+        "p2p_total": 2,
+        "notes": "docker: summary report darwin-memo-pilot.darwin-memo-pilot.json; per-test counts unavailable, unresolved settles at base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 12.0938
+      },
+      "store": {
+        "population": 55,
+        "graveyard": 0,
+        "total_energy": 55.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 2,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15017",
+      "order": 6,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/tensor/array/__init__.py",
+          "sympy/tensor/array/ndim_array.py",
+          "sympy/tensor/array/arrayop.py",
+          "sympy/tensor/indexed.py",
+          "sympy/combinatorics/permutations.py",
+          "sympy/tensor/tensor.py",
+          "sympy/tensor/array/sparse_ndim_array.py",
+          "sympy/core/sympify.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a3c9372d5ce3",
+          "58b811409993",
+          "5f671d6081a4"
+        ],
+        "tokens": 142,
+        "budget_tokens": 142,
+        "credited": [],
+        "minted": "c0789129c355"
+      },
+      "model": {
+        "prompt_chars": 302848,
+        "response_chars": 1156,
+        "patch_chars": 1117,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The NDimArray __len__ method must return 1 for rank-0 arrays to match numpy and user expectations for scalar arrays."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15017",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 14,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-15017/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 61.8526
+      },
+      "store": {
+        "population": 56,
+        "graveyard": 0,
+        "total_energy": 56.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15345",
+      "order": 7,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/integrals/rubi/__init__.py",
+          "sympy/functions/special/delta_functions.py",
+          "sympy/solvers/recurr.py",
+          "sympy/utilities/runtests.py",
+          "release/fabfile.py",
+          "sympy/utilities/enumerative.py",
+          "sympy/interactive/session.py",
+          "sympy/utilities/iterables.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "58b811409993",
+          "5f671d6081a4",
+          "57ea133aea25"
+        ],
+        "tokens": 149,
+        "budget_tokens": 149,
+        "credited": [],
+        "minted": "eae13c0f2bd6"
+      },
+      "model": {
+        "prompt_chars": 302130,
+        "response_chars": 385,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "reflection": "The Mathematica printer must use square brackets for function calls, not parentheses, to generate valid Mathematica code."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15345",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 8,
+        "p2p_total": 8,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 4.9653
+      },
+      "store": {
+        "population": 57,
+        "graveyard": 0,
+        "total_energy": 57.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15809",
+      "order": 8,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/functions/elementary/miscellaneous.py",
+          "sympy/ntheory/generate.py",
+          "sympy/sets/sets.py",
+          "sympy/calculus/util.py",
+          "sympy/functions/combinatorial/numbers.py",
+          "sympy/integrals/integrals.py",
+          "sympy/combinatorics/permutations.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "eae13c0f2bd6",
+          "5f671d6081a4",
+          "58b811409993"
+        ],
+        "tokens": 136,
+        "budget_tokens": 136,
+        "credited": [],
+        "minted": "ca60d9905a67"
+      },
+      "model": {
+        "prompt_chars": 302140,
+        "response_chars": 4061,
+        "patch_chars": 666,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15809",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 10,
+        "p2p_total": 10,
+        "notes": "docker: summary report darwin-memo-pilot.darwin-memo-pilot.json; per-test counts unavailable, unresolved settles at base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 16.6169
+      },
+      "store": {
+        "population": 58,
+        "graveyard": 0,
+        "total_energy": 58.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15875",
+      "order": 9,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/matrices/matrices.py",
+          "sympy/ntheory/generate.py",
+          "release/fabfile.py",
+          "sympy/core/basic.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c0789129c355",
+          "65babfda4aee",
+          "986c9b47a396"
+        ],
+        "tokens": 179,
+        "budget_tokens": 179,
+        "credited": [],
+        "minted": "4e027987be08"
+      },
+      "model": {
+        "prompt_chars": 302781,
+        "response_chars": 1920,
+        "patch_chars": 728,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The fix ensures that structural equality checks in .has() use .equals when available, preventing incorrect is_zero results for complex expressions."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15875",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 80,
+        "p2p_total": 80,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-15875/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 63.8828
+      },
+      "store": {
+        "population": 59,
+        "graveyard": 0,
+        "total_energy": 59.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-16450",
+      "order": 10,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/assumptions/ask.py",
+          "sympy/core/assumptions.py",
+          "sympy/core/tests/test_assumptions.py",
+          "sympy/assumptions/ask_generated.py",
+          "sympy/assumptions/tests/test_query.py",
+          "sympy/assumptions/sathandlers.py",
+          "sympy/core/tests/test_arit.py",
+          "sympy/core/power.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4e027987be08",
+          "5f671d6081a4",
+          "58b811409993"
+        ],
+        "tokens": 141,
+        "budget_tokens": 141,
+        "credited": [],
+        "minted": "45e974b6356d"
+      },
+      "model": {
+        "prompt_chars": 303450,
+        "response_chars": 1439,
+        "patch_chars": 526,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "When checking .is_finite for powers, always preserve explicit finite assumptions on the base symbol, as these may not be deducible from other properties."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-16450",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 38,
+        "p2p_total": 38,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-16450/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 103.554
+      },
+      "store": {
+        "population": 60,
+        "graveyard": 0,
+        "total_energy": 60.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 3,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-16766",
+      "order": 11,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/lambdify.py",
+          "sympy/utilities/autowrap.py",
+          "sympy/utilities/codegen.py",
+          "sympy/printing/glsl.py",
+          "sympy/printing/rust.py",
+          "sympy/printing/octave.py",
+          "sympy/printing/julia.py",
+          "sympy/printing/codeprinter.py",
+          "sympy/printing/pycode.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "eae13c0f2bd6",
+          "c0789129c355",
+          "58b811409993"
+        ],
+        "tokens": 126,
+        "budget_tokens": 126,
+        "credited": [],
+        "minted": "f289d1b05e5b"
+      },
+      "model": {
+        "prompt_chars": 302308,
+        "response_chars": 1095,
+        "patch_chars": 534,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The PythonCodePrinter was missing support for Indexed, which is needed for correct code generation for array indexing expressions."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-16766",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 7,
+        "p2p_total": 7,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-16766/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 49.3136
+      },
+      "store": {
+        "population": 61,
+        "graveyard": 0,
+        "total_energy": 61.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 4,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-16886",
+      "order": 12,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/crypto/crypto.py",
+          "sympy/crypto/tests/test_crypto.py",
+          "sympy/crypto/__init__.py",
+          "sympy/printing/pretty/pretty_symbology.py",
+          "sympy/combinatorics/graycode.py",
+          "sympy/ntheory/modular.py",
+          "sympy/physics/quantum/identitysearch.py",
+          "sympy/codegen/array_utils.py",
+          "bin/mailmap_update.py",
+          "doc/ext/docscrape.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4e027987be08",
+          "5f671d6081a4",
+          "f289d1b05e5b"
+        ],
+        "tokens": 132,
+        "budget_tokens": 132,
+        "credited": [],
+        "minted": "a63f490a37c5"
+      },
+      "model": {
+        "prompt_chars": 233364,
+        "response_chars": 1949,
+        "patch_chars": 335,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "When updating mappings like Morse code, always verify against authoritative sources, as small errors can propagate widely in encoding/decoding logic."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-16886",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 42,
+        "p2p_total": 42,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-16886/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 57.2002
+      },
+      "store": {
+        "population": 62,
+        "graveyard": 0,
+        "total_energy": 62.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 5,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-17139",
+      "order": 13,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/simplify/trigsimp.py",
+          "sympy/simplify/fu.py",
+          "sympy/strategies/core.py",
+          "sympy/core/expr.py",
+          "sympy/core/basic.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c0789129c355",
+          "4e027987be08",
+          "45e974b6356d"
+        ],
+        "tokens": 128,
+        "budget_tokens": 128,
+        "credited": [],
+        "minted": "6ac093e8e4ac"
+      },
+      "model": {
+        "prompt_chars": 303678,
+        "response_chars": 2492,
+        "patch_chars": 1383,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "When manipulating exponents in symbolic expressions, always check for complex exponents before making real-number-based comparisons to avoid TypeError."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-17139",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 67,
+        "p2p_total": 67,
+        "notes": "docker: summary report darwin-memo-pilot.darwin-memo-pilot.json; per-test counts unavailable, unresolved settles at base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 34.3219
+      },
+      "store": {
+        "population": 63,
+        "graveyard": 0,
+        "total_energy": 63.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 5,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-17655",
+      "order": 14,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/geometry/point.py",
+          "sympy/core/relational.py",
+          "sympy/geometry/line.py",
+          "sympy/utilities/lambdify.py",
+          "sympy/geometry/polygon.py",
+          "sympy/geometry/ellipse.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4e027987be08",
+          "dca0d961e591",
+          "b3003d0305e4"
+        ],
+        "tokens": 180,
+        "budget_tokens": 180,
+        "credited": [],
+        "minted": "143d4282526e"
+      },
+      "model": {
+        "prompt_chars": 304142,
+        "response_chars": 3215,
+        "patch_chars": 3161,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The codebase's Point arithmetic assumes left-multiplied scalars, so handling right-multiplied Points in __add__ is necessary for user expectations."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-17655",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 0,
+        "p2p_total": 9,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-17655/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 54.8795
+      },
+      "store": {
+        "population": 64,
+        "graveyard": 0,
+        "total_energy": 64.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 6,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-18189",
+      "order": 15,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/solvers/diophantine.py",
+          "sympy/solvers/tests/test_diophantine.py",
+          "sympy/combinatorics/fp_groups.py",
+          "sympy/solvers/solvers.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "5f671d6081a4",
+          "4e027987be08",
+          "143d4282526e"
+        ],
+        "tokens": 133,
+        "budget_tokens": 133,
+        "credited": [],
+        "minted": "28bb4d186c86"
+      },
+      "model": {
+        "prompt_chars": 302517,
+        "response_chars": 1142,
+        "patch_chars": 750,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The handling of the `syms` argument in diophantine must ensure that the output tuple order matches the user-specified symbol order, regardless of internal variable ordering."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-18189",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 41,
+        "p2p_total": 41,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-18189/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 67.1656
+      },
+      "store": {
+        "population": 65,
+        "graveyard": 0,
+        "total_energy": 65.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 7,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-18763",
+      "order": 16,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/interactive/printing.py",
+          "doc/src/conf.py",
+          "sympy/interactive/tests/test_ipythonprinting.py",
+          "sympy/printing/preview.py",
+          "sympy/printing/latex.py",
+          "sympy/core/basic.py",
+          "sympy/physics/vector/dyadic.py",
+          "sympy/parsing/latex/_parse_latex_antlr.py",
+          "sympy/physics/vector/vector.py",
+          "sympy/interactive/session.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "5f671d6081a4",
+          "143d4282526e",
+          "4e027987be08"
+        ],
+        "tokens": 133,
+        "budget_tokens": 133,
+        "credited": [],
+        "minted": "a3f45293a419"
+      },
+      "model": {
+        "prompt_chars": 302418,
+        "response_chars": 1397,
+        "patch_chars": 627,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The LaTeX printer for Subs did not parenthesize the expression, so future changes should ensure that non-atomic expressions are wrapped in parentheses for correct visual grouping."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-18763",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 141,
+        "p2p_total": 141,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-18763/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 52.8623
+      },
+      "store": {
+        "population": 66,
+        "graveyard": 0,
+        "total_energy": 66.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19495",
+      "order": 17,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/solvers/solveset.py",
+          "sympy/solvers/tests/test_solveset.py",
+          "sympy/sets/handlers/intersection.py",
+          "sympy/core/basic.py",
+          "sympy/utilities/tests/test_wester.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "143d4282526e",
+          "57ea133aea25",
+          "28bb4d186c86"
+        ],
+        "tokens": 136,
+        "budget_tokens": 136,
+        "credited": [],
+        "minted": "494c813bc52f"
+      },
+      "model": {
+        "prompt_chars": 303264,
+        "response_chars": 3051,
+        "patch_chars": 1505,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The simultaneous substitution logic must avoid substituting bound variables in ConditionSet and ImageSet, as these are not free variables and substituting them leads to incorrect results."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19495",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 8,
+        "p2p_total": 8,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-19495/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 56.5276
+      },
+      "store": {
+        "population": 67,
+        "graveyard": 0,
+        "total_energy": 67.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19637",
+      "order": 18,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/core/sympify.py",
+          "sympy/parsing/fortran/fortran_parser.py",
+          "sympy/core/tests/test_sympify.py",
+          "sympy/codegen/ast.py",
+          "sympy/polys/rootoftools.py",
+          "sympy/printing/codeprinter.py",
+          "sympy/codegen/tests/test_ast.py",
+          "sympy/parsing/ast_parser.py",
+          "sympy/functions/elementary/miscellaneous.py",
+          "sympy/parsing/tests/test_sympy_parser.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "57ea133aea25",
+          "28bb4d186c86",
+          "494c813bc52f"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [],
+        "minted": "2c9dbda84ec3"
+      },
+      "model": {
+        "prompt_chars": 230281,
+        "response_chars": 3754,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19637",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 40,
+        "p2p_total": 40,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 12.7394
+      },
+      "store": {
+        "population": 68,
+        "graveyard": 0,
+        "total_energy": 68.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19954",
+      "order": 19,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/combinatorics/perm_groups.py",
+          "sympy/combinatorics/tests/test_perm_groups.py",
+          "sympy/combinatorics/homomorphisms.py",
+          "sympy/combinatorics/testutil.py",
+          "sympy/utilities/iterables.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a624c91ae0f2",
+          "eae13c0f2bd6",
+          "a63f490a37c5"
+        ],
+        "tokens": 147,
+        "budget_tokens": 147,
+        "credited": [],
+        "minted": "fd854143df5c"
+      },
+      "model": {
+        "prompt_chars": 302898,
+        "response_chars": 1617,
+        "patch_chars": 1576,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The codebase assumes minimal_blocks() always returns a list, but it can return False for intransitive groups, so always check for False before using its length."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19954",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 56,
+        "p2p_total": 56,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-19954/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 53.9374
+      },
+      "store": {
+        "population": 69,
+        "graveyard": 0,
+        "total_energy": 69.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-20916",
+      "order": 20,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/printing/pretty/pretty_symbology.py",
+          "sympy/parsing/tests/test_implicit_multiplication_application.py",
+          "sympy/interactive/tests/test_ipythonprinting.py",
+          "sympy/printing/pretty/pretty.py",
+          "sympy/abc.py",
+          "isympy.py",
+          "sympy/core/compatibility.py",
+          "sympy/testing/runtests.py",
+          "sympy/physics/optics/polarization.py",
+          "sympy/stats/crv_types.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "58b811409993",
+          "45e974b6356d",
+          "494c813bc52f"
+        ],
+        "tokens": 141,
+        "budget_tokens": 141,
+        "credited": [],
+        "minted": "d7bf98714d32"
+      },
+      "model": {
+        "prompt_chars": 301978,
+        "response_chars": 1910,
+        "patch_chars": 1344,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "reflection": "The pretty printer's subscript support is limited by Unicode, so only a subset of Greek letters will display with true subscript glyphs; others will fall back to ASCII."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-20916",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 1,
+        "p2p_total": 1,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-20916/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 55.3295
+      },
+      "store": {
+        "population": 70,
+        "graveyard": 0,
+        "total_energy": 70.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-21847",
+      "order": 21,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/polys/monomials.py",
+          "sympy/polys/distributedmodules.py",
+          "sympy/polys/multivariate_resultants.py",
+          "sympy/integrals/intpoly.py",
+          "sympy/polys/orderings.py",
+          "sympy/polys/rings.py",
+          "sympy/simplify/trigsimp.py",
+          "sympy/integrals/risch.py",
+          "sympy/polys/polytools.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "fd854143df5c",
+          "28bb4d186c86",
+          "f289d1b05e5b"
+        ],
+        "tokens": 132,
+        "budget_tokens": 132,
+        "credited": [],
+        "minted": "c43067ad570c"
+      },
+      "model": {
+        "prompt_chars": 302867,
+        "response_chars": 2928,
+        "patch_chars": 3011,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The original code incorrectly filtered monomials by max exponent instead of total degree, so future changes must ensure the degree constraints are applied to the sum of exponents, not their maximum."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-21847",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 9,
+        "p2p_total": 9,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-21847/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 52.3955
+      },
+      "store": {
+        "population": 71,
+        "graveyard": 0,
+        "total_energy": 71.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-22714",
+      "order": 22,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/core/sympify.py",
+          "sympy/parsing/sympy_parser.py",
+          "sympy/testing/runtests.py",
+          "sympy/utilities/lambdify.py",
+          "release/fabfile.py",
+          "sympy/geometry/point.py",
+          "examples/all.py",
+          "sympy/codegen/ast.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a63f490a37c5",
+          "dca0d961e591",
+          "b3003d0305e4"
+        ],
+        "tokens": 179,
+        "budget_tokens": 179,
+        "credited": [],
+        "minted": "07e5e0caef5f"
+      },
+      "model": {
+        "prompt_chars": 303845,
+        "response_chars": 2106,
+        "patch_chars": 895,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The geometry Point classes do not support unevaluated construction, so sympify must override evaluate=False for these cases to avoid errors."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-22714",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 11,
+        "p2p_total": 11,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-22714/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 54.6658
+      },
+      "store": {
+        "population": 72,
+        "graveyard": 0,
+        "total_energy": 72.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-23534",
+      "order": 23,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "doc/src/conf.py",
+          "sympy/utilities/lambdify.py",
+          "release/fabfile.py",
+          "sympy/utilities/autowrap.py",
+          "sympy/utilities/exceptions.py",
+          "sympy/core/symbol.py",
+          "sympy/printing/printer.py",
+          "sympy/utilities/decorator.py",
+          "release/github_release.py",
+          "sympy/interactive/session.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "143d4282526e",
+          "c43067ad570c",
+          "28bb4d186c86"
+        ],
+        "tokens": 139,
+        "budget_tokens": 139,
+        "credited": [],
+        "minted": "575d4339012d"
+      },
+      "model": {
+        "prompt_chars": 252332,
+        "response_chars": 3632,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-23534",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 11,
+        "p2p_total": 11,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 13.6192
+      },
+      "store": {
+        "population": 73,
+        "graveyard": 0,
+        "total_energy": 73.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 8,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-24539",
+      "order": 24,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/polys/solvers.py",
+          "sympy/polys/ring_series.py",
+          "sympy/polys/domains/domain.py",
+          "sympy/polys/rings.py",
+          "sympy/polys/numberfields/modules.py",
+          "sympy/polys/domains/algebraicfield.py",
+          "sympy/polys/polytools.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "5f671d6081a4",
+          "c43067ad570c",
+          "6532470b7d54"
+        ],
+        "tokens": 173,
+        "budget_tokens": 173,
+        "credited": [],
+        "minted": "7d9f1038a296"
+      },
+      "model": {
+        "prompt_chars": 302741,
+        "response_chars": 946,
+        "patch_chars": 665,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The as_expr method in PolyElement must use the provided symbols argument if given, not always default to the ring's symbols."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-24539",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 62,
+        "p2p_total": 62,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-24539/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 50.4252
+      },
+      "store": {
+        "population": 74,
+        "graveyard": 0,
+        "total_energy": 74.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 9,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-24562",
+      "order": 25,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/physics/wigner.py",
+          "sympy/matrices/eigen.py",
+          "isympy.py",
+          "sympy/integrals/integrals.py",
+          "sympy/testing/runtests.py",
+          "sympy/interactive/session.py",
+          "sympy/external/importtools.py",
+          "sympy/core/singleton.py",
+          "sympy/core/random.py",
+          "sympy/utilities/exceptions.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "a63f490a37c5",
+          "d7bf98714d32",
+          "5f671d6081a4"
+        ],
+        "tokens": 142,
+        "budget_tokens": 142,
+        "credited": [],
+        "minted": "f3d1c16cccc2"
+      },
+      "model": {
+        "prompt_chars": 290584,
+        "response_chars": 958,
+        "patch_chars": 667,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "reflection": "The S singleton is widely used as a shortcut for sympify and common constants, so extending it for Rational construction (S[...]) must preserve backward compatibility and avoid ambiguity with S(...)."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-24562",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 105,
+        "p2p_total": 105,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-24562/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 54.5621
+      },
+      "store": {
+        "population": 75,
+        "graveyard": 0,
+        "total_energy": 75.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 9,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-11618",
+      "order": 26,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/geometry/ellipse.py",
+          "sympy/geometry/plane.py",
+          "sympy/geometry/point.py",
+          "sympy/geometry/polygon.py",
+          "sympy/geometry/tests/test_util.py",
+          "sympy/geometry/line.py",
+          "sympy/geometry/util.py",
+          "sympy/geometry/line3d.py",
+          "sympy/physics/vector/fieldfunctions.py",
+          "examples/advanced/autowrap_integrators.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "143d4282526e",
+          "c43067ad570c",
+          "f3d1c16cccc2"
+        ],
+        "tokens": 145,
+        "budget_tokens": 145,
+        "credited": [],
+        "minted": "111f2409bd94"
+      },
+      "model": {
+        "prompt_chars": 292951,
+        "response_chars": 2125,
+        "patch_chars": 2018,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The Point.distance method must handle points of different dimensions by padding with zeros, to ensure correct geometric calculations in mixed-dimension cases."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-11618",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 4,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-11618/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 54.4599
+      },
+      "store": {
+        "population": 76,
+        "graveyard": 0,
+        "total_energy": 76.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 10,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-12419",
+      "order": 27,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/assumptions/ask.py",
+          "sympy/utilities/enumerative.py",
+          "sympy/solvers/solvers.py",
+          "sympy/core/tests/test_wester.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c43067ad570c",
+          "4e027987be08",
+          "45e974b6356d"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "99df5b2c7fd4"
+      },
+      "model": {
+        "prompt_chars": 302982,
+        "response_chars": 1185,
+        "patch_chars": 1100,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "SymPy does not have a built-in diag(A, k) function, but extracting a matrix's kth diagonal is easily implemented with list comprehensions."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-12419",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 25,
+        "p2p_total": 25,
+        "notes": "docker: summary report darwin-memo-pilot.darwin-memo-pilot.json; per-test counts unavailable, unresolved settles at base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 14.8616
+      },
+      "store": {
+        "population": 77,
+        "graveyard": 0,
+        "total_energy": 77.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 10,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13031",
+      "order": 28,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/matrices/tests/test_commonmatrix.py",
+          "sympy/matrices/tests/test_matrices.py",
+          "sympy/physics/hep/tests/test_gamma_matrices.py",
+          "sympy/physics/optics/tests/test_medium.py",
+          "sympy/holonomic/linearsolver.py",
+          "sympy/tensor/array/__init__.py",
+          "sympy/tensor/tensor.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "c0789129c355",
+          "fd854143df5c",
+          "143d4282526e"
+        ],
+        "tokens": 128,
+        "budget_tokens": 128,
+        "credited": [],
+        "minted": "28600858f82b"
+      },
+      "model": {
+        "prompt_chars": 302490,
+        "response_chars": 3331,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "reflection": "The codebase's hstack/vstack must handle the edge case of all input matrices having zero rows or columns, respectively, to preserve expected shape behavior for empty matrices."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13031",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 9,
+        "p2p_total": 9,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 13.6263
+      },
+      "store": {
+        "population": 78,
+        "graveyard": 0,
+        "total_energy": 78.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 10,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13091",
+      "order": 29,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/core/relational.py",
+          "sympy/utilities/runtests.py",
+          "release/fabfile.py",
+          "sympy/core/function.py",
+          "sympy/core/basic.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "07e5e0caef5f",
+          "d7bf98714d32",
+          "f3d1c16cccc2"
+        ],
+        "tokens": 144,
+        "budget_tokens": 144,
+        "credited": [],
+        "minted": "cdaa29fe1b8e"
+      },
+      "model": {
+        "prompt_chars": 303675,
+        "response_chars": 3630,
+        "patch_chars": 3689,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "reflection": "The codebase's equality and inequality methods must return NotImplemented for unknown types to allow Python's fallback comparison logic to work correctly and maintain symmetry."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13091",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 0,
+        "p2p_total": 89,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13091/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 53.9934
+      },
+      "store": {
+        "population": 79,
+        "graveyard": 0,
+        "total_energy": 79.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 11,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13551",
+      "order": 30,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/tests/test_wester.py",
+          "sympy/functions/combinatorial/factorials.py",
+          "sympy/logic/boolalg.py",
+          "sympy/integrals/rubi/__init__.py",
+          "sympy/polys/polyroots.py",
+          "sympy/concrete/products.py",
+          "sympy/concrete/tests/test_sums_products.py",
+          "sympy/simplify/simplify.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "143d4282526e",
+          "a3f45293a419",
+          "f3d1c16cccc2"
+        ],
+        "tokens": 139,
+        "budget_tokens": 139,
+        "credited": [],
+        "minted": "3e957e31e37d"
+      },
+      "model": {
+        "prompt_chars": 302370,
+        "response_chars": 3951,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13551",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 17,
+        "p2p_total": 17,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 17.6199
+      },
+      "store": {
+        "population": 80,
+        "graveyard": 0,
+        "total_energy": 80.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 11,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13615",
+      "order": 31,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/solvers/solveset.py",
+          "sympy/sets/sets.py",
+          "sympy/calculus/util.py",
+          "sympy/solvers/tests/test_solveset.py",
+          "sympy/sets/tests/test_sets.py",
+          "sympy/sets/fancysets.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cdaa29fe1b8e",
+          "28600858f82b",
+          "6ac093e8e4ac"
+        ],
+        "tokens": 131,
+        "budget_tokens": 131,
+        "credited": [],
+        "minted": "52e35a38af99"
+      },
+      "model": {
+        "prompt_chars": 302009,
+        "response_chars": 3829,
+        "patch_chars": 1641,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The codebase's set complement logic must carefully distinguish between numbers, symbols, and other objects in FiniteSet to produce correct symbolic complements, especially when mixing numbers and symbols."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13615",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 70,
+        "p2p_total": 70,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13615/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 80.0941
+      },
+      "store": {
+        "population": 81,
+        "graveyard": 0,
+        "total_energy": 81.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 11,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13647",
+      "order": 32,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/matrices/common.py",
+          "sympy/matrices/sparse.py",
+          "sympy/matrices/matrices.py",
+          "sympy/matrices/dense.py",
+          "sympy/matrices/tests/test_matrices.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "28600858f82b",
+          "cdaa29fe1b8e",
+          "143d4282526e"
+        ],
+        "tokens": 132,
+        "budget_tokens": 132,
+        "credited": [],
+        "minted": "ce8eb3fa3af4"
+      },
+      "model": {
+        "prompt_chars": 302910,
+        "response_chars": 2292,
+        "patch_chars": 1116,
+        "edits_applied": 2,
+        "edits_failed": 0,
+        "reflection": "The col_insert logic must carefully shift only the columns after the insertion point, not all columns after the inserted block, to avoid misalignment."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13647",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 76,
+        "p2p_total": 76,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13647/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.9743
+      },
+      "store": {
+        "population": 82,
+        "graveyard": 0,
+        "total_energy": 82.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13757",
+      "order": 33,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/parsing/sympy_parser.py",
+          "sympy/core/relational.py",
+          "sympy/solvers/inequalities.py",
+          "sympy/external/tests/test_sage.py",
+          "sympy/simplify/ratsimp.py",
+          "sympy/core/basic.py",
+          "sympy/utilities/runtests.py",
+          "sympy/polys/modulargcd.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cdaa29fe1b8e",
+          "143d4282526e",
+          "a351f7cbdae2"
+        ],
+        "tokens": 155,
+        "budget_tokens": 155,
+        "credited": [],
+        "minted": "cac9ae76e2ee"
+      },
+      "model": {
+        "prompt_chars": 302505,
+        "response_chars": 828,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 1,
+        "reflection": "The ExpressionDomain arithmetic methods must handle Poly operands explicitly to ensure correct evaluation order and avoid unevaluated expressions."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13757",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 166,
+        "p2p_total": 166,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 5.5245
+      },
+      "store": {
+        "population": 83,
+        "graveyard": 0,
+        "total_energy": 83.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13798",
+      "order": 34,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/integrals/integrals.py",
+          "sympy/categories/diagram_drawing.py",
+          "sympy/core/function.py",
+          "sympy/core/compatibility.py",
+          "sympy/integrals/risch.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "f3d1c16cccc2",
+          "cdaa29fe1b8e",
+          "143d4282526e"
+        ],
+        "tokens": 138,
+        "budget_tokens": 138,
+        "credited": [],
+        "minted": "f7bc80ae4b7f"
+      },
+      "model": {
+        "prompt_chars": 302729,
+        "response_chars": 3279,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13798",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 102,
+        "p2p_total": 102,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 10.2052
+      },
+      "store": {
+        "population": 84,
+        "graveyard": 0,
+        "total_energy": 84.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13877",
+      "order": 35,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/matrices/matrices.py",
+          "sympy/matrices/immutable.py",
+          "sympy/core/expr.py",
+          "sympy/matrices/common.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "28600858f82b",
+          "cdaa29fe1b8e",
+          "111f2409bd94"
+        ],
+        "tokens": 135,
+        "budget_tokens": 135,
+        "credited": [],
+        "minted": "496a030ca8e7"
+      },
+      "model": {
+        "prompt_chars": 306192,
+        "response_chars": 3647,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13877",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 110,
+        "p2p_total": 110,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 9.8628
+      },
+      "store": {
+        "population": 85,
+        "graveyard": 0,
+        "total_energy": 85.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 12,
+        "lies_fired": 2,
+        "false_bad": 2,
+        "false_good": 0,
+        "distortion": -4.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-13974",
+      "order": 36,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/physics/quantum/tensorproduct.py",
+          "sympy/physics/quantum/tests/test_tensorproduct.py",
+          "sympy/physics/paulialgebra.py",
+          "sympy/physics/quantum/spin.py",
+          "sympy/diffgeom/diffgeom.py",
+          "sympy/physics/tests/test_paulialgebra.py",
+          "sympy/physics/secondquant.py",
+          "sympy/core/function.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "07e5e0caef5f",
+          "45e974b6356d",
+          "111f2409bd94"
+        ],
+        "tokens": 130,
+        "budget_tokens": 130,
+        "credited": [],
+        "minted": "ae02cbcdaa93"
+      },
+      "model": {
+        "prompt_chars": 302846,
+        "response_chars": 4027,
+        "patch_chars": 4278,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The core issue was that tensor_product_simp did not distribute powers over TensorProduct arguments, so this must be handled explicitly for correct simplification."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-13974",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 4,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-13974/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 56.4726
+      },
+      "store": {
+        "population": 86,
+        "graveyard": 0,
+        "total_energy": 86.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 13,
+        "lies_fired": 3,
+        "false_bad": 2,
+        "false_good": 1,
+        "distortion": -2.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-14531",
+      "order": 37,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/core/basic.py",
+          "sympy/printing/printer.py",
+          "sympy/printing/tests/test_str.py",
+          "sympy/interactive/printing.py",
+          "sympy/utilities/codegen.py",
+          "sympy/crypto/crypto.py",
+          "sympy/series/gruntz.py",
+          "sympy/physics/vector/printing.py",
+          "sympy/core/relational.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "f289d1b05e5b",
+          "cdaa29fe1b8e",
+          "52e35a38af99"
+        ],
+        "tokens": 134,
+        "budget_tokens": 134,
+        "credited": [],
+        "minted": "67e962e600d6"
+      },
+      "model": {
+        "prompt_chars": 302527,
+        "response_chars": 4893,
+        "patch_chars": 1098,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-14531",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 0,
+        "p2p_total": 84,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-14531/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 59.6321
+      },
+      "store": {
+        "population": 87,
+        "graveyard": 0,
+        "total_energy": 87.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": true,
+        "lie_budget": 2,
+        "measured": 14,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-14976",
+      "order": 38,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/lambdify.py",
+          "sympy/utilities/tests/test_lambdify.py",
+          "sympy/solvers/tests/test_numeric.py",
+          "sympy/solvers/solvers.py",
+          "sympy/core/function.py",
+          "sympy/printing/pycode.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cdaa29fe1b8e",
+          "f3d1c16cccc2",
+          "4e027987be08"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "26ef4a11ee94"
+      },
+      "model": {
+        "prompt_chars": 302550,
+        "response_chars": 4535,
+        "patch_chars": 698,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-14976",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 13,
+        "p2p_total": 13,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-14976/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 55.4829
+      },
+      "store": {
+        "population": 88,
+        "graveyard": 0,
+        "total_energy": 88.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 14,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15349",
+      "order": 39,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/algebras/quaternion.py",
+          "sympy/vector/coordsysrect.py",
+          "sympy/physics/vector/frame.py",
+          "sympy/utilities/tests/test_wester.py",
+          "release/fabfile.py",
+          "sympy/simplify/simplify.py",
+          "sympy/solvers/solveset.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "4e027987be08",
+          "d634176dacad",
+          "99df5b2c7fd4"
+        ],
+        "tokens": 153,
+        "budget_tokens": 153,
+        "credited": [],
+        "minted": "39e376cdcf85"
+      },
+      "model": {
+        "prompt_chars": 302704,
+        "response_chars": 938,
+        "patch_chars": 330,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The sign error in the to_rotation_matrix() method is subtle and can easily go unnoticed without careful comparison to standard quaternion-to-matrix formulas."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15349",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 3,
+        "p2p_total": 3,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-15349/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 54.2675
+      },
+      "store": {
+        "population": 89,
+        "graveyard": 0,
+        "total_energy": 89.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15599",
+      "order": 40,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/simplify/simplify.py",
+          "release/fabfile.py",
+          "sympy/core/basic.py",
+          "sympy/core/mul.py",
+          "sympy/core/expr.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "ae02cbcdaa93",
+          "8e9bdda25a66",
+          "f3d1c16cccc2"
+        ],
+        "tokens": 165,
+        "budget_tokens": 165,
+        "credited": [],
+        "minted": "792d4064a353"
+      },
+      "model": {
+        "prompt_chars": 303855,
+        "response_chars": 2149,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 2,
+        "reflection": "The distributive simplification for Mod over Mul must explicitly handle the case where all non-Mod factors are replaced by Mod, and the result compared to the original to trigger further simplification."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15599",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 80,
+        "p2p_total": 80,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 7.6323
+      },
+      "store": {
+        "population": 90,
+        "graveyard": 0,
+        "total_energy": 90.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-15976",
+      "order": 41,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/printing/preview.py",
+          "sympy/utilities/runtests.py",
+          "sympy/utilities/tests/test_pickling.py",
+          "sympy/plotting/pygletplot/plot.py",
+          "sympy/printing/mathml.py",
+          "release/fabfile.py",
+          "sympy/printing/rust.py",
+          "sympy/utilities/codegen.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "28bb4d186c86",
+          "cdaa29fe1b8e",
+          "52e35a38af99"
+        ],
+        "tokens": 141,
+        "budget_tokens": 141,
+        "credited": [],
+        "minted": "47156788c4ac"
+      },
+      "model": {
+        "prompt_chars": 302953,
+        "response_chars": 4919,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-15976",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 37,
+        "p2p_total": 37,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 10.5702
+      },
+      "store": {
+        "population": 91,
+        "graveyard": 0,
+        "total_energy": 91.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-16792",
+      "order": 42,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/lambdify.py",
+          "sympy/utilities/autowrap.py",
+          "sympy/plotting/experimental_lambdify.py",
+          "sympy/utilities/codegen.py",
+          "sympy/core/function.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cdaa29fe1b8e",
+          "fd854143df5c",
+          "c0789129c355"
+        ],
+        "tokens": 134,
+        "budget_tokens": 134,
+        "credited": [],
+        "minted": "d6c2f9bb016a"
+      },
+      "model": {
+        "prompt_chars": 303729,
+        "response_chars": 1364,
+        "patch_chars": 676,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The codegen logic must always emit pointer types for array arguments in C signatures, even if the argument is unused in the expression, to ensure correct interop with backends like Cython."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-16792",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 54,
+        "p2p_total": 54,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-16792/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 52.6534
+      },
+      "store": {
+        "population": 92,
+        "graveyard": 0,
+        "total_energy": 92.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 15,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-17318",
+      "order": 43,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/simplify/sqrtdenest.py",
+          "sympy/simplify/radsimp.py",
+          "sympy/codegen/ast.py",
+          "sympy/utilities/runtests.py",
+          "sympy/core/containers.py",
+          "sympy/utilities/autowrap.py",
+          "sympy/core/expr.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "fd854143df5c",
+          "143d4282526e",
+          "cdaa29fe1b8e"
+        ],
+        "tokens": 133,
+        "budget_tokens": 133,
+        "credited": [],
+        "minted": "feb961faf8db"
+      },
+      "model": {
+        "prompt_chars": 304143,
+        "response_chars": 3028,
+        "patch_chars": 3069,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-17318",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 0,
+        "p2p_total": 10,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-17318/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 55.7719
+      },
+      "store": {
+        "population": 93,
+        "graveyard": 0,
+        "total_energy": 93.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 16,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-18211",
+      "order": 44,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/solvers/solveset.py",
+          "sympy/utilities/tests/test_wester.py",
+          "sympy/solvers/tests/test_solveset.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "494c813bc52f",
+          "c43067ad570c",
+          "feb961faf8db"
+        ],
+        "tokens": 121,
+        "budget_tokens": 121,
+        "credited": [],
+        "minted": "db539457eae3"
+      },
+      "model": {
+        "prompt_chars": 302540,
+        "response_chars": 4471,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-18211",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 54,
+        "p2p_total": 54,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 11.9101
+      },
+      "store": {
+        "population": 94,
+        "graveyard": 0,
+        "total_energy": 94.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 16,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-18698",
+      "order": 45,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/ntheory/factor_.py",
+          "sympy/solvers/diophantine/diophantine.py",
+          "sympy/utilities/enumerative.py",
+          "sympy/polys/galoistools.py",
+          "sympy/integrals/risch.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "28bb4d186c86",
+          "fd854143df5c",
+          "a3f45293a419"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "031fe0bced8a"
+      },
+      "model": {
+        "prompt_chars": 302305,
+        "response_chars": 2354,
+        "patch_chars": 1141,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "The original gf_sqf_list could emit duplicate factors with the same exponent when the input polynomial had repeated irreducible factors of the same multiplicity; this fix ensures each (factor, exponent) pair is unique."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-18698",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 147,
+        "p2p_total": 147,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-18698/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 62.024
+      },
+      "store": {
+        "population": 95,
+        "graveyard": 0,
+        "total_energy": 95.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 16,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19040",
+      "order": 46,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "release/fabfile.py",
+          "sympy/integrals/risch.py",
+          "sympy/utilities/exceptions.py",
+          "sympy/testing/runtests.py",
+          "sympy/utilities/enumerative.py",
+          "sympy/ntheory/factor_.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "031fe0bced8a",
+          "d7bf98714d32",
+          "6ac093e8e4ac"
+        ],
+        "tokens": 143,
+        "budget_tokens": 143,
+        "credited": [],
+        "minted": "36f7e3a7e0ac"
+      },
+      "model": {
+        "prompt_chars": 303749,
+        "response_chars": 1590,
+        "patch_chars": 507,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "When recursively factoring composite keys in a factorization dictionary, ensure to remove any factors whose exponents sum to zero, as these correspond to factors that cancel out (e.g., (x-1) in numerator and denominator)."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19040",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 148,
+        "p2p_total": 148,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-19040/report.json"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 57.7097
+      },
+      "store": {
+        "population": 96,
+        "graveyard": 0,
+        "total_energy": 96.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 16,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19346",
+      "order": 47,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/printing/printer.py",
+          "sympy/combinatorics/permutations.py",
+          "sympy/utilities/lambdify.py",
+          "sympy/core/compatibility.py",
+          "isympy.py",
+          "sympy/physics/quantum/qexpr.py",
+          "sympy/plotting/experimental_lambdify.py",
+          "sympy/utilities/decorator.py",
+          "sympy/core/basic.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "28bb4d186c86",
+          "4ab29dc8f584",
+          "1147186f59d4"
+        ],
+        "tokens": 184,
+        "budget_tokens": 184,
+        "credited": [],
+        "minted": "00b69a9fd14a"
+      },
+      "model": {
+        "prompt_chars": 302683,
+        "response_chars": 936,
+        "patch_chars": 714,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "srepr must handle built-in containers like dict and set specially to ensure their elements are printed using srepr recursively, not just str."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19346",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": true,
+        "f2p_passed": 1,
+        "f2p_total": 1,
+        "p2p_passed": 40,
+        "p2p_total": 40,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-19346/report.json"
+      },
+      "metrics": {
+        "delta": 1.0,
+        "resolved": true,
+        "wall_time_s": 52.1128
+      },
+      "store": {
+        "population": 97,
+        "graveyard": 0,
+        "total_energy": 97.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 17,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-19783",
+      "order": 48,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/physics/quantum/operator.py",
+          "sympy/physics/quantum/gate.py",
+          "sympy/physics/quantum/tests/test_operator.py",
+          "sympy/physics/quantum/boson.py",
+          "sympy/physics/quantum/qapply.py",
+          "sympy/physics/secondquant.py",
+          "sympy/physics/quantum/qexpr.py",
+          "sympy/physics/quantum/represent.py",
+          "sympy/physics/quantum/sho1d.py",
+          "sympy/physics/quantum/qubit.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "cdaa29fe1b8e",
+          "fd854143df5c",
+          "99df5b2c7fd4"
+        ],
+        "tokens": 135,
+        "budget_tokens": 135,
+        "credited": [],
+        "minted": "fe37ab421e20"
+      },
+      "model": {
+        "prompt_chars": 251430,
+        "response_chars": 1698,
+        "patch_chars": 1168,
+        "edits_applied": 3,
+        "edits_failed": 0,
+        "reflection": "The quantum operator codebase requires explicit handling of Dagger and IdentityOperator combinations in __mul__ to ensure correct simplification, as generic Mul does not handle these cases."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-19783",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": true,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 0,
+        "p2p_total": 9,
+        "notes": "docker: per-instance report logs/run_evaluation/darwin-memo-pilot/darwin-memo-pilot/sympy__sympy-19783/report.json"
+      },
+      "metrics": {
+        "delta": -1.0,
+        "resolved": false,
+        "wall_time_s": 52.4066
+      },
+      "store": {
+        "population": 98,
+        "graveyard": 0,
+        "total_energy": 98.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": -1.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 18,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-20154",
+      "order": 49,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/utilities/iterables.py",
+          "sympy/series/gruntz.py",
+          "sympy/utilities/enumerative.py",
+          "sympy/simplify/trigsimp.py",
+          "sympy/utilities/lambdify.py",
+          "sympy/integrals/risch.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "39e376cdcf85",
+          "fd854143df5c",
+          "f3d1c16cccc2"
+        ],
+        "tokens": 141,
+        "budget_tokens": 141,
+        "credited": [],
+        "minted": "f162d901a3a1"
+      },
+      "model": {
+        "prompt_chars": 302410,
+        "response_chars": 3349,
+        "patch_chars": 0,
+        "edits_applied": 0,
+        "edits_failed": 0,
+        "reflection": ""
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-20154",
+        "mode": "docker",
+        "env_ready": false,
+        "empty_patch": true,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 2,
+        "p2p_passed": 40,
+        "p2p_total": 40,
+        "notes": "docker: empty patch, base behavior assumed (harness not called)"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 10.9988
+      },
+      "store": {
+        "population": 99,
+        "graveyard": 0,
+        "total_energy": 99.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 18,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    },
+    {
+      "schema_version": 1,
+      "suite": "swebench_cl_pilot",
+      "arm": "keep_everything",
+      "seed": 1,
+      "sequence": "sympy_sympy_sequence",
+      "instance_id": "sympy__sympy-20428",
+      "order": 50,
+      "config": {
+        "endpoint": {
+          "base_url": "https://api.openai.com/v1",
+          "model": "gpt-4.1"
+        },
+        "executor": "docker",
+        "k": 3,
+        "max_prompt_chars": 6000,
+        "code_context_chars": 300000,
+        "oracle_retrieval": false,
+        "oracle_missed_tasks": 0,
+        "retrieved_files": [
+          "sympy/polys/polytools.py",
+          "sympy/polys/polyclasses.py",
+          "sympy/polys/rings.py"
+        ],
+        "seed_poison": true,
+        "lie_budget": 2
+      },
+      "lessons": {
+        "injected": [
+          "07e5e0caef5f",
+          "36f7e3a7e0ac",
+          "111f2409bd94"
+        ],
+        "tokens": 140,
+        "budget_tokens": 140,
+        "credited": [],
+        "minted": "71c9d38c5060"
+      },
+      "model": {
+        "prompt_chars": 305570,
+        "response_chars": 2661,
+        "patch_chars": 2569,
+        "edits_applied": 1,
+        "edits_failed": 0,
+        "reflection": "When constructing zero polynomials after operations like clear_denoms, ensure the internal representation is stripped to avoid inconsistencies in behavior and downstream errors."
+      },
+      "eval": {
+        "instance_id": "sympy__sympy-20428",
+        "mode": "docker",
+        "env_ready": true,
+        "empty_patch": false,
+        "patch_applied": false,
+        "eval_executed": true,
+        "resolved": false,
+        "f2p_passed": 0,
+        "f2p_total": 1,
+        "p2p_passed": 154,
+        "p2p_total": 154,
+        "notes": "docker: summary report darwin-memo-pilot.darwin-memo-pilot.json; per-test counts unavailable, unresolved settles at base behavior"
+      },
+      "metrics": {
+        "delta": 0.0,
+        "resolved": false,
+        "wall_time_s": 17.7331
+      },
+      "store": {
+        "population": 100,
+        "graveyard": 0,
+        "total_energy": 100.0,
+        "deaths_this_tick": 0,
+        "merges_this_tick": 0,
+        "poison_alive": 50
+      },
+      "adversary": {
+        "reported_delta": 0.0,
+        "lied": false,
+        "lie_budget": 2,
+        "measured": 18,
+        "lies_fired": 4,
+        "false_bad": 2,
+        "false_good": 2,
+        "distortion": 0.0
+      },
+      "meta": {
+        "python": "3.13.5",
+        "platform": "darwin",
+        "darwin_memo": "0.6.0"
+      }
+    }
+  ]
+}
