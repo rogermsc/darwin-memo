@@ -8,6 +8,28 @@ project uses [SemVer](https://semver.org/).
 
 ### Changed
 
+- **Two quotations from one citation came from versions that never coexisted.**
+  The paper quoted `arXiv:2604.16548` three times under one unversioned key.
+  Checking each against the source: "architecturally plausible but empirically
+  unstudied" is in **v1 only**, and "retention schemes based on access frequency
+  or recency may inadvertently keep adversarial entries alive" is in **v2 only**.
+  v2 is a rewrite about a fifth the length of v1 that replaces the
+  availability-gap analysis with a governance framework. A reader following the
+  bare identifier reaches v2, finds one quote and not the other, and reasonably
+  concludes we invented it.
+  - Split into `lin2026memsurvey` (v2) and `lin2026memsurveyv1`, each pinned,
+    and bound each quotation to the version containing it. `related.tex` now
+    says why the older version is cited, and names the three availability
+    threats v1 lists — write flooding, retrieval-latency poisoning,
+    reflection-loop denial. None is ours, which sharpens the gap claim: denial
+    of memory by corrupted settlement was not on the unstudied list either.
+  - `tests/test_paper_quotation_versions.py` binds quote to version offline.
+    It found a second occurrence in `intro.tex` that a line-based grep had
+    missed, because the quoted phrase wraps across a line.
+  - The other four externally quoted claims were re-verified verbatim in the
+    same pass: both `lin2026selfevolving` quotes, AgentCL's "naive task
+    streams", and the "Forget & Rollback" lifecycle phase (in both versions).
+
 - **The MemoryOS disclosure was sent** (2026-08-18, `baiting@bupt.edu.cn` — the
   README contact, who is also the paper's senior author). Email rather than
   GitHub because there is no private channel: no `SECURITY.md`, and private
