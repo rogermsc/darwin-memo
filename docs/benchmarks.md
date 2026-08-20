@@ -1408,6 +1408,79 @@ leaves only ten past it. The sweep this doc has called "the honest next
 measurement and has not been run" is run here, and it changes the
 conclusion rather than confirming it.
 
+### The withholder that reads the sign, and what it does to the mitigation
+
+Everything above is an *indiscriminate* withholder: it suppresses any
+measured outcome. A smarter one suppresses only the measurements that
+would incriminate its own poison and lets benign outcomes through. Same
+predicate as the persistence objective, different payload — persistence
+*pays* the poison a positive, this merely hides the damage.
+
+It exists to attack `survival_paced` rather than to defend it. Pacing
+pauses the clock on cycles that measured nothing, so an attacker who
+leaves benign outcomes flowing never lets it pause. The prediction,
+pre-registered before the run, was that `survival_paced` and `survival`
+would be identical here.
+
+```
+python -m bench.run --suite withholding_selective --seeds 0:30 \
+  --out bench/results/withholding_selective.json --update-manifest
+```
+
+Mean over 30 seeds at 60 cycles. Benign capability is 1.00 for every arm
+at every budget and is omitted: this attack never suppresses a benign
+outcome, so the denial-of-memory axis is simply absent.
+
+| budget | arm | kill | kill cycle | cum delta | pop |
+|---|---|---|---|---|---|
+| 0 | survival | 1.00 | 0.3 | +25.55M | 3.0 |
+| 0 | survival_paced | 1.00 | 0.3 | +25.55M | 3.0 |
+| 2 | survival | 1.00 | 1.9 | +24.16M | 3.0 |
+| 2 | survival_paced | 1.00 | 1.9 | +24.16M | 3.0 |
+| 4 | survival | 1.00 | 10.7 | +17.70M | 3.0 |
+| 4 | evict_on_negative k=1 | 1.00 | 12.5 | +16.51M | 15.0 |
+| 8 | survival | 1.00 | **19.0** | +11.27M | 3.0 |
+| 8 | survival_paced | 1.00 | **19.0** | +11.27M | 3.0 |
+| 8 | evict_on_negative k=1 | **0.00** | never | -18.17M | 16.0 |
+| 8 | quarantine m=3 | **0.00** | never | -18.17M | 16.0 |
+| 8 | keep_everything | 0.00 | never | -18.17M | 16.0 |
+| 12 | survival | 1.00 | 19.0 | +11.27M | 3.0 |
+| 12 | evict_on_negative k=1 | 0.00 | never | -18.17M | 16.0 |
+
+**The mitigation is worthless here, exactly as predicted.**
+`survival_paced` is identical to `survival` in every cell — all six
+budgets, both horizons, every metric — because benign outcomes keep
+arriving and the clock never pauses. Its entire measured advantage,
+benign 1.00 against 0.44 at budget 8, exists only against the attacker
+that does not read the sign. Combined with its degeneration to
+`keep_everything` under total indiscriminate suppression, that is two
+independent reasons `SurvivalConfig.upkeep_requires_settlement` ships
+off. A mitigation that helps against the dumber of two attackers and
+does nothing against the smarter one is not a default.
+
+**The counters stop defending altogether.** From budget 8 up,
+`evict_on_negative` and `quarantine` have kill rate 0.00 and are
+identical to `keep_everything`: they never observe a negative, so they
+never evict. Their benign 1.00 is retention, not defence — the same
+thing the `policy_bandit` row says about a Thompson-sampling bandit, now
+true of the whole counter family.
+
+**The ledger's revocation degrades from execution to disuse, and that is
+the honest reading.** `survival` keeps a 1.00 kill rate at every budget,
+but the kill cycle runs 0.3 → 0.9 → 1.9 → 10.7 → 19.0. Past budget 4 the
+poison is no longer being *executed* for damage it was blamed for; it is
+starving at the `spawn / upkeep` cliff like any unconsulted entry, which
+is removal-by-disuse and not a defence against this attack. What
+survives the attack is the economics: +11.27M against -18.17M for every
+arm that stopped removing anything.
+
+One cell is worth naming because it cuts the other way: at budget 4
+`survival` revokes at cycle 10.7 against the counter's 12.5. The
+published `adversary.json` result has the counter revoking roughly five
+times *faster* than the ledger; under selective withholding that ordering
+inverts, because a counter that never sees a negative has nothing to
+count.
+
 ### Caveats, on the record
 
 - **The budget is not spent equally across arms, and cannot be.** At
@@ -1432,12 +1505,10 @@ conclusion rather than confirming it.
   `TestSuiteEnv` for a related reason. **The cum-delta half of the
   budget-12 finding is the part most exposed to this**, and an
   adversarial `TestSuiteEnv` is the measurement that would close it.
-- The attacker is indiscriminate. A *selective* withholder — one that
-  suppresses only the settlements that would damage its own entry, and
-  lets benign ones through — is strictly stronger against
-  `survival_paced`, because it keeps the clock running for everyone else
-  while its poison is never blamed. Not implemented, not measured, and
-  the obvious next arm.
+- The selective results above share every caveat in this list, and add
+  one: with benign capability pinned at 1.00 for all arms, that column
+  carries no information there, and the comparison rests entirely on
+  `poison_kill_cycle` and `cum_delta`.
 
 ## Second environment family: TestSuiteEnv
 
