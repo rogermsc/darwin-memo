@@ -365,23 +365,23 @@ WITHHOLD_BUDGETS = (0, 1, 2, 4, 8, 12)
 WITHHOLD_CYCLES = (30, 60)
 
 
-def withholding_suite(seeds: list[int]) -> list[RunSpec]:
-    """Suppressed measurements at matched budgets, against corrupted ones.
+def _withhold_specs(seeds: list[int], suite: str, objective: str) -> list[RunSpec]:
+    """The shared grid. Two objectives, two files, one arm tuple.
 
-    Read against bench/results/adversary.json at the same budgets: same
-    channel, same worlds, same arms, and an attacker that is strictly
-    less informed (indiscriminate withholding never reads the sign of
-    the true delta, which the destroy objective must).
+    Kept as separate suites rather than an objective axis on one, so that
+    adding the selective attacker cannot rewrite the already-committed
+    withholding.json --- the same reason SALIENCE_ARMS and NEIGHBOUR_ARMS
+    are separate from ARMS.
     """
     return [
         RunSpec(
-            suite="withholding",
+            suite=suite,
             arm=arm,
             seed=seed,
             cycles=cycles,
             overrides={
                 "lie_budget": budget,
-                "adversary_objective": "withhold",
+                "adversary_objective": objective,
                 **extra,
             },
             label=f"budget={budget},cycles={cycles}{suffix}",
@@ -391,6 +391,34 @@ def withholding_suite(seeds: list[int]) -> list[RunSpec]:
         for arm, extra, suffix in WITHHOLD_ARMS
         for seed in seeds
     ]
+
+
+def withholding_suite(seeds: list[int]) -> list[RunSpec]:
+    """Suppressed measurements at matched budgets, against corrupted ones.
+
+    Read against bench/results/adversary.json at the same budgets: same
+    channel, same worlds, same arms, and an attacker that is strictly
+    less informed (indiscriminate withholding never reads the sign of
+    the true delta, which the destroy objective must).
+    """
+    return _withhold_specs(seeds, "withholding", "withhold")
+
+
+def withholding_selective_suite(seeds: list[int]) -> list[RunSpec]:
+    """The withholder that reads the sign, and the test of the mitigation.
+
+    Indiscriminate withholding pauses an evidence-paced clock, because it
+    suppresses everything. This one suppresses ONLY what would incriminate
+    its own poison and lets benign outcomes through, so the clock keeps
+    running while the poison is never blamed.
+
+    survival_paced is in the arm set to be attacked, not to be defended:
+    if pacing is worth shipping, it has to survive an attacker who knows
+    it is there. The prediction pre-registered before running was that it
+    would not --- that survival_paced and survival would be identical
+    here, and pacing's whole budget-8 advantage would vanish.
+    """
+    return _withhold_specs(seeds, "withholding_selective", "withhold_selective")
 
 
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
