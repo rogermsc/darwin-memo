@@ -1,6 +1,7 @@
 """Observability: top, why, audit, and event-log rotation."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -968,3 +969,85 @@ def test_health_warning_speaks_through_the_shared_rules():
         ]
     )
     assert healthy.health_warning() == ""
+
+
+# ----------------------------------------------------------------------
+# ticking_without_evidence: the clock outrunning the measurements
+# ----------------------------------------------------------------------
+
+
+def test_doctor_names_a_store_ticked_without_evidence(tmp_path):
+    """A store that earned once and then went quiet trips no other rule.
+
+    ``starvation_cliff`` needs nothing to have EVER earned, and
+    ``env_never_paid`` needs MIN_SETTLES landed settlements to speak.
+    A store with a real settlement in its past and none in its present
+    satisfies neither, which is exactly how this project's own lesson
+    store ran 49 settlement-free ticks unnoticed.
+
+    Mutation that must fail this test: drop the rule, or flip ``max`` to
+    ``min`` in ``_last_credited_tick`` (which would date the quiet spell
+    from the FIRST credit and fire far too eagerly on healthy stores).
+    """
+    memory, ledger = _healthy_earning_ledger(tmp_path)
+    assert doctor(ledger, []) == [], "fixture sanity: healthy while settling"
+
+    for _ in range(60):
+        ledger.tick()
+    ledger.save(memory)
+
+    codes = [f.code for f in doctor(ledger, [])]
+    assert "ticking_without_evidence" in codes
+    finding = next(
+        f for f in doctor(ledger, []) if f.code == "ticking_without_evidence"
+    )
+    assert finding.severity == "warn", "a quiet store is operational, not broken"
+
+
+def test_doctor_is_quiet_when_settlement_keeps_pace_with_ticking(tmp_path):
+    """Ticking is only a fault relative to the evidence cadence.
+
+    Mutation that must fail this test: measure the quiet run from
+    ``ledger.tick_count`` instead of ``tick_count - last_credited``, or
+    drop the ``quiet >= runway`` comparison for a fixed threshold.
+    """
+    memory, ledger = _healthy_earning_ledger(tmp_path)
+    for _ in range(40):
+        ticket = ledger.decide("are stale feature flags safe to remove?")
+        ledger.settle(ticket.id, delta=7.0, detail="cleanup went fine")
+        ledger.tick()
+    ledger.save(memory)
+    assert doctor(ledger, []) == [], (
+        "60+ ticks are fine as long as evidence arrives alongside them"
+    )
+
+
+def test_doctor_would_have_caught_the_live_extinction(tmp_path):
+    """The real store, frozen: 9 entries, real history, tick 72, credit at 23.
+
+    A synthetic two-entry fixture cannot validate a diagnostic -- two of
+    this package's existing doctor rules false-positived on the flagship
+    demo and five layers of review missed it, because every fixture was
+    synthetic. So this asserts against a byte copy of the store that
+    actually died, with an EMPTY event window, which is what the real
+    one looks like to doctor(): .gitignore excludes the sidecar log, so
+    the extinction's event log never existed on disk at all.
+
+    Mutation that must fail this test: gate the rule on a non-empty
+    living population (``if not alive: return None``). That is the
+    obvious naive guard, it looks reasonable, and this fixture is the
+    only thing in the suite that catches it -- an extinct store is
+    precisely the case the rule exists for.
+    """
+    frozen = Path(__file__).parent / "data" / "extinct_lessons.json"
+    ledger = Ledger.load(str(frozen))
+    assert len(ledger.store) == 0, "fixture sanity: the population is extinct"
+
+    findings = doctor(ledger, [])
+    codes = [f.code for f in findings]
+    assert codes == ["ticking_without_evidence"], (
+        "the rule fires, and no other rule false-positives on the real store"
+    )
+    finding = findings[0]
+    assert "49 ticks" in finding.summary, "72 - 23; the whole quiet spell"
+    assert "tick 23" in finding.evidence and "tick 72" in finding.evidence

@@ -6,6 +6,60 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`settle-ci` ticked on every merged PR, not on every measurement.** The
+  rent meter and the till were wired to two different events: settlement
+  needs a `darwin-memo-ticket:` line in the PR body, but the tick that
+  charges every living entry upkeep ran unconditionally. A merge carrying
+  no ticket billed the store for time in which it was never given a chance
+  to earn.
+  - This is not hypothetical: **this repo's own lesson store went extinct
+    of it.** `.darwin-memo/lessons.json` reached 0 alive / 9 starved at
+    `tick_count` 72, having last been credited at tick 23 — 49 consecutive
+    settlement-free ticks, one per merged PR. Entry `053a99cf0a4c` earned
+    +0.600 from a measured +19 test-pass delta and was buried at tick 69.
+  - The general shape, worth stating because it is not obvious: credit is
+    capped at `max_energy`, so **bounded credit implies bounded runway**.
+    No entry survives more than `max_energy / upkeep` settlement-free
+    ticks however valuable it is, and one that has not earned starts at
+    spawn energy, which buys `spawn / upkeep` = 20 ticks at the defaults.
+  - `settle-ci` now ticks only when a settlement was attempted, and
+    reports `"tick": null` otherwise. A *dropped* settle still counts as
+    evidence (an unknown ticket id, or a silent decide that never opened a
+    ticket, is still the caller reporting on the world); requiring credit
+    instead would make a store whose retrieval had gone mute immortal.
+  - **Cost, stated rather than buried:** expiry and consolidation now
+    advance in settled ticks rather than in merges. That is the cadence
+    the energy economy already assumes.
+
+### Added
+
+- **`doctor` finding `ticking_without_evidence`** (warn), the rule that
+  would have caught the extinction above. Fires when more ticks have
+  passed since the last credited settlement than the living population
+  has upkeep left to pay.
+  - The threshold is the store's own arithmetic rather than a constant: a
+    fixed share of `max_energy / upkeep` would have fired on the real
+    store at tick 73, four ticks *after* the last entry was buried. The
+    runway comparison fires at tick 46, twenty-three ticks before it.
+  - It closes a real gap. `starvation_cliff` requires that nothing ever
+    earned and `env_never_paid` requires `MIN_SETTLES` landed
+    settlements, so a store that earned once and then went quiet tripped
+    neither — which is exactly why 49 ticks of pure rent went unnoticed.
+  - Reads the per-entry history persisted in the memory file, never the
+    JSONL window. That is load-bearing twice: `.gitignore` excludes this
+    project's own event log, so a window-based rule would score zero on
+    the very store it exists to catch, and an existing anti-false-positive
+    test hands `doctor` a settle-stripped window and asserts silence.
+  - `_ever_credited` became `_last_credited_tick`; `is not None` is
+    exactly the old boolean, so the `earned` gate is unchanged.
+- **`tests/data/extinct_lessons.json`** — a byte copy of the store that
+  actually died, frozen before reseeding, as the acceptance fixture for
+  the new rule. A synthetic two-entry store cannot validate a diagnostic:
+  the naive `if not alive: return None` guard passes all 46 other
+  observability tests and is caught only by this one.
+
 ### Changed
 
 - **Two quotations from one citation came from versions that never coexisted.**

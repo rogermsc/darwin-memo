@@ -569,10 +569,11 @@ that store-wide evidence first.
 | `tickets_stale` | warn | one or more pending tickets are older than 50 ticks (`expire_after`'s default) |
 | `settles_dropped` | warn | `settle_dropped` events exceed the count of silent decides. A silent `decide()` never opens a ticket (`Ledger.decide` only tracks a ticket when the answer has provenance), so settling a silent decide always drops — that count is benign and subtracted out; only the excess is worth a warning |
 | `credit_untracked` | warn | one or more settlements carry no per-entry `applied` credit list (written by a version before per-entry credit was logged) |
+| `ticking_without_evidence` | warn | more ticks have passed since the last credited settlement than the living population has upkeep left to pay. The threshold is the store's own arithmetic, not a constant, because a fixed share of `max_energy / upkeep` fires only after the store is already dead. Unlike the three rules above it, this one applies to a store that *did* earn — every tick charges upkeep whether or not anything was measured, so a clock running faster than the evidence is a slow, silent, total loss |
 
 Exit code: **1 if any finding has severity `error`**, otherwise **0**
 — warnings alone (`tickets_stale`, `settles_dropped`,
-`credit_untracked`) exit 0.
+`credit_untracked`, `ticking_without_evidence`) exit 0.
 
 ### `ui`
 

@@ -297,7 +297,21 @@ def cmd_settle_ci(args: argparse.Namespace) -> int:
         ticket_id: ledger.settle(ticket_id, delta, detail=args.detail)
         for ticket_id in tickets
     }
-    out["tick"] = ledger.tick(expire_after=args.expire_after)
+    # The clock is driven by evidence, not by merges. A tick charges
+    # every alive entry upkeep, so ticking on a merge that carried no
+    # ticket bills the store for time in which it was never given a
+    # chance to earn -- and credit is capped at max_energy, so no
+    # entry outlives spawn/upkeep such ticks however valuable it is.
+    # This repo's own store died that way: 49 consecutive settlement-
+    # free ticks, one per merged PR. A dropped settle (unknown id, or
+    # a silent decide that never opened a ticket) still counts as the
+    # caller reporting on the world; requiring credit instead would
+    # make a store whose retrieval went mute immortal. The cost is
+    # that expiry and consolidation now advance in settled ticks
+    # rather than merges, which is the cadence the economy assumes.
+    out["tick"] = (
+        ledger.tick(expire_after=args.expire_after) if out["settled"] else None
+    )
     ledger.save(path)
     if flips is not None:
         save_flips(state_path, flips)

@@ -30,9 +30,30 @@ setups archive these already), then settle in one step:
 `darwin-memo-ticket: <id>` line in `PR_BODY` with the measured delta:
 a pass that became a fail is a regression, a fail that became a pass
 is an improvement, and added or removed tests are attributed as suite
-changes instead of smearing into a raw count. After settling, one tick
-runs (upkeep, expiry, consolidation) and the store is saved. One JSON
-object on stdout reports the transitions and what landed.
+changes instead of smearing into a raw count. **When a ticket was
+present, and only then**, one tick runs (upkeep, expiry, consolidation);
+the store is saved either way. One JSON object on stdout reports the
+transitions and what landed, with `"tick": null` on a merge that carried
+no ticket.
+
+That condition is load-bearing, and this repo learned it the hard way.
+A tick charges every living entry upkeep, so ticking on a merge that
+carried no ticket bills the store for time in which it was never given a
+chance to earn. Credit is capped at `max_energy`, so no entry outlives
+`max_energy / upkeep` such ticks however valuable it is, and one that
+never earned starts at spawn energy and gets only `spawn / upkeep` — 20
+ticks at the defaults. This repo's own lesson store went extinct exactly
+that way: 49 consecutive settlement-free ticks, one per merged PR,
+including an entry that had earned +0.600 from a measured +19 test-pass
+delta. `darwin-memo doctor` now reports this as
+`ticking_without_evidence`.
+
+The cost of the fix, stated plainly: **expiry and consolidation now
+advance in settled ticks rather than in merges.** That is the cadence
+the energy economy already assumes. A *dropped* settle still counts as
+evidence — an unknown ticket id, or a silent decide that never opened a
+ticket, is still the caller reporting on the world, and requiring credit
+instead would make a store whose retrieval has gone mute immortal.
 
 Three hardenings ride along:
 
@@ -97,7 +118,7 @@ PR opens
   agent consults memory  ->  ledger.decide(question)   [ticket opened]
   agent acts (or not)
   CI finishes            ->  darwin-memo settle-ci     [per-test delta lands]
-end of run               ->  one tick                  [upkeep, deaths, merges]
+end of run               ->  one tick, IF one settled  [upkeep, deaths, merges]
 ```
 
 The delta is `passing tests gained minus passing tests lost`, computed

@@ -295,3 +295,106 @@ def test_settle_ci_rejects_ambiguous_modes(tmp_path, capsys):
     for argv in cases:
         assert cli_main(argv) == 1
         assert "error:" in capsys.readouterr().err
+
+
+# ----------------------------------------------------------------------
+# The clock is driven by evidence, not by merges
+# ----------------------------------------------------------------------
+
+
+def test_a_merge_carrying_no_ticket_does_not_charge_upkeep(tmp_path, capsys):
+    """The extinction bug and its fix, in one test.
+
+    This repo's own lesson store died of exactly this: 49 merged PRs
+    with no ``darwin-memo-ticket:`` line, each one ticking the clock and
+    billing every entry upkeep for time in which it was never given a
+    chance to earn.
+
+    Mutation that must fail this test: make the tick in
+    ``cmd_settle_ci`` unconditional again.
+    """
+    store, _ = _store_with_ticket(tmp_path, capsys)
+    before = _json(capsys, ["ledger", store, "stats"])
+    base = write_junit(tmp_path / "base.xml", [("a", "failed")])
+    head = write_junit(tmp_path / "head.xml", [("a", "passed")])
+
+    out = _json(
+        capsys,
+        [
+            "settle-ci",
+            store,
+            "--base-xml",
+            str(base),
+            "--head-xml",
+            str(head),
+            "--pr-body",
+            "a PR body with no ticket line at all",
+        ],
+    )
+
+    assert out["delta"] == 1.0, "the measurement still happened"
+    assert out["settled"] == {}, "but nothing was attributable to an entry"
+    assert out["tick"] is None, "so the clock did not advance"
+    after = _json(capsys, ["ledger", store, "stats"])
+    assert after["total_energy"] == before["total_energy"], (
+        "an entry must not pay upkeep for a merge it was never consulted on"
+    )
+
+
+def test_a_settled_ticket_still_ticks(tmp_path, capsys):
+    """The other half: evidence arrives, so the clock does advance.
+
+    Mutation that must fail this test: never tick (drop the call), or
+    gate the tick on credit actually moving rather than on a settlement
+    arriving.
+    """
+    store, ticket_id = _store_with_ticket(tmp_path, capsys)
+    base = write_junit(tmp_path / "base.xml", [("a", "failed")])
+    head = write_junit(tmp_path / "head.xml", [("a", "passed")])
+
+    out = _json(
+        capsys,
+        [
+            "settle-ci",
+            store,
+            "--base-xml",
+            str(base),
+            "--head-xml",
+            str(head),
+            "--pr-body",
+            f"darwin-memo-ticket: {ticket_id}",
+        ],
+    )
+    assert out["settled"] == {ticket_id: True}
+    assert out["tick"]["tick"] == 1
+
+
+def test_a_dropped_settle_is_still_evidence(tmp_path, capsys):
+    """A ticket id nobody recognises still means the caller reported back.
+
+    Requiring a *landed* settlement instead would make a store whose
+    retrieval has gone mute immortal: every decide silent, every settle
+    dropped, upkeep never charged, nothing ever dies.
+
+    Mutation that must fail this test: gate the tick on
+    ``any(out["settled"].values())`` instead of on the settle attempt.
+    """
+    store, _ = _store_with_ticket(tmp_path, capsys)
+    base = write_junit(tmp_path / "base.xml", [("a", "failed")])
+    head = write_junit(tmp_path / "head.xml", [("a", "passed")])
+
+    out = _json(
+        capsys,
+        [
+            "settle-ci",
+            store,
+            "--base-xml",
+            str(base),
+            "--head-xml",
+            str(head),
+            "--pr-body",
+            "darwin-memo-ticket: deadbeef0000",
+        ],
+    )
+    assert out["settled"] == {"deadbeef0000": False}, "the id landed on nothing"
+    assert out["tick"]["tick"] == 1, "but the caller did report, so time passed"
