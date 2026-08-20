@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -26,7 +26,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -41,7 +41,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -56,7 +56,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -71,7 +71,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -86,7 +86,7 @@
       "sources": [
         "readme-retrieval"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -101,7 +101,7 @@
       "sources": [
         "readme-environments"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -116,7 +116,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -131,7 +131,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.0,
+      "energy": 0.95,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -146,29 +146,33 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.0,
+      "energy": 1.5470328522120382,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 0,
+      "uses": 1,
       "lineage": [],
       "id": "afa40044d867"
     }
   ],
   "graveyard": [],
   "ledger": {
-    "tick_count": 0,
-    "pending": [
-      {
-        "query": "Does a merged PR that carries no ticket cost the store anything?",
-        "answer": "Yes, and it used to be free to forget: a tick charges every living entry upkeep, so ticking per merge rather than per settlement bills memory for time it was never consulted in. Credit is capped at max_energy, so bounded credit means bounded runway; drive the clock from evidence, and watch ticking_without_evidence.\n[recorded 2026-08-20T00:02:31+00:00; born tick 0; never settled]",
-        "deciding_entry": "afa40044d867",
-        "supporting_entries": [],
-        "born_tick": 0,
-        "id": "fb2daa0c5579"
-      }
-    ],
-    "history": {},
+    "tick_count": 1,
+    "pending": [],
+    "history": {
+      "afa40044d867": [
+        {
+          "tick": 0,
+          "ts": "2026-08-20T14:25:01+00:00",
+          "text": "tick 0: credit +0.597 (measured delta +6, https://github.com/rogermsc/darwin-memo/actions/runs/32379742548)",
+          "event": "settle",
+          "ticket": "fb2daa0c5579",
+          "credit": 0.597033,
+          "delta": 6.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/32379742548"
+        }
+      ]
+    },
     "damaged": []
   }
 }
