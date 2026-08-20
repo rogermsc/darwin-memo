@@ -6,6 +6,51 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The withholding suite: an adversary that suppresses measurements
+  instead of corrupting them** (`bench/results/withholding.json`, 5 arms
+  x 6 budgets x 2 horizons x 30 seeds = 1,800 runs). It is a strict
+  subset of what the destruction adversary can express and needs no
+  observation of the true delta's sign, and it probes an asymmetry
+  nothing else here does: `_run_baseline` never charges upkeep, so among
+  these arms only the ledger has a clock.
+  - **Withholding does not spare the counters, it dissolves them.** At
+    total suppression `evict_on_negative` and `quarantine` are identical
+    to `keep_everything` in every column -- kill rate 0.00, poison alive,
+    same cum delta. Their benign retention of 1.00 is a mechanism that
+    has stopped running, not a defence holding.
+  - **The ledger's failure mode is amnesia, and amnesia is cheaper.**
+    `survival` loses all benign capability at total suppression (1.00 ->
+    0.00) and still ends at -6.42M where every other arm ends at -18.17M
+    over 60 cycles: an emptied store stops acting, a live poisoned one
+    keeps destroying. The pre-registered prediction was that cum delta
+    would not reverse, and it did not.
+  - **The kill at total suppression is starvation, not selection.**
+    `poison_kill_cycle` and `poison_starve_cycle` are both 19.0 -- the
+    same undifferentiated cliff collapse the WEF section flags for
+    `f1_repair`. Recorded so the 1.00 cannot be misread.
+  - **The horizon changed the conclusion.** At budget 8, `survival`
+    retains 0.92 of benign capability over 30 cycles and 0.44 over 60. A
+    30-cycle grid understates the attack about sevenfold. This is the
+    cycle-count sweep `docs/benchmarks.md` has called the honest next
+    measurement.
+  - Committed evidence is untouched: new arm tuple, new suite, new
+    results file, so `headline.json`, `adversary.json` and
+    `persistence.json` stay byte-identical.
+- **`SurvivalConfig.upkeep_requires_settlement`** (default **off**,
+  documented as unproven): charge upkeep only on cycles that carried a
+  measured outcome. The decision is population-level and reads no
+  per-entry state, which is what separates it from the `salience_matched`
+  failure where usage cannot tell "used" from "useful".
+  - Measured rather than asserted, and the measurement is mixed. Free
+    below budget 8 (byte-identical to `survival`), strictly dominant at
+    budget 8 (benign 1.00 against 0.44, cum delta +22.41M against
+    +18.94M, poison still killed), and **degenerate at total
+    suppression, where it becomes exactly `keep_everything`** and the
+    poison survives. A mitigation whose limit is no-curation is not a
+    default, so it ships off.
+
 ### Fixed
 
 - **`settle-ci` ticked on every merged PR, not on every measurement.** The

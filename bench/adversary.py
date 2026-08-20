@@ -60,7 +60,17 @@ from darwin_memo import Outcome, StorageEnv, Task
 # bought destruction; the MemoryOS result (docs/benchmarks.md) showed that on a
 # real deployed system persistence is the cheaper purchase, so it gets an
 # objective of its own rather than being assumed away.
-OBJECTIVES = ("destroy", "persist")
+# "withhold" is the third: an attacker who SUPPRESSES a measurement
+# rather than inverting it. It is a strict subset of what "destroy" can
+# already express (a liar may always report zero), and it is weaker in
+# the one way that matters for a threat model -- indiscriminate
+# withholding needs no observation of the true delta's sign at all.
+# It is here because of an asymmetry nothing else in this harness
+# probes: `_run_baseline` never calls charge_upkeep, so among the arms
+# ONLY the ledger has a clock. Lying breaks counters and spares the
+# ledger; withholding should do the reverse, because credit is capped at
+# max_energy and so bounded credit implies bounded runway.
+OBJECTIVES = ("destroy", "persist", "withhold")
 
 
 class AdversarialStorageEnv:
@@ -117,7 +127,9 @@ class AdversarialStorageEnv:
         # has just done damage, which is the cheaper objective and the one the
         # deployed MemoryOS result says an attacker would actually choose: it
         # never wastes a lie attacking a benign entry it does not need gone.
-        worth_lying = true.delta != 0 if self.objective == "destroy" else true.delta < 0
+        # "withhold" spends on any measured outcome, like "destroy": what
+        # differs is what it writes, not what it targets.
+        worth_lying = true.delta < 0 if self.objective == "persist" else true.delta != 0
         if self._spent_this_cycle < self.lie_budget and worth_lying:
             self._spent_this_cycle += 1
             self.flakes_fired += 1
@@ -125,13 +137,25 @@ class AdversarialStorageEnv:
                 self.fired_false_bad += 1
             else:
                 self.fired_false_good += 1
-            reported = Outcome(
-                delta=-true.delta,
-                detail=(
-                    f"{true.detail} [adversarial measurement: reported "
-                    f"{-true.delta:+g}, true {true.delta:+g}]"
-                ),
-            )
+            if self.objective == "withhold":
+                # Silence, not a lie. The entry is neither blamed nor
+                # paid, and StorageEnv scores an unmeasured cycle at
+                # zero, so the only thing that moves is the upkeep clock.
+                reported = Outcome(
+                    delta=0.0,
+                    detail=(
+                        f"{true.detail} [adversarial measurement: withheld, "
+                        f"true {true.delta:+g}]"
+                    ),
+                )
+            else:
+                reported = Outcome(
+                    delta=-true.delta,
+                    detail=(
+                        f"{true.detail} [adversarial measurement: reported "
+                        f"{-true.delta:+g}, true {true.delta:+g}]"
+                    ),
+                )
         self.distortion += reported.delta - true.delta
         self.reported_deltas[self._cycle] += reported.delta
         return reported

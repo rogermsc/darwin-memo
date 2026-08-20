@@ -321,6 +321,78 @@ def persistence_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+# Withholding: the dual of lying, and the reason it needs its own suite.
+#
+# Among every arm in this harness, ONLY the ledger has a clock --
+# `_run_baseline` never calls charge_upkeep, so a counter loses nothing
+# to the passage of time. Lying exploits the counter's memory (one
+# corrupted measurement is a permanent verdict) and the ledger survives
+# it. Withholding should exploit exactly the reverse: credit is capped at
+# max_energy, so bounded credit implies bounded runway, and an entry
+# that is never measured starves on schedule no matter how good it is.
+#
+# Kept out of the adversary suite so bench/results/adversary.json stays
+# byte-stable, for the reason SALIENCE_ARMS and NEIGHBOUR_ARMS are.
+#
+# survival_writes is deliberately absent: the runner refuses it under any
+# measurement attack (it folds outcome detail strings, which name the
+# true delta, back into entries). It is not needed here anyway --
+# `survival` runs with write_experience=False, so there is no birth
+# channel for withholding to suppress and the confound is absent by
+# construction rather than merely unmeasured.
+#
+# Two counters, not one, because the prediction is that they are
+# IDENTICAL under withholding: neither pays upkeep, and a suppressed
+# measurement fires no blame, so a strike counter and a quarantine
+# should be untouched in the same way. Showing that costs one arm.
+WITHHOLD_ARMS: list[tuple[str, dict[str, Any], str]] = [
+    ("survival", {}, ""),
+    ("survival_paced", {}, ""),  # the candidate mitigation, measured not assumed
+    ("evict_on_negative", {"strikes": 1}, ",k=1"),
+    ("quarantine", {"suspend": 3}, ",m=3"),
+    ("keep_everything", {}, ""),  # true-delta canary: attack-invariant
+]
+# 12 = files_per_cycle, i.e. total suppression. The published lie budgets
+# stop at 8 because a liar saturates earlier; withholding needs the total
+# case because that is where survival_paced's predicted limit
+# (keep_everything, nothing measured so nothing dies) actually bites.
+WITHHOLD_BUDGETS = (0, 1, 2, 4, 8, 12)
+# The starvation cliff sits at spawn/upkeep = 20 cycles, and the committed
+# survival run at budget 0 already collapses 12 -> 5 at cycle 19. A
+# 30-cycle-only grid cannot separate the attack from that cliff, so the
+# horizon is a factor rather than a constant. This is also the
+# cycle-count sweep docs/benchmarks.md calls the honest next measurement.
+WITHHOLD_CYCLES = (30, 60)
+
+
+def withholding_suite(seeds: list[int]) -> list[RunSpec]:
+    """Suppressed measurements at matched budgets, against corrupted ones.
+
+    Read against bench/results/adversary.json at the same budgets: same
+    channel, same worlds, same arms, and an attacker that is strictly
+    less informed (indiscriminate withholding never reads the sign of
+    the true delta, which the destroy objective must).
+    """
+    return [
+        RunSpec(
+            suite="withholding",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "lie_budget": budget,
+                "adversary_objective": "withhold",
+                **extra,
+            },
+            label=f"budget={budget},cycles={cycles}{suffix}",
+        )
+        for cycles in WITHHOLD_CYCLES
+        for budget in WITHHOLD_BUDGETS
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
     """Denial-of-memory: who survives an attacker aiming at the curator?
 
