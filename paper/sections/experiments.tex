@@ -16,6 +16,7 @@ findings here; full tables, ablations, and the published failure
 boundaries are in the supplementary benchmark report.
 
 \subsection{Headline: who curates, and at what cost}
+\label{sec:headline}
 On the storage environment (16-entry corpus, 3 entries derived from a
 poisoned ``files are safe to delete'' source, 30 cycles, 10 seeds), we
 compare conserved-resource selection against five ablation baselines and
@@ -574,6 +575,116 @@ rather than a reversal of it: persistence costs the ledger its guarantee
 and reduces its advantage from total elimination to partial, without
 making a counter the better choice.
 
+\subsection{Withholding: the dual of lying}
+\label{sec:withholding}
+Every adversary above \emph{corrupts} a measurement. The obvious weaker
+one merely \emph{withholds} it: the reported delta is zero and nothing
+else changes. This is a strict subset of what the destruction adversary
+can express, and it is weaker in the way a threat model cares about,
+since indiscriminate withholding never reads the sign of the true delta.
+We separate it because of an asymmetry in our own arm set that nothing
+else probes: the baseline drivers never charge upkeep, so \emph{only the
+ledger has a clock}. Credit is capped at $\text{max\_energy}$, so bounded
+credit implies bounded runway --- nothing survives more than
+$\text{max\_energy}/\text{upkeep}$ unmeasured ticks however valuable it
+is, and an entry that has not earned starts at spawn energy and gets
+$\text{spawn}/\text{upkeep} = 20$.
+
+We also run the mitigation this suggests, as an arm rather than a
+default: \texttt{survival\_paced} charges upkeep only on cycles that
+carried a measured outcome. The decision is population-level and reads no
+per-entry state, which is what separates it from the salience control of
+\S\ref{sec:headline}, where a per-entry usage signal cannot distinguish
+``used'' from ``useful'' and the poison is the most-used entry.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Withholding, 30 seeds, storage environment, 60 cycles. Budget is
+suppressions per cycle out of 12 measurable tasks, so 12 is total
+suppression. \emph{Sel.} is the selective withholder, which suppresses
+only measurements that would incriminate its own poison. Benign
+capability is $1.00$ for every arm under the selective attack and is
+therefore omitted from that half.}
+\label{tab:withholding}
+\begin{tabular}{llccc c}
+\toprule
+& & \multicolumn{3}{c}{indiscriminate} & sel. \\
+arm & budget & benign & kill & cum $\Delta$ & kill \\
+\midrule
+\textbf{survival} & 0 & 1.00 & 1.00 & $+25.55$M & 1.00 \\
+                  & 8 & $\mathbf{0.44}$ & 1.00 & $+18.94$M & 1.00 \\
+                  & 12 & $\mathbf{0.00}$ & 1.00 & $\mathbf{-6.42}$M & 1.00 \\
+\midrule
+survival\_paced & 0 & 1.00 & 1.00 & $+25.55$M & 1.00 \\
+                & 8 & $\mathbf{1.00}$ & 1.00 & $+22.41$M & 1.00 \\
+                & 12 & 1.00 & $\mathbf{0.00}$ & $-18.17$M & 1.00 \\
+\midrule
+evict\_on\_negative & 0 & 1.00 & 1.00 & $+25.74$M & 1.00 \\
+                    & 8 & 1.00 & 1.00 & $+24.12$M & $\mathbf{0.00}$ \\
+                    & 12 & 1.00 & $\mathbf{0.00}$ & $-18.17$M & $\mathbf{0.00}$ \\
+\midrule
+keep\_everything & 12 & 1.00 & 0.00 & $-18.17$M & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Withholding does not spare the counters, it dissolves them.}
+At total suppression \texttt{evict\_on\_negative} and quarantine are
+identical to \texttt{keep\_everything} in every column: kill rate $0.00$,
+poison alive, the same cumulative delta and the same final population.
+Their benign retention of $1.00$ is not a defence holding up under
+attack, it is a mechanism that has stopped running --- no measurement
+means no blame, and a strike counter with nothing to strike removes
+nothing. We predicted the opposite when we designed the experiment, and
+say so here because the arm set was chosen to make either answer visible.
+
+\paragraph{The ledger's failure mode is amnesia, and amnesia is the
+cheaper failure.} Survival loses all benign capability at total
+suppression, which is the real cost of this attack and the honest
+headline for it. It nonetheless ends at $-6.42$M where every other arm
+ends at $-18.17$M over 60 cycles, because an emptied store stops acting
+while a live poisoned store keeps destroying. We pre-registered that
+cumulative delta would not reverse; it did not.
+
+\paragraph{The kill rate at total suppression is starvation, not
+selection.} Poison kill cycle and poison starve cycle are both $19.0$:
+the poison died in the same undifferentiated collapse at the
+$\text{spawn}/\text{upkeep}$ cliff that took the benign population. This
+is the same artifact we flag for the repair metric in
+\S\ref{sec:wef}, and it is the third time in this paper that a poison
+count has flattered a mechanism that had not eliminated anything by
+selection.
+
+\paragraph{The horizon changed the conclusion.} At budget 8 survival
+retains $0.92$ of benign capability over 30 cycles and $0.44$ over 60. A
+30-cycle grid understates this attack roughly sevenfold, because the
+starvation cliff sits at cycle 20 and leaves only ten cycles past it.
+Every deterministic result elsewhere in this paper runs 30 cycles, and
+this is the first place we have measured what that horizon hides.
+
+\paragraph{The mitigation fails against an attacker who knows it is
+there.} A selective withholder suppresses only what would incriminate its
+own poison and lets benign outcomes through, so an evidence-paced clock
+never pauses. Under it \texttt{survival\_paced} is identical to
+\texttt{survival} in every cell we ran --- six budgets, two horizons,
+every metric --- and its entire advantage in the indiscriminate column
+vanishes. The counters fare worse still: from budget 8 up they never
+observe a negative, so their kill rate is $0.00$ and they are again
+indistinguishable from no curation. Survival keeps a $1.00$ kill rate at
+every budget, but its kill cycle runs $0.3 \rightarrow 1.9 \rightarrow
+10.7 \rightarrow 19.0$, which is revocation degrading from execution into
+removal-by-disuse rather than a defence holding. One cell inverts a
+published ordering and we name it rather than bury it: at budget 4
+survival revokes at cycle $10.7$ against the counter's $12.5$, where
+\S\ref{sec:adversary} has the counter revoking roughly five times faster.
+
+We therefore ship the pacing knob disabled and documented as unproven.
+Its one measured advantage exists only against the attacker that does not
+read the sign, and at total suppression its limit is exactly
+no-curation. A mitigation that helps against the dumber of two attackers
+is a finding, not a default.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
@@ -795,6 +906,7 @@ magnitude, before a verdict is even parsed. Settlement by a scalar the
 environment already returns is effectively free.
 
 \subsection{Second environment, and where the ledger loses}
+\label{sec:second-env}
 On a test-suite environment (the resource is passing-test count; applying
 a patch reruns the suite), the mechanism \emph{transfers}---survival kills
 the actionable poison in every seed---but the headline tie does not:

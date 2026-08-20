@@ -197,6 +197,47 @@ strike counter does not: a lie has to be repeated to matter, and an
 honest outcome can pay the damage back. A counter that never forgets
 converts one lie into a permanent verdict.
 
+## Attacks that withhold: denying the signal rather than corrupting it
+
+The section above is about an adversary who makes a measurement *lie*.
+A weaker one merely stops it arriving. This document already states the
+mechanical fact it exploits — an entry "dies only when upkeep starves
+it" — but it states it as a *defence* property, in the sense that an
+adversarial entry gets no acceleration. Read from the attacker's side
+the same fact is an objective, and it has a budget curve:
+`bench/results/withholding.json` measures it.
+
+The exposure is structural rather than incidental. Credit is capped at
+`max_energy`, so **bounded credit implies bounded runway**: nothing
+survives more than `max_energy / upkeep` unmeasured ticks however
+valuable it is, and an entry that has not earned starts at spawn energy
+and gets `spawn / upkeep` = 20. A strike counter has no clock and so no
+equivalent exposure — but measured rather than assumed, that turns out
+not to favour the counter. Under total suppression every counter we run
+becomes *identical to no curation at all*: it never observes a negative,
+so it never evicts, and its retained capability is retention rather than
+defence.
+
+What an operator should take from it:
+
+- **Ticking is not free, and the cadence is yours to choose.** Drive the
+  clock from evidence, not from wall-clock or from an unrelated event.
+  `darwin-memo settle-ci` ticks only when a settlement was attempted for
+  exactly this reason, and `darwin-memo doctor` reports
+  `ticking_without_evidence` when the clock has outrun the measurements
+  by more than the population can pay.
+- **Pinning is the supported answer for knowledge whose payoff cadence
+  is longer than the starvation horizon** (see `Ledger.pin` above). It
+  trades away exactly what this section describes.
+- **`SurvivalConfig.upkeep_requires_settlement` is not that answer**, and
+  ships off. It pauses the clock on unmeasured cycles, which helps
+  against an indiscriminate withholder at partial budgets and does
+  nothing at all against one that suppresses only self-incriminating
+  measurements while letting benign outcomes through — because then the
+  clock never pauses. At total suppression its limit is exactly
+  no-curation. It is documented as unproven and measured in
+  `bench/results/withholding_selective.json`.
+
 ## Attacks that never write: query-only injection
 
 Everything above assumes an adversary who writes, settles, or imports

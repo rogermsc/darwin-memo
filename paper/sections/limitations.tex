@@ -270,6 +270,36 @@ entries to name commits absent from the repository and one to name a
 commit predating the suite that produced its file. The run grid was bound
 by a hash the whole time; the code that walked it was not.
 
+\paragraph{The withholding results are single-family, and one horizon
+deep on every other result.} \S\ref{sec:withholding} runs on the storage
+environment only, because our adversary wrapper is not implemented for
+the test-suite environment and the runner refuses the budget there rather
+than ignoring it. That matters more than usual for one specific claim: on
+the storage environment an emptied store scores zero, so the amnesia
+which makes the ledger's cumulative delta beat every other arm at total
+suppression is costless in a way it may not be elsewhere --- and the
+test-suite environment is precisely where a counter already beats the
+ledger because refusing to act is free (\S\ref{sec:second-env}). An
+adversarial test-suite environment is the measurement that would settle
+it, and we have not built one.
+
+The same section is also the only place in this paper where we vary the
+cycle horizon, and it changed a conclusion: benign retention under
+withholding reads $0.92$ at 30 cycles and $0.44$ at 60. Every other
+deterministic result here runs 30 cycles, four past the
+$\text{spawn}/\text{upkeep}$ starvation cliff at 20. We do not know which
+of those results would move at 60, and the honest statement is that we
+have measured the horizon's effect exactly once and found it large.
+
+\paragraph{The withholding budget is not spent equally across arms.} The
+adversary spends only on measurable outcomes, and a shrinking store
+produces fewer of them: at total suppression it fires 193 suppressions
+against survival and 289 against every other arm. The comparison is
+therefore at matched \emph{capacity}, not matched \emph{fired}, and
+matched-fired is unreachable here because the attack is self-limiting
+precisely when it is winning. This is the same asymmetry
+\S\ref{sec:adversary} reports for the lying adversary, in a sharper form.
+
 \paragraph{Consolidation is a laundering surface.}
 Our own merge machinery carried a poisoned fragment to the end of every
 seed in one cell by pooling it with a correct entry that earns

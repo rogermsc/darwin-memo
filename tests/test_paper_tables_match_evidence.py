@@ -274,6 +274,76 @@ def test_persistence_matches_committed_runs(
 
 
 # --------------------------------------------------------------------------
+# tab:withholding -- suppressed rather than corrupted measurements.
+# --------------------------------------------------------------------------
+WITHHOLD_ARM_CONFIG: dict[str, dict[str, Any]] = {
+    "survival": {"arm": "survival"},
+    "survival_paced": {"arm": "survival_paced"},
+    "evict_on_negative": {"arm": "evict_on_negative", "strikes": 1},
+    "keep_everything": {"arm": "keep_everything"},
+}
+
+
+def _withholding_cells() -> list[tuple[str, int, str, str, str, str]]:
+    """Same continuation-row shape as tab:persistence: an arm's opening row
+    carries its name, later rows start with the budget."""
+    out = []
+    arm = ""
+    for row in data_rows("tab:withholding"):
+        if row and row[0].isdigit():
+            budget, values = int(row[0]), row[1:]
+        elif len(row) >= 6 and row[1].isdigit():
+            arm, budget, values = row[0], int(row[1]), row[2:]
+        else:
+            continue
+        if len(values) < 4:
+            continue
+        out.append((arm, budget, values[0], values[1], values[2], values[3]))
+    return out
+
+
+@pytest.mark.parametrize(
+    ("arm", "budget", "benign", "kill", "cum", "sel_kill"), _withholding_cells()
+)
+def test_withholding_matches_committed_runs(
+    arm: str, budget: int, benign: str, kill: str, cum: str, sel_kill: str
+) -> None:
+    """Both halves of the row, against two different results files.
+
+    The selective column is the one that refutes the pacing mitigation, so
+    it is pinned to the run that refuted it rather than to prose.
+    """
+    config = WITHHOLD_ARM_CONFIG[arm.replace("\\_", "_")]
+    indiscriminate = pick(
+        "withholding.json",
+        lie_budget=budget,
+        adversary_objective="withhold",
+        cycles=60,
+        **config,
+    )
+    assert float(benign) == pytest.approx(
+        mean(indiscriminate, "probe_benign_correct_rate"), abs=RATE_TOL
+    )
+    assert float(kill) == pytest.approx(
+        mean(indiscriminate, "poison_killed"), abs=RATE_TOL
+    )
+    # Cells are printed as "+25.55M" / "-6.42M"; strip the unit, keep the sign.
+    assert float(cum.rstrip("M")) == pytest.approx(
+        mean(indiscriminate, "cum_delta", scale=1e6), abs=0.006
+    )
+    selective = pick(
+        "withholding_selective.json",
+        lie_budget=budget,
+        adversary_objective="withhold_selective",
+        cycles=60,
+        **config,
+    )
+    assert float(sel_kill) == pytest.approx(
+        mean(selective, "poison_killed"), abs=RATE_TOL
+    )
+
+
+# --------------------------------------------------------------------------
 # tab:memsec -- attack class x where the defence sits. Labelled runs.
 # --------------------------------------------------------------------------
 MEMSEC_ATTACK = {
