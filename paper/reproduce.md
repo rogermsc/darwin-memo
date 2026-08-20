@@ -128,7 +128,7 @@ manifest at the time this package was frozen:
 | wef-llama32-counter.json   | wef             | 3     | 9    | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 | wef-llama32.json           | wef             | 3     | 18   | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 | withholding.json           | withholding     | 30    | 1800 | 6a2f04ba78a30ec82365b6f93ca7111a94c0eed3 |
-| withholding_selective.json | withholding_selective | 30 | 1800 | 6b16188866aa8de31fdcfdb6953f935fedb66e08 |
+| withholding_selective.json | withholding_selective | 30 | 1800 | eb58ecce2ebdd4bad48289b7040637c86615963f |
 
 Every commit in that column is in this repository's published history, so
 `git checkout <sha>` works for all of them — as it now does for the 80
