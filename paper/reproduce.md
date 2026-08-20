@@ -126,7 +126,7 @@ manifest at the time this package was frozen:
 | testsuite_noisy.json       | testsuite_noisy | 30    | 1050 | 948870223a2ad897401e28e30550bfa1cfe5971d |
 | wef-llama32-counter.json   | wef             | 3     | 9    | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 | wef-llama32.json           | wef             | 3     | 18   | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
-| withholding.json           | withholding     | 30    | 1800 | 7a255d6a36c7e098bae876eadd015063e87e0fe8 |
+| withholding.json           | withholding     | 30    | 1800 | 584bcf3e2d31081f40cb27e7d1bc64d3384b8458 |
 
 Every commit in that column is in this repository's published history, so
 `git checkout <sha>` works for all of them — as it now does for the 80
