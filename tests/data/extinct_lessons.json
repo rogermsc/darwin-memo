@@ -1,0 +1,376 @@
+{
+  "config": {
+    "max_energy": 5.0,
+    "upkeep": 0.05
+  },
+  "entries": [],
+  "graveyard": [
+    {
+      "question": "Can cosine embedding retrievers keep the default merge threshold?",
+      "answer": "No. Cosine similarity runs hotter than Jaccard; raise merge_threshold to roughly 0.85 or unrelated entries will consolidate.",
+      "kind": "explicit",
+      "sources": [
+        "readme-retrieval"
+      ],
+      "energy": -3.191891195797325e-16,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "c56020e5a87a"
+    },
+    {
+      "question": "Are StorageEnv seeds independent samples?",
+      "answer": "No. StorageEnv derives cycle worlds from seed plus cycle, so adjacent seeds are shifted windows of one another; treat across-seed spreads as smoother than independent draws.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": -3.191891195797325e-16,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": -1,
+      "uses": 0,
+      "lineage": [],
+      "id": "8388150e56d3"
+    },
+    {
+      "question": "Does the poison-kill CI gate apply to noisy benchmark runs?",
+      "answer": "No. The kill gate is a noiseless-era invariant and noisy runs are exempt: a delayed or missed kill under measurement noise is an honest expected result, not a CI failure.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": -9.177066849497262e-08,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 1,
+      "uses": 1,
+      "lineage": [],
+      "id": "5ee2277c20ba"
+    },
+    {
+      "question": "Do new environments need extra decision_polarity markers?",
+      "answer": "Yes. The built-in vocabulary covers delete/remove and apply/keep only; a new action verb needs extra_positive and extra_negative markers or every answer reads as silence and the population starves at about spawn energy over upkeep cycles.",
+      "kind": "explicit",
+      "sources": [
+        "readme-environments"
+      ],
+      "energy": -3.191891195797325e-16,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 15,
+      "uses": 1,
+      "lineage": [],
+      "id": "3b61822cf5a6"
+    },
+    {
+      "question": "Should bench result JSON files be committed?",
+      "answer": "No. bench/results is regenerated, not committed; doc tables are regenerated from the Reproduce commands, and if numbers disagree the generated doc wins.",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": -0.022729705660660446,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 20,
+      "uses": 2,
+      "lineage": [],
+      "id": "7e40e33bc60d"
+    },
+    {
+      "question": "Can retrieval scoring read entry energy?",
+      "answer": "Never. Retrieval scores are pure relevance and energy is only a sort tie-break in the store; selection pressure must come from outcomes, not from retrieval preferring incumbents.",
+      "kind": "explicit",
+      "sources": [
+        "docs/paper-to-code"
+      ],
+      "energy": -1.667720128661898e-11,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 21,
+      "uses": 3,
+      "lineage": [],
+      "id": "74a2ba34e5ab"
+    },
+    {
+      "question": "Is it safe to add new required metric keys that only some suites emit?",
+      "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.",
+      "kind": "explicit",
+      "sources": [
+        "noisy-suite-review"
+      ],
+      "energy": -0.006911506666464104,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 21,
+      "uses": 4,
+      "lineage": [],
+      "id": "52867957f4d5"
+    },
+    {
+      "question": "Can multiple workflow jobs settle the memory store in parallel?",
+      "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.",
+      "kind": "explicit",
+      "sources": [
+        "docs/integrations/ci-lesson-store"
+      ],
+      "energy": -0.03365794504628383,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 20,
+      "uses": 5,
+      "lineage": [],
+      "id": "7af78c536de1"
+    },
+    {
+      "question": "Are LLM benchmark arms safe to run in CI?",
+      "answer": "No. Sampled model output is not deterministic; LLM suites must never run in CI and stay opt-in (bench --suite llm).",
+      "kind": "explicit",
+      "sources": [
+        "docs/benchmarks"
+      ],
+      "energy": -0.6000007408887026,
+      "born_cycle": 0,
+      "recorded_ts": "",
+      "last_used_cycle": 23,
+      "uses": 3,
+      "lineage": [],
+      "id": "053a99cf0a4c"
+    }
+  ],
+  "ledger": {
+    "tick_count": 72,
+    "pending": [],
+    "history": {
+      "053a99cf0a4c": [
+        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        {
+          "tick": 22,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "tick 22: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27467097347)",
+          "event": "settle",
+          "ticket": "6250a00e4b30",
+          "credit": 0.6,
+          "delta": 15.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27467097347"
+        },
+        {
+          "tick": 23,
+          "ts": "2026-06-13T13:30:48+00:00",
+          "text": "tick 23: credit +0.600 (measured delta +19, https://github.com/rogermsc/darwin-memo/actions/runs/27468140468)",
+          "event": "settle",
+          "ticket": "0fe9a7b643b1",
+          "credit": 0.6,
+          "delta": 19.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27468140468"
+        },
+        {
+          "tick": 69,
+          "ts": "2026-08-18T18:45:30+00:00",
+          "text": "buried at tick 69 on settle",
+          "event": "buried",
+          "via": "settle",
+          "cause": "starved"
+        }
+      ],
+      "5ee2277c20ba": [
+        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        {
+          "tick": 23,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "died at tick 23 (starved: never earned its upkeep; uses=1, last_used_tick=1)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 1,
+          "last_used_tick": 1
+        }
+      ],
+      "52867957f4d5": [
+        "tick 1: credit +0.150 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        "tick 1: credit +0.600 (measured delta +15, https://github.com/rogermsc/darwin-memo/actions/runs/27373503752)",
+        {
+          "tick": 16,
+          "ts": "2026-06-12T17:10:00+00:00",
+          "text": "tick 16: credit +0.543 (measured delta +3, https://github.com/rogermsc/darwin-memo/actions/runs/27430937213)",
+          "event": "settle",
+          "ticket": "eb29bc0d40eb",
+          "credit": 0.543089,
+          "delta": 3.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27430937213"
+        },
+        {
+          "tick": 21,
+          "ts": "2026-06-12T20:59:02+00:00",
+          "text": "tick 21: credit +0.600 (measured delta +31, https://github.com/rogermsc/darwin-memo/actions/runs/27442652667)",
+          "event": "settle",
+          "ticket": "55c94b76d62c",
+          "credit": 0.6,
+          "delta": 31.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27442652667"
+        },
+        {
+          "tick": 58,
+          "ts": "2026-08-15T23:26:24+00:00",
+          "text": "died at tick 58 (starved: never earned its upkeep; uses=4, last_used_tick=21)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 4,
+          "last_used_tick": 21
+        }
+      ],
+      "7e40e33bc60d": [
+        "tick 2: credit +0.277 (measured delta +1, https://github.com/rogermsc/darwin-memo/actions/runs/27377158058)",
+        {
+          "tick": 20,
+          "ts": "2026-06-12T20:39:22+00:00",
+          "text": "tick 20: credit +0.600 (measured delta +25, https://github.com/rogermsc/darwin-memo/actions/runs/27441686220)",
+          "event": "settle",
+          "ticket": "2ea61b53b962",
+          "credit": 0.6,
+          "delta": 25.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27441686220"
+        },
+        {
+          "tick": 38,
+          "ts": "2026-08-14T15:31:53+00:00",
+          "text": "died at tick 38 (starved: never earned its upkeep; uses=2, last_used_tick=20)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 2,
+          "last_used_tick": 20
+        }
+      ],
+      "7af78c536de1": [
+        "tick 2: credit +0.069 (measured delta +1, https://github.com/rogermsc/darwin-memo/actions/runs/27377158058)",
+        "tick 8: credit +0.597 (measured delta +6, https://github.com/rogermsc/darwin-memo/actions/runs/27422161418)",
+        {
+          "tick": 11,
+          "ts": "2026-06-12T14:45:01+00:00",
+          "text": "tick 11: credit +0.600 (measured delta +14, https://github.com/rogermsc/darwin-memo/actions/runs/27422985354)",
+          "event": "settle",
+          "ticket": "6fb7013be81e",
+          "credit": 0.599999,
+          "delta": 14.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27422985354"
+        },
+        {
+          "tick": 14,
+          "ts": "2026-06-12T16:41:46+00:00",
+          "text": "tick 14: credit +0.600 (measured delta +12, https://github.com/rogermsc/darwin-memo/actions/runs/27429474504)",
+          "event": "settle",
+          "ticket": "e8f22054ea19",
+          "credit": 0.599993,
+          "delta": 12.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27429474504"
+        },
+        {
+          "tick": 20,
+          "ts": "2026-06-12T20:39:22+00:00",
+          "text": "tick 20: credit +0.150 (measured delta +25, https://github.com/rogermsc/darwin-memo/actions/runs/27441686220)",
+          "event": "settle",
+          "ticket": "2ea61b53b962",
+          "credit": 0.15,
+          "delta": 25.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27441686220"
+        },
+        {
+          "tick": 61,
+          "ts": "2026-08-17T13:47:40+00:00",
+          "text": "died at tick 61 (starved: never earned its upkeep; uses=5, last_used_tick=20)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 5,
+          "last_used_tick": 20
+        }
+      ],
+      "74a2ba34e5ab": [
+        {
+          "tick": 15,
+          "ts": "2026-06-12T16:53:20+00:00",
+          "text": "tick 15: credit +0.600 (measured delta +37, https://github.com/rogermsc/darwin-memo/actions/runs/27430071962)",
+          "event": "settle",
+          "ticket": "eebedd73f4de",
+          "credit": 0.6,
+          "delta": 37.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27430071962"
+        },
+        {
+          "tick": 17,
+          "ts": "2026-06-12T17:17:52+00:00",
+          "text": "tick 17: credit +0.600 (measured delta +25, https://github.com/rogermsc/darwin-memo/actions/runs/27431350895)",
+          "event": "settle",
+          "ticket": "a4055edf62a1",
+          "credit": 0.6,
+          "delta": 25.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27431350895"
+        },
+        {
+          "tick": 21,
+          "ts": "2026-06-12T20:59:02+00:00",
+          "text": "tick 21: credit +0.150 (measured delta +31, https://github.com/rogermsc/darwin-memo/actions/runs/27442652667)",
+          "event": "settle",
+          "ticket": "55c94b76d62c",
+          "credit": 0.15,
+          "delta": 31.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27442652667"
+        },
+        {
+          "tick": 47,
+          "ts": "2026-08-15T14:37:04+00:00",
+          "text": "died at tick 47 (starved: never earned its upkeep; uses=3, last_used_tick=21)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 3,
+          "last_used_tick": 21
+        }
+      ],
+      "3b61822cf5a6": [
+        {
+          "tick": 15,
+          "ts": "2026-06-12T16:53:20+00:00",
+          "text": "tick 15: credit +0.150 (measured delta +37, https://github.com/rogermsc/darwin-memo/actions/runs/27430071962)",
+          "event": "settle",
+          "ticket": "eebedd73f4de",
+          "credit": 0.15,
+          "delta": 37.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/27430071962"
+        },
+        {
+          "tick": 23,
+          "ts": "2026-06-13T12:43:53+00:00",
+          "text": "died at tick 23 (starved: never earned its upkeep; uses=1, last_used_tick=15)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 1,
+          "last_used_tick": 15
+        }
+      ],
+      "c56020e5a87a": [
+        {
+          "tick": 20,
+          "ts": "2026-06-12T19:55:33+00:00",
+          "text": "died at tick 20 (starved: never earned its upkeep; uses=0, last_used_tick=-1)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 0,
+          "last_used_tick": -1
+        }
+      ],
+      "8388150e56d3": [
+        {
+          "tick": 20,
+          "ts": "2026-06-12T19:55:33+00:00",
+          "text": "died at tick 20 (starved: never earned its upkeep; uses=0, last_used_tick=-1)",
+          "event": "death",
+          "cause": "starved",
+          "uses": 0,
+          "last_used_tick": -1
+        }
+      ]
+    },
+    "damaged": []
+  }
+}

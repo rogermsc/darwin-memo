@@ -30,6 +30,7 @@ from typing import Any
 
 from .diagnose import (
     MIN_DEATHS,
+    MIN_QUIET_TICKS,
     STALE_TICKET_TICKS,
     STARVED_SHARE,
     Finding,
@@ -521,26 +522,102 @@ def _starved_unused(ledger: Ledger) -> tuple[int, int]:
     return starved, len(dead)
 
 
-def _ever_credited(ledger: Ledger) -> bool:
-    """Did credit EVER flow, anywhere in the store's whole life?
+def _last_credited_tick(ledger: Ledger) -> int | None:
+    """Tick of the most recent credited settlement, anywhere in the store.
+
+    ``None`` means credit never flowed at all, so ``is not None`` is
+    exactly the older ``_ever_credited`` boolean this replaced, and the
+    ``earned`` gate keeps its semantics.
 
     Reads per-entry history persisted inside the memory file (the same
     path :func:`entry_life` and ``why`` use), not the JSONL event log,
     so this evidence survives log rotation, a missing sidecar log, and
     a legacy log written before settle events carried an ``applied``
-    list -- unlike the event-log WINDOW, which is not the store.
+    list -- unlike the event-log WINDOW, which is not the store. That
+    distinction is load-bearing twice over for ``ticking_without_evidence``:
+    this project's own lesson store gitignores its event log, so a
+    window-based rule would score zero on the very store it exists to
+    catch.
+
+    Legacy string notes carry no tick and count as no credit, matching
+    the boolean this replaced.
     """
     store = ledger.store
-    for entry in store.alive() + store.graveyard():
-        life = entry_life(ledger, entry.id) or {}
-        for note in life.get("settlements", []):
-            if float(note.get("credit") or 0.0) != 0.0:
-                return True
-    return False
+    ticks = [
+        int(note["tick"])
+        for entry in store.alive() + store.graveyard()
+        for note in ledger.history(entry.id)
+        if isinstance(note, dict)
+        and note.get("event") == "settle"
+        and float(note.get("credit") or 0.0) != 0.0
+        and isinstance(note.get("tick"), int)
+    ]
+    return max(ticks, default=None)
+
+
+def _ticking_without_evidence(
+    ledger: Ledger, last_credited: int | None
+) -> Finding | None:
+    """Has the clock outrun the evidence by more than the store can pay?
+
+    The gap this closes: ``env_never_paid`` needs MIN_SETTLES landed
+    settlements before it will speak, and ``starvation_cliff`` needs
+    nothing to have EVER earned. A store that earned once and then went
+    quiet trips neither, and quiet is not free -- every tick charges
+    every entry upkeep whether or not anything was measured.
+
+    Fires when more ticks have passed without credit than the store has
+    upkeep left to pay. That threshold is the store's own arithmetic
+    rather than a constant: a fixed share of ``max_energy / upkeep``
+    would have fired on this project's own lesson store at tick 73,
+    which is four ticks after the last entry was already buried.
+    """
+    if last_credited is None:
+        return None  # never earned at all: starvation_cliff's case, not ours
+    quiet = ledger.tick_count - last_credited
+    if quiet < MIN_QUIET_TICKS:
+        return None
+    alive = ledger.store.alive()
+    runways = [
+        ticks
+        for entry in alive
+        if (ticks := ledger.store.ticks_to_starvation(entry)) is not None
+    ]
+    if alive and not runways:
+        return None  # nothing CAN starve (all pinned, or upkeep is zero)
+    # An extinct population has no runway left to lose, so max() of an
+    # empty list is 0.0 rather than "no opinion".
+    runway = max(runways, default=0.0)
+    if quiet < runway:
+        return None
+    return Finding(
+        code="ticking_without_evidence",
+        severity="warn",
+        summary=(
+            f"{quiet} ticks since anything was credited, and the population "
+            f"has {runway:.0f} ticks of upkeep left"
+        ),
+        evidence=(
+            f"last credit at tick {last_credited}, now at tick "
+            f"{ledger.tick_count}; {len(alive)} living entries, longest "
+            f"runway {runway:.0f} ticks"
+        ),
+        fix=(
+            "the tick cadence is not the evidence cadence: settle or abandon "
+            "on the same schedule you tick. Credit is capped at max_energy, "
+            "so nothing outlives max_energy/upkeep unsettled ticks however "
+            "valuable it is -- and an entry that never earned starts at "
+            "spawn energy, which buys only spawn/upkeep"
+        ),
+    )
 
 
 def _operational_findings(
-    ledger: Ledger, digest: dict[str, Any], *, earned: bool
+    ledger: Ledger,
+    digest: dict[str, Any],
+    *,
+    earned: bool,
+    last_credited: int | None,
 ) -> list[Finding]:
     """Faults that only exist in the event-driven shape."""
     findings: list[Finding] = []
@@ -580,6 +657,10 @@ def _operational_findings(
                 ),
             )
         )
+
+    quiet_finding = _ticking_without_evidence(ledger, last_credited)
+    if quiet_finding is not None:
+        findings.append(quiet_finding)
 
     stale = [
         t
@@ -642,9 +723,10 @@ def _operational_findings(
 def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     """Name the failure mode behind a store that is not earning.
 
-    Takes the ledger rather than the store because two of the six rules
-    read state the JSONL log does not carry: death causes (per-entry
-    history, persisted in the memory file) and open tickets.
+    Takes the ledger rather than the store because three of the seven
+    rules read state the JSONL log does not carry: death causes and the
+    tick of the last credited settlement (both per-entry history,
+    persisted in the memory file) and open tickets.
 
     The "never earned" rules below all read the event-log WINDOW
     (``events``) -- and the window is not the store. ``EVENT_LOG_KEEP``
@@ -652,9 +734,13 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     settles rotated off the end) all thin the window on a store that
     earned plenty outside it. ``earned`` is computed once, from
     evidence that does not depend on the window at all
-    (``_ever_credited`` reads the per-entry history persisted in the
-    memory file), and gates every rule that would otherwise conclude
-    "never earned" from the window alone.
+    (``_last_credited_tick`` reads the per-entry history persisted in
+    the memory file), and gates every rule that would otherwise
+    conclude "never earned" from the window alone.
+
+    ``ticking_without_evidence`` is the one rule that fires on a store
+    that DID earn: quiet is not free, because every tick charges every
+    entry upkeep whether or not anything was measured.
     """
     digest = audit_digest(events, store=ledger.store)
     # Gross movement: count settlements that individually moved, so a
@@ -664,7 +750,8 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
         for record in events
         if record.get("event") == "settle" and float(record.get("delta") or 0.0) != 0.0
     )
-    earned = nonzero > 0 or _ever_credited(ledger)
+    last_credited = _last_credited_tick(ledger)
+    earned = nonzero > 0 or last_credited is not None
     findings: list[Finding] = []
     if not earned:
         # tick() settles its own expired tickets at delta zero
@@ -678,7 +765,11 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
             nonzero_outcomes=nonzero,
             settles=int(digest["settles"]["landed"]) - expired,
         )
-    findings.extend(_operational_findings(ledger, digest, earned=earned))
+    findings.extend(
+        _operational_findings(
+            ledger, digest, earned=earned, last_credited=last_credited
+        )
+    )
     return findings
 
 

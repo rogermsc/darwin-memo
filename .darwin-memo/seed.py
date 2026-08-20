@@ -92,6 +92,16 @@ LESSONS = [
         "concurrency group, never from parallel jobs.",
         "docs/integrations/ci-lesson-store",
     ),
+    (
+        "Does a merged PR that carries no ticket cost the store anything?",
+        "Yes, and it used to be free to forget: a tick charges every "
+        "living entry upkeep, so ticking per merge rather than per "
+        "settlement bills memory for time it was never consulted in. "
+        "Credit is capped at max_energy, so bounded credit means bounded "
+        "runway; drive the clock from evidence, and watch "
+        "ticking_without_evidence.",
+        "docs/integrations/ci-lesson-store",
+    ),
 ]
 
 

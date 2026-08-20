@@ -19,6 +19,9 @@ STALE_TICKET_TICKS = 50
 # Starvation reads as a population property, not a one-entry accident.
 MIN_DEATHS = 3
 STARVED_SHARE = 0.5
+# Quiet spells are normal; a cadence fault needs a run long enough to be
+# a fault. Same role as MIN_SETTLES, on the other axis.
+MIN_QUIET_TICKS = 10
 
 
 @dataclass(frozen=True)
