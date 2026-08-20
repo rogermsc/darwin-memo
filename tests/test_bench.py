@@ -763,7 +763,10 @@ def test_withholding_doc_table_matches_the_committed_evidence():
         return st.mean(c[key] for c in cells)
 
     doc = (root / "docs/benchmarks.md").read_text()
-    section = doc.split("## Withholding: the dual of lying")[1].split("\n## ")[0]
+    # Scoped to its own subsection, not to the whole chapter: a sibling
+    # ### section with its own table lives under the same ## heading, and
+    # a chapter-wide slice would silently swallow its rows.
+    section = doc.split("### Results (mean over 30 seeds)")[1].split("\n### ")[0]
     rows = [
         line
         for line in section.splitlines()
@@ -802,3 +805,117 @@ def test_withholding_doc_table_matches_the_committed_evidence():
             )
             checked += 1
     assert checked == 72, f"expected 72 checked cells, did {checked}"
+
+
+def test_selective_withholding_doc_table_matches_the_committed_evidence():
+    """The selective table, checked against its own results file.
+
+    Same reason as the sibling check above: a hand-transcribed table is
+    an unenforced claim, and this repo has watched one rot.
+
+    Mutation that must fail this test: change any digit in the table.
+    """
+    import json
+    import re
+    import statistics as st
+    from collections import defaultdict
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    path = root / "bench/results/withholding_selective.json"
+    runs = json.loads(path.read_text())["runs"]
+
+    agg = defaultdict(list)
+    for r in runs:
+        budget = int(r["label"].split("budget=")[1].split(",")[0])
+        cycles = int(r["label"].split("cycles=")[1].split(",")[0])
+        suffix = (
+            ""
+            if not r["label"].endswith(("k=1", "m=3"))
+            else " " + r["label"].rsplit(",", 1)[1]
+        )
+        agg[(budget, cycles, r["arm"] + suffix)].append(r["metrics"])
+
+    def mean(budget, arm, key):
+        cells = agg[(budget, 60, arm)]
+        assert cells, f"no runs for budget={budget} {arm}"
+        vals = [c[key] for c in cells if c[key] is not None]
+        return st.mean(vals) if vals else None
+
+    doc = (root / "docs/benchmarks.md").read_text()
+    section = doc.split("### The withholder that reads the sign")[1].split("\n### ")[0]
+    rows = [
+        line
+        for line in section.splitlines()
+        if line.startswith("| ")
+        and not line.startswith("| budget")
+        and "---" not in line
+    ]
+    assert len(rows) == 13, f"expected 13 data rows, parsed {len(rows)}"
+
+    checked = 0
+    for line in rows:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        budget, arm = int(cells[0]), cells[1].replace("**", "")
+        kill_doc = float(cells[2].replace("**", ""))
+        assert abs(mean(budget, arm, "poison_killed") - kill_doc) <= 0.006, (
+            f"budget={budget} {arm} kill: doc {kill_doc}"
+        )
+        cycle_doc = cells[3].replace("**", "")
+        got_cycle = mean(budget, arm, "poison_kill_cycle")
+        if cycle_doc == "never":
+            assert got_cycle is None, f"budget={budget} {arm} kill cycle is not never"
+        else:
+            assert abs(got_cycle - float(cycle_doc)) <= 0.06, (
+                f"budget={budget} {arm} kill cycle: doc {cycle_doc}, data {got_cycle}"
+            )
+        cum_doc = float(re.sub(r"[*M+]", "", cells[4]))
+        assert abs(mean(budget, arm, "cum_delta") / 1e6 - cum_doc) <= 0.006, (
+            f"budget={budget} {arm} cum delta: doc {cum_doc}M"
+        )
+        pop_doc = float(cells[5])
+        assert abs(mean(budget, arm, "final_population") - pop_doc) <= 0.06
+        checked += 4
+    assert checked == 52, f"expected 52 checked cells, did {checked}"
+
+
+def test_pacing_is_worthless_against_a_selective_withholder():
+    """The claim the docs lead with, asserted against the data itself.
+
+    Mutation that must fail this test: any change that makes
+    survival_paced diverge from survival under this attack -- which is
+    precisely the mitigation working, and would mean the paragraph
+    saying it does not needs rewriting.
+    """
+    import json
+    import statistics as st
+    from collections import defaultdict
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    runs = json.loads((root / "bench/results/withholding_selective.json").read_text())[
+        "runs"
+    ]
+    agg = defaultdict(list)
+    for r in runs:
+        budget = int(r["label"].split("budget=")[1].split(",")[0])
+        cycles = int(r["label"].split("cycles=")[1].split(",")[0])
+        agg[(budget, cycles, r["arm"])].append(r["metrics"])
+
+    compared = 0
+    for budget in (0, 1, 2, 4, 8, 12):
+        for cycles in (30, 60):
+            for key in (
+                "probe_benign_correct_rate",
+                "poison_killed",
+                "cum_delta",
+                "final_population",
+            ):
+                plain = st.mean(c[key] for c in agg[(budget, cycles, "survival")])
+                paced = st.mean(c[key] for c in agg[(budget, cycles, "survival_paced")])
+                assert plain == paced, (
+                    f"budget={budget} cycles={cycles} {key}: pacing changed the "
+                    f"result ({plain} vs {paced}) -- the docs claim it cannot"
+                )
+                compared += 1
+    assert compared == 48

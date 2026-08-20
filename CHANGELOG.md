@@ -38,18 +38,39 @@ project uses [SemVer](https://semver.org/).
   - Committed evidence is untouched: new arm tuple, new suite, new
     results file, so `headline.json`, `adversary.json` and
     `persistence.json` stay byte-identical.
+- **The selective withholding suite** (`bench/results/withholding_selective.json`,
+  another 1,800 runs): an attacker that suppresses only the measurements
+  incriminating its own poison and lets benign outcomes through. It exists to
+  attack the pacing mitigation rather than to defend it.
+  - **Pacing is worthless against it, as pre-registered.** `survival_paced` is
+    identical to `survival` in every cell -- six budgets, two horizons, every
+    metric -- because benign outcomes keep arriving and the clock never pauses.
+    A machine-checked test asserts this across all 48 comparisons.
+  - **The counters stop defending altogether.** From budget 8 up
+    `evict_on_negative` and `quarantine` have kill rate 0.00 and are identical
+    to `keep_everything`: never observing a negative, they never evict. Their
+    benign 1.00 is retention, not defence -- what the `policy_bandit` row
+    already said of a bandit, now true of the whole counter family.
+  - **The ledger's revocation degrades from execution to disuse.** `survival`
+    holds a 1.00 kill rate at every budget while the kill cycle runs 0.3 -> 0.9
+    -> 1.9 -> 10.7 -> 19.0; past budget 4 the poison starves at the cliff
+    rather than being executed for blame. What survives is the economics:
+    +11.27M against -18.17M for every arm that stopped removing anything.
+  - One cell cuts the other way and is named: at budget 4 `survival` revokes at
+    cycle 10.7 against the counter's 12.5, inverting the published
+    `adversary.json` ordering where the counter revokes ~5x faster.
 - **`SurvivalConfig.upkeep_requires_settlement`** (default **off**,
   documented as unproven): charge upkeep only on cycles that carried a
   measured outcome. The decision is population-level and reads no
   per-entry state, which is what separates it from the `salience_matched`
   failure where usage cannot tell "used" from "useful".
-  - Measured rather than asserted, and the measurement is mixed. Free
-    below budget 8 (byte-identical to `survival`), strictly dominant at
-    budget 8 (benign 1.00 against 0.44, cum delta +22.41M against
-    +18.94M, poison still killed), and **degenerate at total
-    suppression, where it becomes exactly `keep_everything`** and the
-    poison survives. A mitigation whose limit is no-curation is not a
-    default, so it ships off.
+  - Measured rather than asserted, and the measurement says keep it off.
+    Free below budget 8 (byte-identical to `survival`), strictly dominant at
+    budget 8 against the indiscriminate attacker (benign 1.00 against 0.44,
+    cum delta +22.41M against +18.94M, poison still killed), **degenerate at
+    total suppression where it becomes exactly `keep_everything`**, and
+    **worthless against a selective withholder**. Its one advantage exists
+    only against the dumber of two attackers; that is not a default.
 
 ### Fixed
 

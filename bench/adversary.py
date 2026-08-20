@@ -70,7 +70,18 @@ from darwin_memo import Outcome, StorageEnv, Task
 # ONLY the ledger has a clock. Lying breaks counters and spares the
 # ledger; withholding should do the reverse, because credit is capped at
 # max_energy and so bounded credit implies bounded runway.
-OBJECTIVES = ("destroy", "persist", "withhold")
+# "withhold_selective" is the smarter withholder, and the one that closes
+# the pacing mitigation's window. It suppresses ONLY the measurements
+# that would incriminate its own poison (true.delta < 0) and lets benign
+# outcomes through untouched. Same predicate as "persist", different
+# payload: persist PAYS the poison a positive, this merely hides the
+# damage. The point is what it does to a clock -- benign outcomes keep
+# arriving, so evidence-paced upkeep never pauses, while the poison is
+# never blamed. It is the attack survival_paced cannot see.
+OBJECTIVES = ("destroy", "persist", "withhold", "withhold_selective")
+
+# Objectives that report silence rather than an inverted delta.
+_WITHHOLDING = ("withhold", "withhold_selective")
 
 
 class AdversarialStorageEnv:
@@ -129,7 +140,10 @@ class AdversarialStorageEnv:
         # never wastes a lie attacking a benign entry it does not need gone.
         # "withhold" spends on any measured outcome, like "destroy": what
         # differs is what it writes, not what it targets.
-        worth_lying = true.delta < 0 if self.objective == "persist" else true.delta != 0
+        # persist and withhold_selective spend only on the guilty; destroy
+        # and withhold spend on any measured outcome.
+        selective = self.objective in ("persist", "withhold_selective")
+        worth_lying = true.delta < 0 if selective else true.delta != 0
         if self._spent_this_cycle < self.lie_budget and worth_lying:
             self._spent_this_cycle += 1
             self.flakes_fired += 1
@@ -137,7 +151,7 @@ class AdversarialStorageEnv:
                 self.fired_false_bad += 1
             else:
                 self.fired_false_good += 1
-            if self.objective == "withhold":
+            if self.objective in _WITHHOLDING:
                 # Silence, not a lie. The entry is neither blamed nor
                 # paid, and StorageEnv scores an unmeasured cycle at
                 # zero, so the only thing that moves is the upkeep clock.
