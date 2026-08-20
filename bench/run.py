@@ -50,6 +50,7 @@ from .suites import (
     scaling_suite,
     smoke_suite,
     wef_suite,
+    withholding_suite,
 )
 from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
 
@@ -151,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
             "bandit",
             "adversary",
             "persistence",
+            "withholding",
             "memsec",
             "wef",
             "judge",
@@ -268,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(adversary_suite(_parse_seeds(args.seeds)))
     elif args.suite == "persistence":
         runs = _execute(persistence_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "withholding":
+        runs = _execute(withholding_suite(_parse_seeds(args.seeds)))
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "salience":

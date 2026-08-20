@@ -402,6 +402,15 @@ def _dispatch(
         return run_survival(
             store, env, cycles, seed, _survival_config(overrides, False), on_cycle
         )
+    if arm == "survival_paced":
+        # The candidate mitigation for withholding, run as an arm rather
+        # than shipped as a default: upkeep is charged only on cycles that
+        # carried a measured outcome. Its predicted limit is
+        # keep_everything (nothing is measured, so nothing ever dies),
+        # which is exactly why it is measured against that arm.
+        config = _survival_config(overrides, False)
+        config.upkeep_requires_settlement = True
+        return run_survival(store, env, cycles, seed, config, on_cycle)
     if arm == "survival_writes":
         return run_survival(
             store, env, cycles, seed, _survival_config(overrides, True), on_cycle

@@ -1308,6 +1308,137 @@ to it.
   refused under noise (shadow schedules from an unattacked world;
   in-loop components reading detail strings that name the truth).
 
+## Withholding: the dual of lying (30 seeds, two horizons)
+
+Every arm above is attacked by an adversary that **corrupts** a
+measurement. This section attacks with one that **withholds** it: the
+reported delta is zero, and nothing else changes. It is a strict subset
+of what the destruction adversary can already express, and it is weaker
+in the one way that matters for a threat model, because indiscriminate
+withholding never reads the sign of the true delta.
+
+It gets its own suite because of an asymmetry nothing else here probes.
+`_run_baseline` never calls `charge_upkeep`, so among these arms **only
+the ledger has a clock**. Credit is capped at `max_energy`, so bounded
+credit implies bounded runway: nothing survives more than
+`max_energy / upkeep` unmeasured ticks however valuable it is, and an
+entry that has not earned starts at spawn energy and gets
+`spawn / upkeep` = 20. A strike counter has no such exposure.
+
+`survival_paced` is the candidate mitigation, run as an arm rather than
+shipped as a default: upkeep is charged only on cycles that carried a
+measured outcome. The decision is population-level, so it changes no
+relative ordering between entries — which is what separates it from the
+`salience_matched` failure, where a per-entry usage signal cannot tell
+"used" from "useful" and the poison is the most-used entry.
+
+Budget is suppressions per cycle out of 12 measurable tasks, so 12 is
+total suppression. Reproduce with:
+
+```
+python -m bench.run --suite withholding --seeds 0:30 \
+  --out bench/results/withholding.json --update-manifest
+```
+
+### Results (mean over 30 seeds)
+
+benign = `probe_benign_correct_rate`, kill = `poison_killed`,
+pop = `final_population`, fired = suppressions actually spent.
+
+| budget | arm | benign 30c | benign 60c | kill | cum delta 30c | cum delta 60c | pop 60c |
+|---|---|---|---|---|---|---|---|
+| 0 | survival | 1.00 | 1.00 | 1.00 | +12.38M | +25.55M | 3.0 |
+| 0 | survival_paced | 1.00 | 1.00 | 1.00 | +12.38M | +25.55M | 3.0 |
+| 0 | keep_everything | 1.00 | 1.00 | 0.00 | -8.84M | -18.17M | 16.0 |
+| 8 | survival | 0.92 | **0.44** | 1.00 | +9.39M | +18.94M | 1.3 |
+| 8 | survival_paced | 1.00 | **1.00** | 1.00 | +9.24M | **+22.41M** | 10.2 |
+| 8 | evict_on_negative k=1 | 1.00 | 1.00 | 1.00 | +10.95M | +24.12M | 15.0 |
+| 8 | quarantine m=3 | 1.00 | 1.00 | 1.00 | -0.42M | -0.28M | 15.4 |
+| 12 | survival | 0.00 | 0.00 | 1.00 | **-6.42M** | **-6.42M** | 0.0 |
+| 12 | survival_paced | 1.00 | 1.00 | 0.00 | -8.84M | -18.17M | 14.0 |
+| 12 | evict_on_negative k=1 | 1.00 | 1.00 | 0.00 | -8.84M | -18.17M | 16.0 |
+| 12 | quarantine m=3 | 1.00 | 1.00 | 0.00 | -8.84M | -18.17M | 16.0 |
+| 12 | keep_everything | 1.00 | 1.00 | 0.00 | -8.84M | -18.17M | 16.0 |
+
+Budgets 1, 2 and 4 are omitted from this table and present in the data;
+they interpolate, and `survival_paced` is identical to `survival` at
+every one of them.
+
+### What it says, including the part that did not go our way
+
+**Withholding does not spare the counters, it dissolves them.** At total
+suppression `evict_on_negative` and `quarantine` produce results
+*identical to `keep_everything`* in every column: kill rate 0.00, poison
+alive, same cum delta, same population. Their benign retention of 1.00 is
+not a defence holding up, it is a mechanism that has stopped running —
+no measurement means no blame, and a strike counter with nothing to
+strike removes nothing. This was the prediction, and the reason two
+counters are in the arm set rather than one.
+
+**The ledger's failure mode is amnesia, and amnesia is the cheaper
+failure.** `survival` at budget 12 loses all benign capability (0.00) —
+that column is a real loss and the honest headline for this attack. But
+it ends at -6.42M where every other arm ends at -18.17M over 60 cycles,
+roughly 3x better, because an emptied store stops acting while a live
+poisoned store keeps destroying. The pre-registered prediction was that
+cum delta would **not** reverse, and it did not.
+
+**The kill at budget 12 is starvation, not selection, and must not be
+read as a defence.** `poison_kill_cycle` and `poison_starve_cycle` are
+both 19.0 — the poison died in the same undifferentiated collapse that
+took the benign population, at the `spawn / upkeep` cliff. This is the
+same artifact the WEF section flags for `f1_repair`; it is reported here
+so the 1.00 in the kill column cannot be misread.
+
+**`survival_paced` has a window and a boundary, and both are sharp.**
+Below budget 8 it is free — byte-identical to `survival` at budgets 0, 1
+and 2, and within noise at 4. At budget 8 it strictly dominates: benign
+1.00 against 0.44, cum delta +22.41M against +18.94M, and it still kills
+the poison. At budget 12 it degenerates to exactly `keep_everything`:
+nothing is measured, so nothing ever dies, and the poison survives. A
+mitigation whose limit is no-curation is not a default, which is why
+`SurvivalConfig.upkeep_requires_settlement` ships off and documented as
+unproven rather than on.
+
+**The horizon is load-bearing, and this is the cycle-count sweep.** At
+budget 8, `survival` retains 0.92 of benign capability over 30 cycles and
+0.44 over 60. A 30-cycle-only grid understates this attack by about
+seven-fold, because the starvation cliff sits at cycle 20 and 30 cycles
+leaves only ten past it. The sweep this doc has called "the honest next
+measurement and has not been run" is run here, and it changes the
+conclusion rather than confirming it.
+
+### Caveats, on the record
+
+- **The budget is not spent equally across arms, and cannot be.** At
+  budget 12 the adversary fires 193 suppressions against `survival` and
+  289 against every other arm (576 against them at 60 cycles). A
+  shrinking store answers fewer tasks measurably, so there is less left
+  to suppress: the attack is self-limiting precisely because it has
+  already won. Matched-capacity is what the table reports;
+  matched-fired is unreachable here, and reading the two columns
+  together is the only honest way to use this table.
+- `survival_writes` is absent because the runner refuses it under any
+  measurement attack (it folds outcome detail strings, which name the
+  true delta, back into entries). It is not needed: `survival` runs with
+  `write_experience=False`, so there is no birth channel for withholding
+  to suppress and that confound is absent by construction rather than
+  merely unmeasured.
+- Single-family, `StorageEnv` only, for the same reason as every
+  adversary result above: the runner refuses `lie_budget` on
+  `TestSuiteEnv` rather than silently ignoring it. On `StorageEnv` an
+  emptied store scores zero, so amnesia is costless here in a way it may
+  not be elsewhere — and `evict_on_negative` already beats `survival` on
+  `TestSuiteEnv` for a related reason. **The cum-delta half of the
+  budget-12 finding is the part most exposed to this**, and an
+  adversarial `TestSuiteEnv` is the measurement that would close it.
+- The attacker is indiscriminate. A *selective* withholder — one that
+  suppresses only the settlements that would damage its own entry, and
+  lets benign ones through — is strictly stronger against
+  `survival_paced`, because it keeps the clock running for everyone else
+  while its poison is never blamed. Not implemented, not measured, and
+  the obvious next arm.
+
 ## Second environment family: TestSuiteEnv
 
 Everything above runs on `StorageEnv`, and the caveats have named that

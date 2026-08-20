@@ -53,6 +53,20 @@ class SurvivalConfig:
     # juvenile, a deciding entry earns and loses at supporting_share,
     # and one negative deciding outcome denies admission outright.
     admission_window: int = 0
+    # EXPERIMENTAL, and measured rather than asserted: charge upkeep only
+    # on cycles that carried a measured outcome, so a store is not billed
+    # for time in which nothing was measurable. Off by default; every
+    # published benchmark ran flat upkeep and stays byte-identical.
+    #
+    # Read the trade before turning this on. MIN_UPKEEP_SCALE exists so a
+    # caller may slow an entry's burn rate but never stop it, because
+    # upkeep reaching zero is a pin nobody granted (see
+    # MemoryStore.charge_upkeep). This stops it for the WHOLE population
+    # at once, which changes no relative ordering between entries but does
+    # hand an adversary who can suppress measurements control of the
+    # clock. bench's `withholding` suite is what decides whether that is
+    # ever worth it; until it says so, treat this as unproven.
+    upkeep_requires_settlement: bool = False
 
 
 def assign_credit(
@@ -309,7 +323,13 @@ class SurvivalLoop:
         if cfg.write_experience and best is not None:
             births += self._write_experience(best, cycle)
 
-        dead = self.store.charge_upkeep()
+        # The population-level clock. `nonzero_outcomes` is this cycle's
+        # own evidence count, so the decision reads no per-entry state and
+        # every surviving entry is shifted by the same amount -- which is
+        # what separates it from salience-style relief, where usage cannot
+        # tell "used" from "useful" and the poison is the most-used entry.
+        paced_quiet = cfg.upkeep_requires_settlement and nonzero_outcomes == 0
+        dead = [] if paced_quiet else self.store.charge_upkeep()
 
         merges = 0
         if cfg.consolidate_every and (cycle + 1) % cfg.consolidate_every == 0:

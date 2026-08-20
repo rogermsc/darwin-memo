@@ -656,3 +656,149 @@ def test_persist_objective_spends_only_on_the_guilty():
         assert spend(objective, 0) == (0, 0), (
             f"{objective} fired a lie at budget 0; the canary is broken"
         )
+
+
+def test_withhold_objective_reports_silence_and_still_balances():
+    """Withholding writes zero, it does not invert.
+
+    The accounting identity ``reported == true + distortion`` is what the
+    runner checks every run against, and a suppressed measurement has to
+    satisfy it exactly like an inverted one or every number in the suite
+    is garbage.
+
+    Mutations this catches: reporting ``-true`` (that is the destruction
+    adversary, and the withholding table would silently duplicate the
+    adversary table); dropping the distortion bookkeeping for the
+    withhold branch (the runner's identity check then fails, but only on
+    a full run -- this catches it in a millisecond); and firing at
+    budget 0.
+    """
+    from bench.adversary import AdversarialStorageEnv
+
+    def run(budget: int) -> tuple[list[float], float, int]:
+        env = AdversarialStorageEnv(lie_budget=budget, objective="withhold", seed=1)
+        env.tasks(0)
+        # Asymmetric on purpose: equal-and-opposite deltas would make the
+        # accounting identity hold by cancellation whatever the branch did.
+        deltas = iter([+100.0, -40.0])
+
+        def stub_verify(task, answer_text):
+            return Outcome(delta=next(deltas), detail="stub")
+
+        env.base.verify = stub_verify  # type: ignore[method-assign]
+        reported = [
+            env.verify(Task(prompt="p", context={}), "a").delta for _ in range(2)
+        ]
+        return reported, env.distortion, env.flakes_fired
+
+    true_total = 100.0 - 40.0
+    reported, distortion, fired = run(4)
+    assert reported == [0.0, 0.0], "a withheld measurement is silence, not a lie"
+    assert fired == 2, "both measurable outcomes were suppressed"
+    assert sum(reported) == pytest.approx(true_total + distortion), (
+        "reported == true + distortion, the identity the runner checks"
+    )
+    assert distortion == pytest.approx(-true_total), "the whole outcome was erased"
+
+    reported, distortion, fired = run(0)
+    assert reported == [100.0, -40.0], "budget 0 must add exactly zero behaviour"
+    assert (distortion, fired) == (0.0, 0)
+
+
+def test_withholding_suite_leaves_the_published_arm_lists_alone():
+    """Adding an arm to ARMS or ADVERSARY_VARIANTS rewrites committed evidence.
+
+    ``headline_suite`` iterates ``ARMS`` and ``adversary_suite`` iterates
+    ``ADVERSARY_VARIANTS``, both of which back paper tables that
+    ``bench.report --check --require-manifest`` validates. A new arm
+    belongs in its own tuple and its own results file, which is why
+    SALIENCE_ARMS and NEIGHBOUR_ARMS exist.
+
+    Mutation this catches: appending ``survival_paced`` to ARMS or to
+    ADVERSARY_VARIANTS for convenience.
+    """
+    from bench.policies import ARMS
+    from bench.suites import ADVERSARY_VARIANTS, WITHHOLD_ARMS
+
+    assert "survival_paced" not in ARMS
+    assert "survival_paced" not in [arm for arm, _extra, _suffix in ADVERSARY_VARIANTS]
+    assert "survival_paced" in [arm for arm, _extra, _suffix in WITHHOLD_ARMS]
+
+
+def test_withholding_doc_table_matches_the_committed_evidence():
+    """docs/benchmarks.md's withholding table, checked against its own data.
+
+    This repo has been bitten by documents that assert agreement with
+    evidence and are never made to prove it -- a retired number survived
+    in a fourth file for four days because the sweep that retired it was
+    written from memory. A table transcribed by hand is exactly that
+    shape, so it gets a parser rather than a promise.
+
+    Mutation that must fail this test: change any digit in the table, or
+    regenerate withholding.json with a different grid.
+    """
+    import json
+    import re
+    import statistics as st
+    from collections import defaultdict
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    runs = json.loads((root / "bench/results/withholding.json").read_text())["runs"]
+
+    agg = defaultdict(list)
+    for r in runs:
+        budget = int(r["label"].split("budget=")[1].split(",")[0])
+        cycles = int(r["label"].split("cycles=")[1].split(",")[0])
+        suffix = (
+            ""
+            if not r["label"].endswith(("k=1", "m=3"))
+            else " " + r["label"].rsplit(",", 1)[1]
+        )
+        agg[(budget, cycles, r["arm"] + suffix)].append(r["metrics"])
+
+    def mean(budget, cycles, arm, key):
+        cells = agg[(budget, cycles, arm)]
+        assert cells, f"no runs for {(budget, cycles, arm)}"
+        return st.mean(c[key] for c in cells)
+
+    doc = (root / "docs/benchmarks.md").read_text()
+    section = doc.split("## Withholding: the dual of lying")[1].split("\n## ")[0]
+    rows = [
+        line
+        for line in section.splitlines()
+        if line.startswith("| ")
+        and not line.startswith("| budget")
+        and "---" not in line
+    ]
+    assert len(rows) == 12, f"expected 12 data rows, parsed {len(rows)}"
+
+    checked = 0
+    for line in rows:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        budget = int(cells[0])
+        arm = cells[1].replace("**", "")
+
+        def num(text):
+            return float(re.sub(r"[*M+]", "", text))
+
+        for column, cycles, key, tol in (
+            (2, 30, "probe_benign_correct_rate", 0.006),
+            (3, 60, "probe_benign_correct_rate", 0.006),
+            (4, 30, "poison_killed", 0.006),
+            (7, 60, "final_population", 0.06),
+        ):
+            got = mean(budget, cycles, arm, key)
+            assert abs(got - num(cells[column])) <= tol, (
+                f"budget={budget} {arm} {key}@{cycles}c: doc says "
+                f"{cells[column]}, data says {got}"
+            )
+            checked += 1
+        for column, cycles in ((5, 30), (6, 60)):
+            got = mean(budget, cycles, arm, "cum_delta") / 1e6
+            assert abs(got - num(cells[column])) <= 0.006, (
+                f"budget={budget} {arm} cum_delta@{cycles}c: doc says "
+                f"{cells[column]}M, data says {got:.3f}M"
+            )
+            checked += 1
+    assert checked == 72, f"expected 72 checked cells, did {checked}"
