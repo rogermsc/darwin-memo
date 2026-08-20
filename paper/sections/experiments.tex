@@ -489,6 +489,18 @@ a non-fencing model. Second, \texttt{force\_mid\_term\_analysis} exists
 in the API and would bypass the heat threshold entirely; we do not call
 it. No threshold is lowered and no decision of MemoryOS's is skipped.
 
+\paragraph{Disclosure.} We sent all three findings to the corresponding
+author before writing this section, with the code paths, the scripts, and
+an offer to correct anything we had described wrongly. The reply neither
+disputed a finding nor requested an embargo, and invited fixes through the
+project's GitHub repository. We record that as what it is: the maintainers
+were given the findings in full and raised no objection to them. It is not
+verification, and nothing here should be read as endorsed by them --- every
+claim in this section rests on our own reading of the published source at
+a pinned commit and on the two scripts we release. Of the three, only the
+parse fragility is a defect with a patch to submit; the other two describe
+a mechanism working as designed.
+
 \paragraph{What we do not claim.} An adversary able to dominate the
 retrieval channel --- supplying content that absorbs queries which would
 otherwise reach the victim --- would keep a chosen memory at zero and let

@@ -128,6 +128,23 @@ project uses [SemVer](https://semver.org/).
 
 ### Changed
 
+- **The MemoryOS disclosure is answered** (`docs/disclosure/2026-08-17-memoryos.md`).
+  Ting Bai replied 2026-08-20, ~42 hours after the 08-18 send: thanks, and an
+  invitation to submit security-related fixes via GitHub.
+  - **No finding was disputed and no embargo was requested**, so the hold we
+    placed on ourselves ("no public issue before hearing from you") is
+    released. The disclosure file now records the reply verbatim and states
+    plainly that silence on accuracy is not verification -- every claim still
+    rests on our own reading of `memoryos-pypi/` at `587ed7755c7a`.
+  - No credit preference was expressed, so the default stands: cite
+    `kang2025memoryos`, name nobody in the acknowledgements, imply no
+    involvement.
+  - The invitation is actionable for **one** of the three findings. Only the
+    fenced-JSON parse has a patch to submit; the other two describe a mechanism
+    working as designed and belong in the paper, not in a pull request.
+  - `\paragraph{Disclosure.}` added to the paper's MemoryOS section saying
+    exactly this, so a reader does not have to infer it.
+
 - **Two quotations from one citation came from versions that never coexisted.**
   The paper quoted `arXiv:2604.16548` three times under one unversioned key.
   Checking each against the source: "architecturally plausible but empirically
