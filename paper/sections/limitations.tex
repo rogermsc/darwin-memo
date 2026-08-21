@@ -270,18 +270,18 @@ entries to name commits absent from the repository and one to name a
 commit predating the suite that produced its file. The run grid was bound
 by a hash the whole time; the code that walked it was not.
 
-\paragraph{The withholding results are single-family, and one horizon
-deep on every other result.} \S\ref{sec:withholding} runs on the storage
-environment only, because our adversary wrapper is not implemented for
-the test-suite environment and the runner refuses the budget there rather
-than ignoring it. That matters more than usual for one specific claim: on
-the storage environment an emptied store scores zero, so the amnesia
-which makes the ledger's cumulative delta beat every other arm at total
-suppression is costless in a way it may not be elsewhere --- and the
-test-suite environment is precisely where a counter already beats the
-ledger because refusing to act is free (\S\ref{sec:second-env}). An
-adversarial test-suite environment is the measurement that would settle
-it, and we have not built one.
+\paragraph{The withholding results now span two families, and every
+other result here is still one horizon deep.} The first version of this
+paragraph said the measurement that would settle whether the ledger's
+amnesia is corpus-specific had not been built. It has since been built
+and run (Table~\ref{tab:withholding-testsuite}), and it settled the
+direction rather than the size: survival still has the best cumulative
+delta at total suppression, but by $8\%$ rather than by threefold, and
+on the family where a counter beats it outright when unattacked
+(\S\ref{sec:second-env}). Two families is not many. Both score inaction
+at exactly zero, which is the property the result rests on, so an
+environment that charges for standing still remains unmeasured and is the
+obvious way this conclusion could still be wrong.
 
 The same section is also the only place in this paper where we vary the
 cycle horizon, and it changed a conclusion: benign retention under

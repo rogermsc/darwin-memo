@@ -344,6 +344,54 @@ def test_withholding_matches_committed_runs(
 
 
 # --------------------------------------------------------------------------
+# tab:withholding-testsuite -- the same attack on the second env family.
+# --------------------------------------------------------------------------
+def _withholding_testsuite_cells() -> list[tuple[str, int, str, str, str]]:
+    """Same continuation-row shape as tab:withholding, one file, no sel. half."""
+    out = []
+    arm = ""
+    for row in data_rows("tab:withholding-testsuite"):
+        if row and row[0].isdigit():
+            budget, values = int(row[0]), row[1:]
+        elif len(row) >= 5 and row[1].isdigit():
+            arm, budget, values = row[0], int(row[1]), row[2:]
+        else:
+            continue
+        if len(values) < 3:
+            continue
+        out.append((arm, budget, values[0], values[1], values[2]))
+    return out
+
+
+@pytest.mark.parametrize(
+    ("arm", "budget", "benign", "kill", "cum"), _withholding_testsuite_cells()
+)
+def test_withholding_testsuite_matches_committed_runs(
+    arm: str, budget: int, benign: str, kill: str, cum: str
+) -> None:
+    """The second-family row, against the file that produced it.
+
+    The cum delta column is in passing tests, not resource units, so it
+    carries no M suffix and no scale. A mutation that reused the storage
+    scale here would divide every cell by a million and still parse.
+    """
+    config = WITHHOLD_ARM_CONFIG[arm.replace("\\_", "_")]
+    runs = pick(
+        "withholding_testsuite.json",
+        lie_budget=budget,
+        adversary_objective="withhold",
+        env_family="testsuite",
+        cycles=60,
+        **config,
+    )
+    assert float(benign) == pytest.approx(
+        mean(runs, "probe_benign_correct_rate"), abs=RATE_TOL
+    )
+    assert float(kill) == pytest.approx(mean(runs, "poison_killed"), abs=RATE_TOL)
+    assert float(cum) == pytest.approx(mean(runs, "cum_delta"), abs=COUNT_TOL)
+
+
+# --------------------------------------------------------------------------
 # tab:memsec -- attack class x where the defence sits. Labelled runs.
 # --------------------------------------------------------------------------
 MEMSEC_ATTACK = {
