@@ -2802,3 +2802,47 @@ python -m bench.swebench_cl.run run \
   --executor docker --seed 0 --out bench/results/swebench_cl_pilot.json \
   --update-manifest
 ```
+
+## Withholding on the second environment family (pre-registered, not yet run)
+
+`paper/sections/limitations.tex` records that the withholding result is
+single-family, and names the reason it matters: on the storage corpus an
+emptied store scores zero, so the amnesia that makes the ledger's
+cumulative delta beat every other arm at total suppression is costless in
+a way it might not be elsewhere. The test-suite environment is where a
+counter already beats the ledger (88 vs 69, p=0.014) because refusing to
+act is free there too.
+
+The wrapper is now family-agnostic, so the measurement is reachable. The
+predictions below are recorded **before the grid is run**, in their own
+commit, so the order is checkable in `git log` rather than asserted here.
+
+**The mechanism I am betting on.** `TestSuiteEnv.verify` returns
+`Outcome(delta=0.0, "patch skipped")` when the answer declines to act,
+and `tasks()` rebuilds its sandbox every cycle, so unfixed defects do not
+compound. Inaction is therefore scored at exactly zero in *both*
+families, which is the property the storage result rested on. The
+destructive dedupe patch is re-offered every cycle, so a live poisoned
+store still has something to keep doing wrong.
+
+1. **Direction replicates.** At budget 12, `survival`'s mean `cum_delta`
+   is the best of the five arms. This is the claim the limitation
+   doubts; if a counter wins here, the storage headline is
+   corpus-specific and the paper must say so.
+2. **The counters dissolve again.** At high budget `evict_on_negative`
+   and `quarantine` match `keep_everything` on `poison_killed` (0.00) —
+   withholding removes the negative evidence eviction runs on, whatever
+   the family.
+3. **The horizon still bites.** `survival`'s benign retention is lower
+   at 60 cycles than at 30.
+4. **Pacing separates here, unlike against the selective withholder.**
+   Indiscriminate withholding pauses an evidence-paced clock, so
+   `survival_paced` should *not* be identical to `survival` — it should
+   hold benign capability that `survival` loses, and pay for it with a
+   worse `cum_delta`, as it did on storage.
+
+**Not blind, and said so.** One cell was run as a smoke test while
+wiring the runner: `survival`, budget 8, seed 1, 30 cycles — benign
+1.00, `cum_delta` +50, final population 5. That is a single seed of one
+arm, but it is not nothing, and predictions 1 and 3 were written with it
+already seen.
