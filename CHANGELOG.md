@@ -8,6 +8,19 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **The curation adversary reaches the second environment family.**
+  `AdversarialStorageEnv` is now `AdversarialEnv` and composes over a
+  base environment instead of constructing `StorageEnv` itself; the
+  runner builds it for `env_family="testsuite"` rather than refusing the
+  budget there. Nothing in the wrapper was ever storage-specific -- every
+  attack it implements is expressed through the base environment's
+  `verify` return value -- so the restriction was a constructor, not a
+  limitation of the threat model. This unblocks the measurement
+  `paper/sections/limitations.tex` names as the one that would settle
+  whether the ledger's amnesia is as cheap elsewhere as it is on the
+  storage corpus, where an emptied store scores zero. No results file
+  changes: this is the capability, not the run.
+
 - **The withholding suite: an adversary that suppresses measurements
   instead of corrupting them** (`bench/results/withholding.json`, 5 arms
   x 6 budgets x 2 horizons x 30 seeds = 1,800 runs). It is a strict

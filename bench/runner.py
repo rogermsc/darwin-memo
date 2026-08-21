@@ -19,7 +19,7 @@ from darwin_memo.retrieval import (
     LexicalRetriever,
 )
 
-from .adversary import AdversarialStorageEnv
+from .adversary import AdversarialEnv
 from .fixtures import (
     active_poison_alive,
     build_headline_store,
@@ -66,7 +66,7 @@ LLM_LOOP_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
 # surface (true vs reported per-cycle deltas, fired-lie counters, the
 # distortion sum), so everything downstream of env construction treats
 # them as one type.
-FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv | AdversarialStorageEnv
+FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv | AdversarialEnv
 
 
 def _env_family(overrides: dict[str, Any]) -> str:
@@ -184,13 +184,21 @@ def run_one(
                 "noise_model is a StorageEnv knob; TestSuiteEnv has one "
                 "noise model (flaky pass counts), selected by flake_rate"
             )
-        if "lie_budget" in overrides:
-            raise ValueError(
-                "lie_budget is a StorageEnv knob; the curation-targeted "
-                "adversary is not implemented for TestSuiteEnv"
-            )
         defects = int(overrides.get("defects_per_cycle", 3))
-        if "flake_rate" in overrides:
+        if "lie_budget" in overrides:
+            if "flake_rate" in overrides:
+                raise ValueError(
+                    "lie_budget and flake_rate are two different threat "
+                    "models (adaptive adversary vs random noise); running "
+                    "both at once would attribute the result to neither"
+                )
+            env = AdversarialEnv(
+                base=TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed),
+                seed=seed,
+                lie_budget=overrides["lie_budget"],
+                objective=overrides.get("adversary_objective", "destroy"),
+            )
+        elif "flake_rate" in overrides:
             env = FlakyTestSuiteEnv(
                 root=workdir,
                 defects_per_cycle=defects,
@@ -206,7 +214,7 @@ def run_one(
                 "(adaptive adversary vs random noise); running both at once "
                 "would attribute the result to neither"
             )
-        env = AdversarialStorageEnv(
+        env = AdversarialEnv(
             root=workdir,
             files_per_cycle=files_per_cycle,
             seed=seed,

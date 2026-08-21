@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from darwin_memo import Outcome, StorageEnv, Task
+from darwin_memo import Outcome, StorageEnv, Task, TestSuiteEnv
 
 # What the attacker is buying. The paper's original adversary only ever
 # bought destruction; the MemoryOS result (docs/benchmarks.md) showed that on a
@@ -84,8 +84,14 @@ OBJECTIVES = ("destroy", "persist", "withhold", "withhold_selective")
 _WITHHOLDING = ("withhold", "withhold_selective")
 
 
-class AdversarialStorageEnv:
-    """StorageEnv whose measurements lie in the attacker's favour."""
+class AdversarialEnv:
+    """An environment whose measurements lie in the attacker's favour.
+
+    Wraps either environment family. Every attack this class implements
+    is expressed through ``base.verify``'s return value, so nothing here
+    is StorageEnv-specific; ``base`` is what selects the family, and the
+    default preserves the StorageEnv construction earlier callers pass.
+    """
 
     def __init__(
         self,
@@ -94,6 +100,7 @@ class AdversarialStorageEnv:
         seed: int = 7,
         lie_budget: int = 2,
         objective: str = "destroy",
+        base: StorageEnv | TestSuiteEnv | None = None,
     ) -> None:
         if lie_budget < 0:
             raise ValueError(f"lie_budget must be >= 0, got {lie_budget}")
@@ -101,7 +108,11 @@ class AdversarialStorageEnv:
             raise ValueError(
                 f"objective must be one of {OBJECTIVES}, got {objective!r}"
             )
-        self.base = StorageEnv(root=root, files_per_cycle=files_per_cycle, seed=seed)
+        self.base = (
+            base
+            if base is not None
+            else StorageEnv(root=root, files_per_cycle=files_per_cycle, seed=seed)
+        )
         self.resource_scale = self.base.resource_scale
         self.seed = seed
         self.lie_budget = lie_budget
@@ -153,8 +164,10 @@ class AdversarialStorageEnv:
                 self.fired_false_good += 1
             if self.objective in _WITHHOLDING:
                 # Silence, not a lie. The entry is neither blamed nor
-                # paid, and StorageEnv scores an unmeasured cycle at
-                # zero, so the only thing that moves is the upkeep clock.
+                # paid, and both environments score an unmeasured cycle
+                # at zero, so the only thing that moves is the upkeep
+                # clock. How much that costs is exactly what differs
+                # between the families, which is why this runs on both.
                 reported = Outcome(
                     delta=0.0,
                     detail=(
