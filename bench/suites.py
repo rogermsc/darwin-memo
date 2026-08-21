@@ -365,7 +365,12 @@ WITHHOLD_BUDGETS = (0, 1, 2, 4, 8, 12)
 WITHHOLD_CYCLES = (30, 60)
 
 
-def _withhold_specs(seeds: list[int], suite: str, objective: str) -> list[RunSpec]:
+def _withhold_specs(
+    seeds: list[int],
+    suite: str,
+    objective: str,
+    env_family: str | None = None,
+) -> list[RunSpec]:
     """The shared grid. Two objectives, two files, one arm tuple.
 
     Kept as separate suites rather than an objective axis on one, so that
@@ -382,6 +387,11 @@ def _withhold_specs(seeds: list[int], suite: str, objective: str) -> list[RunSpe
             overrides={
                 "lie_budget": budget,
                 "adversary_objective": objective,
+                # Absent rather than "storage" on purpose: the key rides in
+                # the recorded config and therefore the manifest hash, so
+                # adding it unconditionally would rewrite the two committed
+                # withholding files without changing a single run.
+                **({"env_family": env_family} if env_family else {}),
                 **extra,
             },
             label=f"budget={budget},cycles={cycles}{suffix}",
@@ -419,6 +429,25 @@ def withholding_selective_suite(seeds: list[int]) -> list[RunSpec]:
     here, and pacing's whole budget-8 advantage would vanish.
     """
     return _withhold_specs(seeds, "withholding_selective", "withhold_selective")
+
+
+def withholding_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
+    """The same attack, on the family where inaction is already rewarded.
+
+    limitations.tex doubts the storage headline for one reason: an
+    emptied store scores zero there, so the ledger's amnesia is costless
+    in a way it might not be elsewhere. TestSuiteEnv is the place to
+    check, because a counter already beats the ledger on it.
+
+    The mechanism says it should replicate --- TestSuiteEnv.verify returns
+    delta 0.0 on a declined patch and rebuilds its sandbox every cycle, so
+    unfixed defects never compound --- but that is the prediction, not the
+    result. Predictions are recorded in docs/benchmarks.md in the commit
+    before the run.
+    """
+    return _withhold_specs(
+        seeds, "withholding_testsuite", "withhold", env_family="testsuite"
+    )
 
 
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
