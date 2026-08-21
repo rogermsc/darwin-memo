@@ -631,11 +631,11 @@ def test_persist_objective_spends_only_on_the_guilty():
     behaviour — without that canary there is nothing separating "the attack
     moved the numbers" from "the harness did".
     """
-    from bench.adversary import AdversarialStorageEnv
+    from bench.adversary import AdversarialEnv
 
     def spend(objective: str, budget: int) -> tuple[int, int]:
         """Fire one benign win then one poison disaster; report where lies went."""
-        env = AdversarialStorageEnv(lie_budget=budget, objective=objective, seed=1)
+        env = AdversarialEnv(lie_budget=budget, objective=objective, seed=1)
         env.tasks(0)
         deltas = iter([+100.0, -100.0])
 
@@ -673,10 +673,10 @@ def test_withhold_objective_reports_silence_and_still_balances():
     a full run -- this catches it in a millisecond); and firing at
     budget 0.
     """
-    from bench.adversary import AdversarialStorageEnv
+    from bench.adversary import AdversarialEnv
 
     def run(budget: int) -> tuple[list[float], float, int]:
-        env = AdversarialStorageEnv(lie_budget=budget, objective="withhold", seed=1)
+        env = AdversarialEnv(lie_budget=budget, objective="withhold", seed=1)
         env.tasks(0)
         # Asymmetric on purpose: equal-and-opposite deltas would make the
         # accounting identity hold by cancellation whatever the branch did.
@@ -919,3 +919,47 @@ def test_pacing_is_worthless_against_a_selective_withholder():
                 )
                 compared += 1
     assert compared == 48
+
+
+def test_curation_adversary_runs_on_the_testsuite_family():
+    """The withholding attack reaches the second environment family.
+
+    ``limitations.tex`` records that the withholding result is
+    single-family because the wrapper was hardwired to StorageEnv, and
+    that the test-suite environment is precisely where the result could
+    differ: an emptied store is costless on the storage corpus, so the
+    ledger's amnesia looks cheap there in a way it may not be elsewhere.
+
+    Three mutations this catches. Restoring the runner's
+    ``"lie_budget is a StorageEnv knob"`` raise puts the family back out
+    of reach. Building a bare ``TestSuiteEnv`` in that branch and
+    dropping ``lie_budget`` on the floor accepts the budget and runs no
+    attack -- silently, which is exactly what the old raise existed to
+    prevent, so ``flakes_fired`` is the assertion that matters. And
+    dropping the mutual-exclusion check lets a run carry both threat
+    models at once, attributing its result to neither.
+    """
+    from bench.runner import run_one
+
+    overrides = {
+        "env_family": "testsuite",
+        "lie_budget": 2,
+        "adversary_objective": "withhold",
+    }
+    result = run_one("survival", seed=1, cycles=4, overrides=overrides)
+    metrics = result["metrics"]
+    assert metrics["flakes_fired"] > 0, (
+        "the budget was accepted but no measurement was suppressed; the "
+        "run is a plain TestSuiteEnv wearing an adversarial config"
+    )
+    assert metrics["flakes_fired"] <= metrics["flakes_marked"], (
+        "spent more capacity than was offered"
+    )
+
+    with pytest.raises(ValueError, match="two different threat models"):
+        run_one(
+            "survival",
+            seed=1,
+            cycles=2,
+            overrides={**overrides, "flake_rate": 0.1},
+        )

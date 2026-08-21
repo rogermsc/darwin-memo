@@ -2802,3 +2802,118 @@ python -m bench.swebench_cl.run run \
   --executor docker --seed 0 --out bench/results/swebench_cl_pilot.json \
   --update-manifest
 ```
+
+## Withholding on the second environment family
+
+`paper/sections/limitations.tex` records that the withholding result is
+single-family, and names the reason it matters: on the storage corpus an
+emptied store scores zero, so the amnesia that makes the ledger's
+cumulative delta beat every other arm at total suppression is costless in
+a way it might not be elsewhere. The test-suite environment is where a
+counter already beats the ledger (88 vs 69, p=0.014) because refusing to
+act is free there too.
+
+The wrapper is now family-agnostic, so the measurement is reachable. The
+predictions below are recorded **before the grid is run**, in their own
+commit, so the order is checkable in `git log` rather than asserted here.
+
+**The mechanism I am betting on.** `TestSuiteEnv.verify` returns
+`Outcome(delta=0.0, "patch skipped")` when the answer declines to act,
+and `tasks()` rebuilds its sandbox every cycle, so unfixed defects do not
+compound. Inaction is therefore scored at exactly zero in *both*
+families, which is the property the storage result rested on. The
+destructive dedupe patch is re-offered every cycle, so a live poisoned
+store still has something to keep doing wrong.
+
+1. **Direction replicates.** At budget 12, `survival`'s mean `cum_delta`
+   is the best of the five arms. This is the claim the limitation
+   doubts; if a counter wins here, the storage headline is
+   corpus-specific and the paper must say so.
+2. **The counters dissolve again.** At high budget `evict_on_negative`
+   and `quarantine` match `keep_everything` on `poison_killed` (0.00) —
+   withholding removes the negative evidence eviction runs on, whatever
+   the family.
+3. **The horizon still bites.** `survival`'s benign retention is lower
+   at 60 cycles than at 30.
+4. **Pacing separates here, unlike against the selective withholder.**
+   Indiscriminate withholding pauses an evidence-paced clock, so
+   `survival_paced` should *not* be identical to `survival` — it should
+   hold benign capability that `survival` loses, and pay for it with a
+   worse `cum_delta`, as it did on storage.
+
+**Not blind, and said so.** One cell was run as a smoke test while
+wiring the runner: `survival`, budget 8, seed 1, 30 cycles — benign
+1.00, `cum_delta` +50, final population 5. That is a single seed of one
+arm, but it is not nothing, and predictions 1 and 3 were written with it
+already seen.
+
+### Result: all four held, and the magnitude did not
+
+```
+python -m bench.run --suite withholding_testsuite --seeds 0:30 \
+  --out bench/results/withholding_testsuite.json --update-manifest
+```
+
+1,800 runs, 5 arms x 6 budgets x 2 horizons x 30 seeds. `cum_delta` is
+the **true** world outcome, not what the store was told, and
+`keep_everything`'s column is flat at exactly `cycles x 1.0` for every
+budget — the report's own canary, confirming the attack changes what a
+store learns and not what the world does.
+
+| cycles | budget | survival | paced | evict k=1 | quarantine m=3 | keep |
+|---|---|---|---|---|---|---|
+| 30 | 0 | 69 | 69 | **88** | 70 | 30 |
+| 30 | 12 | **50** | 30 | 30 | 30 | 30 |
+| 60 | 0 | 121 | 121 | **178** | 140 | 60 |
+| 60 | 12 | **65** | 60 | 60 | 60 | 60 |
+
+**Prediction 1 held: the direction replicates.** At budget 12 `survival`
+has the best true `cum_delta` on both horizons, and with $\sigma = 0.00$
+across 30 seeds — total suppression removes the stochastic channel, so
+these are exact rather than noisy.
+
+**Prediction 2 held: the counters dissolve again.** From budget 4 up,
+`evict_on_negative` and `quarantine` match `keep_everything` in every
+column, kill rate 0.00 included. Withholding removes the negative
+evidence eviction runs on, and it does so whatever the family.
+
+**Prediction 3 held, and hard.** `survival`'s benign retention at
+budget 12 is 1.00 at 30 cycles and **0.00** at 60. Even unattacked it
+falls 1.00 to 0.75. The horizon is not a detail on this family either.
+
+**Prediction 4 held: pacing has a real window here.** From budget 4,
+`survival_paced` is no longer identical to `survival`: it holds benign
+1.00 at 60 cycles where `survival` reaches 0.00, and pays for it with 60
+against 65. That is a genuine trade rather than the degeneracy pacing
+showed on storage — but it buys the retention by removing nothing at
+all, poison included (`poison_killed` 0.00, population 15). The reason
+the flag ships off is unchanged.
+
+**What did not replicate is the size of the win.** On storage the
+ledger ends 3x better than every other arm (-6.42M against -18.17M).
+Here it ends 8% better (65 against 60). The limitation's worry was
+directionally wrong and quantitatively right: amnesia is worth far less
+where the poison's damage per cycle is bounded — one re-offered dedupe
+patch — than where it accumulates across a corpus.
+
+**Read the attack as a leveller, not as a win for the ledger.**
+Unattacked, the counters are *better* on this family: `evict_on_negative`
+88 against `survival`'s 69 at 30 cycles, 178 against 121 at 60. The
+attack costs them that entire lead. Measured as degradation from budget
+0 to budget 12 at 60 cycles: `evict_on_negative` -66%, `quarantine`
+-57%, `survival` -46%. Nobody wins; the ledger loses least and lands
+marginally above a floor that everyone else falls to.
+
+**The kill column is starvation here too, and must not be read as a
+defence.** `survival` shows `poison_killed` 1.00 at every budget, but
+from budget 4 `poison_kill_cycle` and `poison_starve_cycle` are both
+19.0 — the poison died in the undifferentiated collapse at the
+`spawn / upkeep` cliff, the same artifact flagged for the storage grid
+and for `f1_repair`. At 60 cycles the population is 0.0: `survival`'s
+advantage is banked before extinction, not earned by a working store.
+
+**Budget is not spent equally, again.** At budget 12 the attacker fires
+110 suppressions against `survival` at 30 cycles and 240 against every
+other arm at 60. The comparison is at matched capacity, not matched
+fired, for the same reason as on storage: the attack is self-limiting
+exactly when it is winning.

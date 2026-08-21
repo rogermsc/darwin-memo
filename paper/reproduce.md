@@ -27,7 +27,7 @@ Committed under `bench/results/`:
   `judge-llama.json`, `judge-qwen.json`,
   `llm-llama.json`, `llm-qwen.json`, `wef-llama32.json`,
   `wef-llama32-counter.json`, `withholding.json`,
-  `withholding_selective.json`.
+  `withholding_selective.json`, `withholding_testsuite.json`.
 - The SWE-Bench-CL matrices, one file per (arm, sequence, seed), each
   directory with its own sibling `MANIFEST.json`: the pilot under
   `bench/results/swebench_cl/` (30 cells), the long matrix under
@@ -129,6 +129,7 @@ manifest at the time this package was frozen:
 | wef-llama32.json           | wef             | 3     | 18   | a1583d78dc90c2abc3e1b11a0a41a620fc60bad8 |
 | withholding.json           | withholding     | 30    | 1800 | 6a2f04ba78a30ec82365b6f93ca7111a94c0eed3 |
 | withholding_selective.json | withholding_selective | 30 | 1800 | eb58ecce2ebdd4bad48289b7040637c86615963f |
+| withholding_testsuite.json | withholding_testsuite | 30 | 1800 | 6d793beeabe24a20c06dfc47c8fac465e9fce443 |
 
 Every commit in that column is in this repository's published history, so
 `git checkout <sha>` works for all of them — as it now does for the 80

@@ -691,6 +691,76 @@ published ordering and we name it rather than bury it: at budget 4
 survival revokes at cycle $10.7$ against the counter's $12.5$, where
 \S\ref{sec:adversary} has the counter revoking roughly five times faster.
 
+\begin{table}[t]
+\centering
+\small
+\caption{The same indiscriminate attack on the test-suite environment,
+30 seeds, 60 cycles. Budget 12 is total suppression here as well.
+Cumulative delta is in passing tests rather than resource units, so the
+scales are not comparable across families; the ordering within a column
+is. \texttt{keep\_everything} reads $+60.00$ at every budget, which is
+the canary: it never curates, so the attack cannot move what it does to
+the world.}
+\label{tab:withholding-testsuite}
+\begin{tabular}{llccc}
+\toprule
+arm & budget & benign & kill & cum $\Delta$ \\
+\midrule
+\textbf{survival} & 0 & 0.75 & 1.00 & $+121.33$ \\
+                  & 12 & $\mathbf{0.00}$ & 1.00 & $\mathbf{+65.00}$ \\
+\midrule
+survival\_paced & 0 & 0.75 & 1.00 & $+121.33$ \\
+                & 12 & $\mathbf{1.00}$ & $\mathbf{0.00}$ & $+60.00$ \\
+\midrule
+evict\_on\_negative & 0 & 1.00 & 1.00 & $\mathbf{+178.00}$ \\
+                    & 12 & 1.00 & $\mathbf{0.00}$ & $+60.00$ \\
+\midrule
+keep\_everything & 12 & 1.00 & 0.00 & $+60.00$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{On the second environment family the direction replicates and
+the magnitude does not.} The limitation we recorded for this section was
+that it ran on one environment, and that the storage corpus is where
+amnesia is cheapest: an emptied store scores zero, so doing nothing costs
+nothing. We have now built the adversarial test-suite environment and run
+the same grid on it (Table~\ref{tab:withholding-testsuite}). The claim
+survives: at total suppression survival has the best true cumulative
+delta on both horizons, and with $\sigma = 0.00$ across 30 seeds, because
+total suppression removes the stochastic channel and the cells are exact
+rather than noisy. Predictions were registered before the run in a
+separate commit.
+
+What does not survive is the size of the effect. On storage the ledger
+ends roughly three times better than every other arm; here it ends
+$8\%$ better, $+65.00$ against a floor of $+60.00$. Amnesia is worth far
+less where the poison's damage per cycle is bounded --- one re-offered
+destructive patch --- than where it accumulates across a corpus. The
+limitation was directionally wrong and quantitatively right, and we
+would rather report that than the half of it that flatters the ledger.
+
+\paragraph{Read this attack as a leveller.} Unattacked, the counters are
+\emph{better} on this family: eviction reaches $+178.00$ against
+survival's $+121.33$, which is the ordering of
+\S\ref{sec:second-env}, where refusing to act is free. The attack costs
+them that entire lead. Measured as degradation from budget 0 to budget
+12 at 60 cycles, eviction loses $66\%$, quarantine $57\%$ and survival
+$46\%$. Nobody wins. The ledger loses least and lands
+marginally above a floor everyone else falls to, and its kill column is
+starvation here too --- kill cycle and starve cycle are both $19.0$, and
+its final population at budget 12 is $0.0$, so the advantage is banked
+before extinction rather than earned by a working store.
+
+\paragraph{Pacing gets a real window here, and still does not ship.} On
+this family \texttt{survival\_paced} is no longer degenerate at total
+suppression: it holds benign capability at $1.00$ where survival reaches
+$0.00$, and pays $+60.00$ against $+65.00$ for it. That is a genuine
+trade rather than the collapse into no-curation it shows on storage. It
+buys the retention the same way, though --- by removing nothing at all,
+poison included, at a kill rate of $0.00$ --- and it is still measured
+only against the attacker that does not read the sign.
+
 We therefore ship the pacing knob disabled and documented as unproven.
 Its one measured advantage exists only against the attacker that does not
 read the sign, and at total suppression its limit is exactly
