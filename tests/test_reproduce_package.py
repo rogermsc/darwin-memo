@@ -27,6 +27,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "bench" / "results" / "MANIFEST.json"
 REPRODUCE = ROOT / "paper" / "reproduce.md"
+REPRODUCE_SH = ROOT / "paper" / "reproduce.sh"
 
 
 def manifest_files() -> dict[str, dict[str, Any]]:
@@ -216,4 +217,35 @@ def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
         f"{name} records source_commit {commit}, whose bench/run.py has no "
         f"{suite!r} suite — that tree cannot have produced this file. "
         "Regenerate on a commit that can run it."
+    )
+
+
+def test_reproduce_script_lists_every_committed_result_file() -> None:
+    """``reproduce.sh`` says "Every committed result file, not a subset".
+
+    That sentence is the whole contract of step 3: the offline verification
+    only binds the files it names, so a result file left out of the array is
+    a file whose manifest entry nothing checks. The comment above the array
+    already records this drifting once -- an earlier version omitted the two
+    distillation arms, which happened to be exactly the files ``--check``
+    could not validate, so the coverage had been shaped around what passed.
+
+    It then drifted again, by six files: neighbours, persistence, the two
+    later distillation arms, and all three withholding grids landed without
+    being added. A sentence asserting its own completeness is an unenforced
+    invariant, so this is that sentence, enforced. Sub-directory matrices
+    (``swebench_cl*``) are excluded because they carry their own sibling
+    manifests and step 3 verifies them separately.
+    """
+    listed = re.search(r"RESULTS=\(\n(.*?)\n\)", REPRODUCE_SH.read_text(), re.S)
+    assert listed, "the RESULTS array has been renamed or reshaped"
+    named = set(listed.group(1).split())
+    committed = {
+        path.name
+        for path in (ROOT / "bench" / "results").glob("*.json")
+        if path.name != "MANIFEST.json"
+    }
+    assert named == committed, (
+        f"reproduce.sh does not verify {sorted(committed - named)}; "
+        f"it names {sorted(named - committed)} which is not committed"
     )

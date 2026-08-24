@@ -708,3 +708,107 @@ def test_reproduce_md_states_the_real_coverage() -> None:
         f"paper/reproduce.md should say '{checks} checks covering {numbers} "
         "printed numbers'; update it to the counted figures."
     )
+
+
+# --------------------------------------------------------------------------
+# tab:rent -- the price of standing still, against bench/results/rent.json.
+# --------------------------------------------------------------------------
+RENT_FLOOR_ARMS: dict[str, dict[str, Any]] = {
+    "survival_paced": {"arm": "survival_paced"},
+    "evict_on_negative": {"arm": "evict_on_negative", "strikes": 1},
+    "quarantine": {"arm": "quarantine", "suspend": 3},
+    "keep_everything": {"arm": "keep_everything"},
+}
+RENT_COLUMNS = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+def _rent_cells() -> list[tuple[int, str, float, str]]:
+    """(cycles, row, rent, printed cell), one case per number in the table."""
+    out = []
+    for row in data_rows("tab:rent"):
+        if len(row) != 2 + len(RENT_COLUMNS) or not row[0].split()[0].isdigit():
+            continue  # the header row has the same width as a data row
+        horizon, name, values = row[0], row[1], row[2:]
+        cycles = int(horizon.split()[0])
+        out.extend(
+            (cycles, name, rent, value)
+            for rent, value in zip(RENT_COLUMNS, values, strict=True)
+        )
+    return out
+
+
+@pytest.mark.parametrize(("cycles", "row", "rent", "cell"), _rent_cells())
+def test_rent_table_matches_committed_runs(
+    cycles: int, row: str, rent: float, cell: str
+) -> None:
+    """Every cell, and for the floor row every arm that claims to be in it.
+
+    The caption asserts the four non-ledger arms are "identical to the last
+    byte" at each rent, which is the whole reason the table prints one row
+    instead of four. Checking a single representative would let that
+    collapse be wrong while the table still read as correct, so the floor
+    row is checked once per arm and the strictness is exact equality
+    between them, not the 2dp tolerance the printed cell gets.
+    """
+    common = {
+        "cycles": cycles,
+        "lie_budget": 12,
+        "hold_cost": rent,
+        "env_family": "storage_rent",
+        "adversary_objective": "withhold",
+    }
+    if row == "survival":
+        got = mean(pick("rent.json", **common, arm="survival"), "cum_delta", 1e6)
+        assert float(cell) == pytest.approx(got, abs=DELTA_TOL)
+        return
+    assert row == "do-nothing floor", row
+    exact = {
+        name: mean(pick("rent.json", **common, **config), "cum_delta")
+        for name, config in RENT_FLOOR_ARMS.items()
+    }
+    assert len(set(exact.values())) == 1, (
+        f"the floor row claims four identical arms at rent {rent}, {cycles} "
+        f"cycles; they are {exact}"
+    )
+    assert float(cell) == pytest.approx(next(iter(exact.values())) / 1e6, abs=DELTA_TOL)
+
+
+def test_rent_zero_column_reproduces_the_published_withholding_file() -> None:
+    """The canary the sweep rests on, asserted across the whole zero column.
+
+    Every claim in the rent section is a comparison against rent 0, and
+    that column is only meaningful if it IS the published storage family
+    rather than a re-run that resembles it. RentedStorageEnv delegates to
+    StorageEnv at zero rent precisely so this can be exact, so the
+    tolerance here is zero: any drift means the harness moved and the
+    whole sweep is measuring two things at once.
+    """
+    arms = {"survival": {"arm": "survival"}, **RENT_FLOOR_ARMS}
+    checked = 0
+    for cycles in (30, 60):
+        for budget in (0, 12):
+            for name, config in arms.items():
+                rented = pick(
+                    "rent.json",
+                    **config,
+                    cycles=cycles,
+                    lie_budget=budget,
+                    hold_cost=0.0,
+                    env_family="storage_rent",
+                    adversary_objective="withhold",
+                )
+                published = pick(
+                    "withholding.json",
+                    **config,
+                    cycles=cycles,
+                    lie_budget=budget,
+                    adversary_objective="withhold",
+                )
+                for key in ("cum_delta", "probe_benign_correct_rate", "poison_killed"):
+                    assert mean(rented, key) == mean(published, key), (
+                        f"{name} at {cycles} cycles, budget {budget}: the "
+                        f"zero-rent column has drifted from withholding.json "
+                        f"on {key}"
+                    )
+                checked += 1
+    assert checked == 20

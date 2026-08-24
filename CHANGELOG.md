@@ -8,6 +8,82 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **`RentedStorageEnv`, and the measurement that reverses the withholding
+  headline** (`bench/results/rent.json`, 5 arms x 5 rents x 2 budgets x 2
+  horizons x 30 seeds = 3,000 runs). `limitations.tex` named exactly one
+  way that conclusion could still be wrong: both environment families
+  score inaction at zero, so a store the attack has emptied stops acting
+  *and* stops paying, and "amnesia is cheaper" might be a property of the
+  world rather than of curation. It was. Five predictions were registered
+  in a commit before the grid ran; all five held.
+  - **The environment is a counterfactual, not a third world.** The same
+    quota, metered in byte-cycles instead of bytes: a file left in place
+    occupies its own size for the cycle it was left, so declining costs
+    `hold_cost * size`, while freeing a disposable still recovers
+    `+size` and destroying a protected one still pays the 3x restore.
+    Same sandbox, seeds, files, sizes, prompts, corpus and action reader,
+    so anything that moves is the price of inaction and nothing else. At
+    `hold_cost` 0.0 it delegates to `StorageEnv` outright and the column
+    reproduces `withholding.json` exactly -- a canary, not a data point,
+    and machine-checked across all 20 cells.
+  - **The ordering reverses, and cheaply.** At total suppression
+    `survival` goes from best to last of five once rent passes ~0.4 of
+    what the declined action is worth: interpolated crossover 0.354 at 30
+    cycles, 0.427 at 60. At rent 1.0 over 60 cycles it ends -41.98M
+    against a -26.23M floor, worse in 30/30 seeds.
+  - **Nothing about the curation changed.** `poison_killed` 1.00, benign
+    retention 0.00 and final population 2.00/0.00 in *every* rent column.
+    The sharpest form is a number that does not move: at rent 0
+    `survival`'s outcome over 60 cycles is identical to its outcome over
+    30 (-6.42M), because its last non-zero cycle is 19 and an extinct
+    store in a world that does not price inaction stops moving the world
+    at all. At rent 1.0 that same extinct store is still being billed at
+    cycle 59, and the tail from cycle 30 costs -24.26M by itself.
+  - **Pricing inaction closes the withholder's harbor.** At rent 0 the
+    attacker spends 193 of 720 suppressions against `survival` and 576
+    against everyone else -- the "budget is not spent equally across
+    arms" asymmetry both published grids carry. At every non-zero rent
+    all five arms saturate at 720/720. The asymmetry does not shrink, it
+    disappears.
+  - **The attack does all of the work.** Unattacked, the ordering is
+    unchanged at every rent on both horizons. Pricing inaction does not
+    hurt the ledger while the ledger is alive; it hurts it exactly when
+    the attack has emptied it, which is the one case the storage grid
+    scored at zero.
+  - **Read the "winner" honestly.** At rent >= 0.5 and budget 12 the four
+    non-ledger arms are identical to the last byte at `poison_killed`
+    0.00. Nothing is defending. The ledger remains the only arm that
+    removes the poison; it simply no longer wins the ledger. Scoped, not
+    retracted -- and what a *liar* does to a rented store is still
+    unmeasured.
+  - Committed evidence is untouched: new env, new family, new suite, new
+    results file, so `headline.json`, `withholding.json` and the rest stay
+    byte-identical.
+
+### Fixed
+
+- **The report's `keep_everything` canary grouped by a key that did not
+  know about the new axis.** It asserts that the arm which never reads an
+  outcome has a TRUE cum delta invariant across noise at a fixed
+  (family, seed, cycles, files) -- correct, and it fired 60 times on a
+  correct `rent.json`, because five rents at one seed are five different
+  worlds and the key was quantifying over them. `hold_cost` is now part
+  of the key. The general rule, stated where the code is: a config field
+  that moves the TRUE delta belongs in the key, and only fields that move
+  the REPORTED one may be quantified over. Verified still able to fail --
+  a single corrupted cell in a rented file fires it exactly once.
+
+- **`paper/reproduce.sh` had drifted from its own contract, by six
+  files.** The comment above its `RESULTS` array says "Every committed
+  result file, not a subset", and records the array drifting once before
+  (it omitted the distillation arms, which happened to be exactly the
+  files `--check` could not validate -- coverage shaped around what
+  passed). It had drifted again: `neighbours`, `persistence`,
+  `distill_noisy`, `distill_rule` and all three withholding grids landed
+  without being added, so nothing verified their manifest bindings. All
+  seven are added, all seven validate, and the sentence is now a test
+  rather than a claim.
+
 - **The curation adversary reaches the second environment family.**
   `AdversarialStorageEnv` is now `AdversarialEnv` and composes over a
   base environment instead of constructing `StorageEnv` itself; the
