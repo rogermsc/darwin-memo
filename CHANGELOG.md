@@ -16,10 +16,49 @@ project uses [SemVer](https://semver.org/).
   attack it implements is expressed through the base environment's
   `verify` return value -- so the restriction was a constructor, not a
   limitation of the threat model. This unblocks the measurement
-  `paper/sections/limitations.tex` names as the one that would settle
+  `paper/sections/limitations.tex` named as the one that would settle
   whether the ledger's amnesia is as cheap elsewhere as it is on the
-  storage corpus, where an emptied store scores zero. No results file
-  changes: this is the capability, not the run.
+  storage corpus, where an emptied store scores zero.
+
+- **The second-family withholding grid**
+  (`bench/results/withholding_testsuite.json`, 5 arms x 6 budgets x 2
+  horizons x 30 seeds = 1,800 runs): that measurement, run. Predictions
+  were pre-registered in their own commit before the grid, so the
+  ordering is a fact in the history rather than a claim in the prose.
+  **The direction replicates and the magnitude does not.**
+  - **The storage headline is not a corpus artifact.** At total
+    suppression `survival` still has the best true cum delta on both
+    horizons, at sigma 0.00 across 30 seeds -- total suppression removes
+    the stochastic channel, so the cells are exact rather than noisy.
+  - **It ends 8% better, not threefold.** At 60 cycles, `+65.00` passing
+    tests against the `+60.00` floor every other arm falls to, where on
+    storage the ledger ends roughly 3x every other arm. The horizon
+    moves this too, and in the flattering direction we are not taking:
+    at 30 cycles it is `+50.00` against `+30.00`, a 67% margin. Amnesia is worth far less
+    where the poison's damage per cycle is bounded -- one re-offered
+    destructive patch -- than where it accumulates across a corpus. The
+    limitation was directionally wrong and quantitatively right, and
+    that is the half worth reporting.
+  - **Read the attack as a leveller.** Unattacked the counters are
+    *better* on this family: `evict_on_negative` reaches `+178.00`
+    against survival's `+121.33`, which is the second-environment
+    ordering where refusing to act is free. Budget 0 -> 12 at 60 cycles
+    costs eviction 66%, quarantine 57%, survival 46%. Nobody wins; the
+    ledger loses least and lands marginally above the floor, and its
+    kill column is starvation here too -- kill cycle and starve cycle
+    both 19.0, final population 0.0 -- so the advantage is banked before
+    extinction rather than earned by a working store.
+  - **Pacing gets a real window here and still does not ship.**
+    `survival_paced` is no longer degenerate at total suppression: it
+    holds benign capability at 1.00 where `survival` reaches 0.00, and
+    pays `+60.00` against `+65.00` for it. It buys that retention the
+    same way it does everywhere else -- by removing nothing at all,
+    poison included, at kill rate 0.00 -- and is still measured only
+    against the attacker that does not read the sign.
+  - `keep_everything` reads `+60.00` at every budget: the canary. It
+    never curates, so the attack cannot move what it does to the world.
+  - Cum delta here is in passing tests, not resource units, so it is not
+    comparable across families; the ordering within a column is.
 
 - **The withholding suite: an adversary that suppresses measurements
   instead of corrupting them** (`bench/results/withholding.json`, 5 arms
