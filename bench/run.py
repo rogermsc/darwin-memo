@@ -49,6 +49,7 @@ from .suites import (
     rent_lying_suite,
     rent_suite,
     rent_testsuite_suite,
+    rent_tiers_suite,
     salience_suite,
     scaling_suite,
     smoke_suite,
@@ -163,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
             "rent",
             "rent_lying",
             "rent_testsuite",
+            "rent_tiers",
             "memsec",
             "wef",
             "judge",
@@ -292,6 +294,8 @@ def main(argv: list[str] | None = None) -> int:
         runs = _execute(rent_lying_suite(_parse_seeds(args.seeds)))
     elif args.suite == "rent_testsuite":
         runs = _execute(rent_testsuite_suite(_parse_seeds(args.seeds)))
+    elif args.suite == "rent_tiers":
+        runs = _execute(rent_tiers_suite(_parse_seeds(args.seeds)))
     elif args.suite == "bandit":
         runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
     elif args.suite == "salience":

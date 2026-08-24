@@ -273,6 +273,47 @@ class StorageEnv:
 # RentedStorageEnv
 # ---------------------------------------------------------------------------
 
+# The shape of the price, as opposed to its level. A real quota rarely
+# charges one flat rate for everything it holds: compliance data is
+# exempt, scratch space is billed, tiers differ. Each name below selects
+# WHICH categories are billed; the rate is then normalised so that all
+# of them charge the same expected rent per task, and only the
+# distribution differs. Without that normalisation "bill fewer
+# categories" would trivially mean "charge less", and every comparison
+# across shapes would be reading the level instead of the shape.
+RENT_TIERS = ("uniform", "aligned", "inverted")
+
+
+def rent_multipliers(tier: str) -> dict[str, float]:
+    """Per-category rent multipliers for a tier, normalised on expected cost.
+
+    ``uniform`` bills everything at 1.0 and is the flat rate
+    :class:`RentedStorageEnv` charged before tiers existed.
+    ``aligned`` bills only the disposable categories, the economy a real
+    retention policy has: you are not charged for holding what you are
+    required to hold, so the only billed indecision is indecision about
+    something you could have thrown away. ``inverted`` is its mirror and
+    bills only the protected ones, so being right about what must be
+    kept is the expensive answer.
+
+    Weights come from ``_FILE_SPECS`` rather than being written out, so
+    a change to the size table cannot leave the normalisation stale.
+    Since categories are drawn uniformly, matching the sum of mean sizes
+    over the billed categories against the sum over all of them matches
+    the expected rent per task exactly.
+    """
+    means = {name: (lo + hi) / 2 for name, _, (lo, hi), _ in _FILE_SPECS}
+    if tier == "uniform":
+        return {name: 1.0 for name in means}
+    if tier == "aligned":
+        billed = {name for name, _, _, safe in _FILE_SPECS if safe}
+    elif tier == "inverted":
+        billed = {name for name, _, _, safe in _FILE_SPECS if not safe}
+    else:
+        raise ValueError(f"unknown rent tier: {tier!r}, want one of {RENT_TIERS}")
+    scale = sum(means.values()) / sum(means[name] for name in billed)
+    return {name: (scale if name in billed else 0.0) for name in means}
+
 
 class RentedStorageEnv(StorageEnv):
     """StorageEnv where standing still is measured instead of assumed free.
@@ -305,6 +346,13 @@ class RentedStorageEnv(StorageEnv):
     Under ``StorageEnv`` silence cannot be lied about, because there is
     nothing to lie about; here every task returns a measured outcome, so
     an attacker's budget buys targets it did not previously have.
+
+    ``rent_tier`` varies the *shape* of the price where ``hold_cost``
+    varies its level: see :func:`rent_multipliers`. It defaults to
+    ``"uniform"``, whose multipliers are all exactly 1.0, so every
+    result produced before tiers existed is reproduced bit for bit and
+    the flat rate is one point in the new space rather than a special
+    case beside it.
     """
 
     def __init__(
@@ -313,19 +361,32 @@ class RentedStorageEnv(StorageEnv):
         files_per_cycle: int = 12,
         seed: int = 7,
         hold_cost: float = 1.0,
+        rent_tier: str = "uniform",
     ) -> None:
         if hold_cost < 0:
             raise ValueError(f"hold_cost must be >= 0, got {hold_cost}")
         super().__init__(root=root, files_per_cycle=files_per_cycle, seed=seed)
         self.hold_cost = hold_cost
+        self.rent_tier = rent_tier
+        # Validates the name at construction rather than at the first
+        # declined task, which on a long grid is thousands of runs later.
+        self._rent = rent_multipliers(rent_tier)
 
     def verify(self, task: Task, answer_text: str) -> Outcome:
         # Delegating at hold_cost 0 rather than computing -0.0 * size
         # keeps the canary exact down to the detail string, which the
-        # transcripts carry.
+        # transcripts carry. The same applies to a category this tier
+        # exempts: an exempt hold is not a cheap hold, it is the
+        # unpriced world, and it must be indistinguishable from it.
         if not self.hold_cost or decision_polarity(answer_text):
             return super().verify(task, answer_text)
-        cost = self.hold_cost * float(task.context["size"])
+        cost = (
+            self.hold_cost
+            * self._rent[task.context["category"]]
+            * float(task.context["size"])
+        )
+        if not cost:
+            return super().verify(task, answer_text)
         return Outcome(
             delta=-cost,
             detail=f"kept, {cost:g} bytes still occupied",

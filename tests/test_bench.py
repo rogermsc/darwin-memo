@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -1237,3 +1238,150 @@ def test_rented_testsuite_refuses_configs_that_would_not_record_what_they_ran():
                 "flake_rate": 0.1,
             },
         )
+
+
+def test_rent_tiers_charge_the_same_expected_rent_per_task():
+    """The normalisation that makes the tier a shape and not a discount.
+
+    Categories are drawn uniformly from ``_FILE_SPECS``, so the expected
+    rent per task is the mean over categories of ``multiplier x mean
+    size``. If that is not equal across tiers then "bill fewer
+    categories" means "charge less", and every cross-tier comparison
+    reads the level of the price instead of its shape -- the confound
+    the whole grid exists to avoid. Weights are recomputed from the spec
+    table here rather than hard-coded, so a change to the size ranges
+    fails this test instead of silently unbalancing the grid.
+    """
+    from darwin_memo import RENT_TIERS, rent_multipliers
+    from darwin_memo.environments import _FILE_SPECS
+
+    means = {name: (lo + hi) / 2 for name, _, (lo, hi), _ in _FILE_SPECS}
+    expected = [
+        sum(rent_multipliers(tier)[c] * m for c, m in means.items()) / len(means)
+        for tier in RENT_TIERS
+    ]
+    assert expected[0] == pytest.approx(expected[1])
+    assert expected[0] == pytest.approx(expected[2])
+    # And each tier bills the categories it claims to, exhaustively:
+    # a tier that billed everything would also pass the equality above.
+    billed = {t: {c for c, m in rent_multipliers(t).items() if m} for t in RENT_TIERS}
+    safe = {name for name, _, _, s in _FILE_SPECS if s}
+    assert billed["uniform"] == set(means)
+    assert billed["aligned"] == safe
+    assert billed["inverted"] == set(means) - safe
+    with pytest.raises(ValueError, match="unknown rent tier"):
+        rent_multipliers("cheapest")
+
+
+def test_the_uniform_tier_is_the_flat_rate_and_an_exempt_hold_is_the_free_world(
+    tmp_path,
+):
+    """Both ends of the tier axis have to be exact, not close.
+
+    ``uniform`` is the published rent grid: the multipliers are exactly
+    1.0, so every committed rent number has to reproduce bit for bit or
+    the tier axis has perturbed the thing it was added to extend. And a
+    category a tier exempts is not charged a small rent -- it is the
+    unpriced world, so its Outcome must be indistinguishable from
+    ``StorageEnv``'s down to the detail string that the transcripts
+    carry, which ``-0.0 * size`` would not be.
+    """
+    from darwin_memo import RentedStorageEnv, StorageEnv
+
+    flat = RentedStorageEnv(
+        root=tmp_path / "flat", files_per_cycle=8, seed=5, hold_cost=0.75
+    )
+    tiered = RentedStorageEnv(
+        root=tmp_path / "tiered",
+        files_per_cycle=8,
+        seed=5,
+        hold_cost=0.75,
+        rent_tier="uniform",
+    )
+    plain = StorageEnv(root=tmp_path / "plain", files_per_cycle=8, seed=5)
+    aligned = RentedStorageEnv(
+        root=tmp_path / "aligned",
+        files_per_cycle=8,
+        seed=5,
+        hold_cost=0.75,
+        rent_tier="aligned",
+    )
+    seen_exempt = False
+    for a, b, c, d in zip(
+        flat.tasks(0), tiered.tasks(0), plain.tasks(0), aligned.tasks(0), strict=True
+    ):
+        assert flat.verify(a, "").delta == tiered.verify(b, "").delta
+        if not d.context["safe"]:  # aligned exempts the protected categories
+            seen_exempt = True
+            free, unpriced = aligned.verify(d, ""), plain.verify(c, "")
+            assert free.delta == unpriced.delta and free.detail == unpriced.detail
+    assert seen_exempt, "seed drew no protected file; the exempt branch never ran"
+    for env in (flat, tiered, plain, aligned):
+        env.cleanup()
+    with pytest.raises(ValueError, match="unknown rent tier"):
+        RentedStorageEnv(root=tmp_path / "bad", rent_tier="aligned_v2")
+
+
+def test_rent_tier_is_refused_where_it_would_be_accepted_and_ignored():
+    """The six-place trap in its quietest form.
+
+    ``rent_tier`` prices StorageEnv file categories and no other family
+    has them, so on ``testsuite_rent`` it would be silently ignored --
+    and a tier sweep over that family would produce three tiers of
+    identical numbers that read as "the shape of the price does not
+    matter here" rather than "the knob was never connected".
+    """
+    from bench.runner import run_one
+
+    for family in ("testsuite_rent", "testsuite", "storage"):
+        overrides: dict[str, Any] = {"env_family": family, "rent_tier": "aligned"}
+        if family == "testsuite_rent":
+            overrides["hold_cost"] = 1.0
+        with pytest.raises(ValueError, match="rent_tier has no meaning"):
+            run_one("survival", seed=0, cycles=2, overrides=overrides)
+
+
+def test_the_keep_everything_canary_splits_worlds_by_tier():
+    """The third time a world-shaping config field had to enter this key.
+
+    ``hold_cost`` was missing once and fired the canary 60 times on a
+    correct file. ``rent_tier`` moves the TRUE delta the same way, so it
+    belongs in the key -- but the key must still be tight enough to
+    catch a genuinely corrupted cell, which is what the second half
+    asserts.
+    """
+    from bench.report import check
+
+    def row(tier: str) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "suite": "rent_tiers",
+            "arm": "keep_everything",
+            "seed": 3,
+            "config": {
+                "cycles": 30,
+                "files_per_cycle": 12,
+                "env_family": "storage_rent",
+                "hold_cost": 1.0,
+                "rent_tier": tier,
+            },
+            "metrics": {
+                k: 0.0
+                for k in (
+                    "cum_delta",
+                    "poison_killed",
+                    "final_population",
+                    "benign_retained",
+                    "wall_time_s",
+                )
+            },
+        }
+
+    honest = [row(t) for t in ("uniform", "aligned", "inverted")]
+    for r, cum in zip(honest, (-1.0, -2.0, -3.0), strict=True):
+        r["metrics"]["cum_delta"] = cum
+        r["metrics"]["wall_time_s"] = 0.01
+    assert not [f for f in check(honest) if "varies with noise" in f]
+    corrupt = [*honest, dict(honest[0], metrics=dict(honest[0]["metrics"]))]
+    corrupt[-1]["metrics"]["cum_delta"] = -99.0
+    assert [f for f in check(corrupt) if "varies with noise" in f]

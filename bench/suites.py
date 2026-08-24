@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from darwin_memo import MemoryStore, consolidate
+from darwin_memo import RENT_TIERS, MemoryStore, consolidate
 
 from .corpus import synthetic_entries, synthetic_queries
 from .memsec import ATTACK_CLASSES
@@ -508,6 +508,67 @@ def rent_suite(seeds: list[int]) -> list[RunSpec]:
             },
             label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
         )
+        for cycles in RENT_CYCLES
+        for hold_cost in RENT_HOLD_COSTS
+        for budget in RENT_BUDGETS
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
+def rent_tiers_suite(seeds: list[int]) -> list[RunSpec]:
+    """The shape of the price, not its level.
+
+    ``rent_suite`` settled that pricing inaction reverses the withholding
+    headline, and the rule it established is that rent bills not having
+    an answer. But it charges one flat rate for every held file,
+    including the ones the agent is *right* to hold: keeping a database
+    is the correct answer and uniform rent bills it. No real quota works
+    that way -- retention policies exempt what you are required to keep
+    -- and ``limitations.tex`` records exactly that as the remaining gap:
+    "rent here is a single scalar applied uniformly, and a world that
+    charged differentially ... is a different economy, and the one real
+    quotas usually are."
+
+    So this grid varies the shape at a matched total. ``aligned`` bills
+    only the disposable categories, so the only billed indecision is
+    indecision about something you could have thrown away.
+    ``inverted`` bills only the protected ones, so being right about what
+    must be kept is the expensive answer. ``uniform`` is the flat rate
+    and is an exact replication of ``rent.json``, which makes it a canary
+    across two files rather than a data point.
+
+    The arithmetic that makes ``inverted`` interesting: destroying a
+    protected file costs 3x its size once, and holding one costs
+    2.1613x per cycle at ``hold_cost`` 1.0, so the margin between the
+    right answer and the poisoned one collapses from 3.0 to 0.84.
+    Knowing which files are protected is worth 72% less. Above
+    ``hold_cost`` 1.39 it would invert outright and the corpus's poison
+    would become the profitable answer; the swept range stops short of
+    that on purpose, so the poison stays wrong and only its value moves.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="rent_tiers",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "env_family": "storage_rent",
+                "hold_cost": hold_cost,
+                "rent_tier": tier,
+                "lie_budget": budget,
+                "adversary_objective": "withhold",
+                **extra,
+            },
+            label=(
+                f"tier={tier},rent={hold_cost},budget={budget},cycles={cycles}{suffix}"
+            ),
+        )
+        for tier in RENT_TIERS
         for cycles in RENT_CYCLES
         for hold_cost in RENT_HOLD_COSTS
         for budget in RENT_BUDGETS

@@ -993,6 +993,125 @@ rather than re-running the paper on a longer horizon, because the
 re-run is a larger piece of work than this section and would move
 numbers the rest of the document cites.
 
+\paragraph{The shape of the price, not its level.} All three grids
+above charge one flat rate for every held file, including the ones the
+agent is \emph{right} to hold: keeping a database is the correct answer
+under this corpus, and uniform rent bills it at the same rate as a
+shrug. No real quota works that way --- retention policies exempt what
+you are required to keep --- which leaves the reversal resting on an
+economy nobody operates. So we varied the shape at a matched total.
+\texttt{rent\_multipliers} selects which of the five file categories a
+tier bills and normalises the rate so that every tier charges the same
+expected rent per task; only the distribution differs, since otherwise
+``bill fewer categories'' would trivially mean ``charge less.''
+\texttt{aligned} bills only the three disposable categories, so the only
+billed indecision is indecision about something you could have thrown
+away; \texttt{inverted} bills only the two protected ones, so being
+right about what must be kept is the expensive answer; \texttt{uniform}
+is the flat rate, its multipliers exactly $1.0$. Three tiers $\times$
+five rents $\times$ two budgets $\times$ two horizons $\times$ five arms
+$\times$ 30 seeds, 9,000 runs, five predictions registered before it
+ran. The \texttt{uniform} tier reproduces \texttt{rent.json} across
+60,000 cell-metrics with zero differences, including both published
+crossing rents.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Unattacked (budget 0), \texttt{survival}, true cumulative delta
+in M of bytes, 30 seeds. All three tiers charge the same expected rent
+per task. The \texttt{aligned} row is not merely flat for
+\texttt{survival}: across the whole grid, 2,160 of the 2,400 priced
+\texttt{aligned} runs are bit-identical to the same run at
+$\texttt{hold\_cost}=0$, and the 240 that are not are all one arm in one
+column.}
+\label{tab:rent-tiers}
+\begin{tabular}{llccccc}
+\toprule
+horizon & tier & rent 0 & 0.25 & 0.5 & 0.75 & 1.0 \\
+\midrule
+\multirow{3}{*}{30 cycles}
+ & \texttt{uniform}           & $+12.38$ & $+9.62$ & $+6.86$ & $+4.10$ & $+1.34$ \\
+ & \texttt{aligned}          & $\mathbf{+12.38}$ & $\mathbf{+12.38}$ & $\mathbf{+12.38}$ & $\mathbf{+12.38}$ & $\mathbf{+12.38}$ \\
+ & \texttt{inverted}          & $+12.38$ & $+6.41$ & $+0.45$ & $-5.52$ & $-11.49$ \\
+\midrule
+\multirow{3}{*}{60 cycles}
+ & \texttt{uniform}           & $+25.55$ & $+19.89$ & $+14.23$ & $+8.58$ & $+2.92$ \\
+ & \texttt{aligned}          & $\mathbf{+25.55}$ & $\mathbf{+25.55}$ & $\mathbf{+25.55}$ & $\mathbf{+25.55}$ & $\mathbf{+25.55}$ \\
+ & \texttt{inverted}          & $+25.55$ & $+13.32$ & $+1.09$ & $-11.13$ & $-23.36$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The unattacked bill was charged for being right.} No arm ever
+declines a disposable file. Instrumenting \texttt{verify} over one
+60-cycle world at rent $1.0$ and budget 0, \texttt{evict\_on\_negative}
+produces $286$ negative outcomes and \texttt{survival} $285$, and
+\emph{every one of them} is a correct refusal to delete a protected
+file; the disposable-decline count is $0$ for both. So in the unattacked
+column the rent axis was never measuring the cost of standing still. It
+was measuring the cost of being right, which every live arm pays on the
+same files --- which is why \S\ref{sec:rent} found that rent
+``reorders nothing'' there. It could not have. \texttt{inverted} bills
+those same correct answers harder and also reorders nothing: the
+ordering is \texttt{evict\_on\_negative} $>$ \texttt{survival\_paced} $=$
+\texttt{survival} $>$ \texttt{quarantine} $>$ \texttt{keep\_everything}
+in all three tiers, on both horizons, at every rent, across a $48.91$M
+swing in the level.
+
+\paragraph{A counter evicts its own correct advice; the ledger does
+not.} That instrumentation carries a second result we did not predict.
+\texttt{evict\_on\_negative} ends with $8$ entries under \texttt{uniform}
+and $15$ under \texttt{aligned}, because a sign-test counter reads a
+priced correct answer as a failure and strikes the lesson that produced
+it; under \texttt{aligned} the same $286$ outcomes are exactly zero, no
+strike fires, and it keeps nearly twice the store. \texttt{survival}
+ends at $3$ under both and holds \texttt{poison\_killed} $1.00$ and
+\texttt{final\_population} $3.00$ in all three tiers. Its credit is a
+magnitude, so re-shaping the price re-prices it without re-curating it.
+Two economies charging the same expected rent leave the counter with two
+different memories and the ledger with one, which is a robustness
+difference rather than a score difference: the counter still finishes
+ahead, by $0.19$M.
+
+\paragraph{The more realistic the quota, the worse the reversal.} At
+total suppression the tier bites the other way, because the floor arms
+still hold intact stores and stop paying for their correct keeps while
+the emptied ledger keeps paying for every disposable it can no longer
+identify. At 60 cycles and rent $1.0$, \texttt{survival} against the
+do-nothing floor is $-41.98$ against $-26.23$ under \texttt{uniform}
+($60\%$ worse), $-39.34$ against $-18.17$ under \texttt{aligned}
+($116\%$), and $-45.04$ against $-35.58$ under \texttt{inverted}
+($27\%$); the crossing rent moves $0.427 \rightarrow 0.357$ under
+\texttt{aligned} and out to $0.554$ under \texttt{inverted}.
+\texttt{survival} is ahead of the floor in at most $1$ of $30$ seeds in
+every tier. The obvious way \S\ref{sec:rent} could have been wrong was
+that a uniformly flat rate is not an economy anyone runs; shaping it
+like a real retention policy makes the reversal arrive earlier and cost
+nearly twice as much.
+
+\paragraph{What the axis leaves standing, and one confound.} The rule
+survives the shape and is sharpened by it: under a policy-shaped quota
+the \emph{only} thing rent bills is an emptied store. Two caveats we
+state rather than bury. First, one of the registered predictions was
+refuted: under \texttt{inverted}, \texttt{keep\_everything} stays last
+of five on both horizons. The magnitude was right. We predicted that
+the margin between the correct keep and the poisoned destroy would
+compress to $0.28$ of its \texttt{aligned} value, and the measured gap
+compresses to $0.32$. But a compression only changes a rank if it
+closes the distance to the next arm, and we had not checked that
+distance. Second, the withholder's
+predicate is $\text{true} \neq 0$, so an outcome a tier prices at zero
+is not merely free but \emph{unattackable}, and exempting a category
+reopens part of the harbor \S\ref{sec:rent} reports closing: at budget
+12, rent $1.0$ and 60 cycles, of a $720$ capacity, the attacker spends
+$720.0$ against every arm under \texttt{uniform} but $576.4$ (and
+$480.4$ against \texttt{survival}) under \texttt{aligned}. The tiers
+therefore move the attack surface as well as the price. The direction
+matters: \texttt{aligned} gives the attacker \emph{less} to spend and
+the ledger still does worse there, so the confound cannot be what
+produces the widened reversal.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
