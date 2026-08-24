@@ -264,8 +264,6 @@ class SurvivalConfig:
     consolidate_every: int = 5
     merge_threshold: float = DEFAULT_MERGE_THRESHOLD   # 0.55
     write_experience: bool = True
-    experience_min_delta: float = 0.0
-    experience_dedup_threshold: float = 0.8
     resource_scale: float | None = None   # None: use the environment's
 ```
 

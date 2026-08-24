@@ -83,10 +83,6 @@ class ApplyResult:
     failed: int
 
 
-def _indent(line: str) -> str:
-    return line[: len(line) - len(line.lstrip())]
-
-
 def apply_edits(originals: dict[str, str], edits: list[Edit]) -> ApplyResult:
     """Apply edits to a working copy of the original file texts.
 

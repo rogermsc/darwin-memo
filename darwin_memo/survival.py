@@ -31,6 +31,11 @@ from .protocol import QueryProtocol
 from .store import MemoryStore
 from .types import CycleStats, EntryKind, MemoryEntry, Trajectory
 
+# An experience entry that near-duplicates a survivor is not worth a
+# spawn. Above the consolidation floor, because this decides whether
+# to write at all rather than whether to pool two things already held.
+EXPERIENCE_DEDUP = 0.8
+
 
 @dataclass
 class SurvivalConfig:
@@ -40,8 +45,6 @@ class SurvivalConfig:
     consolidate_every: int = 5
     merge_threshold: float = DEFAULT_MERGE_THRESHOLD
     write_experience: bool = True
-    experience_min_delta: float = 0.0
-    experience_dedup_threshold: float = 0.8
     # None means "use the environment's resource_scale". The Ledger,
     # which has no environment, sets this directly so the whole credit
     # formula lives in one config object.
@@ -322,7 +325,9 @@ class SurvivalLoop:
             trajectories.append(trajectory)
             self._assign_credit(trajectory, cycle)
 
-            if outcome.delta > cfg.experience_min_delta and (
+            # Only a cycle that actually gained resources is worth
+            # writing down, and only the best one in the cycle.
+            if outcome.delta > 0 and (
                 best is None or outcome.delta > best.outcome.delta
             ):
                 best = trajectory
@@ -426,11 +431,10 @@ class SurvivalLoop:
             sources=[f"cycle-{cycle}"],
             born_cycle=cycle,
         )
+        # Near-duplicate of something already held: writing it would
+        # spend a spawn on text the store can already answer with.
         for existing in self.store.alive():
-            if (
-                self.store.similarity(candidate, existing)
-                > self.config.experience_dedup_threshold
-            ):
+            if self.store.similarity(candidate, existing) > EXPERIENCE_DEDUP:
                 return 0
         self.store.add(candidate)
         return 1

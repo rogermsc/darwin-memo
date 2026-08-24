@@ -472,6 +472,49 @@ RENT_BUDGETS = (0, 12)
 RENT_CYCLES = (30, 60)
 
 
+def _rent_specs(
+    seeds: list[int],
+    suite: str,
+    env_family: str,
+    objective: str,
+    budgets: tuple[int, ...],
+    tiers: tuple[str | None, ...] = (None,),
+) -> list[RunSpec]:
+    """The shared rent grid: same axes, one price knob, four files.
+
+    Kept as four suites over one objective axis for the reason
+    ``_withhold_specs`` gives: adding a grid must not be able to rewrite
+    an already-committed results file. This helper is the body they all
+    had, so the axes cannot drift apart between them.
+    """
+    return [
+        RunSpec(
+            suite=suite,
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "env_family": env_family,
+                "hold_cost": hold_cost,
+                **({} if tier is None else {"rent_tier": tier}),
+                "lie_budget": budget,
+                "adversary_objective": objective,
+                **extra,
+            },
+            label=(
+                ("" if tier is None else f"tier={tier},")
+                + f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}"
+            ),
+        )
+        for tier in tiers
+        for cycles in RENT_CYCLES
+        for hold_cost in RENT_HOLD_COSTS
+        for budget in budgets
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
 def rent_suite(seeds: list[int]) -> list[RunSpec]:
     """Withholding against an environment that charges for standing still.
 
@@ -494,27 +537,7 @@ def rent_suite(seeds: list[int]) -> list[RunSpec]:
     Predictions are recorded in docs/benchmarks.md in the commit before
     the run.
     """
-    return [
-        RunSpec(
-            suite="rent",
-            arm=arm,
-            seed=seed,
-            cycles=cycles,
-            overrides={
-                "env_family": "storage_rent",
-                "hold_cost": hold_cost,
-                "lie_budget": budget,
-                "adversary_objective": "withhold",
-                **extra,
-            },
-            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
-        )
-        for cycles in RENT_CYCLES
-        for hold_cost in RENT_HOLD_COSTS
-        for budget in RENT_BUDGETS
-        for arm, extra, suffix in WITHHOLD_ARMS
-        for seed in seeds
-    ]
+    return _rent_specs(seeds, "rent", "storage_rent", "withhold", RENT_BUDGETS)
 
 
 def rent_tiers_suite(seeds: list[int]) -> list[RunSpec]:
@@ -551,31 +574,14 @@ def rent_tiers_suite(seeds: list[int]) -> list[RunSpec]:
     Predictions are recorded in docs/benchmarks.md in the commit before
     the run.
     """
-    return [
-        RunSpec(
-            suite="rent_tiers",
-            arm=arm,
-            seed=seed,
-            cycles=cycles,
-            overrides={
-                "env_family": "storage_rent",
-                "hold_cost": hold_cost,
-                "rent_tier": tier,
-                "lie_budget": budget,
-                "adversary_objective": "withhold",
-                **extra,
-            },
-            label=(
-                f"tier={tier},rent={hold_cost},budget={budget},cycles={cycles}{suffix}"
-            ),
-        )
-        for tier in RENT_TIERS
-        for cycles in RENT_CYCLES
-        for hold_cost in RENT_HOLD_COSTS
-        for budget in RENT_BUDGETS
-        for arm, extra, suffix in WITHHOLD_ARMS
-        for seed in seeds
-    ]
+    return _rent_specs(
+        seeds,
+        "rent_tiers",
+        "storage_rent",
+        "withhold",
+        RENT_BUDGETS,
+        tiers=RENT_TIERS,
+    )
 
 
 def rent_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
@@ -601,27 +607,9 @@ def rent_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
     Predictions are recorded in docs/benchmarks.md in the commit before
     the run.
     """
-    return [
-        RunSpec(
-            suite="rent_testsuite",
-            arm=arm,
-            seed=seed,
-            cycles=cycles,
-            overrides={
-                "env_family": "testsuite_rent",
-                "hold_cost": hold_cost,
-                "lie_budget": budget,
-                "adversary_objective": "withhold",
-                **extra,
-            },
-            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
-        )
-        for cycles in RENT_CYCLES
-        for hold_cost in RENT_HOLD_COSTS
-        for budget in RENT_BUDGETS
-        for arm, extra, suffix in WITHHOLD_ARMS
-        for seed in seeds
-    ]
+    return _rent_specs(
+        seeds, "rent_testsuite", "testsuite_rent", "withhold", RENT_BUDGETS
+    )
 
 
 # The lying grid carries an interior budget the withholding one does not.
@@ -657,27 +645,9 @@ def rent_lying_suite(seeds: list[int]) -> list[RunSpec]:
     Predictions are recorded in docs/benchmarks.md in the commit before
     the run.
     """
-    return [
-        RunSpec(
-            suite="rent_lying",
-            arm=arm,
-            seed=seed,
-            cycles=cycles,
-            overrides={
-                "env_family": "storage_rent",
-                "hold_cost": hold_cost,
-                "lie_budget": budget,
-                "adversary_objective": "destroy",
-                **extra,
-            },
-            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
-        )
-        for cycles in RENT_CYCLES
-        for hold_cost in RENT_HOLD_COSTS
-        for budget in RENT_LYING_BUDGETS
-        for arm, extra, suffix in WITHHOLD_ARMS
-        for seed in seeds
-    ]
+    return _rent_specs(
+        seeds, "rent_lying", "storage_rent", "destroy", RENT_LYING_BUDGETS
+    )
 
 
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
