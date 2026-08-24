@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -694,6 +695,88 @@ MERGE_SOURCE_POLICIES = SOURCE_POLICIES
 MERGE_POLICY_CYCLES = (30, 60)
 
 
+# Every deterministic result in this project except the withholding and
+# rent grids runs 30 cycles, four past the spawn/upkeep starvation cliff
+# at 20. limitations.tex: "Which of those results would move at 60 is
+# unknown and is no longer a theoretical worry." This is that sweep.
+#
+# Seed counts are the committed ones, per suite, so every 60-cycle cell
+# pairs with a 30-cycle cell that already exists. They are written out
+# rather than read off bench/results, because generating specs from files
+# on disk would make the manifest's config hash depend on the working
+# tree; a test asserts each list against its committed file instead.
+HORIZON_CYCLES = 60
+HORIZON_SEEDS: dict[str, int] = {
+    "headline": 10,
+    "noisy": 30,
+    "ablation": 5,
+    "testsuite": 10,
+    "testsuite_noisy": 30,
+    "memsec": 10,
+    "adversary": 30,
+    "persistence": 10,
+    "salience": 10,
+    "neighbours": 10,
+    "bandit": 10,
+}
+
+
+def horizon_suite() -> list[RunSpec]:
+    """Every 30-cycle deterministic grid, re-run at 60.
+
+    Three results in this project have now turned on the horizon: benign
+    retention under withholding (0.92 at 30, 0.44 at 60), the rented
+    test-suite family (flat at 30, the ledger's first billable decline
+    around cycle 49), and the consolidation laundering cell (present at
+    30, starved by 59). Each was found by accident, one grid at a time.
+    This asks the question of all of them at once.
+
+    It takes no ``seeds`` argument rather than accepting and ignoring
+    one: each grid keeps its own committed seed count so that every cell
+    here pairs with one already published, and a ``--seeds`` a caller
+    passed and we dropped would read as a variation that never
+    happened. The origin
+    suite rides in overrides so the report can pair them, and the arm,
+    every other override and the label are untouched -- the only thing
+    that varies against the committed file is ``cycles``.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    # Imported here, not at module scope: testsuite_suites imports
+    # RunSpec from this module, so a top-level import is a cycle that
+    # breaks whenever bench.testsuite_suites is the one imported first.
+    from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
+
+    builders: dict[str, Callable[[list[int]], list[RunSpec]]] = {
+        "headline": headline_suite,
+        "noisy": noisy_suite,
+        "ablation": ablation_suite,
+        "testsuite": testsuite_suite,
+        "testsuite_noisy": testsuite_noisy_suite,
+        "memsec": memsec_suite,
+        "adversary": adversary_suite,
+        "persistence": persistence_suite,
+        "salience": salience_suite,
+        "neighbours": neighbours_suite,
+        "bandit": bandit_suite,
+    }
+    specs: list[RunSpec] = []
+    for name, count in HORIZON_SEEDS.items():
+        for spec in builders[name](list(range(count))):
+            specs.append(
+                RunSpec(
+                    suite="horizon",
+                    arm=spec.arm,
+                    seed=spec.seed,
+                    cycles=HORIZON_CYCLES,
+                    overrides={"origin_suite": name, **spec.overrides},
+                    label=f"origin={name},{spec.label}",
+                )
+            )
+    return specs
+
+
 def merge_policy_suite(seeds: list[int]) -> list[RunSpec]:
     """The obvious fix for consolidation laundering, evaluated.
 
@@ -964,3 +1047,9 @@ def _scaling_row(n: int, full: bool) -> dict[str, Any]:
     else:
         row["consolidate_ms"] = None  # gated: O(N^2), run with --full
     return row
+
+
+# Named after the suites above are defined. Only the deterministic grids
+# that run at a single 30-cycle horizon: the withholding and rent grids
+# already carry both, and the model-backed suites are not reproducible
+# cell for cell.

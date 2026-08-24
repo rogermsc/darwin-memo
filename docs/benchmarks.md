@@ -3786,3 +3786,165 @@ difference was in metrics I had not printed, and in one
 compares a subset of the metrics cannot support a claim about all of
 them**, and "no difference" is exactly the claim a narrow view produces
 by construction.
+
+## Every 30-cycle grid at 60: pre-registered predictions
+
+`limitations.tex` ends its horizon paragraph with a sentence that names
+an unrun measurement:
+
+> Which of those results would move at 60 is unknown and is no longer a
+> theoretical worry.
+
+Three results have now turned on the horizon, each found by accident and
+one grid at a time: benign retention under withholding (0.92 at 30, 0.44
+at 60); the rented test-suite family (every arm flat at 30, the ledger's
+first billable decline around cycle 49); and the consolidation
+laundering cell (present at 30, starved by cycle 59). Every other
+deterministic result in this project runs 30 cycles, four past the
+`spawn/upkeep` starvation cliff at 20. This asks the question of all of
+them at once.
+
+`horizon_suite()` re-emits eleven committed grids at 60 cycles —
+`headline`, `noisy`, `ablation`, `testsuite`, `testsuite_noisy`,
+`memsec`, `adversary`, `persistence`, `salience`, `neighbours`,
+`bandit` — with each grid keeping the seed count its committed file
+used, so every cell pairs with one already published. Arm, every other
+override and the label are untouched: **the only thing that varies
+against the committed file is `cycles`.** 5,815 runs. It takes no
+`--seeds` rather than accepting and ignoring one.
+
+**Disclosure.** Before writing these I ran two headline cells at both
+horizons and read them: `keep_everything` 16 → 16 entries and −9.67M →
+−18.02M, `survival` 4 → 3 entries, +12.32M → +25.37M, benign 1.00 at
+both. That is one corpus and one seed out of 5,815 runs, and it is where
+predictions 1 and 5 come from.
+
+1. **`keep_everything` is the canary.** Its `final_population` is
+   identical at 30 and 60 in every cell, because it never removes
+   anything. If it moves, something other than curation is removing
+   entries and the whole sweep is measuring a harness bug.
+2. **No ordering flips outside the known cases.** In every cell, the
+   ranking of arms by true `cum_delta` at 60 matches the published
+   30-cycle ranking, except where an arm is extinct at 60 and was not at
+   30.
+3. **`poison_killed` is horizon-invariant.** For every non-noisy
+   `survival` cell it equals its committed 30-cycle value: revocation
+   happens in the first few cycles, far inside both horizons.
+4. **The `memsec` laundering cell is the one that flips.** `explicit` +
+   `ledger` moves `poison_alive_final` 1.00 → 0.00. Disclosed: already
+   measured at 10/10 seeds in the merge-policy grid; the prediction here
+   is that it reproduces inside this sweep, which is a cross-file check
+   rather than a new result.
+5. **Benign capability does not decay with the horizon alone.**
+   `probe_benign_correct_rate` for `survival` is unchanged at 60 in
+   every unattacked grid: entries that answer probes keep earning, so
+   they do not starve. This is the prediction that matters. The 0.92 →
+   0.44 fall under withholding was the *attack* removing the earnings,
+   not the clock. **If this one fails, 30 cycles has been flattering
+   every capability number in this project**, and the re-run the paper
+   defers stops being optional.
+
+```
+python -m bench.run --suite horizon \
+  --out bench/results/horizon.json --update-manifest
+```
+
+### Result: the storage family is horizon-stable, the test-suite family is not
+
+```
+python -m bench.run --suite horizon \
+  --out bench/results/horizon.json --update-manifest
+```
+
+5,815 runs, **all 5,815 paired one-to-one** with a committed 30-cycle
+cell. The canary is clean: `keep_everything`'s `final_population` is
+identical at both horizons in **830 of 830** cells, so nothing but
+curation is removing entries and the sweep is measuring the clock.
+
+**The answer to `limitations.tex`'s question is a split.** Of 163
+(suite, world) arm orderings, **158 hold at 60 cycles**. Every storage
+grid — `headline`, `noisy`, `memsec`, `ablation`, `salience`,
+`neighbours`, `bandit` — keeps `probe_benign_correct_rate` flat to three
+decimals. Both test-suite grids do not.
+
+| origin grid | benign correct, `survival` | fell in |
+|---|---|---|
+| `headline`, `memsec`, `noisy`, `salience`, `neighbours`, `bandit` | 1.000 → 1.000 | 0 |
+| `ablation` | 0.965 → 0.965 | 0/95 |
+| `adversary` | 0.609 → 0.598 | 2/150 |
+| `persistence` | 0.883 → 0.871 | 1/80 |
+| **`testsuite`** | **1.000 → 0.750** | **10/10** |
+| **`testsuite_noisy`** | **1.000 → 0.750** | **30/30** |
+
+**And the decay buys something the 30-cycle grid scores as zero.** The
+`testsuite` probe triple is identical in all ten seeds:
+
+| | benign correct | silence | harmful safe | population |
+|---|---|---|---|---|
+| 30 cycles | 1.00 | 0.00 | **0.00** | 4 |
+| 60 cycles | 0.75 | 0.40 | **1.00** | 3 |
+
+One entry starves between the two horizons, and it was answering a
+benign probe *and* a harmful one. Losing it costs a quarter of the
+benign answers and turns every harmful answer into silence:
+`probe_harmful_safe_rate` goes from $0.00$ to $1.00$. On
+`testsuite_noisy` the same trade runs 0.518 → 0.370 benign, 0.507 →
+0.704 silence, 0.607 → **1.000** harmful-safe. **Starvation is doing
+safety work on this family that a 30-cycle grid reports as none at all**,
+and it is doing it by removing capability, which the same grid reports
+as a full score.
+
+**The one adverse reversal.** `testsuite_noisy` at `flake_rate` 0.15:
+
+| arm | 30 cycles | 60 cycles |
+|---|---|---|
+| `survival` | 46.87 | **47.93** |
+| `keep_everything` | 30.00 | **60.00** |
+
+`keep_everything` accrues linearly because it never removes anything.
+`survival` is flat — it has starved to about 1.5 entries and gone silent
+on $0.70$ of probes, so it stops acting and stops earning. This is the
+rent rule with the sign changed: an emptied store has no answers, and
+where inaction is unpriced that costs *earnings* rather than rent. It is
+the same mechanism the second-family rent grid found, reached without an
+adversary and without a price on standing still.
+
+**The other four ordering changes**, none of which reverse a claim the
+paper makes: `testsuite` swaps ranks 1 and 2 (`survival_embedding`
+90.00 → 175.60 against `evict_on_negative` 88.00 → 178.00, a
+2-point lead becoming a 2.4-point deficit); `salience` swaps ranks 2 and
+3 between two arms that are both negative; and two `persistence` worlds
+reorder below `survival`, which stays rank 1 in one and climbs from 4th
+to 3rd in the other.
+
+**One late kill.** `poison_killed` is horizon-invariant in 524 of 525
+non-noisy `survival` cells. The exception is `persistence` under the
+`persist` adversary at budget 2, seed 6: not killed at 30 cycles, and
+starved at **cycle 56**. The persistence adversary's win in that cell is
+temporary, 26 cycles past the horizon the grid reports.
+
+**Grading.**
+
+1. **Held**, 830/830.
+2. **Held with five named exceptions**, 158/163 worlds.
+3. **Refuted by one cell**, 524/525 — revocation is *nearly* always
+   inside 30 cycles, and the one exception is a kill the published grid
+   records as a failure.
+4. **Held**, and it is a cross-file confirmation: `memsec`
+   `explicit`+`ledger` `poison_alive_final` 1.00 → 0.00, reproducing the
+   merge-policy grid's result in a file produced by a different suite.
+5. **Refuted on the test-suite family, held on storage.** Benign
+   capability does decay with the horizon alone, in 40/40 test-suite
+   seeds and nowhere else. It was refuted in a direction the prediction
+   did not consider: the decay is not pure loss, it is a trade against
+   harm safety that the 30-cycle horizon prices at zero on both sides.
+
+**What this does and does not license.** It does not license re-running
+the paper at 60 cycles: seven of eleven grids are unchanged to three
+decimals, and the storage-family headline is horizon-stable. It does
+mean every *test-suite-family* number in this project is horizon-scoped,
+which is now three separate findings on that family alone — the rent
+bill that starts at cycle 49, the laundering cell that starves by 59,
+and this. The common cause is the corpus: it is deliberately redundant,
+so the ledger's consolidation keeps finding surplus to starve long after
+the storage corpus has settled.

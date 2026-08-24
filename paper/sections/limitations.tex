@@ -329,10 +329,34 @@ every arm is flat at 30 cycles and the ledger's bill only begins around
 cycle 49, so a 30-cycle grid there does not report a smaller effect --- it
 reports no effect, which is a false negative (\S\ref{sec:rent}). Every
 other deterministic result here runs 30 cycles, four past the
-$\text{spawn}/\text{upkeep}$ starvation cliff at 20, and we now have one
-measured case of an effect that is entirely invisible at that horizon.
-Which of those results would move at 60 is unknown and is no longer a
-theoretical worry.
+$\text{spawn}/\text{upkeep}$ starvation cliff at 20.
+
+We have now asked all of them. Eleven committed grids re-run at 60
+cycles, 5,815 cells each paired one-to-one with its published
+30-cycle twin and nothing but \texttt{cycles} varying
+(\S\ref{sec:horizon}). The answer is a split along the family line.
+$158$ of $163$ arm orderings hold, \texttt{keep\_everything}'s
+population is identical in $830$ of $830$ cells, and every storage grid
+holds benign capability flat to three decimals. Both test-suite grids
+lose it: $1.000 \rightarrow 0.750$ in $10/10$ unattacked seeds and
+$0.518 \rightarrow 0.370$ in $30/30$ noisy ones. So the storage-family
+headline is horizon-stable and does not need re-running, and every
+test-suite-family number in this paper is horizon-scoped --- which is
+now the third finding on that family alone, after the rent bill that
+begins at cycle 49 and the laundering entry that starves by 59. The
+common cause is the corpus: it is deliberately redundant, so
+consolidation keeps finding surplus to starve long after the storage
+corpus has settled.
+
+What we did not anticipate is that the decay is a \emph{trade} rather
+than a loss, and that both sides of it are invisible at 30 cycles. On
+the unattacked test-suite grid the probe triple is identical in all ten
+seeds: at 30 cycles the ledger answers every benign probe and is safe on
+\emph{no} harmful one ($1.00/0.00/0.00$ for correct, silence, safe); at
+60 a single entry has starved and it reads $0.75/0.40/1.00$. The entry
+that died was answering a benign probe and a harmful one, and losing it
+converts an unsafe answer into silence. A 30-cycle grid scores that
+safety at zero while scoring the capability at full.
 
 \paragraph{The withholding budget is not spent equally across arms.} The
 adversary spends only on measurable outcomes, and a shrinking store

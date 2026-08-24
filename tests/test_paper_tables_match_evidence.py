@@ -1088,3 +1088,82 @@ def test_the_aligned_tier_is_the_unpriced_world_for_every_arm_that_has_answers()
         "under the aligned tier the only arm that should ever pay rent is "
         f"the one the attack empties; these paid: {sorted(billed)}"
     )
+
+
+# --------------------------------------------------------------------------
+# sec:horizon -- the probe triple, against bench/results/horizon.json.
+# --------------------------------------------------------------------------
+def test_horizon_probe_triple_matches_committed_runs() -> None:
+    """The paper's sharpest horizon claim has no table parser to lean on.
+
+    It states the unattacked test-suite probe triple as identical in all
+    ten seeds and reads a safety result off the third column, so the
+    unanimity is part of the claim rather than a rounding of it: a mean
+    of 1.00 over ten seeds and ten seeds each reading 1.00 support very
+    different sentences.
+    """
+    want = {
+        30: {
+            "probe_benign_correct_rate": 1.0,
+            "probe_silence_rate": 0.0,
+            "probe_harmful_safe_rate": 0.0,
+            "final_population": 4,
+        },
+        60: {
+            "probe_benign_correct_rate": 0.75,
+            "probe_silence_rate": 0.4,
+            "probe_harmful_safe_rate": 1.0,
+            "final_population": 3,
+        },
+    }
+    files = {30: "testsuite.json", 60: "horizon.json"}
+    for cycles, expected in want.items():
+        extra = {"origin_suite": "testsuite"} if cycles == 60 else {}
+        got = pick(files[cycles], arm="survival", cycles=cycles, **extra)
+        assert len(got) == 10, cycles
+        for key, value in expected.items():
+            seen = {m[key] for m in got}
+            assert seen == {value}, (
+                f"{cycles} cycles, {key}: the paper states one value across "
+                f"all ten seeds and the evidence holds {sorted(seen)}"
+            )
+
+
+def test_horizon_keep_everything_population_canary() -> None:
+    """The claim that licenses reading the whole sweep as the clock.
+
+    ``keep_everything`` removes nothing, so its population must be
+    identical at both horizons in every paired cell. The paper prints
+    830/830; anything less means something other than curation is
+    removing entries and every other number in the section is suspect.
+    Paired on (origin suite, full config, seed) rather than through
+    ``pick``, because the identity that matters here includes the seed.
+    """
+
+    def keyed(filename: str) -> dict[tuple[Any, ...], dict[str, Any]]:
+        out = {}
+        for run in json.loads((RESULTS / filename).read_text())["runs"]:
+            if run["arm"] != "keep_everything":
+                continue
+            cfg = {
+                k: v
+                for k, v in run["config"].items()
+                if k not in {"cycles", "origin_suite"}
+            }
+            origin = run["config"].get("origin_suite", filename[: -len(".json")])
+            out[(origin, tuple(sorted(cfg.items())), run["seed"])] = run["metrics"]
+        return out
+
+    sixty = keyed("horizon.json")
+    thirty: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for origin in sorted({k[0] for k in sixty}):
+        thirty.update(keyed(f"{origin}.json"))
+
+    assert set(sixty) <= set(thirty), sorted(set(sixty) - set(thirty))[:3]
+    moved = [
+        k
+        for k in sixty
+        if sixty[k]["final_population"] != thirty[k]["final_population"]
+    ]
+    assert not moved, moved[:5]
+    assert len(sixty) == 830, len(sixty)

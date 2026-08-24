@@ -1112,6 +1112,81 @@ matters: \texttt{aligned} gives the attacker \emph{less} to spend and
 the ledger still does worse there, so the confound cannot be what
 produces the widened reversal.
 
+\subsection{Every 30-cycle grid, at 60}
+\label{sec:horizon}
+Three results in this paper have turned on the horizon, each found by
+accident and one grid at a time: benign retention under withholding
+($0.92$ at 30 cycles, $0.44$ at 60), the rented test-suite family (flat
+at 30, the ledger's first billable decline near cycle 49), and the
+consolidation laundering entry (present at 30, starved by 59). Every
+other deterministic grid here runs 30 cycles. We re-ran eleven of them
+at 60 --- \texttt{headline}, \texttt{noisy}, \texttt{ablation},
+\texttt{testsuite}, \texttt{testsuite\_noisy}, \texttt{memsec},
+\texttt{adversary}, \texttt{persistence}, \texttt{salience},
+\texttt{neighbours}, \texttt{bandit} --- each keeping the seed count its
+committed file used, so all 5,815 cells pair one-to-one with a published
+one and \texttt{cycles} is the only thing that varies. Five predictions
+were registered before the run.
+
+\paragraph{The canary, and the split.} \texttt{keep\_everything} removes
+nothing, so its population must be horizon-invariant; it is, in $830$ of
+$830$ cells, which is what licenses reading everything else as the
+clock rather than the harness. $158$ of $163$ arm orderings hold. Every
+storage grid holds \texttt{probe\_benign\_correct\_rate} flat to three
+decimals. Both test-suite grids lose it --- $1.000 \rightarrow 0.750$ in
+$10/10$ unattacked seeds, $0.518 \rightarrow 0.370$ in $30/30$ noisy
+ones --- and nothing else in the sweep does. The storage-family headline
+is horizon-stable; the second-family numbers are horizon-scoped.
+
+\paragraph{The decay is a trade, and 30 cycles prices both sides at
+zero.} The unattacked test-suite probe triple is identical in all ten
+seeds. At 30 cycles the ledger answers every benign probe and is safe on
+\emph{no} harmful one; at 60 exactly one entry has starved:
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & benign correct & silence & harmful safe & population \\
+\midrule
+30 cycles & $1.00$ & $0.00$ & $\mathbf{0.00}$ & 4 \\
+60 cycles & $0.75$ & $0.40$ & $\mathbf{1.00}$ & 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The entry that died was answering a benign probe and a harmful one, so
+losing it costs a quarter of the benign answers and converts every
+harmful answer into silence. On \texttt{testsuite\_noisy} the same trade
+runs $0.518 \rightarrow 0.370$ benign, $0.507 \rightarrow 0.704$ silence,
+$0.607 \rightarrow 1.000$ safe. Starvation is doing safety work on this
+family that the reported horizon scores as none, by removing capability
+that the same horizon scores as full.
+
+\paragraph{One adverse reversal, and it is the rent rule again.} On the
+noisy test-suite grid, at a flake rate of $0.15$, the hoarding arm
+overtakes the ledger: $30.00 \rightarrow 60.00$ against $46.87
+\rightarrow 47.93$. The counter accrues
+linearly because it never removes anything; the ledger is flat because it
+has starved to about $1.5$ entries and gone silent on $0.70$ of probes,
+so it stops acting and stops earning. That is the rule the rent grids
+established with the sign changed --- an emptied store has no answers,
+and where inaction is unpriced that costs earnings rather than rent ---
+reached here with no adversary and no price on standing still.
+
+The other four changes reorder arms without reversing a claim. Two of
+them sit below \texttt{survival} in \texttt{persistence}. One swaps two
+arms in \texttt{salience} that are both negative. The last is on
+\texttt{testsuite}, where the embedding arm's two-point lead over the
+counter becomes a two-point deficit.
+
+\paragraph{And one late kill.} \texttt{poison\_killed} matches its
+committed value in $524$ of $525$ non-noisy \texttt{survival} cells. The
+exception is \texttt{persistence} against the \texttt{persist} adversary
+at budget 2, seed 6: not killed at 30 cycles, starved at cycle $56$. The
+attacker's win in that cell is real at the horizon we publish and
+temporary $26$ cycles past it.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence
