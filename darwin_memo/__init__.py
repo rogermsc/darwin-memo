@@ -11,6 +11,7 @@ from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
 from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import (
     Environment,
+    RentedStorageEnv,
     StorageEnv,
     Task,
     VerifiableQAEnv,
@@ -77,6 +78,7 @@ __all__ = [
     "ProtocolAnswer",
     "QueryProtocol",
     "ReflectionEncoder",
+    "RentedStorageEnv",
     "Retriever",
     "StorageEnv",
     "StoreLockedError",
