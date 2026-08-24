@@ -159,6 +159,44 @@ project uses [SemVer](https://semver.org/).
   - The zero-rent column reproduces `withholding_testsuite.json` at 30
     seeds with zero differences.
 
+### Removed
+
+- **`bench/flaky_select/`** (737 lines, 6 modules) and its unmanifested
+  `bench/results/flaky_select/`. Nothing imported it outside itself: no
+  suite in `bench/run.py`, no test, no manifest entry, no citation in
+  the paper or `docs/benchmarks.md`, and its docstrings told you to run
+  it with a `.venv312/` path that no longer exists.
+- **`SurvivalConfig.experience_min_delta` and `.experience_dedup_threshold`.**
+  No caller, test, bench or example in the tree ever set either; they
+  only held their defaults. The threshold is now the module constant
+  `EXPERIENCE_DEDUP` and the delta gate reads `outcome.delta > 0`.
+  Removing them changes no behaviour and no committed number.
+- **`EvalReport.to_dict()`** (one caller, body was `asdict(self)`) and
+  **`_indent()`** in `swebench_cl/edits.py` (zero callers anywhere).
+
+### Changed
+
+- **`bench/run.py` dispatch is a table.** Nineteen of the twenty-six
+  `elif args.suite ==` branches were identical apart from the function
+  name, and every suite name was written a second time in the `--suite`
+  `choices` list. `PLAIN_SUITES` is now both, so those cannot drift
+  apart. The nine specials are still named twice and a test checks the
+  second list.
+- **An unrecognised `--suite` now raises instead of running the smoke
+  suite.** The dispatch chain ended in a bare `else: smoke_suite()`, so
+  a name added to `choices` and forgotten in the dispatch wrote 35 smoke
+  runs into the caller's output file under that suite's name. `choices`
+  makes it unreachable; it is an assertion rather than a fallback
+  because the fallback was silently wrong output.
+- **The four `rent_*_suite` bodies are one `_rent_specs` helper.** They
+  differed in three literals and a budgets tuple, and the file already
+  had `_withhold_specs` as exactly this pattern fifteen lines above.
+  Verified emitting all 19,500 `RunSpec`s byte-identical, ordering
+  included, so no committed config hash moves. A test pins each grid's
+  first spec **and** the axis nesting, because swapping two `for`
+  clauses leaves every individual cell correct while rewriting the row
+  order of a 9,000-run file.
+
 ### Fixed
 
 - **A new environment family is six decisions, not one.** The corpus,

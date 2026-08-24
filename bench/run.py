@@ -61,6 +61,31 @@ from .suites import (
 )
 from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
 
+# Suites whose whole invocation is the same: build the specs, run them.
+# The table is also the --suite choice list for them, so a suite cannot
+# be offered on the command line and then fall through the dispatch.
+PLAIN_SUITES = {
+    "headline": headline_suite,
+    "noisy": noisy_suite,
+    "ablation": ablation_suite,
+    "testsuite": testsuite_suite,
+    "testsuite_noisy": testsuite_noisy_suite,
+    "merge_policy": merge_policy_suite,
+    "memsec": memsec_suite,
+    "adversary": adversary_suite,
+    "persistence": persistence_suite,
+    "withholding": withholding_suite,
+    "withholding_selective": withholding_selective_suite,
+    "withholding_testsuite": withholding_testsuite_suite,
+    "rent": rent_suite,
+    "rent_lying": rent_lying_suite,
+    "rent_testsuite": rent_testsuite_suite,
+    "rent_tiers": rent_tiers_suite,
+    "bandit": bandit_suite,
+    "salience": salience_suite,
+    "neighbours": neighbours_suite,
+}
+
 
 def _parse_seeds(text: str) -> list[int]:
     if ":" in text:
@@ -146,28 +171,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--suite",
         choices=[
-            "headline",
-            "noisy",
-            "ablation",
-            "testsuite",
-            "testsuite_noisy",
+            *PLAIN_SUITES,
             "scaling",
             "smoke",
-            "salience",
-            "neighbours",
             "llm",
-            "bandit",
-            "adversary",
-            "persistence",
-            "withholding",
-            "withholding_selective",
-            "withholding_testsuite",
-            "rent",
-            "rent_lying",
-            "rent_testsuite",
-            "rent_tiers",
-            "memsec",
-            "merge_policy",
             "wef",
             "judge",
             "distill",
@@ -257,18 +264,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
 
-    if args.suite == "scaling":
-        runs: list[dict[str, object]] = list(scaling_suite(full=args.full))
-    elif args.suite == "headline":
-        runs = _execute(headline_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "noisy":
-        runs = _execute(noisy_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "ablation":
-        runs = _execute(ablation_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "testsuite":
-        runs = _execute(testsuite_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "testsuite_noisy":
-        runs = _execute(testsuite_noisy_suite(_parse_seeds(args.seeds)))
+    if args.suite in PLAIN_SUITES:
+        runs: list[dict[str, object]] = _execute(
+            PLAIN_SUITES[args.suite](_parse_seeds(args.seeds))
+        )
+    elif args.suite == "scaling":
+        runs = list(scaling_suite(full=args.full))
     elif args.suite == "llm":
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(llm_suite(_parse_seeds(args.seeds), models), args.out)
@@ -278,34 +279,6 @@ def main(argv: list[str] | None = None) -> int:
         # not cost the first nineteen.
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(wef_suite(_parse_seeds(args.seeds), models), args.out)
-    elif args.suite == "merge_policy":
-        runs = _execute(merge_policy_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "memsec":
-        runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "adversary":
-        runs = _execute(adversary_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "persistence":
-        runs = _execute(persistence_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "withholding":
-        runs = _execute(withholding_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "withholding_selective":
-        runs = _execute(withholding_selective_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "withholding_testsuite":
-        runs = _execute(withholding_testsuite_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "rent":
-        runs = _execute(rent_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "rent_lying":
-        runs = _execute(rent_lying_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "rent_testsuite":
-        runs = _execute(rent_testsuite_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "rent_tiers":
-        runs = _execute(rent_tiers_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "bandit":
-        runs = _execute(bandit_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "salience":
-        runs = _execute(salience_suite(_parse_seeds(args.seeds)))
-    elif args.suite == "neighbours":
-        runs = _execute(neighbours_suite(_parse_seeds(args.seeds)))
     elif args.suite == "judge":
         runs = _execute(
             judge_suite(_parse_seeds(args.seeds), args.judge_models.split(","))
@@ -354,8 +327,14 @@ def main(argv: list[str] | None = None) -> int:
             epochs=args.epochs,
             flake_rate=args.flake_rate,
         )
-    else:
+    elif args.suite == "smoke":
         runs = _execute(smoke_suite())
+    else:
+        # Unreachable while choices gates the name, and an assertion
+        # rather than a fallback because the fallback used to be the
+        # smoke suite: a name added to choices and forgotten here wrote
+        # 35 smoke runs into the caller's file under that suite's name.
+        raise AssertionError(f"no dispatch for --suite {args.suite}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))

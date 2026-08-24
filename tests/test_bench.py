@@ -1483,3 +1483,98 @@ def test_laundering_is_not_the_same_measurement_as_poison_surviving():
     assert len(poison_ids(store)) == 2
     assert len(laundered_ids(store)) == 1
     assert laundered_ids(store) <= poison_ids(store)
+
+
+def test_the_shared_rent_helper_still_emits_each_grid_s_committed_config():
+    """The price of collapsing four near-identical suites into one helper.
+
+    Each of these grids has a committed results file whose MANIFEST entry
+    binds a config hash, so an edit to ``_rent_specs`` now moves four
+    files at once instead of one. Pinned as the first spec of each grid,
+    which is the cell every ordering-sensitive comparison starts from:
+    the axes are nested tier -> cycles -> rent -> budget -> arm -> seed,
+    and reordering them would silently rewrite every committed file
+    while every individual cell still looked correct.
+    """
+    from bench.suites import (
+        rent_lying_suite,
+        rent_suite,
+        rent_testsuite_suite,
+        rent_tiers_suite,
+    )
+    from darwin_memo import RENT_TIERS
+
+    common = {"lie_budget": 0, "adversary_objective": "withhold"}
+    expected = {
+        "rent": ({"env_family": "storage_rent", "hold_cost": 0.0, **common}, 3000),
+        "rent_testsuite": (
+            {"env_family": "testsuite_rent", "hold_cost": 0.0, **common},
+            3000,
+        ),
+        "rent_lying": (
+            {
+                "env_family": "storage_rent",
+                "hold_cost": 0.0,
+                "lie_budget": 0,
+                "adversary_objective": "destroy",
+            },
+            4500,
+        ),
+        "rent_tiers": (
+            {
+                "env_family": "storage_rent",
+                "hold_cost": 0.0,
+                "rent_tier": "uniform",
+                **common,
+            },
+            9000,
+        ),
+    }
+    suites = {
+        "rent": rent_suite,
+        "rent_lying": rent_lying_suite,
+        "rent_testsuite": rent_testsuite_suite,
+        "rent_tiers": rent_tiers_suite,
+    }
+    for name, build in suites.items():
+        specs = build(list(range(30)))
+        want, size = expected[name]
+        assert len(specs) == size, name
+        assert specs[0].suite == name
+        assert specs[0].arm == "survival" and specs[0].seed == 0
+        assert specs[0].cycles == 30
+        assert specs[0].overrides == want, name
+    # rent_tier rides only on the grid that varies it: recording it on the
+    # others would claim a variation that never took effect.
+    for name in ("rent", "rent_lying", "rent_testsuite"):
+        assert all("rent_tier" not in s.overrides for s in suites[name](list(range(2))))
+
+    # And the nesting itself, which pinning one spec cannot see: tier is
+    # the OUTERMOST axis, so its blocks are contiguous and in order.
+    # Swapping two `for` clauses leaves every individual cell correct and
+    # rewrites the row order of a 9,000-run committed file.
+    tiers = [s.overrides["rent_tier"] for s in suites["rent_tiers"](list(range(30)))]
+    assert [t for i, t in enumerate(tiers) if i == 0 or t != tiers[i - 1]] == list(
+        RENT_TIERS
+    ), "rent_tier is no longer the outermost axis of the tier grid"
+
+
+def test_every_offered_suite_name_reaches_a_dispatch():
+    """A --suite name no branch handles writes an empty file and exits 0.
+
+    The plain suites are now the choice list and the dispatch table at
+    once, so those cannot drift apart. The nine specials are still named
+    twice, and this is what checks the second list.
+    """
+    import re
+
+    from bench.run import PLAIN_SUITES
+
+    source = (Path(__file__).resolve().parent.parent / "bench" / "run.py").read_text()
+    offered = set(re.findall(r'^\s+"(\w+)",$', source.split("choices=[")[1], re.M))
+    dispatched = set(re.findall(r'args\.suite == "(\w+)"', source))
+    assert offered <= dispatched, offered - dispatched
+    assert not offered & set(PLAIN_SUITES), (
+        "a plain suite is also listed by hand in choices; the table is the "
+        "list, and naming it twice is how the two come apart"
+    )

@@ -33,9 +33,8 @@ import tempfile
 import time
 import urllib.request
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from .dataset import TaskRecord
 
@@ -67,9 +66,6 @@ class EvalReport:
     p2p_passed: int = 0
     p2p_total: int = 0
     notes: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
 
 def delta_from_eval(report: EvalReport) -> float:

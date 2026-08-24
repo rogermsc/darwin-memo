@@ -20,7 +20,7 @@ import platform
 import random
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -410,7 +410,7 @@ def run_sequence(
                     "edits_failed": edits_failed,
                     "reflection": reflection[:280],
                 },
-                "eval": report.to_dict(),
+                "eval": asdict(report),
                 "metrics": {
                     "delta": round(delta, 6),
                     "resolved": report.resolved,
