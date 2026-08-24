@@ -264,11 +264,20 @@ in every table and require the provenance count in the committed
 evidence, but the general lesson is not specific to poison: any metric of
 the form ``is the bad thing currently happening'' will flatter whichever
 mechanism never removed the bad thing, and needs a count of what is still
-\emph{present} beside it. Related, and unfixed: the code pointer in our
-results manifest went unvalidated long enough for four of twenty-one
-entries to name commits absent from the repository and one to name a
-commit predating the suite that produced its file. The run grid was bound
-by a hash the whole time; the code that walked it was not.
+\emph{present} beside it. Related: the code pointer in our results
+manifest went unvalidated long enough for four of twenty-one entries to
+name commits absent from the repository and one to name a commit
+predating the suite that produced its file. The run grid was bound by a
+hash the whole time; the code that walked it was not. Those entries are
+repaired and the pointer is now bound in CI---every entry must name an
+ancestor of published history, in a tree whose \texttt{bench/run.py}
+already offered the suite that produced its file---but the guard that
+sat over them while they were broken \emph{passed} them, because it
+asked whether the sha resolved in the \emph{local} object store, which a
+squash-discarded branch commit does forever. That is the same failure as
+the metric above in a different costume: a check that can succeed for a
+reason unavailable to the reader is reporting on something other than
+what it names.
 
 \paragraph{The withholding results now span two families, and every
 other result here is still one horizon deep.} The first version of this
