@@ -126,6 +126,7 @@ RESULTS=(
   rent_lying.json
   rent_testsuite.json
   rent_tiers.json
+  merge_policy.json
 )
 
 echo "-- verifying committed results against MANIFEST.json (offline) --"

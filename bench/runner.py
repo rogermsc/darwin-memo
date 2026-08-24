@@ -32,6 +32,7 @@ from .fixtures import (
     build_headline_store,
     evaluate_paraphrase_probes,
     evaluate_probes,
+    laundered_ids,
     poison_ids,
 )
 from .memsec import build_memsec_store
@@ -125,7 +126,12 @@ def _survival_config(
     overrides: dict[str, Any], write_experience: bool
 ) -> SurvivalConfig:
     config = SurvivalConfig(write_experience=write_experience)
-    for knob in ("credit_gain", "merge_threshold", "consolidate_every"):
+    for knob in (
+        "credit_gain",
+        "merge_threshold",
+        "consolidate_every",
+        "merge_source_policy",
+    ):
         if knob in overrides:
             setattr(config, knob, overrides[knob])
     return config
@@ -682,6 +688,10 @@ def extract_metrics(
         # and can therefore only be removed by upkeep.
         "poison_starve_cycle": starve_cycle,
         "poison_alive_final": len(poison_ids(store)),
+        # Emitted unconditionally with a 0 default on every suite, so
+        # adding it cannot break `report --check` on the families that
+        # have no poison; only merge_policy requires it.
+        "poison_laundered_final": len(laundered_ids(store)),
         "wall_time_s": round(wall_time_s, 4),
         # Uniform schema across suites: zero/equal when nothing lies.
         "reported_cum_delta": sum(reported),

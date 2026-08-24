@@ -43,6 +43,7 @@ from .suites import (
     judge_suite,
     llm_suite,
     memsec_suite,
+    merge_policy_suite,
     neighbours_suite,
     noisy_suite,
     persistence_suite,
@@ -166,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
             "rent_testsuite",
             "rent_tiers",
             "memsec",
+            "merge_policy",
             "wef",
             "judge",
             "distill",
@@ -276,6 +278,8 @@ def main(argv: list[str] | None = None) -> int:
         # not cost the first nineteen.
         models = [m.strip() for m in args.model.split(",") if m.strip()]
         runs = _execute_llm(wef_suite(_parse_seeds(args.seeds), models), args.out)
+    elif args.suite == "merge_policy":
+        runs = _execute(merge_policy_suite(_parse_seeds(args.seeds)))
     elif args.suite == "memsec":
         runs = _execute(memsec_suite(_parse_seeds(args.seeds)))
     elif args.suite == "adversary":

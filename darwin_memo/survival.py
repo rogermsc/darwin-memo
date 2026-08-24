@@ -67,6 +67,13 @@ class SurvivalConfig:
     # clock. bench's `withholding` suite is what decides whether that is
     # ever worth it; until it says so, treat this as unproven.
     upkeep_requires_settlement: bool = False
+    # How much provenance agreement consolidation requires on top of
+    # similarity; see darwin_memo.consolidate.SOURCE_POLICIES. "off" is
+    # the published behaviour and every committed benchmark ran it, so
+    # it stays the default and those files stay byte-identical.
+    # limitations.tex names this as the obvious fix for consolidation
+    # laundering; docs/benchmarks.md records what it is actually worth.
+    merge_source_policy: str = "off"
 
 
 def assign_credit(
@@ -333,7 +340,12 @@ class SurvivalLoop:
 
         merges = 0
         if cfg.consolidate_every and (cycle + 1) % cfg.consolidate_every == 0:
-            merges = consolidate(self.store, cycle, threshold=cfg.merge_threshold)
+            merges = consolidate(
+                self.store,
+                cycle,
+                threshold=cfg.merge_threshold,
+                source_policy=cfg.merge_source_policy,
+            )
 
         stats = CycleStats(
             cycle=cycle,
