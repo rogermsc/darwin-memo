@@ -3070,3 +3070,67 @@ lease, or retention bill would sit at. The claim is now scoped rather
 than retracted: at total suppression the ledger still removes the poison
 where nothing else does, and it is still the only arm whose kill rate is
 not 0.00. It simply no longer wins the ledger.
+
+## A liar against a rented store: pre-registered predictions
+
+`paper/sections/limitations.tex` makes two claims under "Silence as a
+harbor". The withholding half is settled by the rent sweep above. This
+is the other half:
+
+> In environments where inaction produces no measurement, a conservative
+> entry can dodge lying measurements simply by staying silent, which
+> flatters safety metrics. Environments that price inaction would expose
+> entries to lies the current design avoids.
+
+Same environment, same five rents, same arms, same horizons as the
+withholding sweep, with the `destroy` objective instead of `withhold`,
+so the two files differ in the attacker and nothing else. Budgets are
+0, 2 and 12: a liar saturates earlier than a withholder, which is why
+`adversary.json`'s published budgets stop at 8, so the interior matters
+here in a way it did not there. 5 arms x 5 rents x 3 budgets x 2
+horizons x 30 seeds = 4,500 runs.
+
+**The mechanism I am betting on, and why it is a difference in kind.**
+Under `StorageEnv` a decline returns `Outcome(delta=0.0)` and the
+adversary's `worth_lying` predicate is `true.delta != 0`, so silence is
+literally unattackable. Under rent a decline returns a *negative* delta,
+and `destroy` reports `-true`. The liar therefore does not merely gain
+targets: it starts **paying conservatism**. An entry that advises
+keeping is reported as having earned, and the more the world charges for
+holding, the larger the reward for advising it. That is a subsidy for
+exactly the behaviour a safety metric reads as caution.
+
+1. **The budget converts into a subsidy.** At every rent above 0,
+   `fired_false_good` (negative truth reported as a gain) accounts for
+   essentially the whole budget, while `fired_false_bad` stays within a
+   few of its rent-0 value. The liar stops blaming and starts paying.
+2. **Lying dominates withholding under rent, for every arm.** At matched
+   rent, budget, horizon and arm, `cum_delta` under `destroy` is no
+   better than under `withhold`. Withholding removes a measurement;
+   lying inverts it and additionally pays the poison.
+3. **No crossover.** The withholding sweep's finding is a rent at which
+   the ordering flips. Under lying there should be no such rent at
+   budget 12: `survival`'s rank should be the same at rent 0 as at rent
+   1.0, because `adversary.json` already has the ledger beaten under
+   lying on unrented storage. If a crossover appears here it would mean
+   rent helps the ledger against a liar, which nothing in the mechanism
+   predicts.
+4. **Rent cannot move benign retention.** `probe_benign_correct_rate` at
+   budget 12 does not vary with rent for any arm. Rent changes payoffs,
+   not which entries a lie names.
+5. **Budget 0 is a cross-file identity.** At budget 0 the wrapper adds
+   exactly zero behaviour, so every budget-0 cell here must be
+   byte-identical to the same cell in `rent.json`, which was run under a
+   different objective. That is the canary, and it is stronger than the
+   zero-rent one because it crosses two files.
+
+**Not blind, and said so.** A 150-cell smoke run covered seed 0 across
+all five arms, five rents, three budgets and both horizons. Two rows of
+it were read: the rent-0 / budget-2 / 30-cycle column, which reproduced
+`adversary.json` exactly for the four arms that file contains
+(`survival_paced` postdates it), and `survival` at 60 cycles / budget
+12, where `fired_false_good` went 146 -> 705 of 720 capacity the moment
+rent became non-zero while `fired_false_bad` stayed at exactly 15, and
+`cum_delta` ran -43.28M -> -76.70M across the rents. Prediction 1 is
+extrapolated from that row and is a single seed. Predictions 2, 3, 4 and
+5 concern arms, budgets and comparisons that row does not contain.
