@@ -2917,3 +2917,72 @@ advantage is banked before extinction, not earned by a working store.
 other arm at 60. The comparison is at matched capacity, not matched
 fired, for the same reason as on storage: the attack is self-limiting
 exactly when it is winning.
+
+## Pricing inaction: pre-registered predictions
+
+`paper/sections/limitations.tex` names one measurement as the way the
+withholding conclusion could still be wrong, and it is not another
+corpus:
+
+> Both score inaction at exactly zero, which is the property the result
+> rests on, so an environment that charges for standing still remains
+> unmeasured and is the obvious way this conclusion could still be
+> wrong.
+
+`RentedStorageEnv` is that environment. It meters the quota in
+byte-cycles rather than bytes, so a file left in place occupies its own
+size for the cycle it was left and declining costs `hold_cost * size`.
+Everything else is held fixed — same sandbox, same seeds, same files,
+same sizes, same prompts, same corpus, same action reader — so this is a
+counterfactual on the price of inaction and not a third world. At
+`hold_cost` 0.0 the class delegates to `StorageEnv` outright, so the
+zero-rent column is the published family itself and works as a canary
+rather than as a data point.
+
+The grid: 5 arms x 5 rents (0, 0.25, 0.5, 0.75, 1.0) x 2 budgets (0
+unattacked, 12 total suppression) x 2 horizons x 30 seeds = 3,000 runs.
+
+**The mechanism I am betting on.** The ledger's entire advantage at
+total suppression is amnesia: settlements stop, upkeep keeps charging,
+the store empties, and an empty store stops acting. Where inaction is
+free that is banked as a win against arms that keep a live poison and
+keep destroying. Where inaction is priced it is a bill, charged on every
+file the empty store declines — twelve a cycle, against the handful the
+poisoned arms act on. So the ledger should lose ground with rent about
+four times as fast as the arms that keep acting, and the ordering should
+invert somewhere.
+
+1. **The ordering reverses at high rent.** At `hold_cost` 1.0, budget 12,
+   `survival` has the **worst** mean `cum_delta` of the five arms, not
+   the best.
+2. **The crossover is at 0.5, not 0.75.** Extrapolating the two rents
+   already seen (below), `survival` loses about 8.8M per 0.25 of rent
+   and the arms that keep acting lose about 2.0M, against a 13.1M
+   cushion at zero rent — so they cross at rent ~0.48. The prediction is
+   therefore that `survival` is best at 0 and 0.25 and **worst at 0.5,
+   0.75 and 1.0**. Neither 0.5 nor 0.75 has been run at any seed.
+3. **The mechanism is unchanged; only its price is.** `survival` at
+   budget 12 keeps `poison_killed` 1.00, benign retention 0.00 and a
+   final population of ~0 in **every** rent column. Nothing about the
+   curation changes. If benign retention or the kill rate moves with
+   rent, this is not the effect I claim it is.
+4. **The withholder's harbor closes.** At `hold_cost` > 0 and budget 12,
+   `flakes_fired == flakes_marked` for every arm, where at zero rent it
+   is strictly less for `survival`. Silence cannot be suppressed when
+   nothing is silent, which dissolves the "budget is not spent equally
+   across arms" asymmetry the storage and test-suite grids both report.
+5. **The horizon does not change the ordering.** Unlike the second
+   environment family, where 30 vs 60 cycles moved benign retention
+   sevenfold, both the rent and the poison's damage accrue per cycle
+   here, so the crossover rent should be roughly horizon-invariant. No
+   30-cycle cell has been run at all.
+
+**Not blind, and said so.** A smoke run while wiring the suite covered
+seed 0 at 60 cycles for all five arms, both budgets, and rents 0.0, 0.25
+and 1.0 — 30 cells. It is what predictions 1 and 2 are extrapolated
+from, and it is a single seed. What it showed: at budget 12, `survival`
+ends -4.91M / -13.74M / -40.21M as rent goes 0 -> 0.25 -> 1.0, while
+every other arm ends -18.02M / -20.06M / -26.18M. The zero-rent column
+of that run reproduced `withholding.json` exactly on all ten cells,
+which is the canary firing green. Predictions 3, 4 and 5 concern
+columns, horizons and metrics that run did not touch.
