@@ -1385,3 +1385,101 @@ def test_the_keep_everything_canary_splits_worlds_by_tier():
     corrupt = [*honest, dict(honest[0], metrics=dict(honest[0]["metrics"]))]
     corrupt[-1]["metrics"]["cum_delta"] = -99.0
     assert [f for f in check(corrupt) if "varies with noise" in f]
+
+
+def test_the_natural_reading_of_a_trust_boundary_refuses_nothing_here():
+    """Why "shared" is a no-op, asserted on the mechanism not the outcome.
+
+    ``limitations.tex`` named refusing to merge across trust boundaries
+    as the obvious fix. On this corpus every consolidation merge already
+    has a source in common, so the natural reading has nothing to
+    refuse -- and a test that only compared outcomes would report "no
+    effect" without saying why, which is how a fix gets described as
+    evaluated when it never ran.
+    """
+    import importlib
+
+    from bench.memsec import build_memsec_store
+
+    # Typed dynamically on purpose: darwin_memo re-exports the function
+    # under the submodule's name, so a plain import binds the function
+    # and _merge cannot be reached to patch it.
+    consolidate_mod: Any = importlib.import_module("darwin_memo.consolidate")
+    clusters: list[list[set[str]]] = []
+    original = consolidate_mod._merge
+
+    def spy(cluster: Any, cycle: int, max_energy: float) -> Any:
+        clusters.append([set(e.sources) for e in cluster])
+        return original(cluster, cycle, max_energy)
+
+    consolidate_mod._merge = spy
+    try:
+        store = build_memsec_store(attack="explicit")
+        merges = consolidate_mod.consolidate(store, cycle=0)
+    finally:
+        consolidate_mod._merge = original
+
+    assert merges and clusters
+    assert all(set.intersection(*c) for c in clusters), (
+        "a merge with no common source would give the shared policy "
+        f"something to refuse; clusters were {clusters}"
+    )
+
+
+def test_the_strict_policy_refuses_the_merge_that_launders():
+    """The fix, on the store rather than through the whole loop.
+
+    ``identical`` must refuse a cluster whose members disagree on their
+    source set -- which is exactly the mixed cross-document entry
+    pooling with a clean single-document one -- while still allowing a
+    cluster that agrees. Asserted as a strict inequality in merge count
+    plus the absence of any mixed-source heir, because "fewer merges"
+    alone would also pass if it had refused the wrong ones.
+    """
+    from bench.fixtures import POISON_SOURCE
+    from bench.memsec import build_memsec_store
+    from darwin_memo import consolidate
+
+    def heirs(policy: str) -> tuple[int, list[set[str]]]:
+        store = build_memsec_store(attack="explicit")
+        n = consolidate(store, cycle=0, source_policy=policy)
+        mixed = [
+            set(e.sources)
+            for e in store.alive()
+            if POISON_SOURCE in e.sources and set(e.sources) - {POISON_SOURCE}
+        ]
+        return n, mixed
+
+    loose, loose_mixed = heirs("off")
+    shared, shared_mixed = heirs("shared")
+    strict, strict_mixed = heirs("identical")
+
+    assert shared == loose and shared_mixed == loose_mixed
+    assert strict < loose, "the strict policy refused nothing"
+    for sources in strict_mixed:
+        assert len(sources) > 1, sources
+    with pytest.raises(ValueError, match="unknown source_policy"):
+        consolidate(build_memsec_store(attack="explicit"), cycle=0, source_policy="lax")
+
+
+def test_laundering_is_not_the_same_measurement_as_poison_surviving():
+    """The distinction the paper's claim needed and its metric lacked.
+
+    ``poison_alive_final`` counts poison; a poisoned entry sitting there
+    labelled as one and the same text living inside an entry whose
+    sources vouch for it both read as 1. The whole consolidation
+    limitation is about the second, so the two must be separately
+    countable -- and a laundered entry must be a strict subset, never
+    counted where no benign source is present.
+    """
+    from bench.fixtures import POISON_SOURCE, laundered_ids, poison_ids
+    from darwin_memo import MemoryEntry, MemoryStore
+
+    store = MemoryStore(upkeep=0.05)
+    for sources in ([POISON_SOURCE], [POISON_SOURCE, "platform-notes"], ["runbook"]):
+        store.add(
+            MemoryEntry(question=f"q {sources}", answer="a", sources=list(sources))
+        )
+    assert len(poison_ids(store)) == 2
+    assert len(laundered_ids(store)) == 1
+    assert laundered_ids(store) <= poison_ids(store)

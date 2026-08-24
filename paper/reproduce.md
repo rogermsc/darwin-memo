@@ -29,7 +29,7 @@ Committed under `bench/results/`:
   `wef-llama32-counter.json`, `withholding.json`,
   `withholding_selective.json`, `withholding_testsuite.json`,
   `rent.json`, `rent_lying.json`, `rent_testsuite.json`,
-  `rent_tiers.json`.
+  `rent_tiers.json`, `merge_policy.json`.
 - The SWE-Bench-CL matrices, one file per (arm, sequence, seed), each
   directory with its own sibling `MANIFEST.json`: the pilot under
   `bench/results/swebench_cl/` (30 cells), the long matrix under
@@ -136,6 +136,7 @@ manifest at the time this package was frozen:
 | rent_lying.json            | rent_lying      | 30    | 4500 | 321e9034d2e2d699602db1f7337ed6ba4310c324 |
 | rent_testsuite.json        | rent_testsuite  | 30    | 3000 | 095e23d4228b40272bc1e203236ea60e29dfa319 |
 | rent_tiers.json            | rent_tiers      | 30    | 9000 | b11e8613a36de445fc5532a6582e6c8e72e7f694 |
+| merge_policy.json          | merge_policy    | 10    | 720  | 500923c2750e5fc31fa222a291596241fe857fda-dirty |
 
 Every commit in that column is in this repository's published history, so
 `git checkout <sha>` works for all of them — as it now does for the 80

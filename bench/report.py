@@ -79,6 +79,12 @@ _SUITE_REQUIRED_METRICS: dict[str, set[str]] = {
     # poison claim in the paper rests on either file.
     "judge": _REQUIRED_METRIC_KEYS - {"poison_alive_final", "poison_starve_cycle"},
     "llm": _REQUIRED_METRIC_KEYS - {"poison_alive_final", "poison_starve_cycle"},
+    # poison_laundered_final is emitted by every storage-family run, but
+    # the committed files that predate it do not carry it and are not
+    # regenerated for a metric they make no claim about. Required only
+    # where a claim rests on it, which is the suite that measures
+    # laundering.
+    "merge_policy": _REQUIRED_METRIC_KEYS | {"poison_laundered_final"},
 }
 # Each family times itself in its own units; a missing clock is still a
 # failure, but the key it lives under is the suite's business. ``None`` says

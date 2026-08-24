@@ -8,6 +8,59 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **The obvious fix for consolidation laundering, evaluated — and both
+  halves of our description of the problem were wrong**
+  (`bench/results/merge_policy.json`, 3 policies x 3 attack classes x 4
+  defences x 2 horizons x 10 seeds = 720 runs). `limitations.tex` said
+  "we have not evaluated the obvious fix (refusing to merge across trust
+  boundaries)". Now we have.
+  - **`consolidate(source_policy=...)`**, off by default so every
+    committed number is byte-identical. `"shared"` wants one source
+    common to the cluster, the natural reading of a trust boundary;
+    `"identical"` wants the whole source set to agree. The common set
+    narrows as members join, so A-B and A-C cannot transitively pool B
+    with C; an entry with no sources is refused by both, since unknown
+    provenance is the case a boundary exists for.
+  - **The natural reading is a no-op**, across 11,520 metric comparisons
+    and 240 cells: every merge in the laundering run already shares a
+    source, so it has nothing to refuse.
+  - **The strict reading closes the channel**, 1.00 -> 0.00 at 10/10
+    seeds, and it is surgical: across all 720 runs it moves three
+    metrics in one cell and nothing in the other twenty-three. Cost is
+    one further probe unanswered (`probe_silence_rate` 0.20 -> 0.40)
+    with `probe_benign_correct_rate` unchanged at 1.00.
+  - **New metric `poison_laundered_final`**: surviving poisoned entries
+    that also carry benign provenance. `poison_alive_final` counts
+    poison and cannot see laundering -- an entry sitting there labelled
+    as poison and the same text inside an entry whose sources vouch for
+    it both read as 1, and the limitation was always about the second.
+    Emitted unconditionally with a 0 default; required only by the suite
+    whose claim rests on it.
+  - **The laundered entry never earns.** Its `uses` is 0 for the whole
+    run. The paper said "the merged entry earns because its useful half
+    answers correctly"; it never answers anything. The above-spawn
+    energy is pooled from its own poisoned siblings, 0.75 + 0.75 -> 1.50
+    then 1.25 + 1.25 -> 2.50.
+  - **And it is a runway, not permanence**: it starves at cycle 59 at
+    every seed, against the 20 cycles an unmerged fragment gets.
+    **Consolidation trades breadth for longevity**, and that -- not the
+    merge itself -- is the laundering channel. The strict policy works
+    by removing the runway, not by refusing to create the entry.
+  - **The encoder crossed the boundary, not the merge.** At policy off,
+    `poison_laundered_final` is 2.00 on the *no-defence* arm, which
+    consolidates nothing: the initial store already holds an `ENTITY`
+    entry for "Platform Team" and a `CROSS_DOC` summary spanning the
+    poisoned document and two clean ones. The payload claims authority
+    *from* the Platform Team, so naming a trusted entity is what places
+    the attacker's text in that entity's entry. No other attack class
+    launders anything.
+  - **We registered the opposite prediction.** We spot-checked four
+    metrics, found them equal under all three policies, and
+    pre-registered "no-op everywhere". All four *are* equal; the
+    difference lived in metrics we had not printed and one that did not
+    yet exist. A comparison over a subset of the metrics cannot support
+    a claim about all of them.
+
 - **A rent shaped like a real quota, and it bills only the emptied
   store** (`bench/results/rent_tiers.json`, 3 tiers x 5 rents x 2 budgets
   x 2 horizons x 5 arms x 30 seeds = 9,000 runs). The three rent grids

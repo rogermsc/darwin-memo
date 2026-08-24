@@ -1155,17 +1155,68 @@ poison, and no filter has it.
 \paragraph{Consolidation launders a poisoned fragment.}
 One cell does not come out clean, and it is ours. Under
 \texttt{explicit}$+$\texttt{ledger} a single poisoned entry survives all
-30 cycles on all 10 seeds with energy \emph{above} its spawn value. It
-is a consolidation artifact: the merge machinery absorbed the
-authority-claim fragment into an entry that also carries the true
-platform-notes content, and the merged entry earns because its useful
-half answers correctly. The poisoned text advises no action, so nothing
-punishes it, and it stays retrievable inside a well-fed entry. This is
-the compaction-driven write channel \citep{mpbench2026} appearing inside
-our own mechanism: consolidation is a poison-laundering surface, and any
-system that merges memories inherits it. We report it rather than tune
-it away; a merge that refuses to pool entries across trust boundaries is
-the obvious fix and we have not evaluated one.
+30 cycles on all 10 seeds with energy \emph{above} its spawn value,
+carrying benign provenance alongside the poisoned source. The poisoned
+text advises no action, so nothing punishes it, and it stays retrievable
+inside a well-sourced entry. This is the compaction-driven write channel
+\citep{mpbench2026} appearing inside our own mechanism: consolidation is
+a poison-laundering surface, and any system that merges memories
+inherits it. \S\ref{sec:merge-policy} evaluates the fix and reports what
+the mechanism actually is, which is not what we first described.
+
+\paragraph{The laundered entry never earns, and the encoder made it.}
+\label{sec:merge-policy}
+Two things we said about that cell were wrong, and instrumenting
+\texttt{\_merge} shows both. The surviving entry's \texttt{uses} is
+\emph{zero for the whole run}: it never answers anything, so it never
+earns. Its above-spawn energy is pooled from its own poisoned siblings
+--- $0.75 + 0.75 \rightarrow 1.50$ at cycle 4, then $1.25 + 1.25
+\rightarrow 2.50$ at cycle 9 --- and an unmerged fragment gets only
+$\text{spawn}/\text{upkeep} = 20$ cycles. So the entry is not permanent
+either: it starves at cycle 59, at every seed, and at a 60-cycle horizon
+the cell is clean. \textbf{Consolidation trades breadth for longevity},
+and that is the laundering channel.
+
+Nor did consolidation create it. Counting surviving poisoned entries
+that also carry benign provenance (\texttt{poison\_laundered\_final},
+which \texttt{poison\_alive\_final} cannot distinguish), the
+\emph{no-defence} arm --- which consolidates nothing --- scores $2.00$
+on this class. The initial store already contains an \texttt{ENTITY}
+entry for ``Platform Team'' and a \texttt{CROSS\_DOC} summary whose
+sources span the poisoned document and two clean ones. The explicit
+payload claims authority \emph{from} the Platform Team, so naming an
+entity the corpus already trusts is what places the attacker's text in
+that entity's entry. No other attack class launders anything: both
+others score $0.00$ in every cell, because neither names a trusted
+entity. Consolidation then halves the count and triples the survivor's
+life.
+
+\paragraph{The obvious fix, evaluated: the natural reading is a no-op.}
+\texttt{consolidate} now takes a \texttt{source\_policy}. Under
+\texttt{"shared"} a cluster needs one source in common, the natural
+reading of a trust boundary; under \texttt{"identical"} it must agree on
+its whole source set. Three policies $\times$ three attack classes
+$\times$ four defences $\times$ two horizons $\times$ 10 seeds, 720
+runs. \texttt{"shared"} is byte-identical to the published behaviour
+across $11{,}520$ metric comparisons: every merge in the laundering run
+already shares a source, so it has nothing to refuse.
+\texttt{"identical"} drives \texttt{poison\_laundered\_final} from
+$1.00$ to $0.00$ at $10/10$ seeds, and it is surgical --- across all 720
+runs it changes three metrics in that one cell and nothing in the other
+twenty-three. It works by refusing the merge that pools the mixed
+entry with a clean one, which lets the laundered entry starve on its own
+runway instead of inheriting a longer one. The cost is one further probe
+unanswered ($\texttt{probe\_silence\_rate}$ $0.20 \rightarrow 0.40$)
+with $\texttt{probe\_benign\_correct\_rate}$ unchanged at $1.00$: the
+store answers less, not worse. We ship it off by default, because every
+committed number in this paper ran without it and the defence it buys is
+scoped to one attack class on one corpus.
+
+We registered the opposite prediction and were wrong. We had spot-checked
+four metrics, found them equal under all three policies, and concluded
+no-op; all four \emph{are} equal, and the difference lived in metrics we
+had not printed and in one that did not yet exist. A comparison over a
+subset of the metrics cannot support a claim about all of them.
 
 \begin{table}[t]
 \centering

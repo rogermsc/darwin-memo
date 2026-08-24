@@ -3679,3 +3679,110 @@ provenance rule has anything to refuse.
 python -m bench.run --suite merge_policy --seeds 0:10 \
   --out bench/results/merge_policy.json --update-manifest
 ```
+
+### Result: the natural reading is a no-op, the strict one closes it
+
+```
+python -m bench.run --suite merge_policy --seeds 0:10 \
+  --out bench/results/merge_policy.json --update-manifest
+```
+
+720 runs. **My central prediction was wrong.** I predicted the fix was a
+no-op at both strengths. `"shared"` is: 11,520 metric comparisons across
+240 cells, **zero differences** from the published behaviour.
+`"identical"` is not — and what it moves is exactly the cell the
+limitation is about.
+
+**The metric the claim needed and did not have.** `poison_alive_final`
+counts poison. It cannot see *laundering*, which is the difference
+between a poisoned entry sitting there labelled as one and the same text
+living inside an entry whose sources vouch for it. Both read as 1.
+`poison_laundered_final` counts surviving poisoned entries that also
+carry benign provenance, and it is what the consolidation limitation has
+always been about.
+
+**`explicit` + `ledger`, n=10:**
+
+| horizon | policy | laundered | poison alive | probe silence |
+|---|---|---|---|---|
+| 30 cyc | `off` | **1.00** | 1.00 | 0.20 |
+| 30 cyc | `shared` | **1.00** | 1.00 | 0.20 |
+| 30 cyc | **`identical`** | **0.00** | 1.00 | **0.40** |
+| 60 cyc | `off` | 0.00 | 0.00 | 0.40 |
+| 60 cyc | `identical` | 0.00 | 0.00 | 0.40 |
+
+The strict policy **closes the channel outright at 10/10 seeds**, and
+`poison_alive_final` cannot tell you that: it stays at 1.00 either way,
+because what survives under `identical` is an unlaundered poisoned entry
+with pure poison provenance — still there, but attributable. The cost is
+one more probe unanswered (`probe_silence_rate` 0.20 → 0.40) with
+`probe_benign_correct_rate` unchanged at 1.00: it answers less, not
+worse.
+
+**It is surgical.** Across all 720 runs, `"identical"` changes exactly
+three metrics in one cell — `poison_laundered_final` and
+`probe_silence_rate` at 30 cycles, `poison_starve_cycle` at 60 — and
+nothing at all in the other 23 (attack × defence × horizon)
+combinations. It is free everywhere it is not needed.
+
+**How it works, and it is not by refusing to create the laundered
+entry.** Tracing `_merge` on seed 0:
+
+| cycle | `off` | `identical` |
+|---|---|---|
+| 4 | 3 merges; mixed `ENTITY` pools with a `platform-notes` entry → heir 1.50, mixed | 2 merges; that one **refused**; `ENTITY` stays at 0.75 |
+| 9 | that heir pools again, 1.25 + 1.25 → **2.50** | 0 merges |
+| 19 | 2.00, `uses` 0 | laundered entries have starved |
+| 59 | starves | — |
+
+The encoder-born laundered entry is *already* laundered at birth. What
+`identical` removes is the pooling that kept it alive past its own
+runway: unmerged it starves at `spawn/upkeep` = 20 cycles, pooled twice
+it reaches 59. **Consolidation trades breadth for longevity, and that is
+the laundering channel.**
+
+**Two corrections to the paper.** First, the surviving entry's `uses` is
+**0 for the entire run**. The paper says "the merged entry earns because
+its useful half answers correctly"; it never answers anything. Its
+above-spawn energy is pooled from its own poisoned siblings — 0.75 +
+0.75 → 1.50, then 1.25 + 1.25 → 2.50. Second, the paper reports it
+surviving "all 30 cycles… with energy above its spawn value", which
+reads as permanence. It is a 59-cycle runway, and at 60 cycles it is
+gone at every seed.
+
+**And consolidation did not create the channel — the encoder did.** At
+policy `off`, 30 cycles, `poison_laundered_final` is **2.00** on the
+`explicit` + *no defence* arm, which never consolidates anything. The
+initial store already contains two entries whose sources are
+`['forum-post', 'platform-notes', 'runbook']`: an `ENTITY` entry for
+"Platform Team" and a `CROSS_DOC` summary. The explicit payload claims
+authority *from* the Platform Team, so **naming a trusted entity is what
+places the attacker's text in the same cross-document entry as that
+entity's genuine notes.** Consolidation then halved the count to 1 and
+tripled the survivor's life. No other attack class launders anything:
+`policy_conformant` and `inert` are 0.00 in every cell, because neither
+names an entity the corpus already trusts.
+
+**Grading.**
+
+1. **Refuted for `identical`, held for `shared`.** `shared` is byte-identical
+   across 11,520 comparisons; `identical` moves three metrics in one cell.
+2. **Held.** Every consolidation merge in the laundering run has a
+   non-empty common source set, which is why `shared` can refuse nothing.
+3. **Refuted.** I predicted `identical` would merge the two cross-document
+   entries with each other and so refuse nothing that mattered. It
+   refuses the merge between the mixed `ENTITY` entry and a pure
+   `platform-notes` entry, and that refusal is what closes the channel.
+4. **Held** (instrumented, not grid-wide: `uses` is not a reported metric).
+5. **Held.** `poison_alive_final` 0.00 and starve cycle 59 at 10/10 seeds.
+
+**Why I got 1 and 3 wrong, which is the part worth keeping.** I ran a
+5-seed spot check printing four metrics — `poison_alive_final`,
+`poison_killed`, `final_population`, `cum_delta` — saw them identical
+across all three policies, and pre-registered "no-op everywhere". Every
+one of those four *is* identical under `identical` at 30 cycles. The
+difference was in metrics I had not printed, and in one
+(`poison_laundered_final`) that did not exist yet. **A spot check that
+compares a subset of the metrics cannot support a claim about all of
+them**, and "no difference" is exactly the claim a narrow view produces
+by construction.
