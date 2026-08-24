@@ -516,6 +516,52 @@ def rent_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+def rent_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
+    """The second-family loss, against the explanation offered for it.
+
+    On the test-suite family a one-line counter beats the ledger with no
+    adversary present, and the reason given throughout this project is
+    that refusing to act is free there. That is a property of
+    ``TestSuiteEnv.verify`` returning 0.0 on a declined patch, not of
+    curation, and ``limitations.tex`` records the prediction that pricing
+    inaction "would also likely reverse the second-family loss".
+
+    So the decisive column here is budget **0**, unlike every other rent
+    grid: the claim is about the unattacked ordering. Budget 12 rides
+    along because the withholding grid on this family is already
+    published and the comparison is free.
+
+    ``RentedTestSuiteEnv`` charges a declined patch the repair it did not
+    make -- ``hold_cost * max(0, tests it would have fixed)``, measured by
+    running the suite. The ``max`` keeps it an opportunity cost: declining
+    the destructive cleanup forgoes nothing and costs nothing.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="rent_testsuite",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "env_family": "testsuite_rent",
+                "hold_cost": hold_cost,
+                "lie_budget": budget,
+                "adversary_objective": "withhold",
+                **extra,
+            },
+            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
+        )
+        for cycles in RENT_CYCLES
+        for hold_cost in RENT_HOLD_COSTS
+        for budget in RENT_BUDGETS
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
 # The lying grid carries an interior budget the withholding one does not.
 # A liar saturates earlier than a withholder -- the published budgets in
 # adversary.json stop at 8 for that reason -- so 0/12 alone would show

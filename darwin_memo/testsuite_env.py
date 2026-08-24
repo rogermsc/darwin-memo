@@ -249,3 +249,66 @@ class TestSuiteEnv:
 
     def cleanup(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
+
+
+class RentedTestSuiteEnv(TestSuiteEnv):
+    """TestSuiteEnv where leaving the suite broken is measured.
+
+    The counterpart to :class:`~darwin_memo.environments.RentedStorageEnv`,
+    and the reason it exists: the ledger *loses* to a one-line counter on
+    this family when no adversary is present, and the explanation on
+    offer has always been that refusing to act is free here. That is a
+    property of ``verify`` returning ``0.0`` on a declined patch, not of
+    curation, so it is testable by changing the one line.
+
+    The conserved quantity is unchanged --- passing tests --- but a
+    declined patch is now charged the repair it did not make:
+    ``hold_cost * max(0, tests the patch would have fixed)``, measured by
+    running the suite against the patched source rather than by grading
+    the answer. The ``max`` is what makes it an opportunity cost rather
+    than a penalty: declining the destructive cleanup patch forgoes
+    nothing, so it costs nothing, and declining a cosmetic no-op is free
+    for the same reason. Only a real repair left unmade is billed.
+
+    As on the storage side, ``hold_cost=0.0`` delegates to
+    :class:`TestSuiteEnv` outright, so the zero-rent column is the
+    published family itself rather than a re-run that resembles it. A
+    task whose forgone repair is zero delegates too, which keeps the
+    ``patch skipped`` detail string and avoids recording ``-0.0``.
+    """
+
+    __test__ = False
+
+    def __init__(
+        self,
+        root: str | Path | None = None,
+        defects_per_cycle: int = 3,
+        seed: int = 7,
+        hold_cost: float = 1.0,
+    ) -> None:
+        if hold_cost < 0:
+            raise ValueError(f"hold_cost must be >= 0, got {hold_cost}")
+        super().__init__(root=root, defects_per_cycle=defects_per_cycle, seed=seed)
+        self.hold_cost = hold_cost
+
+    def verify(self, task: Task, answer_text: str) -> Outcome:
+        if not self.hold_cost or decision_polarity(answer_text):
+            return super().verify(task, answer_text)
+        app_path: Path = task.context["app"]
+        app_source = app_path.read_text()
+        target: str = task.context["target"]
+        if target not in app_source:
+            return super().verify(task, answer_text)
+        test_source = (app_path.parent / "test_app.py").read_text()
+        patched = app_source.replace(target, task.context["replacement"], 1)
+        forgone = max(
+            0,
+            run_suite(patched, test_source) - run_suite(app_source, test_source),
+        )
+        cost = self.hold_cost * forgone
+        if not cost:
+            return super().verify(task, answer_text)
+        return Outcome(
+            delta=-cost,
+            detail=f"patch skipped, {forgone} tests left failing",
+        )

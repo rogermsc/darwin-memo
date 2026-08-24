@@ -14,6 +14,7 @@ import darwin_memo
 from darwin_memo import (
     MemoryStore,
     RentedStorageEnv,
+    RentedTestSuiteEnv,
     StorageEnv,
     SurvivalConfig,
     TestSuiteEnv,
@@ -75,6 +76,23 @@ LLM_LOOP_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
 FlakyEnv = FlakyStorageEnv | FlakyTestSuiteEnv | AdversarialEnv
 
 
+# Which families share a corpus, probe set and environment class. The
+# rented variants differ only in what declining costs, so every
+# corpus-shaped decision below must treat them as their base family --
+# and there are six such decisions. A run that paired the storage corpus
+# with a test-suite environment would answer every patch question with a
+# file lesson, score benign retention against the wrong probes, and look
+# like a result. So the membership is named once here rather than
+# spelled as `== "testsuite"` in six places, which is how the fifth one
+# gets missed.
+TESTSUITE_FAMILIES = ("testsuite", "testsuite_rent")
+RENTED_FAMILIES = ("storage_rent", "testsuite_rent")
+
+
+def _is_testsuite(family: str) -> bool:
+    return family in TESTSUITE_FAMILIES
+
+
 def _env_family(overrides: dict[str, Any]) -> str:
     """Which environment family a run belongs to; storage is the default.
 
@@ -83,11 +101,11 @@ def _env_family(overrides: dict[str, Any]) -> str:
     suite's RunSpec.
     """
     family = str(overrides.get("env_family", "storage"))
-    if family not in ("storage", "testsuite", "storage_rent"):
+    if family not in ("storage", "testsuite", *RENTED_FAMILIES):
         raise ValueError(f"unknown env_family: {family!r}")
-    if family == "storage_rent" and "hold_cost" not in overrides:
+    if family in RENTED_FAMILIES and "hold_cost" not in overrides:
         raise ValueError(
-            "storage_rent needs an explicit hold_cost: it is the axis the "
+            f"{family} needs an explicit hold_cost: it is the axis the "
             "family exists to vary, and a default would ride outside the "
             "recorded config and therefore outside the manifest hash"
         )
@@ -107,7 +125,7 @@ def _survival_config(
 def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     upkeep = overrides.get("upkeep", 0.05)
     if "attack" in overrides:
-        if _env_family(overrides) == "testsuite":
+        if _is_testsuite(_env_family(overrides)):
             raise ValueError(
                 "attack classes are written against the storage corpus; "
                 "TestSuiteEnv has its own poison and no attack taxonomy"
@@ -119,7 +137,7 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
         )
     build = (
         build_testsuite_store
-        if _env_family(overrides) == "testsuite"
+        if _is_testsuite(_env_family(overrides))
         else build_headline_store
     )
     if arm == "survival_embedding":
@@ -156,6 +174,13 @@ def _base_env(
             root=workdir,
             defects_per_cycle=int(overrides.get("defects_per_cycle", 3)),
             seed=seed,
+        )
+    if family == "testsuite_rent":
+        return RentedTestSuiteEnv(
+            root=workdir,
+            defects_per_cycle=int(overrides.get("defects_per_cycle", 3)),
+            seed=seed,
+            hold_cost=float(overrides["hold_cost"]),
         )
     if family == "storage_rent":
         return RentedStorageEnv(
@@ -243,13 +268,13 @@ def run_one(
             )
         else:
             env = TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed)
-    elif family == "storage_rent":
-        if "flake_rate" in overrides:
-            # FlakyStorageEnv wraps a StorageEnv it builds itself, so it
-            # would run at zero rent while the config recorded a
-            # hold_cost -- a run that claims an axis it never varied.
+    elif family in RENTED_FAMILIES:
+        if "flake_rate" in overrides or "noise_model" in overrides:
+            # The noise wrappers build their own unrented base env, so
+            # they would run at hold_cost 0 while the config recorded a
+            # rent -- a run that claims an axis it never varied.
             raise ValueError(
-                "flake_rate has no rented variant; FlakyStorageEnv would "
+                "flake_rate has no rented variant; the noise wrapper would "
                 "silently run at hold_cost 0 while the config recorded "
                 "otherwise"
             )
@@ -413,7 +438,7 @@ def run_one(
         # so the family's configs carry defects_per_cycle instead.
         "config": {
             "cycles": cycles,
-            **({} if family == "testsuite" else {"files_per_cycle": files_per_cycle}),
+            **({} if _is_testsuite(family) else {"files_per_cycle": files_per_cycle}),
             **overrides,
         },
         "per_cycle": [vars(r) for r in result.records],
@@ -655,7 +680,7 @@ def extract_metrics(
         "fired_false_bad": env.fired_false_bad if env else 0,
         "fired_false_good": env.fired_false_good if env else 0,
     }
-    if env_family == "testsuite":
+    if _is_testsuite(env_family):
         probe_scores = evaluate_testsuite_probes(store)
         paraphrase_scores = evaluate_testsuite_paraphrase_probes(store)
     else:

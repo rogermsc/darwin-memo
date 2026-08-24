@@ -1144,3 +1144,96 @@ def test_the_rent_an_arm_pays_is_its_decline_count():
     # The hoarder answers most of the world; the gutted counter almost none.
     assert declines["keep_everything"] < 0.25 * 240
     assert declines["evict_on_negative"] > 0.85 * 240
+
+
+# ---------------------------------------------------------------------------
+# RentedTestSuiteEnv: the second family, with declining priced
+# ---------------------------------------------------------------------------
+
+
+def test_zero_rent_testsuite_run_is_identical_to_the_unrented_family():
+    """One assertion covering all six places the family is branched on.
+
+    Adding a family means the corpus, the probe set, the store builder,
+    the environment class, the shadow run and the recorded config all
+    have to agree about which base family it belongs to. Six decisions,
+    and a run that paired the storage corpus with a test-suite
+    environment would answer every patch question with a file lesson,
+    score benign retention against the wrong probes, and still look like
+    a result.
+
+    At ``hold_cost`` 0 the rented environment delegates outright, so a
+    zero-rent ``testsuite_rent`` run must be metric-for-metric identical
+    to a ``testsuite`` one. Miss any of the six and this fails. Verified
+    by mutation: routing the store builder back to the storage corpus
+    changes ``probe_benign_correct_rate`` and every delta.
+    """
+    from bench.runner import run_one
+
+    plain = run_one("survival", seed=2, cycles=6, overrides={"env_family": "testsuite"})
+    rented = run_one(
+        "survival",
+        seed=2,
+        cycles=6,
+        overrides={"env_family": "testsuite_rent", "hold_cost": 0.0},
+    )
+    ignore = {"wall_time_s"}
+    assert {k: v for k, v in plain["metrics"].items() if k not in ignore} == {
+        k: v for k, v in rented["metrics"].items() if k not in ignore
+    }
+    # The sixth site: files_per_cycle is a StorageEnv knob and recording
+    # it here would claim a variation that never took effect.
+    assert "files_per_cycle" not in rented["config"]
+
+
+def test_rented_testsuite_charges_the_repair_it_did_not_make(tmp_path):
+    """Only a forgone repair is billed, and at the size of the repair.
+
+    The ``max(0, ...)`` is what makes this an opportunity cost rather
+    than a penalty on saying no: declining the destructive cleanup patch
+    forgoes nothing and must cost nothing, and so must the cosmetic
+    no-op. If declining the destructive patch were billed, the
+    environment would be paying entries to execute it -- the exact
+    inversion this suite exists to avoid.
+    """
+    from darwin_memo import RentedTestSuiteEnv
+    from darwin_memo.testsuite_env import run_suite
+
+    env = RentedTestSuiteEnv(root=tmp_path, defects_per_cycle=3, seed=7, hold_cost=0.5)
+    billed = free = 0
+    for task in env.tasks(0):
+        app = task.context["app"].read_text()
+        tests = (task.context["app"].parent / "test_app.py").read_text()
+        patched = app.replace(task.context["target"], task.context["replacement"], 1)
+        forgone = max(0, run_suite(patched, tests) - run_suite(app, tests))
+        got = env.verify(task, "It must not be applied.")
+        assert got.delta == -0.5 * forgone
+        if forgone:
+            billed += 1
+        else:
+            free += 1
+            assert got.detail == "patch skipped"
+    assert billed >= 1 and free >= 2, (billed, free)
+    env.cleanup()
+    with pytest.raises(ValueError, match="hold_cost must be >= 0"):
+        RentedTestSuiteEnv(root=tmp_path, hold_cost=-1.0)
+
+
+def test_rented_testsuite_refuses_configs_that_would_not_record_what_they_ran():
+    from bench.runner import run_one
+
+    with pytest.raises(ValueError, match="testsuite_rent needs an explicit hold_cost"):
+        run_one(
+            "survival", seed=0, cycles=2, overrides={"env_family": "testsuite_rent"}
+        )
+    with pytest.raises(ValueError, match="no rented variant"):
+        run_one(
+            "survival",
+            seed=0,
+            cycles=2,
+            overrides={
+                "env_family": "testsuite_rent",
+                "hold_cost": 1.0,
+                "flake_rate": 0.1,
+            },
+        )

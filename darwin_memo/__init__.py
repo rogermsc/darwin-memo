@@ -46,7 +46,7 @@ from .temporal import (
     newest_first,
     recency_weight,
 )
-from .testsuite_env import TestSuiteEnv
+from .testsuite_env import RentedTestSuiteEnv, TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
 __version__ = "0.6.0"
@@ -79,6 +79,7 @@ __all__ = [
     "QueryProtocol",
     "ReflectionEncoder",
     "RentedStorageEnv",
+    "RentedTestSuiteEnv",
     "Retriever",
     "StorageEnv",
     "StoreLockedError",
