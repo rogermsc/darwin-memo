@@ -3786,3 +3786,65 @@ difference was in metrics I had not printed, and in one
 compares a subset of the metrics cannot support a claim about all of
 them**, and "no difference" is exactly the claim a narrow view produces
 by construction.
+
+## Every 30-cycle grid at 60: pre-registered predictions
+
+`limitations.tex` ends its horizon paragraph with a sentence that names
+an unrun measurement:
+
+> Which of those results would move at 60 is unknown and is no longer a
+> theoretical worry.
+
+Three results have now turned on the horizon, each found by accident and
+one grid at a time: benign retention under withholding (0.92 at 30, 0.44
+at 60); the rented test-suite family (every arm flat at 30, the ledger's
+first billable decline around cycle 49); and the consolidation
+laundering cell (present at 30, starved by cycle 59). Every other
+deterministic result in this project runs 30 cycles, four past the
+`spawn/upkeep` starvation cliff at 20. This asks the question of all of
+them at once.
+
+`horizon_suite()` re-emits eleven committed grids at 60 cycles —
+`headline`, `noisy`, `ablation`, `testsuite`, `testsuite_noisy`,
+`memsec`, `adversary`, `persistence`, `salience`, `neighbours`,
+`bandit` — with each grid keeping the seed count its committed file
+used, so every cell pairs with one already published. Arm, every other
+override and the label are untouched: **the only thing that varies
+against the committed file is `cycles`.** 5,815 runs. It takes no
+`--seeds` rather than accepting and ignoring one.
+
+**Disclosure.** Before writing these I ran two headline cells at both
+horizons and read them: `keep_everything` 16 → 16 entries and −9.67M →
+−18.02M, `survival` 4 → 3 entries, +12.32M → +25.37M, benign 1.00 at
+both. That is one corpus and one seed out of 5,815 runs, and it is where
+predictions 1 and 5 come from.
+
+1. **`keep_everything` is the canary.** Its `final_population` is
+   identical at 30 and 60 in every cell, because it never removes
+   anything. If it moves, something other than curation is removing
+   entries and the whole sweep is measuring a harness bug.
+2. **No ordering flips outside the known cases.** In every cell, the
+   ranking of arms by true `cum_delta` at 60 matches the published
+   30-cycle ranking, except where an arm is extinct at 60 and was not at
+   30.
+3. **`poison_killed` is horizon-invariant.** For every non-noisy
+   `survival` cell it equals its committed 30-cycle value: revocation
+   happens in the first few cycles, far inside both horizons.
+4. **The `memsec` laundering cell is the one that flips.** `explicit` +
+   `ledger` moves `poison_alive_final` 1.00 → 0.00. Disclosed: already
+   measured at 10/10 seeds in the merge-policy grid; the prediction here
+   is that it reproduces inside this sweep, which is a cross-file check
+   rather than a new result.
+5. **Benign capability does not decay with the horizon alone.**
+   `probe_benign_correct_rate` for `survival` is unchanged at 60 in
+   every unattacked grid: entries that answer probes keep earning, so
+   they do not starve. This is the prediction that matters. The 0.92 →
+   0.44 fall under withholding was the *attack* removing the earnings,
+   not the clock. **If this one fails, 30 cycles has been flattering
+   every capability number in this project**, and the re-run the paper
+   defers stops being optional.
+
+```
+python -m bench.run --suite horizon \
+  --out bench/results/horizon.json --update-manifest
+```

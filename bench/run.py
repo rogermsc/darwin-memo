@@ -40,6 +40,7 @@ from .suites import (
     adversary_suite,
     bandit_suite,
     headline_suite,
+    horizon_suite,
     judge_suite,
     llm_suite,
     memsec_suite,
@@ -181,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             "distill_merge",
             "distill_noisy",
             "distill_rule",
+            "horizon",
         ],
         required=True,
     )
@@ -327,6 +329,10 @@ def main(argv: list[str] | None = None) -> int:
             epochs=args.epochs,
             flake_rate=args.flake_rate,
         )
+    elif args.suite == "horizon":
+        # No --seeds: every grid keeps the seed count its committed file
+        # used, so each 60-cycle cell pairs with a published 30-cycle one.
+        runs = _execute(horizon_suite())
     elif args.suite == "smoke":
         runs = _execute(smoke_suite())
     else:
@@ -378,6 +384,7 @@ def main(argv: list[str] | None = None) -> int:
             "distill_merge",
             "distill_noisy",
             "distill_rule",
+            "horizon",
         ):
             extra = {
                 "sampled": "LoRA training + (with --with-judge) sampled judge "
