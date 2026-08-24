@@ -161,6 +161,13 @@ project uses [SemVer](https://semver.org/).
 
 ### Removed
 
+- **`docs/superpowers/plans/`** (6,678 lines, 11 documents). Step-by-step
+  implementation checklists for work that shipped or was removed — one of
+  them plans the `bench/flaky_select/` package deleted above. Nothing
+  outside the directory linked to any of them. The design record they
+  were derived from stays: every plan has a matching
+  `docs/superpowers/specs/*-design.md`, and that is the directory
+  `docs/organic.md` actually links into.
 - **`bench/flaky_select/`** (737 lines, 6 modules) and its unmanifested
   `bench/results/flaky_select/`. Nothing imported it outside itself: no
   suite in `bench/run.py`, no test, no manifest entry, no citation in
