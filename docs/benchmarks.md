@@ -3233,3 +3233,67 @@ as `keep_everything` here and pays 2.8x the rent for it; it wins anyway,
 on the poison. That trade is now a measured number rather than an
 assumption, and an environment with a cheaper poison and a higher rent
 would settle it the other way.
+
+## Pricing inaction on the second family: pre-registered predictions
+
+One prediction is left in `limitations.tex`, and it is the last thing
+"Silence as a harbor" claims:
+
+> Environments that price inaction ... would also likely reverse the
+> second-family loss.
+
+The loss is real: on `TestSuiteEnv`, with no adversary present, a
+one-line eviction counter beats the ledger (178.00 against 121.33 at 60
+cycles), and the explanation offered throughout this document is that
+refusing to act is free there. `RentedTestSuiteEnv` charges a declined
+patch the repair it did not make — `hold_cost * max(0, tests it would
+have fixed)`, measured by running the suite. The decisive column is
+therefore budget **0**, unlike every other rent grid: the claim is about
+the *unattacked* ordering. 5 arms x 5 rents x 2 budgets x 2 horizons x
+30 seeds = 3,000 runs.
+
+**Disclosure first, because it is unusually large this time.** A smoke
+run covered seed 0 at 60 cycles across all five arms, five rents and
+both budgets, and I read it. It already contradicts the prediction. At
+budget 0, `evict_on_negative` is flat at 178.0 across every rent while
+`survival` falls 119.0 -> 108.0, so rent makes the second-family loss
+*worse*, not better. I also instrumented one 60-cycle world (seed 0,
+rent 1.0, budget 0) and counted declines: `keep_everything`,
+`evict_on_negative` and `quarantine` each made **zero** costly declines
+and paid **zero** rent; `survival` made 11 and paid 11.0, which is the
+entire 119 -> 108 drop.
+
+So predictions 1-3 below are not blind — they are that a one-seed
+refutation replicates. 4 and 5 concern a horizon and a budget that run
+did not touch.
+
+**The mechanism.** This corpus is deliberately redundant: every
+fix-advice lesson ships with a near-duplicate twin from a second trusted
+source. The counters carry the twins as spares and therefore always have
+something to say; the ledger consolidates them and lets the surplus
+starve. It is the only arm that ever arrives at a patch question with no
+answer — so under the rule the storage sweeps established, **rent bills
+not having an answer**, it is the only arm that can be billed at all.
+The prediction in `limitations.tex` assumed the ledger's silence was a
+*virtue* being unrewarded. It is the ledger's silence that is expensive.
+
+1. **The refutation replicates.** At budget 0, `evict_on_negative` beats
+   `survival` at every rent, on both horizons, at 30 seeds, and the gap
+   *widens* with rent rather than closing.
+2. **The counters pay exactly zero.** `evict_on_negative`, `quarantine`
+   and `keep_everything` have `cum_delta` identical — not approximately,
+   identical — across all five rents at budget 0, because they never
+   decline a repair.
+3. **`survival` is the only arm that pays**, its `cum_delta` falls
+   linearly in rent, and the slope is its costly-decline count.
+4. **30 cycles: same direction, less than half the gap.** `survival`'s
+   costly declines can only begin once consolidation and starvation have
+   thinned the twins, which is past the `spawn/upkeep` cliff at 20, so
+   the rent it pays over 30 cycles should be under half what it pays
+   over 60 — not the linear half that a uniform per-cycle cost would
+   give.
+5. **Budget 12 loses the ledger its one win here.** On this family at
+   total suppression `survival` is the only arm above the floor (+65.00
+   against +60.00). It is also extinct there, so it declines everything,
+   so rent should erase that margin: predict `survival` at or below the
+   floor at rent 1.0, on both horizons.
