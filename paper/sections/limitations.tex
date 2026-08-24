@@ -322,13 +322,17 @@ wins anyway, on the poison, but that is a trade rather than a free
 lunch, and an environment with a cheaper poison and a higher rent would
 settle it the other way.
 
-The same section is also the only place in this paper where we vary the
-cycle horizon, and it changed a conclusion: benign retention under
-withholding reads $0.92$ at 30 cycles and $0.44$ at 60. Every other
-deterministic result here runs 30 cycles, four past the
-$\text{spawn}/\text{upkeep}$ starvation cliff at 20. We do not know which
-of those results would move at 60, and the honest statement is that we
-have measured the horizon's effect exactly once and found it large.
+The horizon has now changed a conclusion twice, and the second time it
+changed whether there was one. Under withholding, benign retention reads
+$0.92$ at 30 cycles and $0.44$ at 60. On the rented test-suite family
+every arm is flat at 30 cycles and the ledger's bill only begins around
+cycle 49, so a 30-cycle grid there does not report a smaller effect --- it
+reports no effect, which is a false negative (\S\ref{sec:rent}). Every
+other deterministic result here runs 30 cycles, four past the
+$\text{spawn}/\text{upkeep}$ starvation cliff at 20, and we now have one
+measured case of an effect that is entirely invisible at that horizon.
+Which of those results would move at 60 is unknown and is no longer a
+theoretical worry.
 
 \paragraph{The withholding budget is not spent equally across arms.} The
 adversary spends only on measurable outcomes, and a shrinking store
@@ -368,13 +372,20 @@ and would not have found it without running the interior budget: at
 total lying every arm's kill rate is $0.00$ and the ordering is
 uninformative.
 
-Two things this still does not cover. The second-family loss
-(\S\ref{sec:regime}, Axis 3) remains unmeasured under rent:
-\texttt{RentedStorageEnv} prices inaction on the storage corpus, not on
-the test-suite one, and the prediction that rent would reverse that loss
-is untested. And rent is a single scalar applied uniformly to every
-file; a world that charged differentially --- by category, by age, by
-tier --- is a different economy, and the one real quotas usually are.
+The third claim in that paragraph was that pricing inaction would also
+likely reverse the second-family loss (\S\ref{sec:regime}, Axis 3). We
+have now measured it and it is wrong: rent widens that loss at 60 cycles
+and does nothing to it at 30 (\S\ref{sec:rent}). The counters cannot be
+billed on that family at all, because its corpus is deliberately
+redundant and a spare twin is always available to answer with; the
+ledger consolidates the twins away and is the only arm that ever has
+nothing to say. We predicted rent would reward the ledger's restraint.
+It charges for it.
+
+What remains uncovered is the shape of the price rather than its
+existence. Rent here is a single scalar applied uniformly, and a world
+that charged differentially --- by category, by age, by tier --- is a
+different economy, and the one real quotas usually are.
 
 \paragraph{Local-judge scale.}
 The LLM-judge control uses small (3--4B) local models at five seeds; a

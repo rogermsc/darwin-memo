@@ -3233,3 +3233,156 @@ as `keep_everything` here and pays 2.8x the rent for it; it wins anyway,
 on the poison. That trade is now a measured number rather than an
 assumption, and an environment with a cheaper poison and a higher rent
 would settle it the other way.
+
+## Pricing inaction on the second family: pre-registered predictions
+
+One prediction is left in `limitations.tex`, and it is the last thing
+"Silence as a harbor" claims:
+
+> Environments that price inaction ... would also likely reverse the
+> second-family loss.
+
+The loss is real: on `TestSuiteEnv`, with no adversary present, a
+one-line eviction counter beats the ledger (178.00 against 121.33 at 60
+cycles), and the explanation offered throughout this document is that
+refusing to act is free there. `RentedTestSuiteEnv` charges a declined
+patch the repair it did not make — `hold_cost * max(0, tests it would
+have fixed)`, measured by running the suite. The decisive column is
+therefore budget **0**, unlike every other rent grid: the claim is about
+the *unattacked* ordering. 5 arms x 5 rents x 2 budgets x 2 horizons x
+30 seeds = 3,000 runs.
+
+**Disclosure first, because it is unusually large this time.** A smoke
+run covered seed 0 at 60 cycles across all five arms, five rents and
+both budgets, and I read it. It already contradicts the prediction. At
+budget 0, `evict_on_negative` is flat at 178.0 across every rent while
+`survival` falls 119.0 -> 108.0, so rent makes the second-family loss
+*worse*, not better. I also instrumented one 60-cycle world (seed 0,
+rent 1.0, budget 0) and counted declines: `keep_everything`,
+`evict_on_negative` and `quarantine` each made **zero** costly declines
+and paid **zero** rent; `survival` made 11 and paid 11.0, which is the
+entire 119 -> 108 drop.
+
+So predictions 1-3 below are not blind — they are that a one-seed
+refutation replicates. 4 and 5 concern a horizon and a budget that run
+did not touch.
+
+**The mechanism.** This corpus is deliberately redundant: every
+fix-advice lesson ships with a near-duplicate twin from a second trusted
+source. The counters carry the twins as spares and therefore always have
+something to say; the ledger consolidates them and lets the surplus
+starve. It is the only arm that ever arrives at a patch question with no
+answer — so under the rule the storage sweeps established, **rent bills
+not having an answer**, it is the only arm that can be billed at all.
+The prediction in `limitations.tex` assumed the ledger's silence was a
+*virtue* being unrewarded. It is the ledger's silence that is expensive.
+
+1. **The refutation replicates.** At budget 0, `evict_on_negative` beats
+   `survival` at every rent, on both horizons, at 30 seeds, and the gap
+   *widens* with rent rather than closing.
+2. **The counters pay exactly zero.** `evict_on_negative`, `quarantine`
+   and `keep_everything` have `cum_delta` identical — not approximately,
+   identical — across all five rents at budget 0, because they never
+   decline a repair.
+3. **`survival` is the only arm that pays**, its `cum_delta` falls
+   linearly in rent, and the slope is its costly-decline count.
+4. **30 cycles: same direction, less than half the gap.** `survival`'s
+   costly declines can only begin once consolidation and starvation have
+   thinned the twins, which is past the `spawn/upkeep` cliff at 20, so
+   the rent it pays over 30 cycles should be under half what it pays
+   over 60 — not the linear half that a uniform per-cycle cost would
+   give.
+5. **Budget 12 loses the ledger its one win here.** On this family at
+   total suppression `survival` is the only arm above the floor (+65.00
+   against +60.00). It is also extinct there, so it declines everything,
+   so rent should erase that margin: predict `survival` at or below the
+   floor at rent 1.0, on both horizons.
+
+### Result: the prediction is refuted, and the horizon gates everything
+
+```
+python -m bench.run --suite rent_testsuite --seeds 0:30 \
+  --out bench/results/rent_testsuite.json --update-manifest
+```
+
+3,000 runs. The zero-rent column reproduces `withholding_testsuite.json`
+exactly at 30 seeds — 0 differences across every arm, budget and horizon.
+
+**Budget 0 (unattacked), the decisive column. Mean `cum_delta` in
+passing tests, n=30:**
+
+| arm | rent 0 | 0.25 | 0.5 | 0.75 | 1.0 |
+|---|---|---|---|---|---|
+| **evict_on_negative** (60 cyc) | **178.00** | **178.00** | **178.00** | **178.00** | **178.00** |
+| quarantine (60 cyc) | 140.00 | 140.00 | 140.00 | 140.00 | 140.00 |
+| survival (60 cyc) | 121.33 | 118.18 | 115.03 | 111.88 | 108.73 |
+| keep_everything (60 cyc) | 60.00 | 60.00 | 60.00 | 60.00 | 60.00 |
+| **evict_on_negative** (30 cyc) | **88.00** | **88.00** | **88.00** | **88.00** | **88.00** |
+| survival (30 cyc) | 69.00 | 69.00 | 69.00 | 69.00 | 69.00 |
+
+**`limitations.tex`'s prediction is refuted.** Rent does not reverse the
+second-family loss. At 60 cycles it *widens* it — the counter's lead goes
+56.67 -> 69.27 — and at 30 cycles it does not move it at all. The
+ledger is the only arm whose number changes with rent, in the wrong
+direction.
+
+Grading the five, honestly, because three of them split by horizon:
+
+2. **The counters pay exactly zero: held.** `evict_on_negative`,
+   `quarantine` and `keep_everything` are identical across all five
+   rents in every cell of the grid. Not approximately — identical.
+4. **30 cycles pays less than half: held, and far more strongly than
+   predicted.** It pays *nothing*. `survival` is flat at 69.00 across
+   every rent at 30 cycles.
+1, 3, 5. **Held at 60 cycles, and vacuous at 30**, for the reason 4
+   gives. The ordering holds everywhere (the counter beats the ledger at
+   every rent on both horizons), but "the gap widens", "`survival` is
+   the only arm that pays" and "rent erases the ledger's budget-12 win"
+   are all statements about a rent bill that does not exist before the
+   horizon is long enough.
+
+**Where the bill starts, measured.** Counting outcomes directly on seed
+0 at rent 1.0, budget 0: every other arm makes **zero** costly declines
+at both horizons. `survival` makes zero at 30 cycles and 11 at 60.
+Sweeping the horizon locates the onset:
+
+| cycles | 24 | 30 | 36 | 42 | 48 | 50 | 54 | 60 |
+|---|---|---|---|---|---|---|---|---|
+| costly declines | 0 | 0 | 0 | 0 | 0 | 1 | 5 | 11 |
+
+The first billable decline appears around **cycle 49**, then accrues at
+roughly one per cycle. My pre-registered reasoning said this would begin
+past the `spawn/upkeep` starvation cliff at 20; the direction was right
+and the location was not, by a factor of two and a half.
+
+**Why this family and not the storage one.** This corpus is deliberately
+redundant — every fix-advice lesson ships with a near-duplicate twin
+from a second trusted source, which is the design choice recorded at the
+top of `bench/testsuite_fixtures.py`. The counters carry the twins as
+spares and therefore *always* have something to say, which is why they
+cannot be billed at all. The ledger consolidates them and lets the
+surplus starve, and only once that has run far enough does it arrive at
+a patch question with no answer. It is the only arm that can be billed,
+and the bill is the price of the leanness the ledger is supposed to buy.
+
+`limitations.tex` predicted rent would help here because it assumed the
+ledger's silence was a *virtue* going unrewarded. Under the rule the
+storage sweeps established — **rent bills not having an answer** — the
+ledger's silence is the expensive thing, and on a redundant corpus it is
+the only silence there is.
+
+**The budget-12 cell is the sharpest version.** On this family at total
+suppression the ledger is the only arm above the do-nothing floor
+(+65.00 against +60.00), and that is the one win the second-family
+withholding grid reports for it. At 60 cycles rent erases it by rent
+0.25 (46.25) and drives it *negative* by rent 1.0: **-10.00 against a
++60.00 floor**, the only arm in this entire document that ends worse
+than never having run. It is extinct there, so it declines everything,
+so it pays for everything.
+
+**And the horizon warning is now load-bearing rather than decorative.**
+Every deterministic result in this project except the withholding grids
+runs 30 cycles. On this family, at 30 cycles, the entire rent effect is
+*invisible* — every arm flat, every ordering unchanged. A 30-cycle grid
+would have concluded that pricing inaction does nothing here. That is
+not a smaller effect at a shorter horizon; it is a false negative.
