@@ -133,7 +133,7 @@ manifest at the time this package was frozen:
 | withholding_testsuite.json | withholding_testsuite | 30 | 1800 | 4decdaed3479122d14ccd8006350db135350d631 |
 | rent.json                  | rent            | 30    | 3000 | 018eff3d05367abbab44e375f4282e5c5531aa38 |
 | rent_lying.json            | rent_lying      | 30    | 4500 | 321e9034d2e2d699602db1f7337ed6ba4310c324 |
-| rent_testsuite.json        | rent_testsuite  | 30    | 3000 | e460fbe899038a1c694f056f2093ec3495f9fb5a |
+| rent_testsuite.json        | rent_testsuite  | 30    | 3000 | 095e23d4228b40272bc1e203236ea60e29dfa319 |
 
 Every commit in that column is in this repository's published history, so
 `git checkout <sha>` works for all of them — as it now does for the 80
