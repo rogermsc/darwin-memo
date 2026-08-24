@@ -293,8 +293,13 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     # model at a fixed (seed, cycles, files). Drift = harness bug.
     # The attack class and the write-time filter are NOT noise: they
     # change which entries exist, so they belong in the key rather than
-    # inside a set the canary expects to be a singleton.
-    canary: dict[tuple[str, int, int, int, str, bool], set[float]] = {}
+    # inside a set the canary expects to be a singleton. Nor is
+    # hold_cost: it changes what the world charges for the same
+    # behaviour, so five rents at one seed are five different worlds and
+    # comparing them fired this canary 60 times on a correct file. Any
+    # config field that moves the TRUE delta belongs in the key; only
+    # fields that move the REPORTED one may be quantified over.
+    canary: dict[tuple[str, int, int, int, str, bool, float], set[float]] = {}
     # A row missing arm, seed or cum_delta was already reported above; skip it
     # here for the same reason the poison gate does, so a malformed or
     # unregistered file gets a failure list rather than a KeyError from the
@@ -313,13 +318,15 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
                 cfg.get("files_per_cycle", 0),
                 str(cfg.get("attack", "")),
                 bool(cfg.get("content_filter", False)),
+                float(cfg.get("hold_cost", 0.0)),
             )
             canary.setdefault(key, set()).add(r["metrics"]["cum_delta"])
     for key, values in canary.items():
         if len(values) > 1:
             failures.append(
                 f"keep_everything true cum_delta varies with noise at "
-                f"family/seed/cycles/files {key}: {sorted(values)}"
+                f"family/seed/cycles/files/attack/filter/rent {key}: "
+                f"{sorted(values)}"
             )
     return failures
 

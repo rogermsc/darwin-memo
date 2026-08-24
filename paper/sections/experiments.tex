@@ -767,6 +767,105 @@ read the sign, and at total suppression its limit is exactly
 no-curation. A mitigation that helps against the dumber of two attackers
 is a finding, not a default.
 
+\subsection{The price of standing still}
+\label{sec:rent}
+Every result above scores inaction at exactly zero. A kept file and a
+declined patch cost nothing, in both environment families, so a store
+that has emptied itself stops acting \emph{and} stops paying. That is
+the property the withholding headline rests on, and it belongs to these
+worlds rather than to curation: the ledger's advantage at total
+suppression is that an emptied store does no harm, which is only an
+advantage where doing nothing is free.
+
+So we priced it. \texttt{RentedStorageEnv} meters the same quota in
+byte-cycles instead of bytes: a file left in place occupies its own size
+for the cycle it was left, so declining costs $\texttt{hold\_cost}
+\times \text{size}$, while freeing a disposable file still recovers
+$+\text{size}$ and destroying a protected one still pays the $3\times$
+restore. Nothing else moves --- same sandbox, same seeds, same files,
+same sizes, same prompts, same corpus, same action reader --- so this is
+a counterfactual on the price of inaction rather than a third world that
+would have confounded the pricing with a new corpus and a new poison. At
+$\texttt{hold\_cost}=0$ the environment delegates to \texttt{StorageEnv}
+outright, and that column reproduces \texttt{withholding.json} exactly;
+it is a canary, not a data point. Five rents $\times$ two budgets
+$\times$ two horizons $\times$ five arms $\times$ 30 seeds, 3,000 runs.
+Five predictions were registered in a commit before the grid ran.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Total suppression (budget 12), true cumulative delta in M of
+bytes, 30 seeds. The four arms that are not \texttt{survival} are
+identical to the last byte at every rent, all at \texttt{poison\_killed}
+$0.00$: they have stopped curating, so the row is the do-nothing floor
+rather than a defence. Bold marks the better of the two.}
+\label{tab:rent}
+\begin{tabular}{llccccc}
+\toprule
+horizon & arm & rent 0 & 0.25 & 0.5 & 0.75 & 1.0 \\
+\midrule
+\multirow{2}{*}{30 cycles}
+ & \textbf{survival} & $\mathbf{-6.42}$ & $\mathbf{-9.12}$ & $-11.82$ & $-14.52$ & $-17.22$ \\
+ & do-nothing floor  & $-8.84$ & $-9.83$ & $\mathbf{-10.82}$ & $\mathbf{-11.81}$ & $\mathbf{-12.81}$ \\
+\midrule
+\multirow{2}{*}{60 cycles}
+ & \textbf{survival} & $\mathbf{-6.42}$ & $\mathbf{-15.31}$ & $-24.20$ & $-33.09$ & $-41.98$ \\
+ & do-nothing floor  & $-18.17$ & $-20.19$ & $\mathbf{-22.20}$ & $\mathbf{-24.21}$ & $\mathbf{-26.23}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The headline reverses, and it reverses cheaply.} At rent
+$1.0$ and total suppression \texttt{survival} is last of five on both
+horizons --- worse than the floor in $30/30$ seeds at 60 cycles --- and
+last by $60\%$. The crossing is not at some implausible extreme:
+interpolating the measured grid puts it at rent $0.354$ over 30 cycles
+and $0.427$ over 60, so the ledger's advantage survives only where
+holding a byte for a cycle costs less than four-tenths of what freeing
+it earns. The ordinal prediction registered beforehand (best at $0$ and
+$0.25$, last at $0.5$, $0.75$ and $1.0$, on both horizons) held exactly;
+the point estimate that accompanied it, $\sim\!0.48$, was too high. We
+also decline to lean on the $0.25$ column: at 30 cycles the ledger leads
+there by $+0.71$M and is ahead in $19$ of $30$ seeds, which is an
+ordinal win on a coin flip.
+
+\paragraph{Nothing about the curation changed.} At budget 12
+\texttt{survival} holds \texttt{poison\_killed} $1.00$, benign retention
+$0.00$ and a final population of $2.00$ (30 cycles) or $0.00$ (60) in
+\emph{every} rent column. The mechanism is byte-for-byte the same
+behaviour; the world simply started charging for it. The sharpest form
+of this is a number that does not move: at rent $0$, \texttt{survival}'s
+true outcome over 60 cycles is \emph{identical} to its outcome over 30,
+$-6.42$M in both, because its last non-zero cycle is $19$ and an extinct
+store in a world that does not price inaction stops moving the world at
+all. At rent $1.0$ the same extinct store is still being billed at cycle
+$59$, and the tail from cycle 30 alone costs $-24.26$M.
+
+\paragraph{Pricing inaction closes the withholder's harbor.} Under
+\texttt{StorageEnv} the attack is self-limiting exactly when it is
+winning: a shrinking store produces fewer measured outcomes, and
+\S\ref{sec:withholding} reports the budget being spent unequally across
+arms for that reason --- at 60 cycles the attacker spends $193$ of $720$
+suppressions against \texttt{survival} and $576$ against everyone else.
+At \emph{every} rent above zero all five arms saturate at $720/720$.
+Silence cannot be suppressed when nothing is silent, so the asymmetry
+does not shrink; it disappears, and with it the matched-capacity caveat
+that qualifies both published withholding grids.
+
+\paragraph{The attack is doing all of the work.} In the unattacked
+column the ordering does not change at any rent, on either horizon:
+eviction first, then \texttt{survival}, then \texttt{survival\_paced},
+then quarantine, with \texttt{keep\_everything} last. Rent reorders
+nothing. Pricing inaction does not hurt the ledger while the
+ledger is alive. It hurts it precisely when the attack has emptied it,
+which is the one case the storage grid scored at zero. We therefore
+scope rather than retract: at total suppression the ledger is still the
+only arm that removes the poison, and still the only arm whose kill rate
+is not $0.00$. It simply no longer wins the ledger, and ``amnesia is
+cheaper'' was never a property of amnesia --- it was a property of an
+environment that did not charge for it.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence

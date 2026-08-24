@@ -963,3 +963,115 @@ def test_curation_adversary_runs_on_the_testsuite_family():
             cycles=2,
             overrides={**overrides, "flake_rate": 0.1},
         )
+
+
+# ---------------------------------------------------------------------------
+# RentedStorageEnv: the family where standing still is measured
+# ---------------------------------------------------------------------------
+
+
+def test_rented_env_at_zero_rent_is_identical_not_merely_equivalent(tmp_path):
+    """The canary the whole rent sweep rests on.
+
+    Every conclusion drawn from the sweep is a comparison against the
+    zero-rent column, so that column has to BE the published storage
+    family rather than resemble it. Identity is asserted on the outcome
+    object, detail string included, because the transcripts carry the
+    detail and ``-0.0 * size`` would pass a numeric-only check while
+    writing ``kept, -0 bytes still occupied`` into every record.
+    """
+    from darwin_memo import RentedStorageEnv, StorageEnv
+
+    plain = StorageEnv(root=tmp_path / "plain", files_per_cycle=6, seed=11)
+    free = RentedStorageEnv(
+        root=tmp_path / "free", files_per_cycle=6, seed=11, hold_cost=0.0
+    )
+    for answer in ("It must be retained.", "Safe to delete.", ""):
+        for a, b in zip(plain.tasks(0), free.tasks(0), strict=True):
+            assert a.prompt == b.prompt
+            got, want = free.verify(b, answer), plain.verify(a, answer)
+            assert got.delta == want.delta and got.detail == want.detail
+    plain.cleanup()
+    free.cleanup()
+
+
+def test_rented_env_charges_exactly_the_occupancy_it_names(tmp_path):
+    """Declining costs ``hold_cost * size``, and acting is untouched.
+
+    The number is asserted against the task's own recorded size rather
+    than against a constant, so a rent that silently used a fixed charge
+    -- which would price every file the same and destroy the whole point
+    of measuring bytes -- fails here.
+    """
+    from darwin_memo import RentedStorageEnv
+
+    env = RentedStorageEnv(root=tmp_path, files_per_cycle=6, seed=11, hold_cost=0.25)
+    for task in env.tasks(0):
+        size = float(task.context["size"])
+        assert env.verify(task, "It must be retained.").delta == -0.25 * size
+        assert env.verify(task, "").delta == -0.25 * size, "silence is not free either"
+    for task in env.tasks(1):
+        acted = env.verify(task, "Safe to delete.").delta
+        expected = float(task.context["size"])
+        assert acted == (expected if task.context["safe"] else -3.0 * expected)
+    env.cleanup()
+    with pytest.raises(ValueError, match="hold_cost must be >= 0"):
+        RentedStorageEnv(root=tmp_path, hold_cost=-0.1)
+
+
+def test_rent_family_refuses_configs_that_would_not_record_what_they_ran():
+    """Two ways this family could lie about itself in the manifest.
+
+    A defaulted ``hold_cost`` would ride outside ``overrides`` and
+    therefore outside the config hash, so two different rents would
+    share a manifest entry. And ``FlakyStorageEnv`` builds its own
+    unrented ``StorageEnv``, so accepting ``flake_rate`` here would run
+    at zero rent under a config that claims otherwise -- the silent
+    version of the failure the testsuite branch already refuses.
+    """
+    from bench.runner import run_one
+
+    with pytest.raises(ValueError, match="storage_rent needs an explicit hold_cost"):
+        run_one("survival", seed=0, cycles=2, overrides={"env_family": "storage_rent"})
+    with pytest.raises(ValueError, match="no rented variant"):
+        run_one(
+            "survival",
+            seed=0,
+            cycles=2,
+            overrides={
+                "env_family": "storage_rent",
+                "hold_cost": 1.0,
+                "flake_rate": 0.1,
+            },
+        )
+
+
+def test_pricing_inaction_removes_the_withholder_s_harbor():
+    """The mechanism claim, isolated: silence stops being unattackable.
+
+    ``limitations.tex`` records that under StorageEnv the withholding
+    budget is not spent equally across arms, because a shrinking store
+    produces fewer measured outcomes and the attack is self-limiting
+    exactly when it is winning. That is a property of an environment
+    where declining returns delta 0 and therefore cannot be suppressed.
+    Price inaction and every task becomes a target, so the attacker
+    spends its full capacity.
+
+    Asserted as full saturation against a strict shortfall at the same
+    seed, budget and horizon, which is the counterfactual that isolates
+    the pricing: nothing else differs between the two runs.
+    """
+    from bench.runner import run_one
+
+    base = {
+        "env_family": "storage_rent",
+        "lie_budget": 12,
+        "adversary_objective": "withhold",
+    }
+    free = run_one("survival", seed=1, cycles=30, overrides={**base, "hold_cost": 0.0})
+    rent = run_one("survival", seed=1, cycles=30, overrides={**base, "hold_cost": 1.0})
+    assert free["metrics"]["flakes_fired"] < free["metrics"]["flakes_marked"], (
+        "the zero-rent run saturated its budget, so this seed cannot show "
+        "the harbor at all and the comparison below proves nothing"
+    )
+    assert rent["metrics"]["flakes_fired"] == rent["metrics"]["flakes_marked"]

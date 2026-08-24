@@ -270,6 +270,69 @@ class StorageEnv:
 
 
 # ---------------------------------------------------------------------------
+# RentedStorageEnv
+# ---------------------------------------------------------------------------
+
+
+class RentedStorageEnv(StorageEnv):
+    """StorageEnv where standing still is measured instead of assumed free.
+
+    Both bundled environments score inaction at exactly zero: a kept
+    file and a skipped patch cost nothing, so a store that has gone
+    silent -- or empty -- pays no penalty for it. That single property
+    is what several conclusions in this project rest on, and it is a
+    property of these two worlds rather than of memory curation, so it
+    needs an environment on the other side of it.
+
+    The conserved quantity here is quota **occupancy**, measured in
+    byte-cycles rather than bytes. A file left in place occupies its own
+    size for the cycle it was left, so declining costs
+    ``hold_cost * size``; freeing a disposable file recovers that
+    occupancy (``+size``, exactly as before); destroying a protected one
+    still triggers the 3x restore. Nothing else changes -- same sandbox,
+    same seeds, same files, same sizes, same prompts, same action reader
+    -- so a comparison against :class:`StorageEnv` isolates the pricing
+    of inaction and nothing else.
+
+    ``hold_cost`` is the knob that makes it a counterfactual rather than
+    a third world. At ``0.0`` this class delegates every outcome to
+    :class:`StorageEnv` and is not merely equivalent but identical, which
+    is the canary any result that sweeps the rent should carry: if the
+    zero-rent column does not reproduce the published storage numbers,
+    the difference is the harness and not the economics.
+
+    Note what this does to an adversary that suppresses measurements.
+    Under ``StorageEnv`` silence cannot be lied about, because there is
+    nothing to lie about; here every task returns a measured outcome, so
+    an attacker's budget buys targets it did not previously have.
+    """
+
+    def __init__(
+        self,
+        root: str | Path | None = None,
+        files_per_cycle: int = 12,
+        seed: int = 7,
+        hold_cost: float = 1.0,
+    ) -> None:
+        if hold_cost < 0:
+            raise ValueError(f"hold_cost must be >= 0, got {hold_cost}")
+        super().__init__(root=root, files_per_cycle=files_per_cycle, seed=seed)
+        self.hold_cost = hold_cost
+
+    def verify(self, task: Task, answer_text: str) -> Outcome:
+        # Delegating at hold_cost 0 rather than computing -0.0 * size
+        # keeps the canary exact down to the detail string, which the
+        # transcripts carry.
+        if not self.hold_cost or decision_polarity(answer_text):
+            return super().verify(task, answer_text)
+        cost = self.hold_cost * float(task.context["size"])
+        return Outcome(
+            delta=-cost,
+            detail=f"kept, {cost:g} bytes still occupied",
+        )
+
+
+# ---------------------------------------------------------------------------
 # VerifiableQAEnv
 # ---------------------------------------------------------------------------
 

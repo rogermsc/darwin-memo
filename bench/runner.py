@@ -11,7 +11,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import darwin_memo
-from darwin_memo import MemoryStore, StorageEnv, SurvivalConfig, TestSuiteEnv
+from darwin_memo import (
+    MemoryStore,
+    RentedStorageEnv,
+    StorageEnv,
+    SurvivalConfig,
+    TestSuiteEnv,
+)
 from darwin_memo.retrieval import (
     EMBEDDING_MERGE_THRESHOLD,
     EmbeddingRetriever,
@@ -77,8 +83,14 @@ def _env_family(overrides: dict[str, Any]) -> str:
     suite's RunSpec.
     """
     family = str(overrides.get("env_family", "storage"))
-    if family not in ("storage", "testsuite"):
+    if family not in ("storage", "testsuite", "storage_rent"):
         raise ValueError(f"unknown env_family: {family!r}")
+    if family == "storage_rent" and "hold_cost" not in overrides:
+        raise ValueError(
+            "storage_rent needs an explicit hold_cost: it is the axis the "
+            "family exists to vary, and a default would ride outside the "
+            "recorded config and therefore outside the manifest hash"
+        )
     return family
 
 
@@ -125,6 +137,36 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
     return build(upkeep=upkeep)
 
 
+def _base_env(
+    family: str,
+    workdir: Path,
+    seed: int,
+    files_per_cycle: int,
+    overrides: dict[str, Any],
+) -> StorageEnv | TestSuiteEnv:
+    """The unwrapped environment for a family, before noise or adversary.
+
+    Shared by ``run_one`` and the ``random_matched`` shadow run, which
+    must be configured identically: a shadow that silently built a
+    different world would match its pruning rate against a schedule no
+    arm ever ran.
+    """
+    if family == "testsuite":
+        return TestSuiteEnv(
+            root=workdir,
+            defects_per_cycle=int(overrides.get("defects_per_cycle", 3)),
+            seed=seed,
+        )
+    if family == "storage_rent":
+        return RentedStorageEnv(
+            root=workdir,
+            files_per_cycle=files_per_cycle,
+            seed=seed,
+            hold_cost=float(overrides["hold_cost"]),
+        )
+    return StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
+
+
 _schedule_memo: dict[tuple[Any, ...], list[int]] = {}
 
 
@@ -144,15 +186,9 @@ def _death_schedule_for(
     workdir = Path(tempfile.mkdtemp(prefix="darwin-memo-shadow-"))
     try:
         store = _build_store(overrides)
-        env: StorageEnv | TestSuiteEnv
-        if _env_family(overrides) == "testsuite":
-            env = TestSuiteEnv(
-                root=workdir,
-                defects_per_cycle=int(overrides.get("defects_per_cycle", 3)),
-                seed=seed,
-            )
-        else:
-            env = StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
+        env: StorageEnv | TestSuiteEnv = _base_env(
+            _env_family(overrides), workdir, seed, files_per_cycle, overrides
+        )
         if "resource_scale" in overrides:
             env.resource_scale = overrides["resource_scale"]
         result = run_survival(
@@ -207,6 +243,26 @@ def run_one(
             )
         else:
             env = TestSuiteEnv(root=workdir, defects_per_cycle=defects, seed=seed)
+    elif family == "storage_rent":
+        if "flake_rate" in overrides:
+            # FlakyStorageEnv wraps a StorageEnv it builds itself, so it
+            # would run at zero rent while the config recorded a
+            # hold_cost -- a run that claims an axis it never varied.
+            raise ValueError(
+                "flake_rate has no rented variant; FlakyStorageEnv would "
+                "silently run at hold_cost 0 while the config recorded "
+                "otherwise"
+            )
+        rented = _base_env(family, workdir, seed, files_per_cycle, overrides)
+        if "lie_budget" in overrides:
+            env = AdversarialEnv(
+                base=rented,
+                seed=seed,
+                lie_budget=overrides["lie_budget"],
+                objective=overrides.get("adversary_objective", "destroy"),
+            )
+        else:
+            env = rented
     elif "lie_budget" in overrides:
         if "flake_rate" in overrides:
             raise ValueError(

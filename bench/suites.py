@@ -450,6 +450,72 @@ def withholding_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
     )
 
 
+# The rent axis. 0.0 must reproduce the committed storage withholding
+# cells exactly (RentedStorageEnv delegates at zero rent), which makes
+# the zero column a canary rather than a data point: if it moves, the
+# harness moved. 0.25 is the interesting middle -- holding a file costs
+# a quarter of what freeing it earns -- and 1.0 is symmetric occupancy,
+# where a byte held for a cycle costs exactly the byte-cycle it consumed.
+RENT_HOLD_COSTS = (0.0, 0.25, 0.5, 0.75, 1.0)
+# Only the two decisive budgets. The interior of the curve is already
+# mapped on the storage family and the question here is not where the
+# mechanisms break but whether the ordering at the ends survives pricing
+# inaction: 0 is unattacked, 12 (= files_per_cycle) is total suppression,
+# which is where the ledger's amnesia is supposed to be cheap.
+RENT_BUDGETS = (0, 12)
+# Both horizons, for the same reason the withholding grid carries both:
+# rent accrues per cycle and so does the poison's damage, so whether the
+# crossover is horizon-invariant is a question the grid can answer for
+# free rather than a caveat it has to carry. It is also the second time
+# this project varies the horizon at all.
+RENT_CYCLES = (30, 60)
+
+
+def rent_suite(seeds: list[int]) -> list[RunSpec]:
+    """Withholding against an environment that charges for standing still.
+
+    Every conclusion this project draws about amnesia being cheap rests
+    on a property of its two environments rather than of curation: both
+    score inaction at exactly zero, so a store that has emptied itself
+    stops acting and stops paying. ``limitations.tex`` names an
+    environment that prices standing still as the obvious way that could
+    still be wrong, and this is that environment -- StorageEnv with the
+    quota metered in byte-cycles, so a file left in place costs
+    ``hold_cost * size`` for the cycle it was left.
+
+    It is a counterfactual rather than a third world on purpose. Same
+    sandbox, same seeds, same files, same sizes, same prompts, same
+    corpus, same action reader; the only thing that varies is the price
+    of doing nothing, so anything that moves is attributable to that and
+    to nothing else. A third domain would have confounded the pricing
+    with a new corpus, a new vocabulary and a new poison.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="rent",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "env_family": "storage_rent",
+                "hold_cost": hold_cost,
+                "lie_budget": budget,
+                "adversary_objective": "withhold",
+                **extra,
+            },
+            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
+        )
+        for cycles in RENT_CYCLES
+        for hold_cost in RENT_HOLD_COSTS
+        for budget in RENT_BUDGETS
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
     """Denial-of-memory: who survives an attacker aiming at the curator?
 

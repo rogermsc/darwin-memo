@@ -287,10 +287,24 @@ and run (Table~\ref{tab:withholding-testsuite}), and it settled the
 direction rather than the size: survival still has the best cumulative
 delta at total suppression, but by $8\%$ rather than by threefold, and
 on the family where a counter beats it outright when unattacked
-(\S\ref{sec:second-env}). Two families is not many. Both score inaction
-at exactly zero, which is the property the result rests on, so an
-environment that charges for standing still remains unmeasured and is the
-obvious way this conclusion could still be wrong.
+(\S\ref{sec:second-env}). Two families is not many, and both scored
+inaction at exactly zero --- the property the result actually rested on.
+That is now measured too, and it is where the conclusion breaks: priced
+inaction reverses it (\S\ref{sec:rent}, Table~\ref{tab:rent}), at a rent
+of about $0.4$ of what the declined action is worth. We keep the
+withholding claim in the scoped form the sweep leaves it in: at total
+suppression the ledger is the only arm that removes the poison, and the
+only one whose kill rate is not $0.00$, but it no longer has the best
+cumulative outcome once standing still is billed. ``Amnesia is cheaper''
+was never a property of amnesia. It was a property of an environment
+that did not charge for it, and we said so as though it were the former.
+
+What the sweep does \emph{not} settle is the lying adversary. It varies
+one price, under one attack, on one corpus. The two published grids that
+motivated it are unaffected in their own worlds --- the zero-rent column
+reproduces \texttt{withholding.json} exactly --- but nothing here tells
+us what a liar does to a store that pays rent, and the argument in
+\S\ref{sec:adversary} rests on that attacker rather than this one.
 
 The same section is also the only place in this paper where we vary the
 cycle horizon, and it changed a conclusion: benign retention under
@@ -308,6 +322,10 @@ therefore at matched \emph{capacity}, not matched \emph{fired}, and
 matched-fired is unreachable here because the attack is self-limiting
 precisely when it is winning. This is the same asymmetry
 \S\ref{sec:adversary} reports for the lying adversary, in a sharper form.
+It is also a property of unpriced inaction rather than of the attack: in
+the rented environment every task returns a measured outcome, all five
+arms saturate their budget at every non-zero rent, and the asymmetry
+does not shrink but disappears (\S\ref{sec:rent}).
 
 \paragraph{Consolidation is a laundering surface.}
 Our own merge machinery carried a poisoned fragment to the end of every
@@ -321,9 +339,15 @@ boundaries).
 \paragraph{Silence as a harbor.}
 In environments where inaction produces no measurement, a conservative
 entry can dodge lying measurements simply by staying silent, which
-flatters safety metrics. Environments that price inaction would expose
-entries to lies the current design avoids, and would also likely reverse
-the second-family loss (\S\ref{sec:regime}, Axis 3).
+flatters safety metrics. Half of this is now measured: against a
+withholding attacker the harbor is real, and pricing inaction closes it
+outright (\S\ref{sec:rent}). The other half is not. We have not run a
+\emph{liar} against a rented environment, so whether the entries that
+currently dodge lies would be exposed to them --- the version of this
+that would touch \S\ref{sec:adversary} --- remains a prediction. The
+second-family loss (\S\ref{sec:regime}, Axis 3) is likewise unmeasured
+under rent: \texttt{RentedStorageEnv} prices inaction on the storage
+corpus, not on the test-suite one.
 
 \paragraph{Local-judge scale.}
 The LLM-judge control uses small (3--4B) local models at five seeds; a

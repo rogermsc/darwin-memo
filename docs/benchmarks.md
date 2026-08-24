@@ -2917,3 +2917,156 @@ advantage is banked before extinction, not earned by a working store.
 other arm at 60. The comparison is at matched capacity, not matched
 fired, for the same reason as on storage: the attack is self-limiting
 exactly when it is winning.
+
+## Pricing inaction: pre-registered predictions
+
+`paper/sections/limitations.tex` names one measurement as the way the
+withholding conclusion could still be wrong, and it is not another
+corpus:
+
+> Both score inaction at exactly zero, which is the property the result
+> rests on, so an environment that charges for standing still remains
+> unmeasured and is the obvious way this conclusion could still be
+> wrong.
+
+`RentedStorageEnv` is that environment. It meters the quota in
+byte-cycles rather than bytes, so a file left in place occupies its own
+size for the cycle it was left and declining costs `hold_cost * size`.
+Everything else is held fixed — same sandbox, same seeds, same files,
+same sizes, same prompts, same corpus, same action reader — so this is a
+counterfactual on the price of inaction and not a third world. At
+`hold_cost` 0.0 the class delegates to `StorageEnv` outright, so the
+zero-rent column is the published family itself and works as a canary
+rather than as a data point.
+
+The grid: 5 arms x 5 rents (0, 0.25, 0.5, 0.75, 1.0) x 2 budgets (0
+unattacked, 12 total suppression) x 2 horizons x 30 seeds = 3,000 runs.
+
+**The mechanism I am betting on.** The ledger's entire advantage at
+total suppression is amnesia: settlements stop, upkeep keeps charging,
+the store empties, and an empty store stops acting. Where inaction is
+free that is banked as a win against arms that keep a live poison and
+keep destroying. Where inaction is priced it is a bill, charged on every
+file the empty store declines — twelve a cycle, against the handful the
+poisoned arms act on. So the ledger should lose ground with rent about
+four times as fast as the arms that keep acting, and the ordering should
+invert somewhere.
+
+1. **The ordering reverses at high rent.** At `hold_cost` 1.0, budget 12,
+   `survival` has the **worst** mean `cum_delta` of the five arms, not
+   the best.
+2. **The crossover is at 0.5, not 0.75.** Extrapolating the two rents
+   already seen (below), `survival` loses about 8.8M per 0.25 of rent
+   and the arms that keep acting lose about 2.0M, against a 13.1M
+   cushion at zero rent — so they cross at rent ~0.48. The prediction is
+   therefore that `survival` is best at 0 and 0.25 and **worst at 0.5,
+   0.75 and 1.0**. Neither 0.5 nor 0.75 has been run at any seed.
+3. **The mechanism is unchanged; only its price is.** `survival` at
+   budget 12 keeps `poison_killed` 1.00, benign retention 0.00 and a
+   final population of ~0 in **every** rent column. Nothing about the
+   curation changes. If benign retention or the kill rate moves with
+   rent, this is not the effect I claim it is.
+4. **The withholder's harbor closes.** At `hold_cost` > 0 and budget 12,
+   `flakes_fired == flakes_marked` for every arm, where at zero rent it
+   is strictly less for `survival`. Silence cannot be suppressed when
+   nothing is silent, which dissolves the "budget is not spent equally
+   across arms" asymmetry the storage and test-suite grids both report.
+5. **The horizon does not change the ordering.** Unlike the second
+   environment family, where 30 vs 60 cycles moved benign retention
+   sevenfold, both the rent and the poison's damage accrue per cycle
+   here, so the crossover rent should be roughly horizon-invariant. No
+   30-cycle cell has been run at all.
+
+**Not blind, and said so.** A smoke run while wiring the suite covered
+seed 0 at 60 cycles for all five arms, both budgets, and rents 0.0, 0.25
+and 1.0 — 30 cells. It is what predictions 1 and 2 are extrapolated
+from, and it is a single seed. What it showed: at budget 12, `survival`
+ends -4.91M / -13.74M / -40.21M as rent goes 0 -> 0.25 -> 1.0, while
+every other arm ends -18.02M / -20.06M / -26.18M. The zero-rent column
+of that run reproduced `withholding.json` exactly on all ten cells,
+which is the canary firing green. Predictions 3, 4 and 5 concern
+columns, horizons and metrics that run did not touch.
+
+### Result: all five held, and the headline has a price
+
+```
+python -m bench.run --suite rent --seeds 0:30 \
+  --out bench/results/rent.json --update-manifest
+```
+
+3,000 runs. `cum_delta` is the **true** world outcome in M of bytes, not
+what the store was told. The zero-rent column reproduces
+`withholding.json` exactly, which is the canary: every difference below
+is the rent and nothing else.
+
+**Budget 12 (total suppression), mean `cum_delta` in M, n=30:**
+
+| arm | rent 0 | 0.25 | 0.5 | 0.75 | 1.0 |
+|---|---|---|---|---|---|
+| **survival** (60 cyc) | **-6.42** | **-15.31** | -24.20 | -33.09 | -41.98 |
+| every other arm (60 cyc) | -18.17 | -20.19 | **-22.20** | **-24.21** | **-26.23** |
+| **survival** (30 cyc) | **-6.42** | **-9.12** | -11.82 | -14.52 | -17.22 |
+| every other arm (30 cyc) | -8.84 | -9.83 | **-10.82** | **-11.81** | **-12.81** |
+
+1. **Reversal: held.** At rent 1.0 and budget 12 `survival` is last of
+   five on both horizons, and last by 60% at 60 cycles (-41.98 against a
+   -26.23 floor). Paired per seed it is worse in 30/30 seeds at 60
+   cycles and 29/30 at 30 cycles.
+2. **Crossover at 0.5 rather than 0.75: held ordinally, and the point
+   estimate was too high.** `survival` is best at rents 0 and 0.25 and
+   last at 0.5, 0.75 and 1.0, on both horizons, exactly as predicted on
+   cells that had never been run. The extrapolation put the crossing at
+   ~0.48; interpolating the measured grid puts it at **0.354** (30
+   cycles) and **0.427** (60 cycles). And the 0.25 win is thinner than
+   the mean suggests: at 30 cycles it is +0.71M and `survival` is ahead
+   in only **19 of 30 seeds**, which is an ordinal win on a coin flip,
+   not a result.
+3. **Mechanism unchanged, only its price: held.** At budget 12
+   `survival` holds `poison_killed` 1.00, benign retention 0.00 and
+   final population 2.00 (30 cyc) / 0.00 (60 cyc) in **every** rent
+   column. The curation is byte-for-byte the same behaviour; what
+   changed is what the world charges for it.
+4. **The harbor closes: held, and wider than predicted.** At rent 0 the
+   attacker spends 193 of 720 suppressions against `survival` and 576 of
+   720 against everyone else — the "budget is not spent equally across
+   arms" asymmetry both published grids report. At **every** rent above
+   0, **all five arms saturate at 720/720**. Silence cannot be
+   suppressed when nothing is silent, so the asymmetry does not shrink,
+   it disappears.
+5. **Horizon-invariant ordering: held; horizon-invariant crossover:
+   not.** The rank pattern is identical at 30 and 60 cycles, but the
+   crossing rent moves 0.354 -> 0.427. Stated the other way: the longer
+   the run, the more rent the ledger can absorb before losing, because
+   its extinction is a one-off while the poisoned arms keep destroying.
+
+**What actually happens, in one number.** At rent 0, `survival`'s true
+world outcome at 60 cycles is *identical* to its outcome at 30: -6.42M
+in both, because its last non-zero cycle is 19 and an extinct store in a
+world that does not price inaction stops moving the world at all. At
+rent 1.0 the same store is still being billed at cycle 59, and the
+cycles 30-59 tail alone costs -24.26M. Amnesia is not cheap; it was
+free, and only because nothing charged for it.
+
+**Read the "winner" honestly.** At rent >= 0.5 and budget 12,
+`survival_paced`, `evict_on_negative`, `quarantine` and
+`keep_everything` are **identical to the last byte**, all at
+`poison_killed` 0.00. Nothing is defending. The reading is not that a
+counter beat the ledger; it is that the only arm still removing anything
+is the only arm paying for having removed everything, and the four that
+stopped curating tie at the do-nothing floor.
+
+**The attack is doing all of the work.** In the unattacked column the
+ordering is `evict_on_negative > survival > survival_paced > quarantine
+> keep_everything` at **every** rent and both horizons — rent reorders
+nothing. Pricing inaction does not hurt the ledger while the ledger is
+alive. It hurts it exactly when the attack has emptied it, which is the
+one case the storage grid scored at zero.
+
+**What this costs the paper.** "The ledger's failure mode is amnesia,
+and amnesia is cheaper" is true, and true only of environments that do
+not charge for standing still. The price at which it flips is under half
+the value of the action it declines — well inside the range a real quota,
+lease, or retention bill would sit at. The claim is now scoped rather
+than retracted: at total suppression the ledger still removes the poison
+where nothing else does, and it is still the only arm whose kill rate is
+not 0.00. It simply no longer wins the ledger.

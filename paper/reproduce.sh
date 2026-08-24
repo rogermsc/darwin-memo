@@ -115,6 +115,14 @@ RESULTS=(
   llm-qwen.json
   wef-llama32.json
   wef-llama32-counter.json
+  neighbours.json
+  persistence.json
+  distill_noisy.json
+  distill_rule.json
+  withholding.json
+  withholding_selective.json
+  withholding_testsuite.json
+  rent.json
 )
 
 echo "-- verifying committed results against MANIFEST.json (offline) --"
