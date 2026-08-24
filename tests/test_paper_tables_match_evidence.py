@@ -898,3 +898,71 @@ def test_lying_and_withholding_agree_wherever_the_attacker_does_nothing() -> Non
                     )
                 checked += 1
     assert checked == 50
+
+
+# --------------------------------------------------------------------------
+# sec:rent's second-family paragraph -- prose numbers, no table to parse.
+# --------------------------------------------------------------------------
+def _rent_testsuite(arm: str, cycles: int, budget: int, rent: float) -> float:
+    config = {"survival": {"arm": "survival"}, **RENT_LYING_ARMS}[arm]
+    return mean(
+        pick(
+            "rent_testsuite.json",
+            **config,
+            cycles=cycles,
+            lie_budget=budget,
+            hold_cost=rent,
+            env_family="testsuite_rent",
+            adversary_objective="withhold",
+        ),
+        "cum_delta",
+    )
+
+
+def test_second_family_rent_paragraph_matches_committed_runs() -> None:
+    """The paragraph cites its numbers in prose, so check them as prose.
+
+    Every figure \\S sec:rent states about the test-suite family: the
+    unattacked pair it opens with, the lead widening, the counters being
+    identical rather than merely close, the flatness at 30 cycles, and
+    the budget-12 cell that ends below zero. A table would have been
+    checked by the parser above; prose has to be enumerated, and the
+    alternative is the class of unenforced claim this file exists for.
+    """
+    assert _rent_testsuite("evict_on_negative", 60, 0, 0.0) == pytest.approx(
+        178.00, abs=DELTA_TOL
+    )
+    assert _rent_testsuite("survival", 60, 0, 0.0) == pytest.approx(121.33, abs=0.01)
+
+    # "the counter's lead going 56.67 -> 69.27"
+    lead = [
+        _rent_testsuite("evict_on_negative", 60, 0, r)
+        - _rent_testsuite("survival", 60, 0, r)
+        for r in (0.0, 1.0)
+    ]
+    assert lead[0] == pytest.approx(56.67, abs=0.01)
+    assert lead[1] == pytest.approx(69.27, abs=0.01)
+
+    # "identical -- not approximately, identically -- across all five rents"
+    for arm in ("evict_on_negative", "quarantine", "keep_everything"):
+        for cycles in (30, 60):
+            for budget in (0, 12):
+                values = {_rent_testsuite(arm, cycles, budget, r) for r in RENT_COLUMNS}
+                assert len(values) == 1, (arm, cycles, budget, sorted(values))
+
+    # "at 30 cycles ... every arm flat, the ledger paying exactly zero"
+    assert len({_rent_testsuite("survival", 30, 0, r) for r in RENT_COLUMNS}) == 1
+
+    # "rent erases that by 0.25 and drives it negative by 1.0"
+    assert _rent_testsuite("survival", 60, 12, 0.0) == pytest.approx(
+        65.00, abs=DELTA_TOL
+    )
+    assert _rent_testsuite("survival", 60, 12, 0.25) < _rent_testsuite(
+        "keep_everything", 60, 12, 0.25
+    )
+    assert _rent_testsuite("survival", 60, 12, 1.0) == pytest.approx(
+        -10.00, abs=DELTA_TOL
+    )
+    assert _rent_testsuite("keep_everything", 60, 12, 1.0) == pytest.approx(
+        60.00, abs=DELTA_TOL
+    )

@@ -941,6 +941,58 @@ pays it more, not less. What rent punishes is not curation; it is the
 state of having nothing useful left, which total suppression produces
 and a budget-2 liar does not.
 
+\paragraph{On the second family the prediction was simply wrong.}
+\S\ref{sec:regime} records a loss: with no adversary present a one-line
+eviction counter beats the ledger on the test-suite family, $178.00$
+against $121.33$ at 60 cycles, and the explanation we have offered is
+that refusing to act is free there. The limitation that followed
+predicted rent would reverse it. We built
+\texttt{RentedTestSuiteEnv} --- a declined patch is charged the repair it
+did not make, $\texttt{hold\_cost} \times \max(0, \text{tests it would
+have fixed})$, measured by running the suite, with the $\max$ keeping it
+an opportunity cost so that declining the destructive patch stays free
+--- and ran the same grid (3,000 runs; the zero-rent column reproduces
+\texttt{withholding\_testsuite.json} at 30 seeds with zero differences).
+
+Rent does not reverse the loss. At 60 cycles it \emph{widens} it, the
+counter's lead going $56.67 \rightarrow 69.27$, and at 30 cycles it does
+not move anything at all. The counters are identical --- not
+approximately, identically --- across all five rents in every cell,
+because they never decline a repair. \texttt{survival} is the only arm
+whose number moves, and it moves down.
+
+The reason is the corpus, and it is a design choice we documented long
+before it mattered here: every fix-advice lesson in this family ships
+with a near-duplicate twin from a second trusted source. The counters
+carry the twins as spares and therefore always have something to say,
+which is why nothing can bill them. The ledger consolidates the twins
+and lets the surplus starve, so it is the only arm that ever reaches a
+patch question with no answer --- and under the rule the storage sweeps
+established, that is the billable state. The limitation assumed the
+ledger's silence was a virtue going unrewarded. On a redundant corpus it
+is the only silence there is, and it is the expensive thing.
+
+The sharpest cell is the one win this family reports for the ledger. At
+total suppression \texttt{survival} is the only arm above the do-nothing
+floor, $+65.00$ against $+60.00$. At 60 cycles rent erases that by
+$0.25$ and drives it negative by $1.0$: $-10.00$ against a $+60.00$
+floor, the only arm anywhere in this paper that ends worse than never
+having run. It is extinct there, so it declines everything, so it pays
+for everything.
+
+\paragraph{A horizon warning that is now load-bearing.} At 30 cycles the
+entire effect above is \emph{invisible}: every arm flat, every ordering
+unchanged, the ledger paying exactly zero. Counting outcomes directly,
+its first billable decline appears around cycle 49 and then accrues at
+about one per cycle --- more than twice the $\text{spawn}/\text{upkeep}$
+starvation cliff at 20, which is where we predicted it would begin.
+Every deterministic result in this paper except the withholding grids
+runs 30 cycles. On this family a 30-cycle grid does not report a smaller
+effect; it reports no effect, which is a false negative. We flag this
+rather than re-running the paper on a longer horizon, because the
+re-run is a larger piece of work than this section and would move
+numbers the rest of the document cites.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence

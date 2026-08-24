@@ -8,6 +8,66 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **`RentedTestSuiteEnv`, and a prediction of ours that turned out to be
+  backwards** (`bench/results/rent_testsuite.json`, 5 arms x 5 rents x 2
+  budgets x 2 horizons x 30 seeds = 3,000 runs). The last untested claim
+  in "Silence as a harbor" was that pricing inaction "would also likely
+  reverse the second-family loss". It does not. It widens it at 60
+  cycles and does nothing at 30.
+  - **The environment.** A declined patch is charged the repair it did
+    not make: `hold_cost * max(0, tests it would have fixed)`, measured
+    by running the suite rather than by grading the answer. The `max`
+    keeps it an opportunity cost -- declining the destructive cleanup
+    patch forgoes nothing and costs nothing. Bill that and the
+    environment would be paying entries to execute the poison.
+  - **The counters cannot be billed at all.** `evict_on_negative`,
+    `quarantine` and `keep_everything` are identical -- not
+    approximately, identically -- across all five rents in every cell of
+    the grid, because they never decline a repair. `survival` is the
+    only arm whose number moves, and it moves down: 121.33 -> 108.73 at
+    60 cycles, so the counter's lead goes 56.67 -> 69.27.
+  - **The corpus is the reason, and it was a documented design choice
+    long before it mattered here.** Every fix-advice lesson in this
+    family ships with a near-duplicate twin from a second trusted
+    source. The counters carry the twins as spares and always have
+    something to say; the ledger consolidates them and lets the surplus
+    starve, so it is the only arm that ever reaches a question with no
+    answer -- the billable state. We predicted rent would reward the
+    ledger's restraint. It charges for it.
+  - **The sharpest cell is the one win this family reported for the
+    ledger.** At total suppression `survival` is the only arm above the
+    do-nothing floor (+65.00 against +60.00). Rent erases that by 0.25
+    and drives it negative by 1.0: **-10.00 against a +60.00 floor**, the
+    only arm anywhere in this project that ends worse than never having
+    run.
+  - **A horizon warning that is now load-bearing rather than
+    decorative.** At 30 cycles the entire effect is *invisible* -- every
+    arm flat, every ordering unchanged, the ledger paying exactly zero.
+    Counting outcomes directly, its first billable decline appears around
+    **cycle 49** and then accrues at about one per cycle. Our
+    pre-registered reasoning put the onset just past the `spawn/upkeep`
+    cliff at 20; the direction was right and the location was off by a
+    factor of two and a half. Every deterministic result in this project
+    except the withholding grids runs 30 cycles, and here a 30-cycle grid
+    does not report a smaller effect -- it reports no effect.
+  - The zero-rent column reproduces `withholding_testsuite.json` at 30
+    seeds with zero differences.
+
+### Fixed
+
+- **A new environment family is six decisions, not one.** The corpus,
+  the probe set, the store builder, the environment class, the
+  `random_matched` shadow run and the recorded config all have to agree
+  which base family a new one belongs to, and each was spelled
+  `== "testsuite"` at its own site. A run that paired the storage corpus
+  with a test-suite environment would answer every patch question with a
+  file lesson, score benign retention against the wrong probes, and still
+  look like a result. Membership is now named once
+  (`TESTSUITE_FAMILIES`, `RENTED_FAMILIES`) instead of five times, and
+  one test covers all six at once: at `hold_cost` 0 a `testsuite_rent`
+  run must be metric-for-metric identical to a `testsuite` one. Verified
+  by mutation on two of the six sites.
+
 - **A liar against a rented store, and the sentence that explains both
   sweeps** (`bench/results/rent_lying.json`, 5 arms x 5 rents x 3 budgets
   x 2 horizons x 30 seeds = 4,500 runs). `limitations.tex` made two
