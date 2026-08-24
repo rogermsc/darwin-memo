@@ -3603,3 +3603,79 @@ tiers move the attack surface as well as the price, and prediction 4's
 direction matters: `aligned` gives the attacker *less* to spend on and
 the ledger still does *worse* there, so the confound cannot be what
 produces the widened reversal.
+
+## The obvious fix for consolidation laundering: pre-registered predictions
+
+`limitations.tex` reports that our own merge machinery carried a
+poisoned fragment to the end of every seed in one cell, and closes:
+
+> Any mechanism that consolidates memories inherits this channel, and we
+> have not evaluated the obvious fix (refusing to merge across trust
+> boundaries).
+
+`consolidate` now takes a `source_policy` with both readings of that
+fix. `"shared"` requires one source common to the whole cluster, the
+natural reading of a trust boundary. `"identical"` requires the cluster
+to agree on its entire source set, which is what actually refuses a
+merge between a single-document entry and a cross-document one. `"off"`
+is the published behaviour and merges on similarity alone. The common
+set narrows as members join rather than being tested pairwise against
+the anchor, so A–B and A–C cannot transitively pool B with C. An entry
+with no sources is refused by both policies: unknown provenance is the
+case a trust boundary exists for, and admitting it would make the
+strictest setting the loosest one on exactly the entries nobody can
+vouch for.
+
+3 policies × 3 attack classes × 4 defences × 2 horizons × 10 seeds =
+720 runs. Ten seeds, not thirty, so the `"off"` column is an exact
+control against the published `memsec.json`.
+
+**Disclosure, and it is nearly total this time.** I ran 5-seed spot
+checks on the `survival` arm across all three policies, all three attack
+classes, the unattacked headline corpus, and both horizons before
+writing any of this, and I read all of it. Every cell was identical
+across the three policies. I also instrumented `_merge` on one seed and
+inspected the initial store directly. So predictions 1–3 are not blind:
+they are that a 5-seed, one-arm no-op replicates at 10 seeds across all
+four defences. Predictions 4 and 5 are corrections to the paper that
+came out of the instrumentation, stated here before the grid confirms
+them at scale.
+
+**The mechanism, measured before predicting.** The `explicit` corpus's
+initial store — before any consolidation runs — already contains two
+entries whose sources are `['forum-post', 'platform-notes', 'runbook']`:
+an `ENTITY` entry for "Platform Team" and a `CROSS_DOC` summary. The
+explicit payload claims authority *from* the Platform Team, so naming a
+trusted entity is what places the attacker's text in the same
+cross-document entry as that entity's genuine notes. **The trust
+boundary is crossed by the encoder, not by consolidation.** Every merge
+in the laundering run has a non-empty common source set, so no merge-time
+provenance rule has anything to refuse.
+
+1. **The knob is a no-op, everywhere.** Every cell is identical across
+   the three policies on every reported metric — not approximately,
+   identically — for all three attack classes, all four defences, and
+   both horizons.
+2. **Because every merge already shares a source.** In the laundering
+   run, 100% of consolidation merges have a non-empty common source set,
+   so `"shared"` can never refuse one.
+3. **And because the boundary is crossed before consolidation sees it.**
+   `"identical"` merges the two cross-document entries *with each other*
+   — their source sets agree exactly — so it cannot refuse either.
+4. **The laundered entry never earns.** Its `uses` is 0 for the entire
+   run. The paper says "the merged entry earns because its useful half
+   answers correctly"; that is not what happens. Its above-spawn energy
+   is *pooled from its own poisoned siblings*: 0.75 + 0.75 → 1.50 at
+   cycle 4, then 1.25 + 1.25 → 2.50 at cycle 9, and it is never merged
+   or retrieved again.
+5. **It is a runway, not permanence.** At 60 cycles `poison_alive_final`
+   is 0.00 for `explicit`+`ledger` and the starve cycle is 59 at every
+   seed. An unmerged fragment gets `spawn/upkeep` = 20 cycles.
+   Consolidation turned three of them into one entry that lasts 59:
+   **it trades breadth for longevity**, which is the actual laundering
+   mechanism and is not what a trust boundary would have stopped.
+
+```
+python -m bench.run --suite merge_policy --seeds 0:10 \
+  --out bench/results/merge_policy.json --update-manifest
+```

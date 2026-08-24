@@ -516,6 +516,7 @@ class Ledger:
                 self.tick_count,
                 threshold=self.config.merge_threshold,
                 exclude=escrowed,
+                source_policy=self.config.merge_source_policy,
             )
 
         stats = {

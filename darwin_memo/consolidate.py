@@ -23,11 +23,20 @@ from .types import EntryKind, MemoryEntry
 DEFAULT_MERGE_THRESHOLD = 0.55
 
 
+# How much provenance agreement a merge requires. "off" is the published
+# behaviour and merges on similarity alone. The other two exist because
+# limitations.tex names "a merge that refuses to pool entries across
+# trust boundaries" as the obvious fix for consolidation laundering and
+# had not evaluated one; see docs/benchmarks.md for what each is worth.
+SOURCE_POLICIES = ("off", "shared", "identical")
+
+
 def consolidate(
     store: MemoryStore,
     cycle: int,
     threshold: float = DEFAULT_MERGE_THRESHOLD,
     exclude: frozenset[str] | set[str] = frozenset(),
+    source_policy: str = "off",
 ) -> int:
     """Merge clusters of similar alive entries. Returns merges performed.
 
@@ -45,6 +54,19 @@ def consolidate(
     answer, full deciding rights, and the cluster's energy, skipping
     every settlement probation exists to demand (docs/threat-model.md).
     They merge like anyone else once they graduate.
+
+    ``source_policy`` requires provenance agreement on top of
+    similarity. ``"shared"`` needs one source common to the whole
+    cluster, which is the natural reading of a trust boundary and is
+    weaker than it sounds: an encoder that writes cross-document
+    entries has already crossed the boundary before consolidation sees
+    anything. ``"identical"`` needs the cluster to agree on the whole
+    source set, which is what actually refuses a merge between a
+    single-document entry and a cross-document one. The common set is
+    narrowed as members join rather than tested pairwise against the
+    anchor, so A-B and A-C cannot transitively pool B with C.
+
+    ``"off"`` is the published behaviour and merges on similarity alone.
     """
     alive = sorted(
         (
@@ -61,16 +83,26 @@ def consolidate(
     consumed: set[str] = set()
     merges = 0
 
+    if source_policy not in SOURCE_POLICIES:
+        raise ValueError(
+            f"unknown source_policy: {source_policy!r}, want one of {SOURCE_POLICIES}"
+        )
+
     for anchor in alive:
         if anchor.id in consumed:
             continue
         cluster = [anchor]
+        common = set(anchor.sources)
         for other in alive:
             if other.id == anchor.id or other.id in consumed:
+                continue
+            agreed = _agree(common, other.sources, source_policy)
+            if agreed is None:
                 continue
             if store.similarity(anchor, other) >= threshold:
                 cluster.append(other)
                 consumed.add(other.id)
+                common = agreed
         if len(cluster) == 1:
             continue
 
@@ -82,6 +114,26 @@ def consolidate(
         merges += 1
 
     return merges
+
+
+def _agree(common: set[str], sources: list[str], policy: str) -> set[str] | None:
+    """The cluster's surviving common provenance, or None to refuse.
+
+    An entry with no sources at all is refused by both policies rather
+    than treated as universally compatible: unknown provenance is the
+    case a trust boundary exists for, and letting it merge with anything
+    would make the strictest setting the loosest one on exactly the
+    entries nobody can vouch for.
+    """
+    if policy == "off":
+        return common
+    other = set(sources)
+    if not common or not other:
+        return None
+    if policy == "identical":
+        return common if common == other else None
+    shared = common & other
+    return shared or None
 
 
 def _merge(cluster: list[MemoryEntry], cycle: int, max_energy: float) -> MemoryEntry:

@@ -125,7 +125,12 @@ def _survival_config(
     overrides: dict[str, Any], write_experience: bool
 ) -> SurvivalConfig:
     config = SurvivalConfig(write_experience=write_experience)
-    for knob in ("credit_gain", "merge_threshold", "consolidate_every"):
+    for knob in (
+        "credit_gain",
+        "merge_threshold",
+        "consolidate_every",
+        "merge_source_policy",
+    ):
         if knob in overrides:
             setattr(config, knob, overrides[knob])
     return config

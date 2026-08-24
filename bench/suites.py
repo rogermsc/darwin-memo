@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from darwin_memo import RENT_TIERS, MemoryStore, consolidate
+from darwin_memo.consolidate import SOURCE_POLICIES
 
 from .corpus import synthetic_entries, synthetic_queries
 from .memsec import ATTACK_CLASSES
@@ -711,6 +712,46 @@ MEMSEC_DEFENCES: list[tuple[str, dict[str, Any], str]] = [
     ("survival", {}, "ledger"),
     ("survival", {"content_filter": True}, "filter+ledger"),
 ]
+
+
+# Both readings of "refuse to merge across trust boundaries", plus the
+# published behaviour as an exact control. See SOURCE_POLICIES.
+MERGE_SOURCE_POLICIES = SOURCE_POLICIES
+# The laundering cell is reported at 30 cycles and reads as permanence.
+# Carrying 60 asks whether it is permanence or a runway, which is the
+# question the second-family rent grid taught us to ask of anything
+# measured only at 30.
+MERGE_POLICY_CYCLES = (30, 60)
+
+
+def merge_policy_suite(seeds: list[int]) -> list[RunSpec]:
+    """The obvious fix for consolidation laundering, evaluated.
+
+    ``limitations.tex`` records that our own merge machinery carried a
+    poisoned fragment to the end of every seed in one cell, and that "a
+    merge that refuses to pool entries across trust boundaries is the
+    obvious fix and we have not evaluated one". This evaluates both
+    readings of it against all three attack classes and all four
+    defences, with the published behaviour as a byte-exact control.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="merge_policy",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={"attack": attack, "merge_source_policy": policy, **extra},
+            label=f"attack={attack},defence={where},policy={policy},cycles={cycles}",
+        )
+        for policy in MERGE_SOURCE_POLICIES
+        for cycles in MERGE_POLICY_CYCLES
+        for attack in ATTACK_CLASSES
+        for arm, extra, where in MEMSEC_DEFENCES
+        for seed in seeds
+    ]
 
 
 def memsec_suite(seeds: list[int]) -> list[RunSpec]:
