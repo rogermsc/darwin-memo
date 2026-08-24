@@ -11,7 +11,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 0.7499999999999998,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -26,7 +26,7 @@
       "sources": [
         "docs/paper-to-code"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 0.7499999999999998,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -41,7 +41,7 @@
       "sources": [
         "docs/benchmarks"
       ],
-      "energy": 1.2498993949295103,
+      "energy": 1.1998993949295103,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": 3,
@@ -56,11 +56,11 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 1.341968578890858,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 4,
+      "uses": 1,
       "lineage": [],
       "id": "5dfb38d4c662"
     },
@@ -71,7 +71,7 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 0.7499999999999998,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -86,7 +86,7 @@
       "sources": [
         "readme-retrieval"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 0.7499999999999998,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": -1,
@@ -101,7 +101,7 @@
       "sources": [
         "readme-environments"
       ],
-      "energy": 1.9995975798411851,
+      "energy": 1.949597579841185,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": 2,
@@ -116,11 +116,11 @@
       "sources": [
         "noisy-suite-review"
       ],
-      "energy": 0.7999999999999998,
+      "energy": 0.8979921447227144,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
-      "last_used_cycle": -1,
-      "uses": 0,
+      "last_used_cycle": 4,
+      "uses": 1,
       "lineage": [],
       "id": "067b8223d3d7"
     },
@@ -131,7 +131,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.3999999998768573,
+      "energy": 1.3499999998768573,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": 3,
@@ -146,7 +146,7 @@
       "sources": [
         "docs/integrations/ci-lesson-store"
       ],
-      "energy": 1.397032852212038,
+      "energy": 1.347032852212038,
       "born_cycle": 0,
       "recorded_ts": "2026-08-20T00:02:31+00:00",
       "last_used_cycle": 0,
@@ -157,19 +157,8 @@
   ],
   "graveyard": [],
   "ledger": {
-    "tick_count": 4,
-    "pending": [
-      {
-        "query": "Are StorageEnv seeds independent samples, and is it safe to add new required metric keys that only some suites emit?",
-        "answer": "No. Emit new metrics unconditionally with zero or equal defaults across every suite, then add them to the required keys, or report --check breaks CI on the other suites.\n[recorded 2026-08-20T00:02:31+00:00; born tick 0; never settled]",
-        "deciding_entry": "5dfb38d4c662",
-        "supporting_entries": [
-          "067b8223d3d7"
-        ],
-        "born_tick": 4,
-        "id": "bdc73703d3ec"
-      }
-    ],
+    "tick_count": 5,
+    "pending": [],
     "history": {
       "afa40044d867": [
         {
@@ -247,6 +236,30 @@
           "credit": 0.6,
           "delta": 23.0,
           "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/32760404825"
+        }
+      ],
+      "5dfb38d4c662": [
+        {
+          "tick": 4,
+          "ts": "2026-08-24T18:48:53+00:00",
+          "text": "tick 4: credit +0.592 (measured delta +5, https://github.com/rogermsc/darwin-memo/actions/runs/32764278620)",
+          "event": "settle",
+          "ticket": "bdc73703d3ec",
+          "credit": 0.591969,
+          "delta": 5.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/32764278620"
+        }
+      ],
+      "067b8223d3d7": [
+        {
+          "tick": 4,
+          "ts": "2026-08-24T18:48:53+00:00",
+          "text": "tick 4: credit +0.148 (measured delta +5, https://github.com/rogermsc/darwin-memo/actions/runs/32764278620)",
+          "event": "settle",
+          "ticket": "bdc73703d3ec",
+          "credit": 0.147992,
+          "delta": 5.0,
+          "detail": "https://github.com/rogermsc/darwin-memo/actions/runs/32764278620"
         }
       ]
     },
