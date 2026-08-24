@@ -8,6 +8,59 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **A rent shaped like a real quota, and it bills only the emptied
+  store** (`bench/results/rent_tiers.json`, 3 tiers x 5 rents x 2 budgets
+  x 2 horizons x 5 arms x 30 seeds = 9,000 runs). The three rent grids
+  all charge one flat rate for every held file, including the ones the
+  agent is *right* to hold. `limitations.tex` named that as the last
+  gap: no real quota bills you for data you are required to retain.
+  - **The tiers.** `rent_multipliers` picks which file categories a tier
+    bills and normalises the rate so all three charge the same expected
+    rent per task -- otherwise "bill fewer categories" just means
+    "charge less". `aligned` bills only the disposable ones, `inverted`
+    only the protected ones, `uniform` is the flat rate at exactly 1.0
+    and reproduces `rent.json` across **60,000 cell-metrics with zero
+    differences**, both published crossing rents included.
+  - **A policy-shaped quota changes nothing, for anyone with answers.**
+    2,160 of the 2,400 priced `aligned` runs are *bit-identical* to the
+    same run at `hold_cost` 0. The 240 that are not are all one arm in
+    one column: `survival` at total suppression, the arm the attack
+    empties. Rent bills not having an answer, and under a realistic
+    price that is the only thing it bills.
+  - **The unattacked bill was charged for being right.** No arm ever
+    declines a disposable file. Every negative outcome uniform rent
+    produced at budget 0 -- 286 for `evict_on_negative`, 285 for
+    `survival` over one 60-cycle world -- is a correct refusal to delete
+    a protected file. So that column was never measuring the cost of
+    standing still; it was measuring the cost of being right, which is
+    why it could not reorder anything.
+  - **A counter evicts its own correct advice; the ledger does not.**
+    `evict_on_negative` ends with 8 entries under `uniform` and **15**
+    under `aligned`: a sign-test counter reads a priced correct answer as
+    a failure and strikes the lesson that produced it. `survival` ends at
+    3 under both and holds `poison_killed` 1.00 and population 3.00 in
+    all three tiers. Two economies charging the same expected rent leave
+    the counter with two different memories and the ledger with one.
+  - **The more realistic the quota, the worse the reversal.** At total
+    suppression `aligned` moves the crossing rent 0.427 -> 0.357 and
+    nearly doubles the ledger's loss against the do-nothing floor (60%
+    -> 116% at 60 cycles). The obvious way the published rent result
+    could have been an artifact was its flat rate; shaping it like a
+    retention policy makes it arrive earlier and cost more.
+  - **One prediction refuted, and why.** `keep_everything` stays last of
+    five under `inverted` on both horizons. The predicted compression of
+    the correct-keep-versus-destroy margin (0.28) matched the measured
+    gap compression (0.32) -- but a compression only changes a *rank* if
+    it closes the distance to the next arm, and that distance was never
+    checked.
+  - **A confound stated rather than buried.** The withholder spends only
+    where `true.delta != 0`, so a category a tier exempts is not just
+    free but unattackable: `aligned` reopens part of the harbor the rent
+    grid reports closing (attacker spend 720.0 -> 576.4 of a 720
+    capacity). It runs *against* the result -- the attacker gets less to
+    spend and the ledger still does worse -- so it cannot be what
+    produces the widened reversal.
+
 - **`RentedTestSuiteEnv`, and a prediction of ours that turned out to be
   backwards** (`bench/results/rent_testsuite.json`, 5 arms x 5 rents x 2
   budgets x 2 horizons x 30 seeds = 3,000 runs). The last untested claim

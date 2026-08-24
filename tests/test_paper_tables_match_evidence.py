@@ -966,3 +966,125 @@ def test_second_family_rent_paragraph_matches_committed_runs() -> None:
     assert _rent_testsuite("keep_everything", 60, 12, 1.0) == pytest.approx(
         60.00, abs=DELTA_TOL
     )
+
+
+# --------------------------------------------------------------------------
+# tab:rent-tiers -- the shape of the price, against rent_tiers.json.
+# --------------------------------------------------------------------------
+RENT_TIER_ARMS: dict[str, dict[str, Any]] = {
+    "survival": {"arm": "survival"},
+    **RENT_FLOOR_ARMS,
+}
+
+
+def _rent_tier_cells() -> list[tuple[int, str, float, str]]:
+    """(cycles, tier, rent, printed cell), one case per number in the table."""
+    out: list[tuple[int, str, float, str]] = []
+    for row in data_rows("tab:rent-tiers"):
+        if len(row) != 2 + len(RENT_COLUMNS) or not row[0].split()[0].isdigit():
+            continue  # the header row has the same width as a data row
+        cycles = int(row[0].split()[0])
+        tier = row[1]
+        out.extend(
+            (cycles, tier, rent, value)
+            for rent, value in zip(RENT_COLUMNS, row[2:], strict=True)
+        )
+    return out
+
+
+@pytest.mark.parametrize(("cycles", "tier", "rent", "cell"), _rent_tier_cells())
+def test_rent_tier_table_matches_committed_runs(
+    cycles: int, tier: str, rent: float, cell: str
+) -> None:
+    got = mean(
+        pick(
+            "rent_tiers.json",
+            arm="survival",
+            cycles=cycles,
+            lie_budget=0,
+            hold_cost=rent,
+            rent_tier=tier,
+            env_family="storage_rent",
+            adversary_objective="withhold",
+        ),
+        "cum_delta",
+        1e6,
+    )
+    assert float(cell) == pytest.approx(got, abs=DELTA_TOL)
+
+
+def test_the_uniform_tier_reproduces_the_published_rent_file() -> None:
+    """The canary, and it crosses two files rather than two columns.
+
+    ``uniform``'s multipliers are exactly 1.0, so the tier axis is only a
+    counterfactual on the SHAPE of the price if adding it left the flat
+    rate untouched. Asserted at zero tolerance over the whole grid: any
+    drift means the tier plumbing perturbed the thing it was added to
+    extend, and every cross-tier comparison is then measuring two changes.
+    """
+    checked = 0
+    for cycles in (30, 60):
+        for budget in (0, 12):
+            for rent in RENT_COLUMNS:
+                for config in RENT_TIER_ARMS.values():
+                    common = {
+                        **config,
+                        "cycles": cycles,
+                        "lie_budget": budget,
+                        "hold_cost": rent,
+                        "env_family": "storage_rent",
+                        "adversary_objective": "withhold",
+                    }
+                    tiered = pick("rent_tiers.json", **common, rent_tier="uniform")
+                    flat = pick("rent.json", **common)
+                    for key in ("cum_delta", "poison_killed", "final_population"):
+                        assert mean(tiered, key) == mean(flat, key), (
+                            f"{config['arm']} at {cycles} cycles, budget "
+                            f"{budget}, rent {rent}: the uniform tier has "
+                            f"drifted from rent.json on {key}"
+                        )
+                    checked += 1
+    assert checked == 100
+
+
+def test_the_aligned_tier_is_the_unpriced_world_for_every_arm_that_has_answers() -> (
+    None
+):
+    """The headline of the tier grid, asserted as identity rather than a mean.
+
+    Under a policy-shaped quota the only billed decline is one the arm
+    could not answer, so every run must be bit-identical to the same run
+    at hold_cost 0 -- except ``survival`` at total suppression, whose
+    store the attack empties. That exception is asserted too: if it ever
+    stops being the sole exception, either the corpus changed or the
+    "rent bills not having an answer" rule has a second exception nobody
+    has looked at.
+    """
+    billed: set[tuple[str, int]] = set()
+    checked = 0
+    for cycles in (30, 60):
+        for budget in (0, 12):
+            for name, config in RENT_TIER_ARMS.items():
+                common = {
+                    **config,
+                    "cycles": cycles,
+                    "lie_budget": budget,
+                    "rent_tier": "aligned",
+                    "env_family": "storage_rent",
+                    "adversary_objective": "withhold",
+                }
+                free = mean(
+                    pick("rent_tiers.json", **common, hold_cost=0.0), "cum_delta"
+                )
+                for rent in RENT_COLUMNS[1:]:
+                    paid = mean(
+                        pick("rent_tiers.json", **common, hold_cost=rent), "cum_delta"
+                    )
+                    if paid != free:
+                        billed.add((name, budget))
+                    checked += 1
+    assert checked == 80
+    assert billed == {("survival", 12)}, (
+        "under the aligned tier the only arm that should ever pay rent is "
+        f"the one the attack empties; these paid: {sorted(billed)}"
+    )
