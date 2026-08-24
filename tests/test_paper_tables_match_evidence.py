@@ -724,7 +724,7 @@ RENT_COLUMNS = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 def _rent_cells() -> list[tuple[int, str, float, str]]:
     """(cycles, row, rent, printed cell), one case per number in the table."""
-    out = []
+    out: list[tuple[int, str, float, str]] = []
     for row in data_rows("tab:rent"):
         if len(row) != 2 + len(RENT_COLUMNS) or not row[0].split()[0].isdigit():
             continue  # the header row has the same width as a data row
