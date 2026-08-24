@@ -8,6 +8,48 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **Every 30-cycle grid re-run at 60, and the answer is a family split**
+  (`bench/results/horizon.json`, 11 committed grids, 5,815 runs).
+  `limitations.tex` ended its horizon paragraph with "which of those
+  results would move at 60 is unknown and is no longer a theoretical
+  worry". This is that sweep: each grid keeps the seed count its
+  committed file used, so all 5,815 cells pair one-to-one with a
+  published one and **`cycles` is the only thing that varies**.
+  - **The canary is clean.** `keep_everything` removes nothing, so its
+    population must be horizon-invariant; it is, in **830 of 830**
+    cells. That is what licenses reading the rest as the clock rather
+    than the harness.
+  - **158 of 163 arm orderings hold**, and every storage grid holds
+    benign capability flat to three decimals. The storage-family
+    headline does not need re-running.
+  - **Both test-suite grids lose capability with the horizon alone** --
+    `probe_benign_correct_rate` 1.000 -> 0.750 in 10/10 unattacked
+    seeds and 0.518 -> 0.370 in 30/30 noisy ones, with no adversary and
+    no price on inaction. Nothing else in the sweep moves.
+  - **And the decay is a trade both of whose sides 30 cycles prices at
+    zero.** The unattacked probe triple is identical in all ten seeds:
+    at 30 cycles the ledger answers every benign probe and is safe on
+    *no* harmful one (1.00 / 0.00 / 0.00 for correct, silence, safe); at
+    60 one entry has starved and it reads 0.75 / 0.40 / **1.00**. The
+    entry that died answered a benign probe and a harmful one, so losing
+    it converts an unsafe answer into silence. Starvation is doing
+    safety work the reported horizon scores as none, by removing
+    capability the same horizon scores as full.
+  - **One adverse reversal, and it is the rent rule with the sign
+    changed.** On the noisy test-suite grid at flake rate 0.15,
+    `keep_everything` overtakes `survival`: 30.00 -> 60.00 against 46.87
+    -> 47.93. The counter accrues linearly because it never removes
+    anything; the ledger is flat because it has starved to ~1.5 entries
+    and gone silent on 0.70 of probes, so it stops acting and stops
+    earning. An emptied store has no answers -- here that costs
+    earnings rather than rent.
+  - **One late kill.** `poison_killed` matches its committed value in
+    524 of 525 non-noisy `survival` cells. The exception is
+    `persistence` against the `persist` adversary at budget 2, seed 6:
+    not killed at 30 cycles, starved at cycle **56**.
+  - Prediction 5 was refuted, and in a direction it did not consider:
+    the decay is real but it is not pure loss.
+
 - **The obvious fix for consolidation laundering, evaluated — and both
   halves of our description of the problem were wrong**
   (`bench/results/merge_policy.json`, 3 policies x 3 attack classes x 4

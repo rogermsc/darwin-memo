@@ -1578,3 +1578,43 @@ def test_every_offered_suite_name_reaches_a_dispatch():
         "a plain suite is also listed by hand in choices; the table is the "
         "list, and naming it twice is how the two come apart"
     )
+
+
+def test_the_horizon_sweep_pairs_cell_for_cell_with_the_committed_grids():
+    """The sweep is only a horizon comparison if nothing else varies.
+
+    Every 60-cycle cell has to pair with a published 30-cycle cell, so
+    the seed counts here must be the committed ones and every override
+    except ``cycles`` must survive the re-emission. A grid that quietly
+    ran five seeds where its file has thirty would still produce a
+    table, and the table would read as a horizon effect.
+    """
+    import json
+
+    from bench.suites import HORIZON_CYCLES, HORIZON_SEEDS, horizon_suite
+
+    results = Path(__file__).resolve().parent.parent / "bench" / "results"
+    for name, count in HORIZON_SEEDS.items():
+        committed = json.loads((results / f"{name}.json").read_text())["runs"]
+        assert {r["seed"] for r in committed} == set(range(count)), name
+        assert {r["config"]["cycles"] for r in committed} == {30}, (
+            f"{name} no longer runs at a single 30-cycle horizon, so pairing "
+            "it against a 60-cycle sweep compares more than the horizon"
+        )
+
+    specs = horizon_suite()
+    assert {s.cycles for s in specs} == {HORIZON_CYCLES}
+    assert len(specs) == len(
+        {(s.overrides["origin_suite"], s.arm, s.seed, s.label) for s in specs}
+    ), "two horizon specs share an identity; they cannot both pair"
+
+    # And the overrides really are the committed ones plus origin_suite.
+    from bench.suites import headline_suite
+
+    origin = {(s.arm, s.seed): s.overrides for s in headline_suite(list(range(10)))}
+    for spec in specs:
+        if spec.overrides["origin_suite"] != "headline":
+            continue
+        want = origin[(spec.arm, spec.seed)]
+        got = {k: v for k, v in spec.overrides.items() if k != "origin_suite"}
+        assert got == want, (spec.arm, spec.seed, got, want)

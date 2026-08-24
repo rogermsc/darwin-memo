@@ -80,10 +80,12 @@ LESSONS = [
     ),
     (
         "Are StorageEnv seeds independent samples?",
-        "No. StorageEnv derives cycle worlds from seed plus cycle, so "
-        "adjacent seeds are shifted windows of one another; treat "
-        "across-seed spreads as smoother than independent draws.",
-        "noisy-suite-review",
+        "Yes, since cycle_rng hashed the triple. It SHA-256s "
+        "(stream, seed, cycle), so every pair gets its own stream; the "
+        "seed-plus-cycle addition that made adjacent seeds shifted "
+        "windows of one another is gone, and 0 collisions are "
+        "measurable across 29 cycles.",
+        "darwin_memo/environments.py",
     ),
     (
         "Can multiple workflow jobs settle the memory store in parallel?",

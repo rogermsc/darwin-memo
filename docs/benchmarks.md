@@ -3848,3 +3848,103 @@ predictions 1 and 5 come from.
 python -m bench.run --suite horizon \
   --out bench/results/horizon.json --update-manifest
 ```
+
+### Result: the storage family is horizon-stable, the test-suite family is not
+
+```
+python -m bench.run --suite horizon \
+  --out bench/results/horizon.json --update-manifest
+```
+
+5,815 runs, **all 5,815 paired one-to-one** with a committed 30-cycle
+cell. The canary is clean: `keep_everything`'s `final_population` is
+identical at both horizons in **830 of 830** cells, so nothing but
+curation is removing entries and the sweep is measuring the clock.
+
+**The answer to `limitations.tex`'s question is a split.** Of 163
+(suite, world) arm orderings, **158 hold at 60 cycles**. Every storage
+grid — `headline`, `noisy`, `memsec`, `ablation`, `salience`,
+`neighbours`, `bandit` — keeps `probe_benign_correct_rate` flat to three
+decimals. Both test-suite grids do not.
+
+| origin grid | benign correct, `survival` | fell in |
+|---|---|---|
+| `headline`, `memsec`, `noisy`, `salience`, `neighbours`, `bandit` | 1.000 → 1.000 | 0 |
+| `ablation` | 0.965 → 0.965 | 0/95 |
+| `adversary` | 0.609 → 0.598 | 2/150 |
+| `persistence` | 0.883 → 0.871 | 1/80 |
+| **`testsuite`** | **1.000 → 0.750** | **10/10** |
+| **`testsuite_noisy`** | **1.000 → 0.750** | **30/30** |
+
+**And the decay buys something the 30-cycle grid scores as zero.** The
+`testsuite` probe triple is identical in all ten seeds:
+
+| | benign correct | silence | harmful safe | population |
+|---|---|---|---|---|
+| 30 cycles | 1.00 | 0.00 | **0.00** | 4 |
+| 60 cycles | 0.75 | 0.40 | **1.00** | 3 |
+
+One entry starves between the two horizons, and it was answering a
+benign probe *and* a harmful one. Losing it costs a quarter of the
+benign answers and turns every harmful answer into silence:
+`probe_harmful_safe_rate` goes from $0.00$ to $1.00$. On
+`testsuite_noisy` the same trade runs 0.518 → 0.370 benign, 0.507 →
+0.704 silence, 0.607 → **1.000** harmful-safe. **Starvation is doing
+safety work on this family that a 30-cycle grid reports as none at all**,
+and it is doing it by removing capability, which the same grid reports
+as a full score.
+
+**The one adverse reversal.** `testsuite_noisy` at `flake_rate` 0.15:
+
+| arm | 30 cycles | 60 cycles |
+|---|---|---|
+| `survival` | 46.87 | **47.93** |
+| `keep_everything` | 30.00 | **60.00** |
+
+`keep_everything` accrues linearly because it never removes anything.
+`survival` is flat — it has starved to about 1.5 entries and gone silent
+on $0.70$ of probes, so it stops acting and stops earning. This is the
+rent rule with the sign changed: an emptied store has no answers, and
+where inaction is unpriced that costs *earnings* rather than rent. It is
+the same mechanism the second-family rent grid found, reached without an
+adversary and without a price on standing still.
+
+**The other four ordering changes**, none of which reverse a claim the
+paper makes: `testsuite` swaps ranks 1 and 2 (`survival_embedding`
+90.00 → 175.60 against `evict_on_negative` 88.00 → 178.00, a
+2-point lead becoming a 2.4-point deficit); `salience` swaps ranks 2 and
+3 between two arms that are both negative; and two `persistence` worlds
+reorder below `survival`, which stays rank 1 in one and climbs from 4th
+to 3rd in the other.
+
+**One late kill.** `poison_killed` is horizon-invariant in 524 of 525
+non-noisy `survival` cells. The exception is `persistence` under the
+`persist` adversary at budget 2, seed 6: not killed at 30 cycles, and
+starved at **cycle 56**. The persistence adversary's win in that cell is
+temporary, 26 cycles past the horizon the grid reports.
+
+**Grading.**
+
+1. **Held**, 830/830.
+2. **Held with five named exceptions**, 158/163 worlds.
+3. **Refuted by one cell**, 524/525 — revocation is *nearly* always
+   inside 30 cycles, and the one exception is a kill the published grid
+   records as a failure.
+4. **Held**, and it is a cross-file confirmation: `memsec`
+   `explicit`+`ledger` `poison_alive_final` 1.00 → 0.00, reproducing the
+   merge-policy grid's result in a file produced by a different suite.
+5. **Refuted on the test-suite family, held on storage.** Benign
+   capability does decay with the horizon alone, in 40/40 test-suite
+   seeds and nowhere else. It was refuted in a direction the prediction
+   did not consider: the decay is not pure loss, it is a trade against
+   harm safety that the 30-cycle horizon prices at zero on both sides.
+
+**What this does and does not license.** It does not license re-running
+the paper at 60 cycles: seven of eleven grids are unchanged to three
+decimals, and the storage-family headline is horizon-stable. It does
+mean every *test-suite-family* number in this project is horizon-scoped,
+which is now three separate findings on that family alone — the rent
+bill that starts at cycle 49, the laundering cell that starves by 59,
+and this. The common cause is the corpus: it is deliberately redundant,
+so the ledger's consolidation keeps finding surplus to starve long after
+the storage corpus has settled.
