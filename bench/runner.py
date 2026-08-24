@@ -109,6 +109,15 @@ def _env_family(overrides: dict[str, Any]) -> str:
             "family exists to vary, and a default would ride outside the "
             "recorded config and therefore outside the manifest hash"
         )
+    # rent_tier prices file categories, which only the storage corpus
+    # has. Accepted-and-ignored on any other family it would record a
+    # variation that never took effect -- three tiers of identical
+    # numbers, read as "the shape does not matter here".
+    if "rent_tier" in overrides and family != "storage_rent":
+        raise ValueError(
+            f"rent_tier has no meaning on {family}: it prices StorageEnv "
+            "file categories, and no other family has them"
+        )
     return family
 
 
@@ -188,6 +197,7 @@ def _base_env(
             files_per_cycle=files_per_cycle,
             seed=seed,
             hold_cost=float(overrides["hold_cost"]),
+            rent_tier=str(overrides.get("rent_tier", "uniform")),
         )
     return StorageEnv(root=workdir, files_per_cycle=files_per_cycle, seed=seed)
 

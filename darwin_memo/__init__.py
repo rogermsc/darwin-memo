@@ -10,12 +10,14 @@ models, no judges, no human curation.
 from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
 from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import (
+    RENT_TIERS,
     Environment,
     RentedStorageEnv,
     StorageEnv,
     Task,
     VerifiableQAEnv,
     decision_polarity,
+    rent_multipliers,
 )
 from .evm import DEFAULT_BASE_RPC, EvmRpc, EvmRpcError, EvmSettler
 from .ledger import Ledger, Ticket
@@ -56,6 +58,7 @@ __all__ = [
     "DEFAULT_BASE_RPC",
     "DEFAULT_MERGE_THRESHOLD",
     "EMBEDDING_MERGE_THRESHOLD",
+    "RENT_TIERS",
     "CycleStats",
     "Document",
     "EmbeddingFn",
@@ -104,4 +107,5 @@ __all__ = [
     "newest_first",
     "ollama_available",
     "recency_weight",
+    "rent_multipliers",
 ]

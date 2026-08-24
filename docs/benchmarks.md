@@ -3386,3 +3386,91 @@ runs 30 cycles. On this family, at 30 cycles, the entire rent effect is
 *invisible* — every arm flat, every ordering unchanged. A 30-cycle grid
 would have concluded that pricing inaction does nothing here. That is
 not a smaller effect at a shorter horizon; it is a false negative.
+
+## The shape of the price: pre-registered predictions
+
+The three rent grids above settled that pricing inaction matters and
+established the rule that **rent bills not having an answer**. All three
+charge one flat rate for every held file — including the ones the agent
+is *right* to hold. Keeping a database is the correct answer under this
+corpus, and uniform rent bills it at the same rate as a shrug. No real
+quota works that way: retention policies exempt what you are required to
+keep. `limitations.tex` records exactly that as the remaining gap:
+
+> Rent here is a single scalar applied uniformly, and a world that
+> charged differentially — by category, by age, by tier — is a different
+> economy, and the one real quotas usually are.
+
+So this grid varies the *shape* of the price at a matched total.
+`darwin_memo.rent_multipliers` selects which of the five `_FILE_SPECS`
+categories are billed and normalises the rate so that every tier charges
+the same expected rent per task; only the distribution differs. Without
+that normalisation "bill fewer categories" would trivially mean "charge
+less" and every comparison would be reading the level instead of the
+shape.
+
+| tier | old_log | cache | tmp_artifact | database | report |
+|---|---|---|---|---|---|
+| `uniform` | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+| `aligned` | 1.8611 | 1.8611 | 1.8611 | 0 | 0 |
+| `inverted` | 0 | 0 | 0 | 2.1613 | 2.1613 |
+
+`aligned` bills only the disposable categories, so the only billed
+indecision is indecision about something you could have thrown away.
+`inverted` bills only the protected ones, so being right about what must
+be kept is the expensive answer. 3 tiers x 5 rents x 2 budgets x 2
+horizons x 5 arms x 30 seeds = 9,000 runs.
+
+**The arithmetic that makes `inverted` the interesting one.** Destroying
+a protected file costs `3 * size`, once. Holding one costs
+`2.1613 * size` per cycle at `hold_cost` 1.0. So the margin between the
+right answer and the poisoned one collapses from `3.0 * size` to
+`0.84 * size`: knowing which files are protected is worth 72% less than
+it was. Above `hold_cost` 1.39 the arithmetic would invert outright and
+the corpus's poison would become the *profitable* answer. The swept
+range stops short of that on purpose — the poison stays wrong
+everywhere in this grid, and only its value moves.
+
+**Disclosure.** I ran one smoke cell before writing these: `survival`
+alone, seed 1, 30 cycles, budget 0, rent 1.0, across all three tiers. It
+read `uniform` -0.203M, `aligned` +11.867M, `inverted` -14.219M, so
+prediction 2's *direction* is not blind — the claim is that it
+replicates at 30 seeds and at 60 cycles. Predictions 1, 3, 4 and 5
+concern arms, budgets and horizons that run did not touch.
+
+1. **The `uniform` tier is an exact replication of `rent.json`**, cell
+   for cell, across all 5 rents x 2 budgets x 2 horizons x 5 arms x 30
+   seeds. Not approximately: the multipliers are exactly 1.0 and `x *
+   1.0 == x` in IEEE754. A canary, not a data point — and like the
+   budget-0 canary in the lying grid it crosses two files.
+2. **Aligned rent restores the ledger; inverted rent does not.** At
+   budget 0 and rent 1.0, on both horizons, `survival`'s true `cum_delta`
+   is highest under `aligned`, lowest under `inverted`, with `uniform`
+   strictly between.
+3. **Inverted rent shrinks the value of being right.** At budget 0 and
+   rent 1.0, the best-minus-worst spread in true `cum_delta` across the
+   five arms is smaller under `inverted` than under `aligned`, on both
+   horizons, because inverted compresses the correct-keep-vs-destroy
+   margin from `3.0 * size` to `0.84 * size`.
+4. **An empty store is shape-blind.** At budget 12 the attack drives
+   `survival` extinct (final population 0.00 at 60 cycles), and an
+   extinct store declines every task in every category, so it faces the
+   matched expectation and nothing else. Predict that the
+   aligned-minus-inverted difference in `survival`'s true `cum_delta` at
+   budget 12, 60 cycles, rent 1.0 is **less than a quarter** of the same
+   difference at budget 0. This is the sharpest form of the rule the
+   earlier grids established: the shape of a price is only visible to
+   someone who has answers, and the level is all that reaches someone
+   who has none.
+5. **The poison stays wrong, but `keep_everything` climbs.** Under
+   `inverted` at budget 0 and rent 1.0, `keep_everything` — which holds
+   the poison and therefore destroys protected files — is no longer last
+   of five on at least one horizon, because every other arm is now paying
+   2.1613x to do the right thing while its own mistake still costs a
+   flat 3x. Predict it is *not* first either: 2.1613 < 3.0, so the
+   poison is still a loss, just a much cheaper one.
+
+```
+python -m bench.run --suite rent_tiers --seeds 0:30 \
+  --out bench/results/rent_tiers.json --update-manifest
+```
