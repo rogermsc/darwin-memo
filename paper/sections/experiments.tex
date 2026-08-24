@@ -866,6 +866,81 @@ is not $0.00$. It simply no longer wins the ledger, and ``amnesia is
 cheaper'' was never a property of amnesia --- it was a property of an
 environment that did not charge for it.
 
+\paragraph{The same environment, against a liar, pays the ledger more.}
+Rent is an axis, not a verdict, so we ran the second attacker across it:
+the \texttt{destroy} objective over the same rents, arms and horizons,
+with an interior budget added because a liar saturates earlier than a
+withholder (4,500 runs; five further predictions registered before the
+grid, all five held). Budget 0 is byte-identical to the withholding file
+across 300 cell-metrics, which is a stronger canary than the zero-rent
+column because it crosses two files produced under two objectives.
+
+The first thing rent does to a liar is change what its budget buys.
+Under \texttt{StorageEnv} a decline returns exactly zero and the
+adversary's predicate is $\text{true} \neq 0$, so silence is literally
+unattackable. Under rent a decline is negative, and \texttt{destroy}
+reports $-\text{true}$: the liar stops blaming and starts \emph{paying}
+conservatism. Measured, this is unusually clean --- at budget 12 and 60
+cycles \texttt{fired\_false\_bad} is identical to the unit at every rent
+($14$, $8$, $156$, $431$ for the four arms) while
+\texttt{fired\_false\_good} runs $146 \rightarrow 706$, $712$, $564$,
+$289$. Every arm saturates. The entire extra budget is spent paying
+negative truths and none of it on new blame.
+
+\begin{table}[t]
+\centering
+\small
+\caption{A liar at budget 2, 60 cycles, true cumulative delta in M of
+bytes, 30 seeds. \texttt{survival\_paced} is omitted: it is identical to
+\texttt{survival} in every cell here. Compare Table~\ref{tab:rent},
+where the same environment at total \emph{suppression} puts
+\texttt{survival} last.}
+\label{tab:rent-lying}
+\begin{tabular}{lccccc}
+\toprule
+arm & rent 0 & 0.25 & 0.5 & 0.75 & 1.0 \\
+\midrule
+\textbf{survival} & $\mathbf{+24.68}$ & $\mathbf{+19.51}$ & $\mathbf{+13.89}$ & $\mathbf{+8.27}$ & $\mathbf{+2.64}$ \\
+evict\_on\_negative & $-0.08$ & $-11.74$ & $-23.75$ & $-35.77$ & $-47.78$ \\
+quarantine & $-7.26$ & $-6.95$ & $-14.18$ & $-21.40$ & $-28.63$ \\
+keep\_everything & $-18.17$ & $-20.19$ & $-22.20$ & $-24.21$ & $-26.23$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At total lying every arm has \texttt{poison\_killed} $0.00$ and
+\texttt{survival} sits at rank 3 of 5 at every rent, unchanged --- the
+degenerate end, where nothing defends and the only term left is rent. At
+the interior budget the sweep runs the \emph{other way}
+(Table~\ref{tab:rent-lying}): \texttt{survival} is rank 1 at every rent
+on both horizons, beats the do-nothing floor in $30/30$ seeds even at
+rent $1.0$, and its margin over the counter \emph{widens} with rent,
+$+24.76$M to $+50.42$M, $30/30$ seeds at every step.
+
+\paragraph{Rent bills not having an answer.} That is the one sentence
+that accounts for both directions, and it is measured rather than
+inferred. Instrumenting \texttt{verify} to count outcomes over one
+60-cycle world (seed 0, budget 2, rent $1.0$): \texttt{keep\_everything}
+declines $141/720$ tasks and pays $8.16$M, \texttt{survival} declines
+$285/720$ and pays $22.62$M, \texttt{evict\_on\_negative} declines
+$698/720$ and pays $47.44$M. Those are the arms' cum-delta slopes across
+rent $0 \rightarrow 1.0$ to two decimal places ($8.06$, $22.04$,
+$47.70$). The rent slope \emph{is} the decline count and nothing else.
+\texttt{evict\_on\_negative} ends with 5 entries and a benign rate of
+$0.00$ --- smaller \emph{and} useless, so it declines $97\%$ of tasks
+and pays for all of them. \texttt{survival} ends with 3 entries and a
+benign rate of $1.00$: small, and right about what it kept. And hoarding
+is how an arm always has something to say, which is exactly why
+\texttt{keep\_everything} pays the least rent of anyone and why the
+withholding grid at total suppression favours it.
+
+So the reversal in Table~\ref{tab:rent} is not ``amnesia is expensive''.
+It is that an empty store has no answers and rent bills that. Run the
+same mechanism against an attacker the ledger can still survive and rent
+pays it more, not less. What rent punishes is not curation; it is the
+state of having nothing useful left, which total suppression produces
+and a budget-2 liar does not.
+
 \subsection{Where each defence catches each attack}
 \label{sec:memsec}
 The memory-security literature defends memory before any consequence

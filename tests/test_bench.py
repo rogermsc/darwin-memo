@@ -1075,3 +1075,72 @@ def test_pricing_inaction_removes_the_withholder_s_harbor():
         "the harbor at all and the comparison below proves nothing"
     )
     assert rent["metrics"]["flakes_fired"] == rent["metrics"]["flakes_marked"]
+
+
+def test_the_rent_an_arm_pays_is_its_decline_count():
+    """The mechanism behind both rent sweeps, isolated.
+
+    The paper's account of why pricing inaction reverses one grid and
+    widens the ledger's lead on the other is a single claim: rent bills
+    not having an answer, so the rent an arm pays is its decline count
+    and nothing else. That is checkable directly rather than inferred
+    from cum-delta slopes.
+
+    Two assertions. The identity -- every charged byte comes from a
+    declined task, at exactly ``hold_cost`` times that task's own size --
+    fails if rent ever leaks into an acting outcome. And the ordering:
+    ``keep_everything`` hoards, so it always has something to say and
+    declines least; ``evict_on_negative`` under a liar is left with a
+    store that is smaller *and* useless, so it declines most; the ledger
+    sits between them, small but right about what it kept. That ordering
+    is the whole explanation, and it is what a reader would have to
+    disbelieve to disbelieve the sections.
+    """
+    from bench.runner import run_one
+    from darwin_memo import RentedStorageEnv
+
+    seen: dict[str, dict[str, float]] = {}
+    current = ""
+    original = RentedStorageEnv.verify
+
+    def counting(self, task, answer_text):
+        out = original(self, task, answer_text)
+        row = seen.setdefault(current, {"declined": 0.0, "charged": 0.0})
+        if out.delta < 0 and out.detail.startswith("kept"):
+            row["declined"] += 1
+            row["charged"] += -out.delta
+            assert -out.delta == self.hold_cost * float(task.context["size"])
+        return out
+
+    try:
+        RentedStorageEnv.verify = counting  # type: ignore[method-assign]
+        for arm, extra in (
+            ("keep_everything", {}),
+            ("survival", {}),
+            ("evict_on_negative", {"strikes": 1}),
+        ):
+            current = arm
+            run_one(
+                arm,
+                seed=0,
+                cycles=20,
+                overrides={
+                    "env_family": "storage_rent",
+                    "hold_cost": 1.0,
+                    "lie_budget": 2,
+                    "adversary_objective": "destroy",
+                    **extra,
+                },
+            )
+    finally:
+        RentedStorageEnv.verify = original  # type: ignore[method-assign]
+
+    declines = {arm: row["declined"] for arm, row in seen.items()}
+    assert (
+        declines["keep_everything"]
+        < declines["survival"]
+        < declines["evict_on_negative"]
+    ), declines
+    # The hoarder answers most of the world; the gutted counter almost none.
+    assert declines["keep_everything"] < 0.25 * 240
+    assert declines["evict_on_negative"] > 0.85 * 240

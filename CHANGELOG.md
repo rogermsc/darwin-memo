@@ -8,6 +8,71 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **A liar against a rented store, and the sentence that explains both
+  sweeps** (`bench/results/rent_lying.json`, 5 arms x 5 rents x 3 budgets
+  x 2 horizons x 30 seeds = 4,500 runs). `limitations.tex` made two
+  claims under "Silence as a harbor"; the rent sweep settled the
+  withholding half, and this settles the lying half. Five more
+  predictions registered in a commit before the grid; all five held. The
+  prediction was right about the exposure and **wrong about who it
+  costs**.
+  - **The liar's budget becomes a subsidy.** Under `StorageEnv` a
+    decline returns exactly zero and the adversary's predicate is
+    `true != 0`, so silence is literally unattackable. Under rent a
+    decline is negative and `destroy` reports `-true`, so the liar stops
+    blaming and starts *paying* conservatism. At budget 12, 60 cycles,
+    `fired_false_bad` is identical to the unit at every rent (14, 8, 156,
+    431) while `fired_false_good` runs 146 -> 706, 712, 564, 289. Every
+    arm saturates; the entire extra budget buys payment, not blame.
+  - **At the interior budget the sweep runs the other way.** Budget 12
+    is degenerate -- every arm has `poison_killed` 0.00, nothing
+    defends, and only rent is left to score, so the hoarder wins. At
+    budget 2, where a liar actually operates, `survival` is **rank 1 at
+    every rent on both horizons**, beats the do-nothing floor in 30/30
+    seeds even at rent 1.0, and its margin over the counter **widens**
+    with rent: +24.76M -> +50.42M, 30/30 seeds at every step.
+  - **Rent bills not having an answer** -- measured, not inferred.
+    Instrumenting `verify` over one 60-cycle world (seed 0, budget 2,
+    rent 1.0): `keep_everything` declines 141/720 tasks and pays 8.16M,
+    `survival` 285/720 and 22.62M, `evict_on_negative` 698/720 and
+    47.44M. Those are the arms' cum-delta slopes across rent 0 -> 1.0 to
+    two decimal places (8.06, 22.04, 47.70). The rent slope *is* the
+    decline count. `evict_on_negative` ends with 5 entries at a benign
+    rate of 0.00 -- smaller *and* useless; `survival` ends with 3 at
+    1.00 -- small, and right about what it kept; hoarding is how you
+    always have something to say.
+  - **What this does to the previous entry.** It reframes rather than
+    overturns. The reversal at total suppression is not "amnesia is
+    expensive"; it is that an empty store has no answers and rent bills
+    that. Run the same mechanism against an attacker the ledger can
+    survive and the same pricing pays it more. What rent punishes is the
+    state of having nothing useful left.
+  - **The cost that is real, and is not about attacks.** *Leanness is
+    billed.* The real-task claim is that selection buys leanness -- half
+    the store for equal capability. Where inaction is priced, half the
+    store is a win only if the half you kept answers the questions:
+    `survival` declines twice as often as `keep_everything` and pays
+    2.8x the rent for it. It wins anyway, on the poison, but that is a
+    trade and an environment with a cheaper poison and a higher rent
+    would settle it the other way.
+  - Budget 0 is byte-identical to `rent.json` across 300 cell-metrics --
+    two files, two suites, two objectives -- which is a stronger canary
+    than either file's own zero-rent column.
+
+### Fixed
+
+- **Two lie counters were named for a property of two environments, not
+  of themselves.** `fired_false_bad` and `fired_false_good` were
+  described as "benign work reported as damage" and "poison damage
+  reported as a win". Neither has ever read provenance; both key on the
+  *sign* of the true delta. On `StorageEnv` and `TestSuiteEnv` sign and
+  provenance coincide, because only the poison advises an action whose
+  true delta is negative -- so the description held by accident.
+  `RentedStorageEnv` breaks the coincidence: every arm declines, and a
+  decline is negative, so most of `fired_false_good` is conservatism
+  being paid. The comments now say what the code does, and record why
+  the old names survived this long.
+
 - **`RentedStorageEnv`, and the measurement that reverses the withholding
   headline** (`bench/results/rent.json`, 5 arms x 5 rents x 2 budgets x 2
   horizons x 30 seeds = 3,000 runs). `limitations.tex` named exactly one

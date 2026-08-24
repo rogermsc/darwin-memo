@@ -158,7 +158,18 @@
   "graveyard": [],
   "ledger": {
     "tick_count": 3,
-    "pending": [],
+    "pending": [
+      {
+        "query": "Should bench result JSON files be committed, and can multiple workflow jobs settle the memory store in parallel?",
+        "answer": "No. The store is a single JSON file with no locking, so one settler at a time: settle from a serialized queue or a workflow concurrency group, never from parallel jobs.\n[recorded 2026-08-20T00:02:31+00:00; born tick 0; never settled]",
+        "deciding_entry": "6de9b640e935",
+        "supporting_entries": [
+          "23b08af0d95b"
+        ],
+        "born_tick": 3,
+        "id": "171a1327a227"
+      }
+    ],
     "history": {
       "afa40044d867": [
         {

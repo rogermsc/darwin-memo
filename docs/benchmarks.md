@@ -3134,3 +3134,102 @@ rent became non-zero while `fired_false_bad` stayed at exactly 15, and
 `cum_delta` ran -43.28M -> -76.70M across the rents. Prediction 1 is
 extrapolated from that row and is a single seed. Predictions 2, 3, 4 and
 5 concern arms, budgets and comparisons that row does not contain.
+
+### Result: all five held, and the interior runs the other way
+
+```
+python -m bench.run --suite rent_lying --seeds 0:30 \
+  --out bench/results/rent_lying.json --update-manifest
+```
+
+4,500 runs. The budget-0 canary is exact: 300 cell-metrics compared
+against `rent.json`, which was produced under a different objective,
+zero differences.
+
+1. **The budget converts into a subsidy: held, and exactly.**
+   `fired_false_bad` is *identical to the unit* at every rent — 14 for
+   `survival`, 8 for `evict_on_negative`, 156 for `quarantine`, 431 for
+   `keep_everything` — while `fired_false_good` goes 146 -> 706, 146 ->
+   712, 146 -> 564, 146 -> 289 (60 cycles, budget 12). Every arm
+   saturates its capacity at every non-zero rent. The liar's entire
+   extra budget is spent paying negative truths, and none of it on new
+   blame.
+2. **Lying dominates withholding: held, 50/50 cells.** And
+   `keep_everything` is byte-identical under both attackers at every
+   rent — it never curates, so an inverted measurement changes nothing
+   about what it does to the world. The canary again.
+3. **No crossover: held.** `survival` sits at rank 3 of 5 at every rent
+   on both horizons at budget 12. Nothing moves.
+4. **Rent cannot move benign retention: held.** Flat in every cell.
+5. **Cross-file identity: held**, above.
+
+**But budget 12 is the degenerate end, and it hides the result.** At
+total lying *every* arm has `poison_killed` 0.00. Nothing defends, so
+the only thing left to score is rent, and the arm that hoards pays the
+least. The interior budget is where a liar actually operates, and there
+the sweep runs the *opposite* way to the withholding one:
+
+**Budget 2, 60 cycles, mean `cum_delta` in M, n=30:**
+
+| arm | rent 0 | 0.25 | 0.5 | 0.75 | 1.0 |
+|---|---|---|---|---|---|
+| **survival** | **+24.68** | **+19.51** | **+13.89** | **+8.27** | **+2.64** |
+| evict_on_negative | -0.08 | -11.74 | -23.75 | -35.77 | -47.78 |
+| quarantine | -7.26 | -6.95 | -14.18 | -21.40 | -28.63 |
+| keep_everything | -18.17 | -20.19 | -22.20 | -24.21 | -26.23 |
+
+`survival` is **rank 1 at every rent, on both horizons**, and beats the
+do-nothing floor in 30/30 seeds even at rent 1.0. Its margin over the
+counter *widens* with rent: +24.76M -> +50.42M, 30/30 seeds at every
+step. Pricing inaction does not hurt the ledger against a liar. It
+roughly doubles its lead.
+
+**Why, measured rather than argued.** Instrumenting
+`RentedStorageEnv.verify` to count outcomes over one 60-cycle world
+(seed 0, budget 2, rent 1.0):
+
+| arm | tasks declined | rent paid |
+|---|---|---|
+| keep_everything | 141/720 (19.6%) | 8.16M |
+| **survival** | **285/720 (39.6%)** | **22.62M** |
+| evict_on_negative | 698/720 (96.9%) | 47.44M |
+
+Those rents are the cum_delta slopes to two decimal places: the arms'
+outcomes fall by 8.06M, 22.04M and 47.70M respectively across rent 0 ->
+1.0. **The rent slope is the decline count, and nothing else.**
+
+So the single sentence that explains both sweeps is not "amnesia is
+expensive". It is:
+
+> **Rent bills not having an answer.**
+
+`evict_on_negative` ends with 5 entries and `probe_benign_correct_rate`
+0.00 — a store that is smaller *and* useless, so it declines 97% of
+tasks and pays for all of them. `survival` ends with 3 entries and a
+benign rate of 1.00: small, and right about what it kept. And
+`keep_everything` pays the least rent of anyone, because hoarding is
+how you always have something to say — which is precisely why the
+withholding grid at total suppression favours it. When the ledger still
+kills the poison, its kill rate outweighs its higher rent and it wins at
+every rent. When the attack is total and *no* arm kills the poison, rent
+is the only term left and the hoarder wins.
+
+**What this does to the previous section.** It does not overturn it —
+budget 12 under withholding still reverses, and that column is still
+real. It reframes it. The reversal is not "amnesia is expensive"; it is
+"an empty store has no answers, and rent bills that". The same
+mechanism, run against an attacker the ledger can still survive, pays
+the ledger *more* under rent rather than less. The honest scope is
+therefore narrower than the withholding sweep alone suggested: what
+rent punishes is not curation, it is the state of having nothing useful
+left — which total suppression produces and a budget-2 liar does not.
+
+**The cost that is real, and is not about attacks at all.** Leanness is
+now billed. The paper's real-task claim is that conserved-resource
+selection buys *leanness* — half the store for equal capability. In an
+environment that prices inaction, half the store is only a win if the
+half you kept answers the questions. `survival` declines twice as often
+as `keep_everything` here and pays 2.8x the rent for it; it wins anyway,
+on the poison. That trade is now a measured number rather than an
+assumption, and an environment with a cheaper poison and a higher rent
+would settle it the other way.

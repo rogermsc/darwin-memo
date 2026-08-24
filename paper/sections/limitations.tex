@@ -299,12 +299,28 @@ cumulative outcome once standing still is billed. ``Amnesia is cheaper''
 was never a property of amnesia. It was a property of an environment
 that did not charge for it, and we said so as though it were the former.
 
-What the sweep does \emph{not} settle is the lying adversary. It varies
-one price, under one attack, on one corpus. The two published grids that
-motivated it are unaffected in their own worlds --- the zero-rent column
-reproduces \texttt{withholding.json} exactly --- but nothing here tells
-us what a liar does to a store that pays rent, and the argument in
-\S\ref{sec:adversary} rests on that attacker rather than this one.
+We have since run the lying adversary across the same axis, and it
+narrows the claim above rather than widening it. The reversal is not
+``amnesia is expensive''; it is that an empty store has no answers, and
+rent bills exactly that --- the rent an arm pays is its decline count,
+measured, to two decimal places of its cum-delta slope. Against an
+attacker the ledger can still survive, the same pricing pays it
+\emph{more}: at a budget-2 liar it is rank 1 at every rent on both
+horizons, and its margin over the counter widens from $+24.76$M to
+$+50.42$M as rent rises, in $30/30$ seeds at every step. What rent
+punishes is the state of having nothing useful left, which total
+suppression produces and a working store does not.
+
+The cost that survives all of this is not about attackers at all, and it
+is the one we would flag to a practitioner. \emph{Leanness is billed.}
+Our real-task claim is that conserved-resource selection buys leanness
+--- demonstrably, half the store for equal capability. Where inaction is
+priced, half the store is a win only if the half you kept answers the
+questions: \texttt{survival} declines twice as often as
+\texttt{keep\_everything} here and pays $2.8\times$ the rent for it. It
+wins anyway, on the poison, but that is a trade rather than a free
+lunch, and an environment with a cheaper poison and a higher rent would
+settle it the other way.
 
 The same section is also the only place in this paper where we vary the
 cycle horizon, and it changed a conclusion: benign retention under
@@ -339,15 +355,26 @@ boundaries).
 \paragraph{Silence as a harbor.}
 In environments where inaction produces no measurement, a conservative
 entry can dodge lying measurements simply by staying silent, which
-flatters safety metrics. Half of this is now measured: against a
-withholding attacker the harbor is real, and pricing inaction closes it
-outright (\S\ref{sec:rent}). The other half is not. We have not run a
-\emph{liar} against a rented environment, so whether the entries that
-currently dodge lies would be exposed to them --- the version of this
-that would touch \S\ref{sec:adversary} --- remains a prediction. The
-second-family loss (\S\ref{sec:regime}, Axis 3) is likewise unmeasured
-under rent: \texttt{RentedStorageEnv} prices inaction on the storage
-corpus, not on the test-suite one.
+flatters safety metrics. Both halves are now measured on the storage
+corpus, and the prediction was right about the exposure and wrong about
+who it costs (\S\ref{sec:rent}). Against a withholder the harbor is real
+and pricing inaction closes it outright. Against a liar the exposure is
+sharper than we predicted --- a decline is negative, so an inverted
+measurement \emph{pays} it, and the attacker's whole extra budget goes
+into paying conservatism rather than into new blame --- but the arm it
+ruins is the counter, not the ledger, because the counter is the one
+left with nothing useful to say. We did not anticipate that direction
+and would not have found it without running the interior budget: at
+total lying every arm's kill rate is $0.00$ and the ordering is
+uninformative.
+
+Two things this still does not cover. The second-family loss
+(\S\ref{sec:regime}, Axis 3) remains unmeasured under rent:
+\texttt{RentedStorageEnv} prices inaction on the storage corpus, not on
+the test-suite one, and the prediction that rent would reverse that loss
+is untested. And rent is a single scalar applied uniformly to every
+file; a world that charged differentially --- by category, by age, by
+tier --- is a different economy, and the one real quotas usually are.
 
 \paragraph{Local-judge scale.}
 The LLM-judge control uses small (3--4B) local models at five seeds; a

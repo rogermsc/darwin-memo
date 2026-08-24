@@ -812,3 +812,89 @@ def test_rent_zero_column_reproduces_the_published_withholding_file() -> None:
                     )
                 checked += 1
     assert checked == 20
+
+
+# --------------------------------------------------------------------------
+# tab:rent-lying -- the same axis, the other attacker.
+# --------------------------------------------------------------------------
+RENT_LYING_ARMS: dict[str, dict[str, Any]] = {
+    "survival": {"arm": "survival"},
+    "evict_on_negative": {"arm": "evict_on_negative", "strikes": 1},
+    "quarantine": {"arm": "quarantine", "suspend": 3},
+    "keep_everything": {"arm": "keep_everything"},
+}
+
+
+def _rent_lying_cells() -> list[tuple[str, float, str]]:
+    out: list[tuple[str, float, str]] = []
+    for row in data_rows("tab:rent-lying"):
+        if len(row) != 1 + len(RENT_COLUMNS) or row[0] not in RENT_LYING_ARMS:
+            continue  # the header row is the same width
+        out.extend(
+            (row[0], rent, value)
+            for rent, value in zip(RENT_COLUMNS, row[1:], strict=True)
+        )
+    return out
+
+
+@pytest.mark.parametrize(("arm", "rent", "cell"), _rent_lying_cells())
+def test_rent_lying_table_matches_committed_runs(
+    arm: str, rent: float, cell: str
+) -> None:
+    """Budget 2 at 60 cycles, the interior where a liar actually operates.
+
+    The caption's claim that ``survival_paced`` is identical to
+    ``survival`` in every cell is why the table has four rows instead of
+    five, so it is asserted here rather than trusted: an omitted row that
+    was quietly different would read as a tidier table.
+    """
+    common = {
+        "cycles": 60,
+        "lie_budget": 2,
+        "hold_cost": rent,
+        "env_family": "storage_rent",
+        "adversary_objective": "destroy",
+    }
+    got = mean(pick("rent_lying.json", **common, **RENT_LYING_ARMS[arm]), "cum_delta")
+    assert float(cell) == pytest.approx(got / 1e6, abs=DELTA_TOL)
+    if arm == "survival":
+        paced = mean(
+            pick("rent_lying.json", **common, arm="survival_paced"), "cum_delta"
+        )
+        assert paced == got, (
+            "the caption omits survival_paced as identical to survival; at "
+            f"rent {rent} they are {paced} and {got}"
+        )
+
+
+def test_lying_and_withholding_agree_wherever_the_attacker_does_nothing() -> None:
+    """At budget 0 the wrapper adds no behaviour, so two objectives must agree.
+
+    This crosses two files produced by two suites under two objectives,
+    which makes it a stronger canary than either file's own zero-rent
+    column: a harness change that moved both files identically would slip
+    past a within-file check and fail here only if it moved them
+    differently -- and a change to the adversary that leaked behaviour
+    into budget 0 would fail here and nowhere else.
+    """
+    arms = {"survival_paced": {"arm": "survival_paced"}, **RENT_LYING_ARMS}
+    checked = 0
+    for cycles in (30, 60):
+        for rent in RENT_COLUMNS:
+            for config in arms.values():
+                common = {
+                    "cycles": cycles,
+                    "lie_budget": 0,
+                    "hold_cost": rent,
+                    "env_family": "storage_rent",
+                    **config,
+                }
+                lying = pick("rent_lying.json", **common, adversary_objective="destroy")
+                held = pick("rent.json", **common, adversary_objective="withhold")
+                for key in ("cum_delta", "probe_benign_correct_rate", "poison_killed"):
+                    assert mean(lying, key) == mean(held, key), (
+                        f"budget 0 differs between objectives at {cycles} "
+                        f"cycles, rent {rent}, on {key}"
+                    )
+                checked += 1
+    assert checked == 50
