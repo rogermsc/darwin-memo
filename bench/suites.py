@@ -516,6 +516,62 @@ def rent_suite(seeds: list[int]) -> list[RunSpec]:
     ]
 
 
+# The lying grid carries an interior budget the withholding one does not.
+# A liar saturates earlier than a withholder -- the published budgets in
+# adversary.json stop at 8 for that reason -- so 0/12 alone would show
+# the two ends and miss where it actually bites.
+RENT_LYING_BUDGETS = (0, 2, 12)
+
+
+def rent_lying_suite(seeds: list[int]) -> list[RunSpec]:
+    """The other half of "silence as a harbor", measured.
+
+    ``limitations.tex`` makes two claims about environments that do not
+    price inaction. One is about withholding and is settled by
+    ``rent_suite``. The other is about lying, and is still a prediction:
+    "a conservative entry can dodge lying measurements simply by staying
+    silent, which flatters safety metrics. Environments that price
+    inaction would expose entries to lies the current design avoids."
+
+    Same environment, same rents, same arms, same horizons as the
+    withholding sweep, so the two files differ in the attacker and
+    nothing else. The zero-rent column is again the canary: it must
+    reproduce the published storage behaviour, and this time against a
+    grid the paper already reports (the adversary suite).
+
+    What makes the lying case different in kind rather than in degree:
+    under rent a declined task returns a NEGATIVE true delta, and the
+    destroy objective reports ``-true``. So the liar does not merely gain
+    targets, it starts *paying* conservatism -- an entry that advises
+    keeping is reported as having earned. Nothing in the unrented world
+    has that shape, because there declining is unmeasured.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="rent_lying",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                "env_family": "storage_rent",
+                "hold_cost": hold_cost,
+                "lie_budget": budget,
+                "adversary_objective": "destroy",
+                **extra,
+            },
+            label=f"rent={hold_cost},budget={budget},cycles={cycles}{suffix}",
+        )
+        for cycles in RENT_CYCLES
+        for hold_cost in RENT_HOLD_COSTS
+        for budget in RENT_LYING_BUDGETS
+        for arm, extra, suffix in WITHHOLD_ARMS
+        for seed in seeds
+    ]
+
+
 def adversary_suite(seeds: list[int]) -> list[RunSpec]:
     """Denial-of-memory: who survives an attacker aiming at the curator?
 

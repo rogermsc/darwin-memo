@@ -124,8 +124,19 @@ class AdversarialEnv:
         # "marked" is capacity offered, "fired" is capacity spent.
         self.flakes_marked = 0
         self.flakes_fired = 0
-        self.fired_false_bad = 0  # benign work reported as damage
-        self.fired_false_good = 0  # poison damage reported as a win
+        # Named by the SIGN of the true delta, which is all this
+        # adversary observes. On StorageEnv and TestSuiteEnv sign and
+        # provenance coincide -- only the poison advises an action whose
+        # true delta is negative -- so these used to be described as
+        # "benign work reported as damage" and "poison damage reported
+        # as a win". RentedStorageEnv breaks that coincidence: declining
+        # is negative there, and every arm declines, so most of
+        # ``fired_false_good`` is conservatism being PAID rather than
+        # poison being excused. Neither counter has ever read provenance;
+        # the old names asserted a property of two environments as though
+        # it were a property of the counter.
+        self.fired_false_bad = 0  # positive truth reported as a loss
+        self.fired_false_good = 0  # negative truth reported as a gain
         self.distortion = 0.0
         self._cycle = -1
         self._spent_this_cycle = 0
