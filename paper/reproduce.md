@@ -29,7 +29,8 @@ Committed under `bench/results/`:
   `wef-llama32-counter.json`, `withholding.json`,
   `withholding_selective.json`, `withholding_testsuite.json`,
   `rent.json`, `rent_lying.json`, `rent_testsuite.json`,
-  `rent_tiers.json`, `merge_policy.json`, `horizon.json`.
+  `rent_tiers.json`, `rent_tiers_saturated.json`,
+  `rent_tiers_blind.json`, `merge_policy.json`, `horizon.json`.
 - The SWE-Bench-CL matrices, one file per (arm, sequence, seed), each
   directory with its own sibling `MANIFEST.json`: the pilot under
   `bench/results/swebench_cl/` (30 cells), the long matrix under
