@@ -1128,10 +1128,11 @@ price.
 
 At the budget the tier grid ran, the answer is an identity rather than a
 comparison. All $4{,}500$ cells of \texttt{rent\_tiers\_saturated}
-equal their published twins exactly on all $21$ metrics the two files
-share --- \texttt{cum\_delta}, \texttt{final\_population},
+equal their published twins exactly on all $17$ result metrics the two
+files share --- \texttt{cum\_delta}, \texttt{final\_population},
 \texttt{poison\_killed}, \texttt{poison\_alive\_final}, the probe
-rates --- with the two fired counters the only fields that differ. The
+rates --- leaving only the attacker's three spend counters and the wall
+clock free to move. The
 reason is arithmetic rather than empirical: budget $12$ equals
 \texttt{files\_per\_cycle}, so the budget saturates and there is
 nothing to concentrate. Both rules suppress every measurable outcome and
@@ -1159,6 +1160,48 @@ ones hides something only for the arm that has stopped answering. That
 is this project's rent rule --- rent bills not having an answer ---
 arriving a third time, now read off the attacker's ledger rather than
 the environment's.
+
+\paragraph{At a scarce budget the rule decides something, and it decides
+it in the attacker's ledger.} Saturation is the regime the tier grid ran
+and not the regime the caveat is about, so we ran the interior budget
+too: both objectives at $\text{lie\_budget} = 2$, matched on every other
+axis, $4{,}500$ paired cells. Neither rule ever fails to spend --- every
+cycle offers at least two measurable outcomes --- so they differ in
+\emph{where} the budget lands and not in how much of it is used. Under
+\texttt{aligned} at rent $> 0$ the blind attacker puts $33.7\%$ of its
+spends on outcomes of exactly zero; under \texttt{uniform} and
+\texttt{inverted} it puts none there, and at rent $0$ it puts $33.7\%$
+there in all three tiers, because an unpriced decline is unmeasured
+whatever the tier says. Here the second registered prediction about
+\texttt{inverted} failed the same way the first did and for the same
+reason: we expected the two rules to diverge under \texttt{inverted} and
+they never do, in any of its $1{,}200$ priced cells. Its exempt case is a
+declined \emph{disposable} file, only an emptied store declines one, and
+a budget of $2$ empties nothing.
+
+The separation that matters is between two ledgers. In the attacker's,
+\texttt{reported\_cum\_delta} differs in $2{,}100$ of the $4{,}500$
+paired cells; in the world's, \texttt{cum\_delta} differs in $98$ and
+final population in $14$. Where the world moves, the weaker attacker does
+less damage in $91$ of those $98$ cells --- wasted budget is damage not
+done --- and more in $7$, which are one seed, one arm and one horizon
+(\texttt{quarantine}, seed 24, 60 cycles, $-0.72\%$) repeated across the
+tiers and rents that expose it. That the direction is not universal is
+the mechanism we flagged when registering it: suppressing a rent bill
+hides a loss rather than causing one, so a wasted spend can help the
+attacker, and here it does, rarely.
+
+Only three arms move at all. \texttt{keep\_everything} and
+\texttt{evict\_on\_negative} are identical in every cell, because
+neither settles on a measurement it did not receive; \texttt{quarantine}
+accounts for $70$ of the $98$, \texttt{survival} and
+\texttt{survival\_paced} for $14$ each. And the tier conclusion is
+untouched on both horizons: at rent $1.0$ the ledger's mean true
+\texttt{cum\_delta} across 30 seeds is $+12.2865$M under
+\texttt{aligned} against the price-greedy withholder and $+12.3095$M
+against the blind one, with \texttt{uniform} and \texttt{inverted}
+identical to every printed digit. Shape and surface are separated, and
+what the tier axis measured was the shape.
 
 \subsection{Every 30-cycle grid, at 60}
 \label{sec:horizon}

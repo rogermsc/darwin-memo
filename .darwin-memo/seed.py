@@ -44,10 +44,11 @@ LESSONS = [
     ),
     (
         "Should bench result JSON files be committed?",
-        "No. bench/results is regenerated, not committed; doc tables are "
-        "regenerated from the Reproduce commands, and if numbers disagree "
-        "the generated doc wins.",
-        "docs/benchmarks",
+        "Yes. bench/results is committed evidence, 140 files bound by "
+        "MANIFEST.json to a suite, seeds, config hash, command and "
+        "source_commit; paper and doc tables are hand-written and pinned "
+        "to it by tests, so on disagreement the committed run wins.",
+        "paper/reproduce",
     ),
     (
         "Is it safe to add new required metric keys that only some suites emit?",

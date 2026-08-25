@@ -437,14 +437,33 @@ the total-suppression reversal worse rather than better: the crossing
 rent moves from $0.427$ to $0.357$ and the ledger's loss against the
 do-nothing floor roughly doubles.
 
-Two things this leaves open. The tiers vary the price by category, which
+One thing this leaves open. The tiers vary the price by category, which
 is the dimension this corpus has; age and tier, the other two a real
 quota uses, would need entries with a lifetime the environment can see.
-And pricing a category at zero also makes it unattackable, since the
-withholder spends only where $\text{true} \neq 0$, so shape and attack
-surface are confounded in these grids by construction. The confound runs
-against the result rather than producing it, but separating them would
-need an adversary whose budget is spent independently of the price.
+
+The second gap this paragraph used to name --- that pricing a category
+at zero also makes it unattackable, so shape and attack surface were
+confounded by construction --- has since been closed by building the
+adversary it asked for (\S\ref{sec:blind}). Deleting the withholder's
+targeting predicate holds the surface constant across tiers, and the
+answer arrives in two parts. At the budget every tier number was
+produced at, the confound is not small but \emph{absent}: a budget equal
+to \texttt{files\_per\_cycle} saturates, so there is nothing to
+concentrate, and all $4{,}500$ cells reproduce their published twins
+exactly on all $17$ shared result metrics. At an interior budget the rule
+genuinely decides something, and it decides it almost entirely in the
+attacker's own ledger --- $2{,}100$ of $4{,}500$ paired cells differ in
+what the attacker reports and $98$ in what the world records, with the
+tier ordering and its magnitudes intact on both horizons.
+
+What the exercise did overturn is our description of the exemption. We
+had it as a property of the tier; it is a property of the tier and the
+arm together. Under \texttt{inverted} the exempt case is a declined
+disposable file, four of the five arms never decline one, and the ledger
+is the only arm the tier can hide --- and only once an attacker has
+emptied it. So the surface a price shape opens is not something the
+designer chooses; it is opened by whichever mechanism has already
+stopped answering, which is the same quantity rent bills.
 
 \paragraph{Local-judge scale.}
 The LLM-judge control uses small (3--4B) local models at five seeds; a

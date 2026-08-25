@@ -4048,3 +4048,99 @@ python -m bench.run --suite rent_tiers_saturated --seeds 0:30 \
 python -m bench.run --suite rent_tiers_blind --seeds 0:30 \
   --out bench/results/rent_tiers_blind.json --update-manifest
 ```
+
+### Result: the confound is absent where it mattered and lives in the attacker's ledger
+
+**2 held, 3 refuted — and the two refutations share a cause.** Both
+wrong predictions were about `inverted`, and both were wrong because we
+described the exempt surface as a property of the tier when it is a
+property of the tier *and the arm*.
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | saturation is an identity | **held** — 4,500/4,500 cells |
+| 2 | every `aligned` and `inverted` cell wastes budget | **refuted** — `inverted` wastes in 240 of 1,200 |
+| 3 | scarce budgets diverge under both exempting tiers | **refuted** — `aligned` only, in 1,200/1,200 |
+| 4 | blind is the weaker attacker | **held** — 29 equal, 1 higher, 0 lower |
+| 5 | the tier ordering does not depend on the rule | **held** — both horizons |
+
+**1. Saturation is an identity (held).** All 4,500 cells of
+`rent_tiers_saturated` equal their `rent_tiers.json` budget-12 twins
+exactly on all 17 result metrics the two files share — `cum_delta`,
+`final_population`, `poison_killed`, `poison_alive_final`, the probe and
+paraphrase rates. Of the 21 metrics both files carry, only the
+attacker's three spend counters and the wall clock are free to move;
+`flakes_fired` differs in 2,340 cells and agrees in 2,160. The reason is
+arithmetic: budget 12 is `files_per_cycle`, so the budget saturates and
+there is nothing for a targeting rule to concentrate. **The caveat in
+`limitations.tex` does not apply to any tier number this paper
+published.**
+
+The blind attacker's spend is also exactly `12 * cycles` in every one of
+the 4,500 cells, and its wasted portion is exactly `capacity` minus the
+greedy attacker's `flakes_fired`, cell for cell. So the wasted-budget
+metric is not new evidence — the published grid already reported the
+same quantity as unspent capacity. What is new is that the difference
+costs the attacker nothing.
+
+**2. The exempt surface belongs to the arm as much as the tier
+(refuted).** `aligned` wastes in all 1,200 cells at rent > 0, as
+predicted. `inverted` wastes in 240 and is exactly zero in the other
+960, and the split is by arm rather than by seed or rent:
+
+| tier | arm | wasted spends, rent 1.0, 60 cycles (capacity 720) |
+|---|---|---|
+| `uniform` | all five | 0.0 |
+| `aligned` | `evict_on_negative`, `keep_everything`, `quarantine`, `survival_paced` | 143.6 |
+| `aligned` | `survival` | 239.6 |
+| `inverted` | four floor arms | 0.0 |
+| `inverted` | `survival` | 287.5 |
+
+Under `inverted` the exempt case is a declined *disposable* file, and
+four of the five arms never decline one in 240 cells. Only an emptied
+store does — so the tier that exempts the disposable categories can hide
+exactly one arm, the one an attacker has already emptied. That is the
+rent rule (*rent bills not having an answer*) arriving a third time,
+read off the attacker's ledger instead of the environment's.
+
+**3. Divergence is `aligned`-only (refuted).** At budget 2 and rent > 0
+the two rules are bit-identical in all 1,200 `uniform` cells (predicted)
+**and in all 1,200 `inverted` cells** (not predicted), and differ in all
+1,200 `aligned` cells. At rent 0 all three tiers diverge, because an
+unpriced decline is unmeasured whatever the tier says. Same cause as
+prediction 2: a budget of 2 empties nothing, so `inverted` has no exempt
+surface to create.
+
+Neither rule ever fails to spend its budget — every cycle offers at
+least two measurable outcomes — so they differ in *where* the spend
+lands, not in how much is used. Under `aligned` at rent > 0 the blind
+attacker puts 33.7% of its spends on outcomes of exactly zero.
+
+**4. Blind is the weaker attacker (held, and the exception is the one we
+named).** In the registered cell (survival, rent 1.0, `aligned`) it is
+29 equal and 1 higher on both horizons. Across all 4,500 paired cells
+`cum_delta` differs in 98, of which the weaker attacker does less damage
+in 91 and more in 7. The 7 are one seed, one arm and one horizon
+(`quarantine`, seed 24, 60 cycles, −0.72%) repeated across the tiers and
+rents that expose it. That the direction is not universal is the
+mechanism the registration flagged: suppressing a rent bill hides a loss
+rather than causing one.
+
+Only three arms move at all. `keep_everything` and `evict_on_negative`
+are identical in every cell, because neither settles on a measurement it
+did not receive; `quarantine` accounts for 70 of the 98, `survival` and
+`survival_paced` for 14 each.
+
+**5. The tier ordering does not depend on the targeting rule (held).**
+At rent 1.0, `survival`'s mean true `cum_delta` over 30 seeds:
+
+| horizon | rule | `aligned` | `uniform` | `inverted` |
+|---|---|---|---|---|
+| 30 | `withhold` | +12.2865M | +1.2909M | −11.5049M |
+| 30 | `withhold_blind` | +12.3095M | +1.2909M | −11.5049M |
+| 60 | `withhold` | +25.4582M | +2.8737M | −23.3802M |
+| 60 | `withhold_blind` | +25.4811M | +2.8737M | −23.3802M |
+
+`uniform` and `inverted` are identical to every printed digit because no
+cell in them diverges at all. Shape and surface are separated, and what
+the tier axis measured was the shape.
