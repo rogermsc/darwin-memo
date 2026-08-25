@@ -51,6 +51,8 @@ from .suites import (
     rent_lying_suite,
     rent_suite,
     rent_testsuite_suite,
+    rent_tiers_blind_suite,
+    rent_tiers_saturated_suite,
     rent_tiers_suite,
     salience_suite,
     scaling_suite,
@@ -82,6 +84,8 @@ PLAIN_SUITES = {
     "rent_lying": rent_lying_suite,
     "rent_testsuite": rent_testsuite_suite,
     "rent_tiers": rent_tiers_suite,
+    "rent_tiers_blind": rent_tiers_blind_suite,
+    "rent_tiers_saturated": rent_tiers_saturated_suite,
     "bandit": bandit_suite,
     "salience": salience_suite,
     "neighbours": neighbours_suite,
@@ -343,7 +347,15 @@ def main(argv: list[str] | None = None) -> int:
         raise AssertionError(f"no dispatch for --suite {args.suite}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps({"runs": runs}, indent=2))
+    # Compact, because half of a pretty-printed results file is
+    # indentation: the 5,815-run horizon grid is 55.8 MB at indent=2 and
+    # 30.1 MB without it, and GitHub warns above 50. Already-committed
+    # files are deliberately left as they are. `paper/reproduce.md` binds
+    # byte-exactness to each file's manifest `source_commit`, so an old
+    # file still reproduces byte for byte from the tree that wrote it,
+    # and reformatting them here would only add a second copy of every
+    # blob to a history that already carries the first.
+    args.out.write_text(json.dumps({"runs": runs}, separators=(",", ":")))
     print(f"wrote {len(runs)} runs to {args.out}")
 
     if args.update_manifest:

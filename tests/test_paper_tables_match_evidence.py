@@ -1167,3 +1167,164 @@ def test_horizon_keep_everything_population_canary() -> None:
     ]
     assert not moved, moved[:5]
     assert len(sixty) == 830, len(sixty)
+
+
+# --------------------------------------------------------------------------
+# sec:blind -- the price-blind withholder. Prose numbers, two files.
+# --------------------------------------------------------------------------
+_ATTACK_COUNTERS = frozenset(
+    {"flakes_fired", "fired_false_bad", "fired_false_good", "wall_time_s"}
+)
+
+
+@lru_cache(maxsize=2)
+def _blind_runs(filename: str) -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads((RESULTS / filename).read_text())["runs"])
+
+
+def _identity(run: dict[str, Any]) -> tuple[Any, ...]:
+    c = run["config"]
+    return (c["cycles"], c["hold_cost"], c["rent_tier"], run["arm"], run["seed"])
+
+
+def _waste(m: dict[str, Any]) -> int:
+    return int(m["flakes_fired"] - (m["fired_false_bad"] + m["fired_false_good"]))
+
+
+def test_saturated_tier_grid_is_an_identity_against_the_published_one() -> None:
+    """\\S sec:blind's central claim, and the only kind that can be exact.
+
+    "All 4,500 cells equal their published twins exactly on all 21
+    metrics the two files share." An identity is the one claim a
+    tolerance would ruin, so this compares raw values and permits
+    difference only in the two fired counters -- which must differ, or
+    the blind attacker was never blind.
+
+    ``rent_tiers.json`` predates ``poison_laundered_final`` (#92), so the
+    shared-metric count is itself part of the claim and is asserted
+    rather than derived, which is what makes "21" checkable.
+    """
+    twins = {
+        _identity(r): r
+        for r in _blind_runs("rent_tiers.json")
+        if r["config"]["lie_budget"] == 12
+    }
+    sat = _blind_runs("rent_tiers_saturated.json")
+    assert len(sat) == 4500 and len(twins) == 4500
+
+    shared = set(sat[0]["metrics"]) & set(next(iter(twins.values()))["metrics"])
+    assert len(shared) == 21 and len(shared - _ATTACK_COUNTERS) == 17
+
+    differing_counters = 0
+    for run in sat:
+        twin = twins[_identity(run)]
+        for key in shared - _ATTACK_COUNTERS:
+            assert run["metrics"][key] == twin["metrics"][key], (
+                f"{_identity(run)} moved on {key}: a saturating budget "
+                "leaves nothing for a targeting rule to concentrate"
+            )
+        # "its spend is exactly 12 * cycles in every one of the 4,500
+        # cells, and its wasted portion is exactly capacity minus the
+        # greedy attacker's flakes_fired, cell for cell."
+        capacity = 12 * run["config"]["cycles"]
+        assert run["metrics"]["flakes_fired"] == capacity
+        assert _waste(run["metrics"]) == capacity - twin["metrics"]["flakes_fired"]
+        differing_counters += (
+            run["metrics"]["flakes_fired"] != twin["metrics"]["flakes_fired"]
+        )
+    assert (differing_counters, 4500 - differing_counters) == (2340, 2160)
+
+
+def test_the_exempt_surface_is_a_property_of_the_tier_and_the_arm() -> None:
+    """The refuted prediction, pinned to the table that replaced it.
+
+    \\S sec:blind reports the wasted spends at rent 1.0 and 60 cycles as
+    143.6 for four arms under ``aligned``, 239.6 for the ledger, 287.5
+    for the ledger alone under ``inverted``, and 0.0 everywhere else.
+    The zeros carry the claim -- "four of the five arms never decline a
+    disposable file" -- so they are asserted as exact rather than
+    approximate.
+    """
+    got: dict[tuple[str, str], list[int]] = defaultdict(list)
+    zero_cells: dict[str, int] = defaultdict(int)
+    for run in _blind_runs("rent_tiers_saturated.json"):
+        c = run["config"]
+        if c["hold_cost"] > 0:
+            zero_cells[c["rent_tier"]] += _waste(run["metrics"]) == 0
+        if c["hold_cost"] == 1.0 and c["cycles"] == 60:
+            got[(c["rent_tier"], run["arm"])].append(_waste(run["metrics"]))
+
+    floor = ("evict_on_negative", "keep_everything", "quarantine", "survival_paced")
+    for arm in floor:
+        assert statistics.fmean(got[("aligned", arm)]) == pytest.approx(143.6, abs=0.05)
+        assert set(got[("inverted", arm)]) == {0}
+        assert set(got[("uniform", arm)]) == {0}
+    assert statistics.fmean(got[("aligned", "survival")]) == pytest.approx(239.6, 0.05)
+    assert statistics.fmean(got[("inverted", "survival")]) == pytest.approx(287.5, 0.05)
+    assert set(got[("uniform", "survival")]) == {0}
+    # "aligned wastes in all 1,200 cells at rent > 0; inverted in 240."
+    assert zero_cells["aligned"] == 0
+    assert zero_cells["inverted"] == 960
+    assert zero_cells["uniform"] == 1200
+
+
+def test_the_targeting_rule_moves_the_attacker_s_ledger_not_the_world() -> None:
+    """The interior-budget paragraph, every count in it.
+
+    Two ledgers separate: 2,100 of 4,500 paired cells differ in what the
+    attacker reports and 98 in what the world records, 91 of those in the
+    weaker attacker's favour and 7 against. The 7 matter more than the
+    91 -- they are the mechanism the registration said it could not rule
+    out -- so their identity is pinned too.
+    """
+    by: dict[str, dict[tuple[Any, ...], dict[str, Any]]] = defaultdict(dict)
+    for run in _blind_runs("rent_tiers_blind.json"):
+        by[run["config"]["adversary_objective"]][_identity(run)] = run
+    assert len(by["withhold"]) == len(by["withhold_blind"]) == 4500
+
+    reported = world = better = worse = 0
+    arms: dict[str, int] = defaultdict(int)
+    for key, blind in by["withhold_blind"].items():
+        greedy = by["withhold"][key]
+        b, g = blind["metrics"], greedy["metrics"]
+        reported += b["reported_cum_delta"] != g["reported_cum_delta"]
+        if b["cum_delta"] != g["cum_delta"]:
+            world += 1
+            arms[key[3]] += 1
+            better += b["cum_delta"] > g["cum_delta"]
+            worse += b["cum_delta"] < g["cum_delta"]
+    assert (reported, world) == (2100, 98)
+    assert (better, worse) == (91, 7)
+    assert dict(arms) == {"quarantine": 70, "survival": 14, "survival_paced": 14}
+
+
+def test_the_tier_ordering_survives_an_attacker_that_cannot_see_the_price() -> None:
+    """The de-confounding claim itself, to the digits the paper prints."""
+    by: dict[str, dict[tuple[Any, ...], dict[str, Any]]] = defaultdict(dict)
+    for run in _blind_runs("rent_tiers_blind.json"):
+        by[run["config"]["adversary_objective"]][_identity(run)] = run
+    printed = {
+        (30, "withhold"): (12.2865, 1.2909, -11.5049),
+        (30, "withhold_blind"): (12.3095, 1.2909, -11.5049),
+        (60, "withhold"): (25.4582, 2.8737, -23.3802),
+        (60, "withhold_blind"): (25.4811, 2.8737, -23.3802),
+    }
+    for (cycles, rule), want in printed.items():
+        got = tuple(
+            statistics.fmean(
+                by[rule][(cycles, 1.0, tier, "survival", seed)]["metrics"]["cum_delta"]
+                for seed in range(30)
+            )
+            / 1e6
+            for tier in ("aligned", "uniform", "inverted")
+        )
+        assert got == pytest.approx(want, abs=5e-5), (cycles, rule, got)
+    # "identical to every printed digit because no cell in them diverges"
+    for cycles in (30, 60):
+        for tier in ("uniform", "inverted"):
+            for seed in range(30):
+                key = (cycles, 1.0, tier, "survival", seed)
+                assert (
+                    by["withhold"][key]["metrics"]["cum_delta"]
+                    == by["withhold_blind"][key]["metrics"]["cum_delta"]
+                )

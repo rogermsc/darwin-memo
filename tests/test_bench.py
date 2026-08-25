@@ -706,6 +706,169 @@ def test_withhold_objective_reports_silence_and_still_balances():
     assert (distortion, fired) == (0.0, 0)
 
 
+def test_a_price_blind_withholder_spends_where_the_price_exempts(tmp_path):
+    """The confound the tier grid was published with, and its removal.
+
+    ``withhold`` computes ``worth_lying`` from the delta the environment
+    returns, and under the ``aligned`` tier a declined protected file
+    returns exactly 0.0 -- so the tier does not merely make that hold
+    free, it makes it invisible to the attacker. Shape and attack
+    surface move together and the grid cannot attribute either.
+
+    This is that fact in eleven lines: same world, same seed, same
+    declines, one objective spends nothing and the other spends its whole
+    budget. It also pins the accounting, which is the part that is easy
+    to get quietly wrong -- a spend on a zero truth distorts nothing, so
+    it must NOT be counted as a false good, and the wasted budget stays
+    readable as ``fired - (false_bad + false_good)``.
+
+    Mutations this catches: computing ``worth_lying`` from the base
+    delta instead of ignoring it (blind stops firing on exempt holds and
+    the confound is back); counting a zero-truth spend in
+    ``fired_false_good`` (the wasted budget reads as lies that were told,
+    and every blind row's distortion no longer reconciles with its
+    counters); and giving ``withhold_blind`` the inverting payload.
+    """
+    from bench.adversary import AdversarialEnv
+    from darwin_memo import RentedStorageEnv
+
+    def run(objective: str) -> tuple[int, int, int, float, list[float], int]:
+        base = RentedStorageEnv(
+            root=tmp_path / objective,
+            files_per_cycle=8,
+            seed=5,
+            hold_cost=0.75,
+            rent_tier="aligned",
+        )
+        env = AdversarialEnv(base=base, lie_budget=8, objective=objective, seed=5)
+        tasks = env.tasks(0)
+        # `aligned` bills the disposable categories and exempts the
+        # protected ones, so a protected decline is the exempt case.
+        exempt = sum(1 for t in tasks if not t.context["safe"])
+        assert exempt, "seed drew no protected file; the exempt branch never ran"
+        # Decline everything: under `aligned` the protected declines are
+        # exempt and score 0.0, the disposable ones are billed.
+        reported = [env.verify(t, "leave it alone").delta for t in tasks]
+        env.cleanup()
+        return (
+            env.flakes_fired,
+            env.fired_false_bad,
+            env.fired_false_good,
+            env.distortion,
+            reported,
+            exempt,
+        )
+
+    greedy = run("withhold")
+    blind = run("withhold_blind")
+
+    n_exempt = greedy[5]
+    assert greedy[0] == len(greedy[4]) - n_exempt, (
+        "the greedy withholder should skip exactly the exempt holds"
+    )
+    assert blind[0] == len(blind[4]), "the blind withholder spends on every task"
+    assert blind[0] > greedy[0], "the two objectives must differ on this world"
+
+    # Silence, not inversion: every reported delta is zero for both.
+    assert set(blind[4]) == {0.0}
+    # A spend on a zero truth distorts nothing and is not counted as a lie.
+    assert blind[2] == greedy[2] and blind[1] == greedy[1] == 0
+    assert blind[0] - (blind[1] + blind[2]) == n_exempt, (
+        "wasted budget must stay readable as fired - (false_bad + false_good)"
+    )
+    assert blind[3] == greedy[3], "erasing a zero erases nothing"
+
+
+def test_a_saturating_budget_makes_the_targeting_rule_moot(tmp_path):
+    """Why the published tier grid is not confounded after all.
+
+    The caveat in ``limitations.tex`` is about a scarce budget: a greedy
+    withholder concentrates its spend on the outcomes a tier still
+    prices, and a tier that exempts a category is therefore attacked on a
+    smaller surface. But the tier grid ran budget 12 against
+    ``files_per_cycle`` 12. A saturating budget has nothing to
+    concentrate -- every measurable outcome is suppressed under either
+    rule, and the blind attacker's extra spends land on outcomes already
+    equal to zero, where withholding writes zero over zero.
+
+    So at saturation the two objectives are not close, they are the same
+    run, and that is what ``rent_tiers_saturated`` asserts cell by cell.
+    At an interior budget they must genuinely diverge, or
+    ``rent_tiers_blind`` is 9,000 runs of nothing.
+
+    Mutations this catches: making a blind spend write something other
+    than silence (saturation stops being an identity); and any change
+    that lets the greedy rule reach an exempt hold, which would collapse
+    the interior divergence this grid exists to measure.
+    """
+    from bench.adversary import AdversarialEnv
+    from darwin_memo import RentedStorageEnv
+
+    def run(objective: str, budget: int) -> tuple[list[float], int]:
+        base = RentedStorageEnv(
+            root=tmp_path / f"{objective}{budget}",
+            files_per_cycle=8,
+            seed=7,
+            hold_cost=0.75,
+            rent_tier="aligned",
+        )
+        env = AdversarialEnv(base=base, lie_budget=budget, objective=objective, seed=7)
+        tasks = env.tasks(0)
+        # Seed 7 opens with three protected files, which `aligned`
+        # exempts: declining them scores exactly 0.0. That is the whole
+        # divergence -- the blind rule spends there and the greedy rule
+        # walks past to the first hold the tier still prices.
+        assert not any(t.context["safe"] for t in tasks[:2]), "seed 7 reordered"
+        reported = [env.verify(t, "leave it alone").delta for t in tasks]
+        env.cleanup()
+        return reported, env.flakes_fired
+
+    saturating = len(
+        RentedStorageEnv(root=tmp_path / "n", files_per_cycle=8, seed=7).tasks(0)
+    )
+    assert run("withhold_blind", saturating)[0] == run("withhold", saturating)[0], (
+        "at a saturating budget the targeting rule cannot change any outcome"
+    )
+    scarce_blind, scarce_greedy = run("withhold_blind", 2), run("withhold", 2)
+    assert scarce_blind[0] != scarce_greedy[0], (
+        "at a scarce budget the two rules must diverge, or the grid measures nothing"
+    )
+    assert scarce_blind[1] == scarce_greedy[1] == 2, "both spent the whole budget"
+
+
+def test_blind_matches_greedy_at_zero_budget(tmp_path):
+    """The canary ``rent_tiers_blind`` omits 4,500 runs rather than commit.
+
+    Budget 0 spends nothing whatever the targeting rule is, so those
+    cells would be a byte-for-byte copy of ``rent_tiers.json``. That is
+    only true while ``worth_lying`` is gated behind the budget check
+    rather than beside it, which is a one-line mutation away, so the
+    equivalence is asserted here instead of bought at grid scale.
+    """
+    from bench.adversary import AdversarialEnv
+    from darwin_memo import RentedStorageEnv
+
+    out = {}
+    for objective in ("withhold", "withhold_blind"):
+        base = RentedStorageEnv(
+            root=tmp_path / objective,
+            files_per_cycle=8,
+            seed=3,
+            hold_cost=1.0,
+            rent_tier="aligned",
+        )
+        env = AdversarialEnv(base=base, lie_budget=0, objective=objective, seed=3)
+        tasks = env.tasks(0)
+        out[objective] = (
+            [env.verify(t, "leave it alone").delta for t in tasks],
+            env.flakes_fired,
+            env.distortion,
+        )
+        env.cleanup()
+    assert out["withhold_blind"] == out["withhold"]
+    assert out["withhold"][1:] == (0, 0.0), "budget 0 must add exactly zero behaviour"
+
+
 def test_withholding_suite_leaves_the_published_arm_lists_alone():
     """Adding an arm to ARMS or ADVERSARY_VARIANTS rewrites committed evidence.
 
@@ -1500,6 +1663,8 @@ def test_the_shared_rent_helper_still_emits_each_grid_s_committed_config():
         rent_lying_suite,
         rent_suite,
         rent_testsuite_suite,
+        rent_tiers_blind_suite,
+        rent_tiers_saturated_suite,
         rent_tiers_suite,
     )
     from darwin_memo import RENT_TIERS
@@ -1529,12 +1694,37 @@ def test_the_shared_rent_helper_still_emits_each_grid_s_committed_config():
             },
             9000,
         ),
+        # Neither blind grid carries an unattacked column: budget 0
+        # fires nothing whatever the targeting rule is, so those cells
+        # would be a copy of rent_tiers.json.
+        "rent_tiers_blind": (
+            {
+                "env_family": "storage_rent",
+                "hold_cost": 0.0,
+                "rent_tier": "uniform",
+                "lie_budget": 2,
+                "adversary_objective": "withhold_blind",
+            },
+            9000,
+        ),
+        "rent_tiers_saturated": (
+            {
+                "env_family": "storage_rent",
+                "hold_cost": 0.0,
+                "rent_tier": "uniform",
+                "lie_budget": 12,
+                "adversary_objective": "withhold_blind",
+            },
+            4500,
+        ),
     }
     suites = {
         "rent": rent_suite,
         "rent_lying": rent_lying_suite,
         "rent_testsuite": rent_testsuite_suite,
         "rent_tiers": rent_tiers_suite,
+        "rent_tiers_blind": rent_tiers_blind_suite,
+        "rent_tiers_saturated": rent_tiers_saturated_suite,
     }
     for name, build in suites.items():
         specs = build(list(range(30)))
@@ -1553,10 +1743,31 @@ def test_the_shared_rent_helper_still_emits_each_grid_s_committed_config():
     # the OUTERMOST axis, so its blocks are contiguous and in order.
     # Swapping two `for` clauses leaves every individual cell correct and
     # rewrites the row order of a 9,000-run committed file.
-    tiers = [s.overrides["rent_tier"] for s in suites["rent_tiers"](list(range(30)))]
+    for name in ("rent_tiers", "rent_tiers_saturated"):
+        tiers = [s.overrides["rent_tier"] for s in suites[name](list(range(30)))]
+        assert [t for i, t in enumerate(tiers) if i == 0 or t != tiers[i - 1]] == list(
+            RENT_TIERS
+        ), f"rent_tier is no longer the outermost axis of {name}"
+    # rent_tiers_blind is two of those blocks concatenated, so the tier
+    # cycle repeats once per objective and the objective is outermost.
+    # Both must hold: swapping them reorders a 9,000-run committed file.
+    blind = suites["rent_tiers_blind"](list(range(30)))
+    objs = [s.overrides["adversary_objective"] for s in blind]
+    assert [o for i, o in enumerate(objs) if i == 0 or o != objs[i - 1]] == [
+        "withhold_blind",
+        "withhold",
+    ], "adversary_objective is no longer the outermost axis of rent_tiers_blind"
+    tiers = [s.overrides["rent_tier"] for s in blind]
     assert [t for i, t in enumerate(tiers) if i == 0 or t != tiers[i - 1]] == list(
         RENT_TIERS
-    ), "rent_tier is no longer the outermost axis of the tier grid"
+    ) * 2, "rent_tier is no longer the axis just inside the objective"
+    # Neither blind grid carries budget 0, and the two of them split the
+    # regimes: scarcity is where targeting can matter, saturation is
+    # where it provably cannot.
+    assert {s.overrides["lie_budget"] for s in blind} == {2}
+    assert {s.overrides["lie_budget"] for s in suites["rent_tiers_saturated"]([0])} == {
+        12
+    }
 
 
 def test_every_offered_suite_name_reaches_a_dispatch():

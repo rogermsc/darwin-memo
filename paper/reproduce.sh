@@ -126,6 +126,8 @@ RESULTS=(
   rent_lying.json
   rent_testsuite.json
   rent_tiers.json
+  rent_tiers_saturated.json
+  rent_tiers_blind.json
   merge_policy.json
   horizon.json
 )
