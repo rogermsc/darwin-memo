@@ -78,10 +78,30 @@ from darwin_memo import Outcome, StorageEnv, Task, TestSuiteEnv
 # damage. The point is what it does to a clock -- benign outcomes keep
 # arriving, so evidence-paced upkeep never pauses, while the poison is
 # never blamed. It is the attack survival_paced cannot see.
-OBJECTIVES = ("destroy", "persist", "withhold", "withhold_selective")
+# "withhold_blind" is "withhold" with its targeting rule removed, and it
+# exists to de-confound the rent tiers rather than to model a smarter
+# attacker -- it is strictly weaker than "withhold". Every other
+# objective consults the true delta before it spends, which in a rented
+# world means it consults the *price*: a tier that exempts a category
+# scores a decline there at 0.0, and 0.0 is unattackable. So the tier
+# grids vary the shape of the price and the size of the attack surface
+# together, and cannot say which one moved the result. This one commits
+# its budget to the first `lie_budget` verified tasks of the cycle
+# whatever they return, so the surface is the same task positions in
+# every tier and only the price differs.
+OBJECTIVES = (
+    "destroy",
+    "persist",
+    "withhold",
+    "withhold_selective",
+    "withhold_blind",
+)
 
 # Objectives that report silence rather than an inverted delta.
-_WITHHOLDING = ("withhold", "withhold_selective")
+_WITHHOLDING = ("withhold", "withhold_selective", "withhold_blind")
+
+# Objectives that spend without consulting the true delta.
+_BLIND = ("withhold_blind",)
 
 
 class AdversarialEnv:
@@ -165,13 +185,23 @@ class AdversarialEnv:
         # persist and withhold_selective spend only on the guilty; destroy
         # and withhold spend on any measured outcome.
         selective = self.objective in ("persist", "withhold_selective")
-        worth_lying = true.delta < 0 if selective else true.delta != 0
+        if self.objective in _BLIND:
+            worth_lying = True
+        else:
+            worth_lying = true.delta < 0 if selective else true.delta != 0
         if self._spent_this_cycle < self.lie_budget and worth_lying:
             self._spent_this_cycle += 1
             self.flakes_fired += 1
+            # A blind attacker can spend on an outcome of exactly zero,
+            # which distorts nothing. Counting that as a false good would
+            # report a lie that was never told; the wasted budget is
+            # visible instead as fired - (false_bad + false_good). For
+            # every other objective ``worth_lying`` already excludes
+            # zero, so this branch is unreachable and no committed
+            # number moves.
             if true.delta > 0:
                 self.fired_false_bad += 1
-            else:
+            elif true.delta < 0:
                 self.fired_false_good += 1
             if self.objective in _WITHHOLDING:
                 # Silence, not a lie. The entry is neither blamed nor

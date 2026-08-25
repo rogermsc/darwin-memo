@@ -585,6 +585,88 @@ def rent_tiers_suite(seeds: list[int]) -> list[RunSpec]:
     )
 
 
+def rent_tiers_blind_suite(seeds: list[int]) -> list[RunSpec]:
+    """The tier axis against an attacker that cannot see the price.
+
+    ``limitations.tex`` flags the tier grid's own construction: "pricing
+    a category at zero also makes it unattackable, since the withholder
+    spends only where true != 0, so shape and attack surface are
+    confounded in these grids by construction."
+
+    They can be. ``withhold`` computes ``worth_lying`` from the delta the
+    *rented* environment returns, and an exempt category scores a decline
+    at exactly 0.0, so under ``aligned`` a protected hold is not merely
+    free -- it is invisible. ``withhold_blind`` removes the targeting
+    rule: the budget goes to the first ``lie_budget`` verified tasks of
+    the cycle whatever they return. The world is untouched, so at a fixed
+    seed the task order is the same in all three tiers and the surface is
+    held constant by construction.
+
+    The budget here is **2**, not the 12 the tier grid ran, and the
+    reason is the companion grid. A budget of 12 equals
+    ``files_per_cycle``: it saturates, both objectives suppress every
+    measurable outcome, and targeting cannot matter
+    (``rent_tiers_saturated_suite``). Scarcity is the only regime where
+    a targeting rule has anything to decide, so this grid runs both
+    objectives at the interior budget the lying sweep already
+    established, matched on every other axis. Anything that separates
+    them is the targeting rule and nothing else.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return _rent_specs(
+        seeds,
+        "rent_tiers_blind",
+        "storage_rent",
+        "withhold_blind",
+        (2,),
+        tiers=RENT_TIERS,
+    ) + _rent_specs(
+        seeds,
+        "rent_tiers_blind",
+        "storage_rent",
+        "withhold",
+        (2,),
+        tiers=RENT_TIERS,
+    )
+
+
+def rent_tiers_saturated_suite(seeds: list[int]) -> list[RunSpec]:
+    """Whether the published tier grid was confounded at all.
+
+    The tier grid ran budgets 0 and 12 against a price-greedy withholder,
+    and ``files_per_cycle`` is 12. At budget 0 nothing fires. At budget
+    12 the budget saturates: every measurable outcome is suppressed
+    whatever the targeting rule prefers, and the only thing a blind
+    attacker does differently is spend on outcomes that are already
+    0.0, where withholding writes zero over zero.
+
+    So the prediction is an identity rather than a comparison -- every
+    cell here should equal its ``rent_tiers.json`` twin exactly, not
+    approximately -- and what it settles is whether the caveat applies to
+    the numbers this paper published. The mechanism is asserted in CI
+    (``test_a_saturating_budget_makes_the_targeting_rule_moot``); this
+    grid is the cell-by-cell version over the committed evidence.
+
+    ``flakes_fired`` is the one metric that must differ, and it is the
+    measurement rather than a blemish: fired minus the two false-outcome
+    counters is budget that landed on an unpriced task, which is the size
+    of the exempt surface each tier creates.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return _rent_specs(
+        seeds,
+        "rent_tiers_saturated",
+        "storage_rent",
+        "withhold_blind",
+        (12,),
+        tiers=RENT_TIERS,
+    )
+
+
 def rent_testsuite_suite(seeds: list[int]) -> list[RunSpec]:
     """The second-family loss, against the explanation offered for it.
 
