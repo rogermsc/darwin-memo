@@ -4295,3 +4295,138 @@ And the storage corpus that same paragraph calls redundancy-free has 2
 mergeable pairs of 16 entries against the test-suite corpus's 5 of 20 —
 a difference of degree, now pinned by
 `test_the_storage_corpus_is_less_redundant_but_not_redundancy_free`.
+
+## Is it a dose, or is it one entry? Pre-registered predictions
+
+The grid above found that dropping the five near-duplicate twins
+recovers 93–95% of the second-family loss, and the paper now says the
+effect "is roughly linear in that level over the only two points we
+have." That is a claim about a dose made from a sample of two, and two
+points cannot tell a dose from one entry: "the loss scales with how much
+redundancy the corpus carries" and "the loss is one of these five
+entries" fit `all` and `none` equally well.
+
+So every subset runs. `testsuite_twins` now accepts a five-bit mask over
+the pairs, and `redundancy_dose` enumerates all 32 of them x 2 horizons
+x 5 arms x 30 seeds = 9,600 runs at the published `consolidate_every` of
+5. Full enumeration rather than a sample, because within a dose the mask
+varies *which* twins survive — so between-dose and within-dose spread
+become separately measurable, and a single load-bearing entry shows up
+as a within-dose spread that swamps the between-dose one.
+
+The five are not interchangeable by construction. Four are fix-advice
+twins; the fifth is the dedupe protector's, which competes with the
+poison for the destructive prompt. And their pair similarities are not
+equal: the clamp-bound pair sits at 0.688 Jaccard against 0.812 for the
+other four.
+
+**Disclosure.** I ran the grid at seed 0 as a smoke check before writing
+this — 320 cells, all 32 masks, both horizons, all five arms — and it
+already answers the headline question, so predictions 1–3 are marked
+replications of a single seed rather than blind calls. At 60 cycles,
+`survival` scores 176.00 with all twins dropped and 119.00 with all
+kept, against `evict_on_negative`'s 178.00. Dropping *only* the
+clamp-bound twin (`01111`) scores 176.00 — full recovery from one entry.
+Dropping only one of the other four scores 115–119. Keeping *only* the
+clamp-bound twin (`10000`) scores 96.00, worse than keeping all five.
+
+1. **It is one entry, not a dose.** *(replication, one seed)* At 30
+   seeds and 60 cycles, dropping the clamp-bound twin alone recovers at
+   least 90% of `survival`'s gap to `evict_on_negative`, and dropping
+   any other single twin alone recovers less than 25% of it.
+2. **And it is non-monotone in the dose.** *(replication, one seed)*
+   Keeping only the clamp-bound twin scores strictly *below* keeping all
+   five, in at least 27 of 30 seeds. More redundancy is not uniformly
+   worse; the four other twins partly protect against the one that
+   hurts.
+3. **Within-dose spread swamps between-dose.** *(replication, one seed)*
+   At every dose 1–4, the spread across masks at that dose exceeds the
+   difference between adjacent dose means. A curve fitted through the
+   dose means would have an R^2 that misrepresents the mechanism
+   entirely.
+4. **The canary.** `"11111"` and `"00000"` reproduce `redundancy.json`'s
+   `consolidate_every=5` cells exactly, on every result metric, in all
+   600 shared cells.
+5. **The capability decay tracks the same single entry.** *(blind — I
+   have not looked at probe rates in the smoke)* At 60 cycles,
+   `survival`'s `probe_benign_correct_rate` is 0.750 in every mask that
+   keeps the clamp-bound twin and 1.000 in every mask that drops it, in
+   all 30 seeds. If that holds, then the decay this paper attributed to
+   "the corpus is deliberately redundant" is one near-duplicate pair,
+   and the redundancy framing has been describing a single entry in
+   general language for three findings.
+
+```
+python -m bench.run --suite redundancy_dose --seeds 0:30 \
+  --out bench/results/redundancy_dose.json --update-manifest
+```
+
+### Result: 4 held, 1 refuted — it is one entry, and the other four protect against it
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | it is one entry, not a dose | **held** — 93.3% from one, 0.0% from three others |
+| 2 | and it is non-monotone in the dose | **held** — 30/30 seeds |
+| 3 | within-dose spread swamps between-dose | **held** — 54.5–72.0 against 5.6–14.4 |
+| 4 | the canary reproduces `redundancy.json` | **held** — 600/600 cells |
+| 5 | the decay tracks the same single entry, in all 30 seeds | **refuted** — necessary, and sufficient in 456 of 480 cells |
+
+**1. Dropping one twin is the whole effect.** At 60 cycles `survival`
+scores 121.33 with all five twins and 174.20 with none, against
+`evict_on_negative`'s 178.00.
+
+| mask | dropped twin | `survival` cum_delta | share of the gap recovered |
+|---|---|---|---|
+| `01111` | clamp bound | 174.20 | **93.3%** |
+| `10111` | slugify | 121.33 | 0.0% |
+| `11011` | parse_version | 121.33 | 0.0% |
+| `11101` | format_date | 121.33 | 0.0% |
+| `11110` | dedupe protector | 119.70 | −2.9% |
+
+Three of the five contribute *exactly* nothing — not a small amount,
+nothing — and the fifth is slightly harmful to drop. The previous PR's
+"93–95% of the second-family loss is five near-duplicate entries" was
+right about the number and wrong about the noun.
+
+**2. The other four are protective, not inert.** Keeping only the
+clamp-bound twin scores 102.20 against 121.33 for keeping all five, in
+30/30 seeds. The four other pairs recover a third of the damage the
+first one does, so redundancy is not monotonically bad here — one pair
+is bad and the rest partly cushion it.
+
+**3. A dose-response curve would have been fiction.**
+
+| dose (twins kept) | mean | spread across masks | gap to previous dose |
+|---|---|---|---|
+| 0 | 174.20 | 0.00 | — |
+| 1 | 159.80 | 72.00 | 14.40 |
+| 2 | 145.74 | 71.90 | 14.06 |
+| 3 | 137.17 | 68.93 | 8.57 |
+| 4 | 131.58 | 54.50 | 5.59 |
+| 5 | 121.33 | 0.00 | 10.25 |
+
+The means do decline monotonically, which is exactly what makes them
+dangerous: fitted alone they look like a dose. The within-dose spread is
+four to twelve times the between-dose step.
+
+**5. Refuted on the quantifier, held on the direction.** I predicted the
+0.750 probe rate in *every* mask keeping the clamp-bound twin, in all 30
+seeds. It appears in 456 of those 480 cells and in 0 of the 480 that
+drop it: keeping it is necessary and very nearly sufficient. The 24
+exceptions are concentrated in the masks that keep it alongside one or
+two others, which is the protective effect of prediction 2 showing up in
+capability as well as in outcome.
+
+**The chain, as far as it is measured.** `final_population` falls 4.00 →
+3.00 between the horizons in exactly the masks that keep the clamp-bound
+twin and holds at 4.00 in every mask that drops it. One entry starves
+between cycle 30 and 60, and losing it costs one of the four benign
+probes (0.750 = 3/4).
+
+**What is not measured: why that pair.** Its Jaccard similarity is 0.688
+against 0.812 for the other four, so it is the pair closest to the 0.55
+merge threshold. Both stores end at 15 entries — the difference is only
+*which* five merges happened. Proximity to the threshold is a correlate,
+not a mechanism, and separating it from content needs a
+`merge_threshold` sweep that has not been run. That is the next
+measurement this line owes.

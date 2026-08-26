@@ -159,9 +159,7 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
             "claims a variation that never took effect"
         )
     build = (
-        partial(
-            build_testsuite_store, twins=bool(overrides.get("testsuite_twins", True))
-        )
+        partial(build_testsuite_store, twins=overrides.get("testsuite_twins", True))
         if testsuite
         else build_headline_store
     )

@@ -63,6 +63,7 @@ from .suites import (
     withholding_testsuite_suite,
 )
 from .testsuite_suites import (
+    redundancy_dose_suite,
     redundancy_rent_suite,
     redundancy_suite,
     testsuite_noisy_suite,
@@ -80,6 +81,7 @@ PLAIN_SUITES = {
     "testsuite_noisy": testsuite_noisy_suite,
     "redundancy": redundancy_suite,
     "redundancy_rent": redundancy_rent_suite,
+    "redundancy_dose": redundancy_dose_suite,
     "merge_policy": merge_policy_suite,
     "memsec": memsec_suite,
     "adversary": adversary_suite,

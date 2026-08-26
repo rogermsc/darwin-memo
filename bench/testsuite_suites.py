@@ -14,6 +14,7 @@ the documented one.
 
 from __future__ import annotations
 
+import itertools
 from typing import Any
 
 from .policies import ARMS
@@ -172,6 +173,66 @@ def _redundancy_specs(
         )
         for twins in (True, False)
         for every in (5, 0)
+        for cycles in REDUNDANCY_CYCLES
+        for arm, extra in REDUNDANCY_ARMS
+        for seed in seeds
+    ]
+
+
+# All 32 subsets of the five twin pairs, as masks over them. Full
+# enumeration rather than a sample: the question is whether the loss is
+# a dose or a particular entry, and any sampled subset would leave that
+# confounded exactly where it started.
+REDUNDANCY_MASKS: tuple[str, ...] = tuple(
+    "".join(bits) for bits in itertools.product("01", repeat=5)
+)
+
+
+def redundancy_dose_suite(seeds: list[int]) -> list[RunSpec]:
+    """Is it a dose, or is it one entry?
+
+    ``redundancy_suite`` measured two points -- all five twins and none
+    -- and found that dropping them recovers 93% of the second-family
+    loss. Two points cannot distinguish "the loss scales with how much
+    redundancy the corpus carries" from "the loss is one of these five
+    entries", and the paper currently asserts the first ("the effect is
+    roughly linear in that level over the only two points we have"),
+    which is a claim from a sample of two.
+
+    So every subset runs. 32 masks x 2 horizons x 5 arms x 30 seeds =
+    9,600 runs, at the published ``consolidate_every`` of 5. Within a
+    dose the mask varies which twins survive, so the between-dose and
+    within-dose spreads are separately measurable, and a single
+    load-bearing entry shows up as a within-dose spread that swamps the
+    between-dose one.
+
+    The four fix-advice twins and the dedupe-protector twin are not
+    interchangeable by construction -- the protector competes with the
+    poison for the destructive prompt -- so the null here is a real
+    possibility rather than a formality.
+
+    ``"11111"`` and ``"00000"`` reproduce ``redundancy.json``'s
+    ``consolidate_every=5`` cells exactly; that is the canary, and it
+    crosses two files.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="redundancy_dose",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                **TESTSUITE_OVERRIDES,
+                "testsuite_twins": mask,
+                "consolidate_every": 5,
+                **extra,
+            },
+            label=f"twins={mask},cycles={cycles}",
+        )
+        for mask in REDUNDANCY_MASKS
         for cycles in REDUNDANCY_CYCLES
         for arm, extra in REDUNDANCY_ARMS
         for seed in seeds
