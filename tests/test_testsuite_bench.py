@@ -537,3 +537,72 @@ def test_the_dose_grid_enumerates_every_subset_once():
     assert [m for i, m in enumerate(masks) if i == 0 or m != masks[i - 1]] == list(
         REDUNDANCY_MASKS
     ), "mask is no longer the outermost axis of the dose grid"
+
+
+def test_conflict_threshold_defaults_to_the_coupling_it_replaces():
+    """A new knob must not move a single committed number.
+
+    ``merge_threshold`` set the query protocol's conflict floor as well
+    as the consolidation floor, and every committed result was produced
+    under that coupling. ``conflict_threshold=None`` has to reproduce it
+    exactly, or this knob rewrites the corpus of evidence it was added
+    to interrogate.
+
+    Mutations this catches: defaulting the new field to
+    ``DEFAULT_MERGE_THRESHOLD`` instead of None (the coupling silently
+    disappears wherever merge_threshold was swept); and reading the
+    wrong one of the two when both are set.
+    """
+    from darwin_memo import MemoryStore
+    from darwin_memo.survival import SurvivalConfig, SurvivalLoop
+
+    class _Env:
+        resource_scale = 1.0
+
+        def tasks(self, cycle):
+            return []
+
+        def verify(self, task, answer_text):  # pragma: no cover - unused
+            raise AssertionError
+
+        def cleanup(self):
+            pass
+
+    for merge, pinned, want in ((0.9, None, 0.9), (0.9, 0.55, 0.55), (0.4, 0.7, 0.7)):
+        loop = SurvivalLoop(
+            MemoryStore(),
+            _Env(),
+            config=SurvivalConfig(merge_threshold=merge, conflict_threshold=pinned),
+        )
+        assert loop.protocol.conflict_threshold == want, (merge, pinned)
+
+
+def test_the_threshold_sweep_brackets_both_pair_similarities():
+    """The grid has to contain the steps it exists to find.
+
+    Both similarities present in the corpus (0.6875 and 0.8125) must be
+    swept exactly, and each band must have interior points either side,
+    or a flat band is unfalsifiable and a step is unlocatable.
+    """
+    from bench.testsuite_suites import MERGE_THRESHOLDS, merge_threshold_suite
+
+    assert 0.6875 in MERGE_THRESHOLDS and 0.8125 in MERGE_THRESHOLDS
+    bands = {
+        "all five merge": [t for t in MERGE_THRESHOLDS if t <= 0.6875],
+        "four merge": [t for t in MERGE_THRESHOLDS if 0.6875 < t <= 0.8125],
+        "none merge": [t for t in MERGE_THRESHOLDS if t > 0.8125],
+    }
+    assert [len(v) for v in bands.values()] == [5, 4, 2], bands
+
+    specs = merge_threshold_suite(list(range(30)))
+    assert len(specs) == 6600
+    coupled = [s for s in specs if "conflict_threshold" not in s.overrides]
+    pinned = [s for s in specs if s.overrides.get("conflict_threshold") == 0.55]
+    assert len(coupled) == len(pinned) == 3300
+    # Coupling is the outermost axis and threshold the next, so both
+    # blocks are contiguous and a reordering is loud.
+    couplings = ["conflict_threshold" not in s.overrides for s in specs]
+    assert [c for i, c in enumerate(couplings) if i == 0 or c != couplings[i - 1]] == [
+        True,
+        False,
+    ]

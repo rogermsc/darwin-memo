@@ -4430,3 +4430,66 @@ merge threshold. Both stores end at 15 entries — the difference is only
 not a mechanism, and separating it from content needs a
 `merge_threshold` sweep that has not been run. That is the next
 measurement this line owes.
+
+## Which pairs merged, or how close they came? Pre-registered predictions
+
+`redundancy_dose` put the whole second-family loss on one of five
+near-duplicate pairs and could not say why that one. The only property
+distinguishing it is that its similarity is lowest — 0.6875 against
+0.8125 for the other four — so it is the pair nearest the merge floor.
+The paper records that as a correlate and names this grid as the
+counterfactual it owes: **move the floor instead of the corpus.**
+
+The design turns on a step. Below 0.6875 all five pairs merge; between
+0.6875 and 0.8125 only the other four do; above 0.8125 none do. If the
+loss is the clamp pair's *merge*, each band is flat and the steps land
+exactly on those two numbers. If it is proximity to the floor, the loss
+moves with the floor *inside* a band.
+
+**A confound found before running rather than after.** `merge_threshold`
+has always set the query protocol's conflict floor as well as the
+consolidation floor, so sweeping it naively sweeps two mechanisms — and
+every existing `merge_threshold` number in this repository, including
+the ablation grid's, was produced under that coupling.
+`SurvivalConfig.conflict_threshold` is new, defaults to `None` meaning
+"keep the coupling", and is asserted in CI to reproduce it exactly. Both
+columns run: coupled, and pinned at the default 0.55. 11 thresholds x 2
+couplings x 2 horizons x 5 arms x 30 seeds = 6,600 runs.
+
+**No smoke run this time.** Three of the five predictions are exact
+identities against cells already committed in other files, so they are
+falsifiable without a peek and a peek would only cost the disclosure.
+
+1. **A step function, not a gradient.** At 60 cycles, `survival`'s
+   `cum_delta` is *identical* across every threshold within a band, in
+   all 30 seeds, and differs between bands. Both boundary values belong
+   to the lower band, because `consolidate` merges at `>=`: 0.6875 sits
+   with 0.50–0.65, and 0.8125 with 0.70–0.80.
+2. **The bands reproduce three cells measured by corpus surgery.** Band
+   A (all five merge) = **121.33**, the all-twins cell of
+   `redundancy.json`. Band B (four merge) = **174.20**, the `01111` mask
+   of `redundancy_dose.json` — reached here without touching the corpus.
+   Band C (none merge) = **139.40**, the `consolidate_every=0` cell of
+   `redundancy.json`.
+3. **Consolidation is good on four pairs and bad on one.** Therefore
+   band B > band C > band A: merging the four high-similarity pairs is
+   worth about +34.8 over not merging at all, and merging the clamp pair
+   on top costs about −52.9. Consolidation is not uniformly good or bad
+   in this corpus; it is good four times and bad once, and the published
+   configuration is the sum.
+4. **The coupling changed nothing here.** The coupled and pinned columns
+   are identical on every result metric at all 11 thresholds, in all 30
+   seeds. If this is wrong, every `merge_threshold` number in the
+   ablation grid is two mechanisms and says so nowhere.
+5. **The counters are threshold-blind.** `evict_on_negative`,
+   `quarantine` and `keep_everything` are identical across all 11
+   thresholds and both couplings — they never consolidate, and
+   `_baseline_task_loop` builds its own `QueryProtocol` at the default
+   floor rather than the swept one. Stated because it is the canary that
+   the sweep moved only what it claims to move, and because if it fails
+   the baselines have been reading a knob nobody knew they read.
+
+```
+python -m bench.run --suite merge_threshold --seeds 0:30 \
+  --out bench/results/merge_threshold.json --update-manifest
+```

@@ -130,6 +130,7 @@ def _survival_config(
     for knob in (
         "credit_gain",
         "merge_threshold",
+        "conflict_threshold",
         "consolidate_every",
         "merge_source_policy",
     ):
