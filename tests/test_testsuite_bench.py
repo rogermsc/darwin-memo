@@ -326,18 +326,25 @@ def test_noisy_grid_is_the_precommitted_one():
     assert "model=flaky,rate=0.15,k=2" in labels
 
 
-def _mergeable_pairs(entries: list[tuple[str, str]]) -> list[tuple[int, int, float]]:
-    """Pairs a default-threshold consolidator would merge, by Jaccard."""
+def _mergeable_pairs(store: object) -> list[tuple[int, int, float]]:
+    """Pairs a default-threshold consolidator would merge.
+
+    Scored with ``store.similarity`` -- the function ``consolidate``
+    itself calls -- rather than with a Jaccard reimplemented here. The
+    first version of this helper did reimplement it, and while it
+    happened to agree on the *counts*, its similarity values were wrong
+    by a wide margin (0.688 where the retriever says 0.818), which was
+    enough to send a threshold sweep after bands that do not exist.
+    A measurement of a mechanism has to come from the mechanism.
+    """
     import itertools
-    import re
 
     from darwin_memo.consolidate import DEFAULT_MERGE_THRESHOLD
 
-    toks = [set(re.findall(r"[a-z0-9]+", f"{q} {a}".lower())) for q, a in entries]
+    entries = store.alive()  # type: ignore[attr-defined]
     out = []
     for i, j in itertools.combinations(range(len(entries)), 2):
-        union = toks[i] | toks[j]
-        score = len(toks[i] & toks[j]) / len(union) if union else 0.0
+        score = store.similarity(entries[i], entries[j])  # type: ignore[attr-defined]
         if score >= DEFAULT_MERGE_THRESHOLD:
             out.append((i, j, score))
     return out
@@ -357,17 +364,15 @@ def test_the_twin_indices_are_exactly_the_mergeable_entries():
     (the lean corpus keeps a mergeable pair and stops being lean);
     adding one (the lean corpus loses an entry that was never surplus).
     """
-    from bench.testsuite_fixtures import _ENTRIES, _TWIN_INDICES
+    from bench.testsuite_fixtures import _TWIN_INDICES, build_testsuite_store
 
-    pairs = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    pairs = _mergeable_pairs(build_testsuite_store())
     assert len(pairs) == 5, pairs
     # Every mergeable pair is adjacent and contributes exactly one twin.
     assert tuple(sorted(j for _, j, _ in pairs)) == tuple(sorted(_TWIN_INDICES))
     assert all(j == i + 1 for i, j, _ in pairs), "twins are adjacent by construction"
 
-    lean = _mergeable_pairs(
-        [(q, a) for i, (q, a, _) in enumerate(_ENTRIES) if i not in _TWIN_INDICES]
-    )
+    lean = _mergeable_pairs(build_testsuite_store(twins=False))
     assert lean == [], f"the lean corpus still has surplus to merge: {lean}"
 
 
@@ -389,12 +394,21 @@ def test_the_storage_corpus_is_less_redundant_but_not_redundancy_free():
     from bench.fixtures import build_headline_store
     from bench.testsuite_fixtures import _ENTRIES
 
-    storage = _mergeable_pairs(
-        [(e.question, e.answer) for e in build_headline_store().alive()]
-    )
-    testsuite = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    storage = _mergeable_pairs(build_headline_store())
+    testsuite = _mergeable_pairs(build_testsuite_store())
     assert (len(storage), len(testsuite)) == (2, 5)
     assert len(build_headline_store().alive()) == 16 and len(_ENTRIES) == 20
+    # The values, not just the counts: the sweep in sec:merge-threshold
+    # is designed around where these sit, so a corpus edit that moves
+    # them must move that design too.
+    assert sorted(round(s, 4) for _, _, s in testsuite) == [
+        0.8182,
+        0.8889,
+        0.9,
+        0.9,
+        0.9091,
+    ]
+    assert max(s for _, _, s in storage) == pytest.approx(0.75)
 
 
 def test_the_lean_corpus_differs_from_the_canonical_one_in_exactly_the_twins():

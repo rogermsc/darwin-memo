@@ -373,13 +373,30 @@ general language for as long as the explanation existed --- including,
 for one PR, as a dose we said looked ``roughly linear'' on the strength
 of two measured points.
 
-We do not know what makes that pair different. It is the one closest to
-the merge threshold ($0.688$ against $0.812$), which is a correlate and
-not a mechanism; a \texttt{merge\_threshold} sweep would separate
-proximity from content and has not been run. Until it is, the honest
-scope of every test-suite-family result here is one corpus containing
-one unusual pair, which is narrower than "a redundant corpus" by about
-as much as a single entry is narrower than a design principle.
+That pair is the least similar of the five ($0.818$ against $0.889$ to
+$0.909$), so it is the one nearest the merge floor. We have since swept
+the floor (\S\ref{sec:merge-threshold}), and it decomposes the harm
+rather than explaining it: refusing to merge that pair recovers $27.7\%$
+of the gap and deleting its twin recovers $93.3\%$, so roughly three
+quarters of the cost is the entry existing and a quarter is the pooling.
+We had named consolidation as the mechanism for three findings; on the
+one we can decompose it is the minority term. What still has no
+explanation is why \emph{that} entry, and the corpus is too small for
+the question to be answered by more slicing of it.
+
+The sweep also cost us a lesson about our own instruments. Its band
+edges were placed using similarity figures from a Jaccard reimplemented
+in a test helper rather than from the function \texttt{consolidate}
+calls; the counts agreed and the values did not, and three of five
+registered predictions are refuted for that reason alone. The
+predictions were falsified by a bug in the measurement, not by the
+world, and we report them as refuted anyway because the register was
+made in advance and the design was ours. A measurement of a mechanism
+has to be taken from the mechanism, and a helper that agrees on counts
+is not evidence that it agrees on anything else. Every
+\texttt{merge\_threshold} number in this paper was also produced with
+the query protocol's conflict floor silently tied to the same field ---
+inert here, in all $1{,}320$ ledger cells, but inert by luck.
 
 What we did not anticipate is that the decay is a \emph{trade} rather
 than a loss, and that both sides of it are invisible at 30 cycles. On

@@ -1644,15 +1644,56 @@ that keep it and holding at $4.00$ in every mask that drops it. One
 entry starves between 30 and 60 cycles, and losing it costs one of the
 four benign probes.
 
-What distinguishes that pair is unexplained. Its Jaccard similarity is
-$0.688$ against $0.812$ for the other four, so it is the pair closest to
-the $0.55$ merge threshold, and both stores end at $15$ entries --- the
-difference is only \emph{which} five merges happened. A
-\texttt{merge\_threshold} sweep would separate ``near the threshold''
-from ``this content'' and we have not run one. What is settled is the
-scope: three findings this paper attributed to a redundant corpus are
-one near-duplicate pair in it, and general language was describing a
-single entry.
+That pair is the least similar of the five --- $0.818$ against $0.889$
+to $0.909$ --- so it is the one nearest the merge floor, and both stores
+end at $15$ entries: the difference is only \emph{which} five merges
+happened. We have since moved the floor instead of the corpus
+(\S\ref{sec:merge-threshold}), and the answer is that the merge is the
+smaller half of it.
+
+\subsection{Moving the floor instead of the corpus}
+\label{sec:merge-threshold}
+Eleven merge thresholds, $2$ horizons, $5$ arms, $30$ seeds, twice over:
+once with the query protocol's conflict floor coupled to the merge floor
+as it has always been, and once with it pinned at the default. The
+coupling is worth stating because it was invisible: one field set two
+thresholds, so every \texttt{merge\_threshold} number in this
+repository --- the ablation grid included --- was produced under it. It
+turns out to be inert on this corpus (the two columns are identical in
+all $1{,}320$ ledger cells), but it was inert by luck rather than by
+design, and \texttt{SurvivalConfig.conflict\_threshold} now separates
+them.
+
+\paragraph{The floor's value does not matter; the set of merges does.}
+Nine of the eleven thresholds merge all five pairs, and all nine are the
+\emph{same run} --- identical per seed, not merely equal on average ---
+at $121.33$. At $0.85$ the least similar pair drops out and the score
+rises to $137.00$; at $0.90$ a second drops out and it rises to
+$143.00$. Fewer merges is monotonically better at every step we can
+reach, which refutes what we registered: we predicted consolidation
+would be good on the four tight pairs and bad on the loose one, and it
+is mildly bad on all of them here.
+
+\paragraph{Three quarters of the harm is the entry, not the merge.}
+This is the number the sweep was run for. Against a gap of $56.67$ to
+the counter, refusing to merge the clamp-bound pair recovers $15.67$
+($27.7\%$) while deleting its twin recovers $52.87$ ($93.3\%$). The two
+are measured in different files by different knobs and agree on the
+shared cell. So the entry hurts mostly by existing --- one more thing
+holding energy and competing for retrieval --- and only secondarily by
+being pooled. Our explanation named consolidation for three findings; on
+the one we can now decompose, consolidation is the minority term.
+
+\paragraph{A correction about how we measured similarity.} The
+$0.688$-versus-$0.812$ figures in the previous version of this section
+came from a Jaccard we reimplemented in a test helper rather than from
+\texttt{MemoryStore.similarity}, the function \texttt{consolidate}
+actually calls. The counts it produced were right and its values were
+not, and the error was load-bearing: it put the band edges of this sweep
+in the wrong places, which is why three of its five registered
+predictions are refuted rather than confirmed. The helper now scores
+with the retriever, and the pair similarities are pinned by value as
+well as by count.
 
 \subsection{Parametric memory (secondary).}
 To connect to memory-as-a-model \citep{quek2026memo}, we distill survivors

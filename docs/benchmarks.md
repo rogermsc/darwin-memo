@@ -4493,3 +4493,63 @@ falsifiable without a peek and a peek would only cost the disclosure.
 python -m bench.run --suite merge_threshold --seeds 0:30 \
   --out bench/results/merge_threshold.json --update-manifest
 ```
+
+### Result: 2 held, 3 refuted — and the three were refuted by our own measuring stick
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | a step function, not a gradient | **held** — identical per seed within a band |
+| 2 | the bands reproduce three corpus-surgery cells | **refuted** — 137.00 and 143.00, not 174.20 and 139.40 |
+| 3 | consolidation is good on four pairs and bad on one | **refuted** — fewer merges is better at every step |
+| 4 | the conflict coupling changed nothing | **held** — 0 of 1,320 cells |
+| 5 | the counters are threshold-blind | **held** — one distinct value each across 22 configs |
+
+**The band edges were in the wrong places, and that is on us.** The
+0.6875-versus-0.8125 similarities this grid was designed around came
+from a Jaccard reimplemented in a test helper in the previous PR, not
+from `MemoryStore.similarity`, the function `consolidate` actually
+calls. Scored properly the five pairs sit at 0.8182, 0.8889, 0.9000,
+0.9000 and 0.9091. The helper's *counts* were right — 5 pairs in the
+test-suite corpus, 2 in the storage corpus — which is exactly why
+nothing caught it. Predictions 2 and 3 are refuted by a defect in the
+instrument rather than by the world, and are recorded as refuted
+regardless: the register was made in advance and the design was ours.
+
+**1. The floor's value does not matter; the set of merges does.**
+
+| merge threshold | pairs merged | `survival` cum_delta, 60 cycles |
+|---|---|---|
+| 0.50 – 0.8125 (9 values) | 5 | 121.33 |
+| 0.85 | 4 | 137.00 |
+| 0.90 | 3 | 143.00 |
+
+All nine thresholds in the first band are the *same run* — identical per
+seed, not merely equal on average. Once the set of merges is fixed the
+floor's value is irrelevant, which is the step the design predicted,
+just with the steps where the real similarities are.
+
+**3 refuted: fewer merges is monotonically better.** We predicted
+consolidation would be worth about +34.8 on the four tight pairs and
+−52.9 on the loose one. It is mildly harmful at every margin the sweep
+can reach: 121.33 → 137.00 → 143.00 as pairs drop out.
+
+**The number the sweep was run for.** Against the 56.67 gap to
+`evict_on_negative`:
+
+| intervention | recovers | share of the gap |
+|---|---|---|
+| refuse to merge the clamp-bound pair (threshold 0.85) | 15.67 | **27.7%** |
+| delete its twin outright (`redundancy_dose` mask `01111`) | 52.87 | **93.3%** |
+
+Different files, different knobs, agreeing on the shared cell. **Roughly
+three quarters of the harm is the entry existing and a quarter is the
+pooling.** The explanation this line of work has carried — that
+consolidation finds surplus to starve — names the minority term.
+
+**4 held, and it was worth checking.** `merge_threshold` has always set
+the query protocol's conflict floor as well, so one field was two
+thresholds and every `merge_threshold` number in this repository was
+produced under the coupling. It is inert on this corpus — 0 of 1,320
+ledger cells differ between the coupled and pinned columns — but inert
+by luck rather than by design. `SurvivalConfig.conflict_threshold` now
+separates them and defaults to the coupling so nothing committed moves.
