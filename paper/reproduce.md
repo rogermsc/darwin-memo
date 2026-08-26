@@ -144,7 +144,7 @@ manifest at the time this package was frozen:
 | redundancy.json            | redundancy      | 30    | 1200 | 46105cad5833018fb82aa3ff84f37d7cbc7b259a |
 | redundancy_rent.json       | redundancy_rent | 30    | 1200 | 46105cad5833018fb82aa3ff84f37d7cbc7b259a |
 | redundancy_dose.json       | redundancy_dose | 30    | 9600 | bd1035ef08ab9cc90c0377791b83d2ef33b6d780 |
-| merge_threshold.json       | merge_threshold | 30    | 6600 | dd170a66f1a2bcd61a944a55d1d3a6d431b7cc9f |
+| merge_threshold.json       | merge_threshold | 30    | 6600 | fd9ad146afc5a119d858917f707379b8cec351b5 |
 | merge_policy.json          | merge_policy    | 10    | 720  | 5d5272ab73b1868ecd741e151dd2b7f69bac3c7e |
 | horizon.json               | horizon         | n/a   | 5815 | c5b52cb758c3c8f5445cf867475b7c5c7e625c27 |
 
