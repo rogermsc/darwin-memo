@@ -143,7 +143,7 @@ manifest at the time this package was frozen:
 | rent_tiers_blind.json      | rent_tiers_blind | 30   | 9000 | d372ce45b57c438b0a583564e2f35b2c724b27f7 |
 | redundancy.json            | redundancy      | 30    | 1200 | 46105cad5833018fb82aa3ff84f37d7cbc7b259a |
 | redundancy_rent.json       | redundancy_rent | 30    | 1200 | 46105cad5833018fb82aa3ff84f37d7cbc7b259a |
-| redundancy_dose.json       | redundancy_dose | 30    | 9600 | 3200ca8dfa81ce6b7e20a7a3fd750b289280326b |
+| redundancy_dose.json       | redundancy_dose | 30    | 9600 | bd1035ef08ab9cc90c0377791b83d2ef33b6d780 |
 | merge_policy.json          | merge_policy    | 10    | 720  | 5d5272ab73b1868ecd741e151dd2b7f69bac3c7e |
 | horizon.json               | horizon         | n/a   | 5815 | c5b52cb758c3c8f5445cf867475b7c5c7e625c27 |
 
