@@ -131,6 +131,7 @@ RESULTS=(
   redundancy.json
   redundancy_rent.json
   redundancy_dose.json
+  merge_threshold.json
   merge_policy.json
   horizon.json
 )

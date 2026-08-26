@@ -326,18 +326,25 @@ def test_noisy_grid_is_the_precommitted_one():
     assert "model=flaky,rate=0.15,k=2" in labels
 
 
-def _mergeable_pairs(entries: list[tuple[str, str]]) -> list[tuple[int, int, float]]:
-    """Pairs a default-threshold consolidator would merge, by Jaccard."""
+def _mergeable_pairs(store: object) -> list[tuple[int, int, float]]:
+    """Pairs a default-threshold consolidator would merge.
+
+    Scored with ``store.similarity`` -- the function ``consolidate``
+    itself calls -- rather than with a Jaccard reimplemented here. The
+    first version of this helper did reimplement it, and while it
+    happened to agree on the *counts*, its similarity values were wrong
+    by a wide margin (0.688 where the retriever says 0.818), which was
+    enough to send a threshold sweep after bands that do not exist.
+    A measurement of a mechanism has to come from the mechanism.
+    """
     import itertools
-    import re
 
     from darwin_memo.consolidate import DEFAULT_MERGE_THRESHOLD
 
-    toks = [set(re.findall(r"[a-z0-9]+", f"{q} {a}".lower())) for q, a in entries]
+    entries = store.alive()  # type: ignore[attr-defined]
     out = []
     for i, j in itertools.combinations(range(len(entries)), 2):
-        union = toks[i] | toks[j]
-        score = len(toks[i] & toks[j]) / len(union) if union else 0.0
+        score = store.similarity(entries[i], entries[j])  # type: ignore[attr-defined]
         if score >= DEFAULT_MERGE_THRESHOLD:
             out.append((i, j, score))
     return out
@@ -357,17 +364,15 @@ def test_the_twin_indices_are_exactly_the_mergeable_entries():
     (the lean corpus keeps a mergeable pair and stops being lean);
     adding one (the lean corpus loses an entry that was never surplus).
     """
-    from bench.testsuite_fixtures import _ENTRIES, _TWIN_INDICES
+    from bench.testsuite_fixtures import _TWIN_INDICES, build_testsuite_store
 
-    pairs = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    pairs = _mergeable_pairs(build_testsuite_store())
     assert len(pairs) == 5, pairs
     # Every mergeable pair is adjacent and contributes exactly one twin.
     assert tuple(sorted(j for _, j, _ in pairs)) == tuple(sorted(_TWIN_INDICES))
     assert all(j == i + 1 for i, j, _ in pairs), "twins are adjacent by construction"
 
-    lean = _mergeable_pairs(
-        [(q, a) for i, (q, a, _) in enumerate(_ENTRIES) if i not in _TWIN_INDICES]
-    )
+    lean = _mergeable_pairs(build_testsuite_store(twins=False))
     assert lean == [], f"the lean corpus still has surplus to merge: {lean}"
 
 
@@ -389,12 +394,21 @@ def test_the_storage_corpus_is_less_redundant_but_not_redundancy_free():
     from bench.fixtures import build_headline_store
     from bench.testsuite_fixtures import _ENTRIES
 
-    storage = _mergeable_pairs(
-        [(e.question, e.answer) for e in build_headline_store().alive()]
-    )
-    testsuite = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    storage = _mergeable_pairs(build_headline_store())
+    testsuite = _mergeable_pairs(build_testsuite_store())
     assert (len(storage), len(testsuite)) == (2, 5)
     assert len(build_headline_store().alive()) == 16 and len(_ENTRIES) == 20
+    # The values, not just the counts: the sweep in sec:merge-threshold
+    # is designed around where these sit, so a corpus edit that moves
+    # them must move that design too.
+    assert sorted(round(s, 4) for _, _, s in testsuite) == [
+        0.8182,
+        0.8889,
+        0.9,
+        0.9,
+        0.9091,
+    ]
+    assert max(s for _, _, s in storage) == pytest.approx(0.75)
 
 
 def test_the_lean_corpus_differs_from_the_canonical_one_in_exactly_the_twins():
@@ -537,3 +551,72 @@ def test_the_dose_grid_enumerates_every_subset_once():
     assert [m for i, m in enumerate(masks) if i == 0 or m != masks[i - 1]] == list(
         REDUNDANCY_MASKS
     ), "mask is no longer the outermost axis of the dose grid"
+
+
+def test_conflict_threshold_defaults_to_the_coupling_it_replaces():
+    """A new knob must not move a single committed number.
+
+    ``merge_threshold`` set the query protocol's conflict floor as well
+    as the consolidation floor, and every committed result was produced
+    under that coupling. ``conflict_threshold=None`` has to reproduce it
+    exactly, or this knob rewrites the corpus of evidence it was added
+    to interrogate.
+
+    Mutations this catches: defaulting the new field to
+    ``DEFAULT_MERGE_THRESHOLD`` instead of None (the coupling silently
+    disappears wherever merge_threshold was swept); and reading the
+    wrong one of the two when both are set.
+    """
+    from darwin_memo import MemoryStore
+    from darwin_memo.survival import SurvivalConfig, SurvivalLoop
+
+    class _Env:
+        resource_scale = 1.0
+
+        def tasks(self, cycle):
+            return []
+
+        def verify(self, task, answer_text):  # pragma: no cover - unused
+            raise AssertionError
+
+        def cleanup(self):
+            pass
+
+    for merge, pinned, want in ((0.9, None, 0.9), (0.9, 0.55, 0.55), (0.4, 0.7, 0.7)):
+        loop = SurvivalLoop(
+            MemoryStore(),
+            _Env(),
+            config=SurvivalConfig(merge_threshold=merge, conflict_threshold=pinned),
+        )
+        assert loop.protocol.conflict_threshold == want, (merge, pinned)
+
+
+def test_the_threshold_sweep_brackets_both_pair_similarities():
+    """The grid has to contain the steps it exists to find.
+
+    Both similarities present in the corpus (0.6875 and 0.8125) must be
+    swept exactly, and each band must have interior points either side,
+    or a flat band is unfalsifiable and a step is unlocatable.
+    """
+    from bench.testsuite_suites import MERGE_THRESHOLDS, merge_threshold_suite
+
+    assert 0.6875 in MERGE_THRESHOLDS and 0.8125 in MERGE_THRESHOLDS
+    bands = {
+        "all five merge": [t for t in MERGE_THRESHOLDS if t <= 0.6875],
+        "four merge": [t for t in MERGE_THRESHOLDS if 0.6875 < t <= 0.8125],
+        "none merge": [t for t in MERGE_THRESHOLDS if t > 0.8125],
+    }
+    assert [len(v) for v in bands.values()] == [5, 4, 2], bands
+
+    specs = merge_threshold_suite(list(range(30)))
+    assert len(specs) == 6600
+    coupled = [s for s in specs if "conflict_threshold" not in s.overrides]
+    pinned = [s for s in specs if s.overrides.get("conflict_threshold") == 0.55]
+    assert len(coupled) == len(pinned) == 3300
+    # Coupling is the outermost axis and threshold the next, so both
+    # blocks are contiguous and a reordering is loud.
+    couplings = ["conflict_threshold" not in s.overrides for s in specs]
+    assert [c for i, c in enumerate(couplings) if i == 0 or c != couplings[i - 1]] == [
+        True,
+        False,
+    ]

@@ -1614,3 +1614,115 @@ def test_the_dose_grid_reproduces_the_grid_it_narrows() -> None:
         mine = got[key]
         for name in set(mine) & set(metrics) - {"wall_time_s"}:
             assert mine[name] == metrics[name], (key, name)
+
+
+# --------------------------------------------------------------------------
+# sec:merge-threshold -- moving the floor instead of the corpus.
+# --------------------------------------------------------------------------
+@lru_cache(maxsize=1)
+def _threshold() -> dict[tuple[Any, ...], dict[str, Any]]:
+    out = {}
+    for run in json.loads((RESULTS / "merge_threshold.json").read_text())["runs"]:
+        cfg = run["config"]
+        key = (
+            cfg["merge_threshold"],
+            "conflict_threshold" not in cfg,
+            cfg["cycles"],
+            run["arm"],
+            run["seed"],
+        )
+        out[key] = run["metrics"]
+    return out
+
+
+def test_the_threshold_sweep_is_a_step_function() -> None:
+    """\\S sec:merge-threshold: flat per seed within a band, not on average.
+
+    Nine thresholds merge all five pairs and must be the *same run*, not
+    the same mean -- a mean can be flat over seeds that move in
+    opposite directions, and the claim is that the floor's value is
+    irrelevant once the set of merges is fixed.
+    """
+    got = _threshold()
+    bands = {
+        5: [0.50, 0.55, 0.60, 0.65, 0.6875, 0.70, 0.75, 0.80, 0.8125],
+        4: [0.85],
+        3: [0.90],
+    }
+    means = {}
+    for pairs, thresholds in bands.items():
+        first = thresholds[0]
+        for threshold in thresholds:
+            for seed in range(30):
+                assert (
+                    got[(threshold, True, 60, "survival", seed)]["cum_delta"]
+                    == got[(first, True, 60, "survival", seed)]["cum_delta"]
+                ), (pairs, threshold, seed)
+        means[pairs] = statistics.fmean(
+            got[(first, True, 60, "survival", s)]["cum_delta"] for s in range(30)
+        )
+    assert means[5] == pytest.approx(121.33, abs=0.01)
+    assert means[4] == pytest.approx(137.00, abs=DELTA_TOL)
+    assert means[3] == pytest.approx(143.00, abs=DELTA_TOL)
+    # Fewer merges is monotonically better here, which is the refutation
+    # of "good on four pairs and bad on one".
+    assert means[5] < means[4] < means[3]
+
+
+def test_the_entry_costs_more_than_its_merge() -> None:
+    """The decomposition the sweep produced, against the dose grid.
+
+    Removing the clamp-bound twin recovers 52.87 of the 56.67 gap;
+    refusing to merge it recovers 15.67. Three quarters of the harm is
+    the entry existing and a quarter is the merge, and the two files
+    have to agree on the endpoints for that split to mean anything.
+    """
+    got = _threshold()
+    dose = _dose()
+    counter = statistics.fmean(
+        dose[("11111", 60, "evict_on_negative", s)]["cum_delta"] for s in range(30)
+    )
+    published = statistics.fmean(
+        got[(0.55, True, 60, "survival", s)]["cum_delta"] for s in range(30)
+    )
+    unmerged = statistics.fmean(
+        got[(0.85, True, 60, "survival", s)]["cum_delta"] for s in range(30)
+    )
+    removed = statistics.fmean(
+        dose[("01111", 60, "survival", s)]["cum_delta"] for s in range(30)
+    )
+    # The published cell is the same configuration in both files.
+    assert published == statistics.fmean(
+        dose[("11111", 60, "survival", s)]["cum_delta"] for s in range(30)
+    )
+    gap = counter - published
+    assert gap == pytest.approx(56.67, abs=0.01)
+    assert (unmerged - published) / gap == pytest.approx(0.277, abs=0.001)
+    assert (removed - published) / gap == pytest.approx(0.933, abs=0.001)
+
+
+def test_the_conflict_coupling_changed_nothing_and_the_counters_are_blind() -> None:
+    """Both canaries: the confound was real in the code and inert here."""
+    got = _threshold()
+    thresholds = sorted({key[0] for key in got})
+    assert len(thresholds) == 11
+    for threshold in thresholds:
+        for cycles in (30, 60):
+            for arm in ("survival", "survival_paced"):
+                for seed in range(30):
+                    a = got[(threshold, True, cycles, arm, seed)]
+                    b = got[(threshold, False, cycles, arm, seed)]
+                    for key in set(a) - {"wall_time_s"}:
+                        assert a[key] == b[key], (threshold, cycles, arm, seed, key)
+    for arm, score in (
+        ("evict_on_negative", 178.00),
+        ("quarantine", 140.00),
+        ("keep_everything", 60.00),
+    ):
+        values = {
+            got[(threshold, coupled, 60, arm, seed)]["cum_delta"]
+            for threshold in thresholds
+            for coupled in (True, False)
+            for seed in range(30)
+        }
+        assert len(values) == 1 and values.pop() == pytest.approx(score, abs=DELTA_TOL)

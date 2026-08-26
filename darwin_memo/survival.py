@@ -44,6 +44,14 @@ class SurvivalConfig:
     supporting_share: float = 0.25
     consolidate_every: int = 5
     merge_threshold: float = DEFAULT_MERGE_THRESHOLD
+    # ``merge_threshold`` has always set two thresholds at once: the
+    # similarity floor consolidation pools at, and the one the query
+    # protocol flags conflicting advice at. That is a defensible default
+    # -- the comment below says why -- but it makes a sweep of the merge
+    # floor a sweep of two mechanisms, which cannot attribute anything.
+    # None keeps the coupling, so every committed number is unchanged;
+    # a float pins conflict detection while the merge floor moves.
+    conflict_threshold: float | None = None
     write_experience: bool = True
     # None means "use the environment's resource_scale". The Ledger,
     # which has no environment, sets this directly so the whole credit
@@ -283,7 +291,12 @@ class SurvivalLoop:
         # Default protocol flags conflicting advice at the same floor
         # this loop consolidates at; see Ledger.__init__ for the why.
         self.protocol = protocol or QueryProtocol(
-            store, conflict_threshold=self.config.merge_threshold
+            store,
+            conflict_threshold=(
+                self.config.merge_threshold
+                if self.config.conflict_threshold is None
+                else self.config.conflict_threshold
+            ),
         )
 
     def run(self) -> SurvivalReport:

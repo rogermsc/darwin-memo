@@ -237,3 +237,78 @@ def redundancy_dose_suite(seeds: list[int]) -> list[RunSpec]:
         for arm, extra in REDUNDANCY_ARMS
         for seed in seeds
     ]
+
+
+# The two pair similarities in this corpus are 0.6875 (clamp bound) and
+# 0.8125 (the other four), so a threshold sweep has exactly two steps if
+# the effect is the merge event and none if it is something else. Both
+# boundary values are swept: ``consolidate`` merges at ``>=``, so a pair
+# at exactly its own similarity still merges, and a cell that disagrees
+# would be reporting on a comparison operator rather than a mechanism.
+MERGE_THRESHOLDS = (
+    0.50,
+    0.55,
+    0.60,
+    0.65,
+    0.6875,
+    0.70,
+    0.75,
+    0.80,
+    0.8125,
+    0.85,
+    0.90,
+)
+
+
+def merge_threshold_suite(seeds: list[int]) -> list[RunSpec]:
+    """Which pairs merge, or how close they were to merging?
+
+    ``redundancy_dose`` put the whole second-family loss on one of five
+    near-duplicate pairs and could not say why that one. The only
+    property distinguishing it is that its similarity is lowest --
+    $0.6875$ against $0.8125$ -- so it is the pair nearest the merge
+    floor. That is a correlate, and this grid is the counterfactual it
+    needs: move the floor instead of the corpus.
+
+    The prediction the design turns on is a *step*. Below $0.6875$ all
+    five pairs merge, between $0.6875$ and $0.8125$ only the other four
+    do, above $0.8125$ none do. If the loss is the clamp pair's merge,
+    each band is flat and the two steps land on those numbers; if it is
+    proximity to the floor, the loss moves with the floor inside a band.
+
+    ``merge_threshold`` has always set the query protocol's conflict
+    floor too (``SurvivalConfig.conflict_threshold`` is new and defaults
+    to that coupling), so sweeping it naively sweeps two mechanisms.
+    Both columns run: coupled, which is what every existing
+    ``merge_threshold`` number in this repository was produced under,
+    and pinned at the default $0.55$. 11 thresholds x 2 couplings x 2
+    horizons x 5 arms x 30 seeds = 6,600 runs.
+
+    Canaries. At $0.55$ the two columns are the same configuration and
+    must be the same run; and both reproduce ``redundancy_dose.json``'s
+    ``"11111"`` cells, which crosses two files.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return [
+        RunSpec(
+            suite="merge_threshold",
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                **TESTSUITE_OVERRIDES,
+                "merge_threshold": threshold,
+                **({} if coupled else {"conflict_threshold": 0.55}),
+                "consolidate_every": 5,
+                **extra,
+            },
+            label=f"threshold={threshold},coupled={coupled},cycles={cycles}",
+        )
+        for coupled in (True, False)
+        for threshold in MERGE_THRESHOLDS
+        for cycles in REDUNDANCY_CYCLES
+        for arm, extra in REDUNDANCY_ARMS
+        for seed in seeds
+    ]
