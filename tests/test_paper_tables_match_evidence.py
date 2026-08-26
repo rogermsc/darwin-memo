@@ -1487,3 +1487,130 @@ def test_the_redundancy_grid_reproduces_the_file_it_extends() -> None:
         for key in set(mine) & set(metrics) - _REDUNDANCY_NOT_RESULT:
             assert mine[key] == metrics[key], (cycles, arm, seed, key)
     assert checked == 300, checked
+
+
+# --------------------------------------------------------------------------
+# sec:redundancy's dose paragraph -- against redundancy_dose.json.
+# --------------------------------------------------------------------------
+@lru_cache(maxsize=1)
+def _dose() -> dict[tuple[Any, ...], dict[str, Any]]:
+    out = {}
+    for run in json.loads((RESULTS / "redundancy_dose.json").read_text())["runs"]:
+        cfg = run["config"]
+        out[(cfg["testsuite_twins"], cfg["cycles"], run["arm"], run["seed"])] = run[
+            "metrics"
+        ]
+    return out
+
+
+def _dose_mean(mask: str, cycles: int, arm: str, key: str = "cum_delta") -> float:
+    got = _dose()
+    return statistics.fmean(float(got[(mask, cycles, arm, s)][key]) for s in range(30))
+
+
+def test_the_whole_redundancy_effect_is_one_pair() -> None:
+    """\\S sec:redundancy: 93.3% from one twin, exactly 0.0% from three.
+
+    The zeros are the claim. "Dropping the other four recovers nothing at
+    all" is a much stronger statement than "recovers little", and it is
+    the one that turns a dose into an entry, so it is asserted as an
+    identity against the all-twins cell rather than with a tolerance.
+    """
+    counter = _dose_mean("11111", 60, "evict_on_negative")
+    full = _dose_mean("11111", 60, "survival")
+    assert counter == pytest.approx(178.00, abs=DELTA_TOL)
+    assert full == pytest.approx(121.33, abs=0.01)
+    gap = counter - full
+
+    recovered = {
+        mask: (_dose_mean(mask, 60, "survival") - full) / gap
+        for mask in ("01111", "10111", "11011", "11101", "11110")
+    }
+    assert recovered["01111"] == pytest.approx(0.933, abs=0.001)
+    for mask in ("10111", "11011", "11101"):
+        assert _dose_mean(mask, 60, "survival") == full, (
+            f"{mask} must be identical to the all-twins cell, not merely close: "
+            "three of the five pairs contribute nothing at all"
+        )
+    assert recovered["11110"] == pytest.approx(-0.029, abs=0.001)
+
+
+def test_the_other_four_pairs_are_protective_not_inert() -> None:
+    """Keeping only the harmful twin is worse than keeping all five."""
+    got = _dose()
+    assert _dose_mean("10000", 60, "survival") == pytest.approx(102.20, abs=DELTA_TOL)
+    worse = sum(
+        got[("10000", 60, "survival", s)]["cum_delta"]
+        < got[("11111", 60, "survival", s)]["cum_delta"]
+        for s in range(30)
+    )
+    assert worse == 30
+    # Keeping only one of the other four is the same as keeping none.
+    for mask in ("01000", "00100", "00010", "00001"):
+        assert _dose_mean(mask, 60, "survival") == _dose_mean("00000", 60, "survival")
+
+
+def test_a_dose_response_curve_would_have_been_fiction() -> None:
+    """The table's spreads, and why the monotone means are the trap."""
+    from collections import defaultdict
+
+    doses: dict[int, list[float]] = defaultdict(list)
+    for mask in {key[0] for key in _dose()}:
+        doses[mask.count("1")].append(_dose_mean(mask, 60, "survival"))
+    means = {k: statistics.fmean(v) for k, v in doses.items()}
+    spreads = {k: max(v) - min(v) for k, v in doses.items()}
+    assert [round(means[k], 2) for k in range(6)] == [
+        174.20,
+        159.80,
+        145.74,
+        137.17,
+        131.58,
+        121.33,
+    ]
+    assert spreads[0] == spreads[5] == 0.0
+    for k in range(1, 5):
+        step = abs(means[k] - means[k - 1])
+        assert spreads[k] > step, (k, spreads[k], step)
+
+
+def test_the_capability_decay_tracks_the_same_pair() -> None:
+    """456 of 480 keeping it, 0 of 480 dropping it, and the population."""
+    got = _dose()
+    keeping = [
+        got[(mask, 60, "survival", s)]["probe_benign_correct_rate"]
+        for mask in {key[0] for key in got}
+        if mask[0] == "1"
+        for s in range(30)
+    ]
+    dropping = [
+        got[(mask, 60, "survival", s)]["probe_benign_correct_rate"]
+        for mask in {key[0] for key in got}
+        if mask[0] == "0"
+        for s in range(30)
+    ]
+    assert (len(keeping), len(dropping)) == (480, 480)
+    assert sum(v == 0.75 for v in keeping) == 456
+    assert sum(v == 0.75 for v in dropping) == 0
+    for mask, thirty, sixty in (("11111", 4.00, 3.00), ("01111", 4.00, 4.00)):
+        assert _dose_mean(mask, 30, "survival", "final_population") == pytest.approx(
+            thirty, abs=DELTA_TOL
+        )
+        assert _dose_mean(mask, 60, "survival", "final_population") == pytest.approx(
+            sixty, abs=DELTA_TOL
+        )
+
+
+def test_the_dose_grid_reproduces_the_grid_it_narrows() -> None:
+    """The two-file canary: all 600 shared cells, every result metric."""
+    got = _dose()
+    twin = {}
+    for run in json.loads((RESULTS / "redundancy.json").read_text())["runs"]:
+        cfg = run["config"]
+        if cfg["consolidate_every"] == 5:
+            mask = "11111" if cfg["testsuite_twins"] else "00000"
+            twin[(mask, cfg["cycles"], run["arm"], run["seed"])] = run["metrics"]
+    assert len(twin) == 600
+    for key, metrics in twin.items():
+        mine = got[key]
+        for name in set(mine) & set(metrics) - {"wall_time_s"}:
+            assert mine[name] == metrics[name], (key, name)

@@ -130,6 +130,7 @@ RESULTS=(
   rent_tiers_blind.json
   redundancy.json
   redundancy_rent.json
+  redundancy_dose.json
   merge_policy.json
   horizon.json
 )

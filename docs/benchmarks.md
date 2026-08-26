@@ -4360,3 +4360,73 @@ clamp-bound twin (`10000`) scores 96.00, worse than keeping all five.
 python -m bench.run --suite redundancy_dose --seeds 0:30 \
   --out bench/results/redundancy_dose.json --update-manifest
 ```
+
+### Result: 4 held, 1 refuted — it is one entry, and the other four protect against it
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | it is one entry, not a dose | **held** — 93.3% from one, 0.0% from three others |
+| 2 | and it is non-monotone in the dose | **held** — 30/30 seeds |
+| 3 | within-dose spread swamps between-dose | **held** — 54.5–72.0 against 5.6–14.4 |
+| 4 | the canary reproduces `redundancy.json` | **held** — 600/600 cells |
+| 5 | the decay tracks the same single entry, in all 30 seeds | **refuted** — necessary, and sufficient in 456 of 480 cells |
+
+**1. Dropping one twin is the whole effect.** At 60 cycles `survival`
+scores 121.33 with all five twins and 174.20 with none, against
+`evict_on_negative`'s 178.00.
+
+| mask | dropped twin | `survival` cum_delta | share of the gap recovered |
+|---|---|---|---|
+| `01111` | clamp bound | 174.20 | **93.3%** |
+| `10111` | slugify | 121.33 | 0.0% |
+| `11011` | parse_version | 121.33 | 0.0% |
+| `11101` | format_date | 121.33 | 0.0% |
+| `11110` | dedupe protector | 119.70 | −2.9% |
+
+Three of the five contribute *exactly* nothing — not a small amount,
+nothing — and the fifth is slightly harmful to drop. The previous PR's
+"93–95% of the second-family loss is five near-duplicate entries" was
+right about the number and wrong about the noun.
+
+**2. The other four are protective, not inert.** Keeping only the
+clamp-bound twin scores 102.20 against 121.33 for keeping all five, in
+30/30 seeds. The four other pairs recover a third of the damage the
+first one does, so redundancy is not monotonically bad here — one pair
+is bad and the rest partly cushion it.
+
+**3. A dose-response curve would have been fiction.**
+
+| dose (twins kept) | mean | spread across masks | gap to previous dose |
+|---|---|---|---|
+| 0 | 174.20 | 0.00 | — |
+| 1 | 159.80 | 72.00 | 14.40 |
+| 2 | 145.74 | 71.90 | 14.06 |
+| 3 | 137.17 | 68.93 | 8.57 |
+| 4 | 131.58 | 54.50 | 5.59 |
+| 5 | 121.33 | 0.00 | 10.25 |
+
+The means do decline monotonically, which is exactly what makes them
+dangerous: fitted alone they look like a dose. The within-dose spread is
+four to twelve times the between-dose step.
+
+**5. Refuted on the quantifier, held on the direction.** I predicted the
+0.750 probe rate in *every* mask keeping the clamp-bound twin, in all 30
+seeds. It appears in 456 of those 480 cells and in 0 of the 480 that
+drop it: keeping it is necessary and very nearly sufficient. The 24
+exceptions are concentrated in the masks that keep it alongside one or
+two others, which is the protective effect of prediction 2 showing up in
+capability as well as in outcome.
+
+**The chain, as far as it is measured.** `final_population` falls 4.00 →
+3.00 between the horizons in exactly the masks that keep the clamp-bound
+twin and holds at 4.00 in every mask that drops it. One entry starves
+between cycle 30 and 60, and losing it costs one of the four benign
+probes (0.750 = 3/4).
+
+**What is not measured: why that pair.** Its Jaccard similarity is 0.688
+against 0.812 for the other four, so it is the pair closest to the 0.55
+merge threshold. Both stores end at 15 entries — the difference is only
+*which* five merges happened. Proximity to the threshold is a correlate,
+not a mechanism, and separating it from content needs a
+`merge_threshold` sweep that has not been run. That is the next
+measurement this line owes.
