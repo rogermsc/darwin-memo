@@ -341,12 +341,30 @@ holds benign capability flat to three decimals. Both test-suite grids
 lose it: $1.000 \rightarrow 0.750$ in $10/10$ unattacked seeds and
 $0.518 \rightarrow 0.370$ in $30/30$ noisy ones. So the storage-family
 headline is horizon-stable and does not need re-running, and every
-test-suite-family number in this paper is horizon-scoped --- which is
-now the third finding on that family alone, after the rent bill that
-begins at cycle 49 and the laundering entry that starves by 59. The
-common cause is the corpus: it is deliberately redundant, so
-consolidation keeps finding surplus to starve long after the storage
-corpus has settled.
+test-suite-family number in this paper is horizon-scoped --- the second
+finding on that family alone, after the rent bill that begins at cycle
+49. (An earlier version of this paragraph counted the laundering entry
+that starves by 59 as a third. That is a \emph{storage}-family result,
+and the mistake mattered: it was being used as evidence for a
+test-suite-specific cause.)
+
+We proposed one cause for both --- the corpus is deliberately redundant,
+so consolidation keeps finding surplus to starve --- and have since
+varied each half of it (\S\ref{sec:redundancy}). The conjunction is
+right for one finding and wrong for the other. The capability decay
+needs both the surplus and the merge, appearing in $30/30$ seeds at the
+published corner and $0/30$ at each of the other three. The rent bill
+does not: dropping the surplus recovers more of it than disabling the
+merge in $30/30$ seeds, and disabling the merge alone makes the ledger
+worse at 30 cycles. One sentence was covering two mechanisms, and it is
+the kind of error that reads as an explanation because it fits every
+observation it was written from.
+
+What the same grids show about the second-family loss is larger than the
+horizon question that prompted them, and we have moved it into the
+result it qualifies (\S\ref{sec:redundancy}): $93$--$95\%$ of that
+loss is five near-duplicate entries which cost every counter nothing and
+both ledger arms everything.
 
 What we did not anticipate is that the decay is a \emph{trade} rather
 than a loss, and that both sides of it are invisible at 30 cycles. On

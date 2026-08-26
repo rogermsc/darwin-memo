@@ -310,7 +310,8 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
     # on purpose: forgetting a world field here is a loud false alarm,
     # while forgetting a noise field would split the key and switch the
     # canary off in silence.
-    canary: dict[tuple[str, int, int, int, str, bool, float, str], set[float]] = {}
+    _CanaryKey = tuple[str, int, int, int, str, bool, float, str, bool]
+    canary: dict[_CanaryKey, set[float]] = {}
     # A row missing arm, seed or cum_delta was already reported above; skip it
     # here for the same reason the poison gate does, so a malformed or
     # unregistered file gets a failure list rather than a KeyError from the
@@ -331,13 +332,14 @@ def check(runs: list[dict[str, Any]]) -> list[str]:
                 bool(cfg.get("content_filter", False)),
                 float(cfg.get("hold_cost", 0.0)),
                 str(cfg.get("rent_tier", "uniform")),
+                bool(cfg.get("testsuite_twins", True)),
             )
             canary.setdefault(key, set()).add(r["metrics"]["cum_delta"])
     for key, values in canary.items():
         if len(values) > 1:
             failures.append(
                 f"keep_everything true cum_delta varies with noise at "
-                f"family/seed/cycles/files/attack/filter/rent/tier {key}: "
+                f"family/seed/cycles/files/attack/filter/rent/tier/twins {key}: "
                 f"{sorted(values)}"
             )
     return failures

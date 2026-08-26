@@ -4144,3 +4144,154 @@ At rent 1.0, `survival`'s mean true `cum_delta` over 30 seeds:
 `uniform` and `inverted` are identical to every printed digit because no
 cell in them diverges at all. Shape and surface are separated, and what
 the tier axis measured was the shape.
+
+## Is the corpus the cause, or is the merge? Pre-registered predictions
+
+Three results in this paper sit on the test-suite family alone, and one
+sentence explains all three:
+
+> The common cause is the corpus: it is deliberately redundant, so
+> consolidation keeps finding surplus to starve long after the storage
+> corpus has settled.
+
+Nothing here ever varied either half of that. It names two factors —
+surplus in the corpus, and a merge that pools it — and asserts their
+conjunction from three observations that are all consistent with either
+one alone. That is the class of claim this project has been wrong about
+before, so both halves vary factorially.
+
+`build_testsuite_store(twins=False)` drops the five near-duplicates,
+removing the surplus while leaving the other fifteen entries
+byte-identical. `consolidate_every=0` removes the merge while leaving
+the corpus alone. Two grids, because the sentence explains findings on
+two environments:
+
+- `redundancy` — plain `testsuite`, 2 corpora x 2 merge settings x 2
+  horizons x 5 arms x 30 seeds = 1,200 runs. Targets the capability
+  decay (`probe_benign_correct_rate` 1.000 -> 0.750 at 60 cycles).
+- `redundancy_rent` — `testsuite_rent` at rent 1.0, same 2x2, 1,200
+  runs. Targets the rent bill that begins near cycle 49.
+
+**What is not covered, stated up front.** The third finding — the noisy
+grid's 0.518 -> 0.370 — runs a flake model neither grid carries, so
+these two attribute two of the three. And a correction that came out of
+building this: `limitations.tex` groups "the laundering entry that
+starves by 59" with the other two as a test-suite-family result. It is
+not. `merge_policy.json` and `memsec.json` are **storage** family, so
+that finding belongs to the corpus the same paragraph calls
+redundancy-free — which is itself only true by degree. Measured at the
+default threshold, the storage corpus has 2 mergeable pairs of 16
+entries and the test-suite corpus has 5 of 20.
+
+**Disclosure, and it is the largest yet.** I ran both grids at seeds 0-1
+as smoke checks before writing this — 160 cells, all four 2x2 corners,
+both horizons, all five arms — and the direction of every prediction
+below except 5 was visible in them. They are marked as replications, not
+as blind calls. What the 30-seed run adds is whether they hold, and the
+exact-identity claims, which two seeds cannot establish.
+
+Seen at two seeds: `survival`'s benign probe rate is 1.000 at 30 cycles
+in all four cells and 1.000 at 60 in three of them, dropping to 0.750
+only at `twins=True, consolidate=5`; on the rented family `survival`'s
+`cum_delta` at 60 cycles reads 104.00 published, 139.00 with the merge
+off, 175.00 with the twins dropped, against `evict_on_negative`'s 178.00
+in all four cells.
+
+1. **The capability decay needs both halves.** *(replication)* At 30
+   seeds, `survival`'s `probe_benign_correct_rate` at 60 cycles is
+   strictly below its 30-cycle value in the `twins=True,
+   consolidate_every=5` cell and equal to it in the other three. Either
+   counterfactual removes the decay; neither is required alone.
+2. **The rent bill does not.** *(replication)* On `redundancy_rent` at
+   60 cycles, dropping the twins recovers more of the gap to
+   `evict_on_negative` than disabling the merge does, in at least 27 of
+   30 seeds. The two findings the same sentence explains have different
+   load-bearing halves, which is the sentence's real error rather than
+   its being simply wrong.
+3. **The counters never move.** *(replication)* `evict_on_negative`,
+   `quarantine` and `keep_everything` are identical across the merge
+   axis on every result metric, in all 2,400 cells of both grids.
+   `keep_everything`'s `final_population` is 20 twinned and 15 lean,
+   exactly the five dropped entries, in every cell — the canary that the
+   knob took effect at all.
+4. **A lean corpus makes the merge setting a no-op.** *(replication)* At
+   `twins=False` the `consolidate_every` 5 and 0 columns are the same
+   run for every arm and seed — identical on every result metric, not
+   merely close — because no pair clears the threshold.
+5. **The lean corpus does not simply beat the twinned one.** *(blind)*
+   Removing five spare entries removes upkeep the ledger was paying, so
+   the obvious reading is "leaner is better". Predict it is not uniform:
+   on the plain grid at 30 cycles, `survival`'s `cum_delta` under
+   `twins=False, consolidate_every=5` is **not** higher than under
+   `twins=True, consolidate_every=5` in every one of the 30 seeds. The
+   twins are spares that answer probes when the primary has starved, and
+   an arm that consolidates them keeps their energy.
+
+```
+python -m bench.run --suite redundancy --seeds 0:30 \
+  --out bench/results/redundancy.json --update-manifest
+python -m bench.run --suite redundancy_rent --seeds 0:30 \
+  --out bench/results/redundancy_rent.json --update-manifest
+```
+
+### Result: 4 held, 1 refuted — and the second-family loss is mostly five entries
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | the capability decay needs both halves | **held** — 30/30 at the published corner, 0/30 at the other three |
+| 2 | the rent bill's load-bearing half is the surplus | **held** — 30/30 on both horizons |
+| 3 | the counters never move across the merge axis | **held** — 0 of 2,400 cells |
+| 4 | a lean corpus makes the merge setting a no-op | **held** — 0 of 240 cells |
+| 5 | the lean corpus does not simply beat the twinned one | **refuted** — lean higher in 30/30, both families |
+
+**Validity first.** The published corner (`twins=True, consolidate_every=5`)
+reproduces `rent_testsuite.json`'s unattacked cells in all 300 shared
+cells. `keep_everything`'s `final_population` is 20 twinned and 15 lean
+in every cell — exactly the five dropped entries — so the knob took
+effect and the world it changed is the one intended.
+
+**1 and 2: one sentence, two mechanisms.** The capability decay appears
+in 30/30 seeds at the published corner and 0/30 at each of the other
+three — either counterfactual removes it, neither is required alone, so
+the conjunction was right. The rent bill is not like that: dropping the
+twins recovers more of the gap than disabling the merge in 30/30 seeds
+on both horizons, and at 30 cycles disabling the merge *alone* makes the
+ledger worse (64.20 against a published 69.00). An explanation that fits
+every observation it was written from is not thereby a mechanism.
+
+**The number that matters is not either prediction.** On the rented
+family at 60 cycles `survival` scores 108.73 against
+`evict_on_negative`'s 178.00 — the second-family loss the paper reports.
+With the five twins dropped it scores 174.20 against the same 178.00.
+
+| family | horizon | loss to the counter | after dropping the twins | explained |
+|---|---|---|---|---|
+| plain | 30 | 19.00 | 3.80 | 80% |
+| plain | 60 | 56.67 | 3.80 | 93% |
+| rented | 30 | 19.00 | 3.80 | 80% |
+| rented | 60 | 69.27 | 3.80 | 95% |
+
+And the cost is not shared. Between the two corpora at 60 cycles, all
+three counters are bit-identical in 30 of 30 seeds (`evict_on_negative`
+178.00, `quarantine` 140.00, `keep_everything` 60.00) while `survival`
+and `survival_paced` move in 30 of 30. Redundancy is free to an arm that
+hoards and billed to the only arm that pays upkeep — the same asymmetry
+the rent grids found from the other side.
+
+**5 refuted, and the reasoning behind it was wrong twice over.** I
+predicted the lean corpus would not uniformly beat the twinned one,
+because "the twins are spares that answer probes when the primary has
+starved, and an arm that consolidates them keeps their energy." Lean is
+higher in 30/30 seeds on both families. The spares do not rescue the
+probe rate — it is 1.000 at 60 cycles in every lean cell — and pooling a
+spare's energy does not pay for having minted it. They were upkeep the
+ledger never earned back.
+
+**Two corrections this produced.** `limitations.tex` counted the
+laundering entry that starves by 59 as a third test-suite-family
+finding; `merge_policy.json` and `memsec.json` are storage family, and
+the miscount was being used as evidence for a test-suite-specific cause.
+And the storage corpus that same paragraph calls redundancy-free has 2
+mergeable pairs of 16 entries against the test-suite corpus's 5 of 20 —
+a difference of degree, now pinned by
+`test_the_storage_corpus_is_less_redundant_but_not_redundancy_free`.

@@ -62,7 +62,12 @@ from .suites import (
     withholding_suite,
     withholding_testsuite_suite,
 )
-from .testsuite_suites import testsuite_noisy_suite, testsuite_suite
+from .testsuite_suites import (
+    redundancy_rent_suite,
+    redundancy_suite,
+    testsuite_noisy_suite,
+    testsuite_suite,
+)
 
 # Suites whose whole invocation is the same: build the specs, run them.
 # The table is also the --suite choice list for them, so a suite cannot
@@ -73,6 +78,8 @@ PLAIN_SUITES = {
     "ablation": ablation_suite,
     "testsuite": testsuite_suite,
     "testsuite_noisy": testsuite_noisy_suite,
+    "redundancy": redundancy_suite,
+    "redundancy_rent": redundancy_rent_suite,
     "merge_policy": merge_policy_suite,
     "memsec": memsec_suite,
     "adversary": adversary_suite,

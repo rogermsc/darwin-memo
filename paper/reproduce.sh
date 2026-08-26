@@ -128,6 +128,8 @@ RESULTS=(
   rent_tiers.json
   rent_tiers_saturated.json
   rent_tiers_blind.json
+  redundancy.json
+  redundancy_rent.json
   merge_policy.json
   horizon.json
 )

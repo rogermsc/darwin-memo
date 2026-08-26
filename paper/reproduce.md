@@ -30,7 +30,8 @@ Committed under `bench/results/`:
   `withholding_selective.json`, `withholding_testsuite.json`,
   `rent.json`, `rent_lying.json`, `rent_testsuite.json`,
   `rent_tiers.json`, `rent_tiers_saturated.json`,
-  `rent_tiers_blind.json`, `merge_policy.json`, `horizon.json`.
+  `rent_tiers_blind.json`, `redundancy.json`,
+  `redundancy_rent.json`, `merge_policy.json`, `horizon.json`.
 - The SWE-Bench-CL matrices, one file per (arm, sequence, seed), each
   directory with its own sibling `MANIFEST.json`: the pilot under
   `bench/results/swebench_cl/` (30 cells), the long matrix under
@@ -139,6 +140,8 @@ manifest at the time this package was frozen:
 | rent_tiers.json            | rent_tiers      | 30    | 9000 | b11e8613a36de445fc5532a6582e6c8e72e7f694 |
 | rent_tiers_saturated.json  | rent_tiers_saturated | 30 | 4500 | d372ce45b57c438b0a583564e2f35b2c724b27f7 |
 | rent_tiers_blind.json      | rent_tiers_blind | 30   | 9000 | d372ce45b57c438b0a583564e2f35b2c724b27f7 |
+| redundancy.json            | redundancy      | 30    | 1200 | 2d3912f583aa3418dbe48badbe7e26d111a778ed |
+| redundancy_rent.json       | redundancy_rent | 30    | 1200 | 2d3912f583aa3418dbe48badbe7e26d111a778ed |
 | merge_policy.json          | merge_policy    | 10    | 720  | 5d5272ab73b1868ecd741e151dd2b7f69bac3c7e |
 | horizon.json               | horizon         | n/a   | 5815 | c5b52cb758c3c8f5445cf867475b7c5c7e625c27 |
 
