@@ -79,3 +79,100 @@ def testsuite_noisy_suite(seeds: list[int]) -> list[RunSpec]:
                     )
                 )
     return specs
+
+
+# The 2x2 that attributes the test-suite family's horizon findings.
+# Same five arms the withholding and rent grids use, so the comparison
+# is against a set the paper already reports rather than a new one.
+REDUNDANCY_ARMS: list[tuple[str, dict[str, Any]]] = [
+    ("survival", {}),
+    ("survival_paced", {}),
+    ("evict_on_negative", {"strikes": 1}),
+    ("quarantine", {"suspend": 3}),
+    ("keep_everything", {}),  # world canary: consolidation-blind by construction
+]
+REDUNDANCY_CYCLES = (30, 60)
+
+
+def redundancy_suite(seeds: list[int]) -> list[RunSpec]:
+    """Is the corpus the cause, or is the merge?
+
+    The paper explains three test-suite-family results with one sentence
+    -- "the corpus is deliberately redundant, so consolidation keeps
+    finding surplus to starve long after the storage corpus has settled"
+    -- and nothing in this repository ever varied either half of it. A
+    named cause with no counterfactual is the class of claim this
+    project has been wrong about before.
+
+    So both halves vary, factorially. ``testsuite_twins`` drops the five
+    near-duplicates, removing the surplus while leaving the other
+    fifteen entries byte-identical; ``consolidate_every`` 0 removes the
+    merge while leaving the corpus alone. 2 corpora x 2 merge settings x
+    2 horizons x 5 arms x 30 seeds = 1,200 runs.
+
+    Two canaries, both inside the grid. ``keep_everything`` neither
+    settles nor consolidates, so every result metric it reports must be
+    identical across the merge axis at a fixed corpus -- and its
+    ``final_population`` must *differ* across the corpus axis by exactly
+    the five dropped entries, or the twin drop never took effect. (Its
+    ``cum_delta`` is not that canary: outcomes here are priced per task,
+    so an arm that answers the same way pays the same whatever its store
+    holds.) And at ``twins=False`` there is no mergeable pair left for
+    either setting to act on, so the two merge columns should be the
+    same run.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return _redundancy_specs(seeds, "redundancy", {})
+
+
+def redundancy_rent_suite(seeds: list[int]) -> list[RunSpec]:
+    """The same 2x2 against the second finding the same sentence explains.
+
+    ``rent_testsuite`` reports that on this family every arm is flat at
+    30 cycles and the ledger's first billable decline arrives near cycle
+    49, and the paper attributes that to the same redundancy: the
+    counters keep a spare to answer with, the ledger consolidates the
+    spares away and is the only arm that ever has nothing to say. If
+    that is the mechanism, then removing either half should remove the
+    bill, not merely shrink it.
+
+    Rent is pinned at 1.0 -- symmetric occupancy, the top of the swept
+    range and where the effect is largest -- because the question here
+    is attribution, not the shape of the curve, which
+    ``rent_testsuite.json`` already maps.
+
+    Predictions are recorded in docs/benchmarks.md in the commit before
+    the run.
+    """
+    return _redundancy_specs(
+        seeds, "redundancy_rent", {"env_family": "testsuite_rent", "hold_cost": 1.0}
+    )
+
+
+def _redundancy_specs(
+    seeds: list[int], suite: str, extra_world: dict[str, Any]
+) -> list[RunSpec]:
+    """The shared 2x2 body, so the two grids cannot drift apart."""
+    return [
+        RunSpec(
+            suite=suite,
+            arm=arm,
+            seed=seed,
+            cycles=cycles,
+            overrides={
+                **TESTSUITE_OVERRIDES,
+                **extra_world,
+                "testsuite_twins": twins,
+                "consolidate_every": every,
+                **extra,
+            },
+            label=f"twins={twins},consolidate={every},cycles={cycles}",
+        )
+        for twins in (True, False)
+        for every in (5, 0)
+        for cycles in REDUNDANCY_CYCLES
+        for arm, extra in REDUNDANCY_ARMS
+        for seed in seeds
+    ]

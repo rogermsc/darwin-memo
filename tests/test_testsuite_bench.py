@@ -324,3 +324,146 @@ def test_noisy_grid_is_the_precommitted_one():
     labels = {s.label for s in specs}
     assert "model=none,rate=0.00" in labels
     assert "model=flaky,rate=0.15,k=2" in labels
+
+
+def _mergeable_pairs(entries: list[tuple[str, str]]) -> list[tuple[int, int, float]]:
+    """Pairs a default-threshold consolidator would merge, by Jaccard."""
+    import itertools
+    import re
+
+    from darwin_memo.consolidate import DEFAULT_MERGE_THRESHOLD
+
+    toks = [set(re.findall(r"[a-z0-9]+", f"{q} {a}".lower())) for q, a in entries]
+    out = []
+    for i, j in itertools.combinations(range(len(entries)), 2):
+        union = toks[i] | toks[j]
+        score = len(toks[i] & toks[j]) / len(union) if union else 0.0
+        if score >= DEFAULT_MERGE_THRESHOLD:
+            out.append((i, j, score))
+    return out
+
+
+def test_the_twin_indices_are_exactly_the_mergeable_entries():
+    """``_TWIN_INDICES`` is a hand-written tuple; make it a measurement.
+
+    The lean corpus exists to remove the surplus a consolidator can
+    merge, so "which entries are the twins" has to be the answer to
+    "which entries can be merged" and not a list someone kept in sync.
+    An entry added to the corpus with a near-duplicate, or a twin
+    rephrased below the threshold, breaks this instead of quietly
+    changing what the counterfactual removes.
+
+    Mutations this catches: dropping an index from ``_TWIN_INDICES``
+    (the lean corpus keeps a mergeable pair and stops being lean);
+    adding one (the lean corpus loses an entry that was never surplus).
+    """
+    from bench.testsuite_fixtures import _ENTRIES, _TWIN_INDICES
+
+    pairs = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    assert len(pairs) == 5, pairs
+    # Every mergeable pair is adjacent and contributes exactly one twin.
+    assert tuple(sorted(j for _, j, _ in pairs)) == tuple(sorted(_TWIN_INDICES))
+    assert all(j == i + 1 for i, j, _ in pairs), "twins are adjacent by construction"
+
+    lean = _mergeable_pairs(
+        [(q, a) for i, (q, a, _) in enumerate(_ENTRIES) if i not in _TWIN_INDICES]
+    )
+    assert lean == [], f"the lean corpus still has surplus to merge: {lean}"
+
+
+def test_the_storage_corpus_is_less_redundant_but_not_redundancy_free():
+    """The contrast the redundancy explanation rests on, measured.
+
+    ``testsuite_fixtures``'s own docstring says the StorageEnv corpus
+    "has no redundancy", and the paper explains three test-suite results
+    by the difference. It is a difference of degree: the storage corpus
+    has two mergeable pairs of sixteen entries, which is the same
+    machinery that gave the laundered entry a 59-cycle runway on that
+    family (\\S sec:merge-policy). Ten of twenty test-suite entries sit
+    in a mergeable pair against four of sixteen -- real, and not the
+    zero the prose implied.
+
+    Pinned so the claim cannot drift: a corpus edit that changes either
+    count changes an explanation in the paper.
+    """
+    from bench.fixtures import build_headline_store
+    from bench.testsuite_fixtures import _ENTRIES
+
+    storage = _mergeable_pairs(
+        [(e.question, e.answer) for e in build_headline_store().alive()]
+    )
+    testsuite = _mergeable_pairs([(q, a) for q, a, _ in _ENTRIES])
+    assert (len(storage), len(testsuite)) == (2, 5)
+    assert len(build_headline_store().alive()) == 16 and len(_ENTRIES) == 20
+
+
+def test_the_lean_corpus_differs_from_the_canonical_one_in_exactly_the_twins():
+    """The counterfactual has to be a subtraction and nothing else."""
+    from bench.testsuite_fixtures import _TWIN_INDICES, build_testsuite_store
+
+    full = build_testsuite_store()
+    lean = build_testsuite_store(twins=False)
+    assert len(full.alive()) == 20 and len(lean.alive()) == 15
+    dropped = {(e.question, e.answer, tuple(e.sources)) for e in full.alive()} - {
+        (e.question, e.answer, tuple(e.sources)) for e in lean.alive()
+    }
+    assert len(dropped) == len(_TWIN_INDICES)
+    # Kept entries are byte-identical, not merely equivalent: the lean
+    # store must be the canonical one minus five rows.
+    kept = {(e.question, e.answer, tuple(e.sources)) for e in lean.alive()}
+    assert kept <= {(e.question, e.answer, tuple(e.sources)) for e in full.alive()}
+
+
+def test_testsuite_twins_is_refused_where_it_would_be_accepted_and_ignored():
+    """The six-place trap again: a knob with no meaning on this family.
+
+    ``testsuite_twins`` selects a TestSuiteEnv corpus, and the storage
+    family does not have one. Accepted and ignored there, a redundancy
+    sweep over the storage family would produce two identical halves
+    that read as "the corpus does not matter" rather than "the knob was
+    never connected" -- the exact misreading ``rent_tier`` was guarded
+    against.
+    """
+    import pytest
+
+    from bench.runner import run_one
+
+    for family in ("storage", "storage_rent"):
+        overrides: dict[str, object] = {
+            "env_family": family,
+            "testsuite_twins": False,
+        }
+        if family == "storage_rent":
+            overrides["hold_cost"] = 1.0
+        with pytest.raises(ValueError, match="testsuite_twins"):
+            run_one("survival", seed=0, cycles=2, overrides=overrides)
+
+
+def test_the_redundancy_grid_varies_both_halves_of_its_explanation():
+    """A 2x2 that is only a 2x1 cannot attribute anything."""
+    from bench.testsuite_suites import redundancy_rent_suite, redundancy_suite
+
+    for build, family in (
+        (redundancy_suite, "testsuite"),
+        (redundancy_rent_suite, "testsuite_rent"),
+    ):
+        specs = build(list(range(30)))
+        assert len(specs) == 1200
+        cells = {
+            (s.overrides["testsuite_twins"], s.overrides["consolidate_every"])
+            for s in specs
+        }
+        assert cells == {(True, 5), (True, 0), (False, 5), (False, 0)}
+        assert {s.cycles for s in specs} == {30, 60}
+        assert {s.overrides["env_family"] for s in specs} == {family}
+        # Corpus is the outermost axis, so its blocks are contiguous: a
+        # reordering leaves every cell correct and rewrites the file.
+        twins = [s.overrides["testsuite_twins"] for s in specs]
+        assert [t for i, t in enumerate(twins) if i == 0 or t != twins[i - 1]] == [
+            True,
+            False,
+        ]
+    # The rented grid must actually price inaction, or it is the plain
+    # grid under a second name and attributes nothing.
+    assert {s.overrides["hold_cost"] for s in redundancy_rent_suite([0])} == {1.0}
+    assert all("hold_cost" not in s.overrides for s in redundancy_suite([0]))

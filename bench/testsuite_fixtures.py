@@ -177,10 +177,32 @@ _ENTRIES: list[tuple[str, str, str]] = [
 ]
 
 
-def build_testsuite_store(upkeep: float = 0.05, **store_kwargs: object) -> MemoryStore:
-    """The canonical TestSuiteEnv bench store: 20 entries, 5 twin pairs."""
+# The five twins, one per mergeable pair. Kept as indices into the
+# corpus above rather than as a rewritten corpus: dropping an entry
+# leaves the other fifteen byte-identical, so the lean variant differs
+# from the canonical store in exactly one thing. Which indices these are
+# is not asserted here, it is measured -- see
+# ``test_the_twin_indices_are_exactly_the_mergeable_entries``.
+_TWIN_INDICES = (1, 3, 5, 7, 9)
+
+
+def build_testsuite_store(
+    upkeep: float = 0.05, twins: bool = True, **store_kwargs: object
+) -> MemoryStore:
+    """The TestSuiteEnv bench store: 20 entries, 5 twin pairs.
+
+    ``twins=False`` drops the five near-duplicates, leaving 15 entries
+    and no pair the consolidator can merge. The paper explains three
+    test-suite-family results by this corpus being "deliberately
+    redundant, so consolidation keeps finding surplus to starve"; that
+    is an explanation nothing had varied, and this is the half of the
+    counterfactual the ``consolidate_every`` knob cannot supply.
+    """
     store = MemoryStore(upkeep=upkeep, **store_kwargs)  # type: ignore[arg-type]
-    for question, answer, source in _ENTRIES:
+    skip = () if twins else _TWIN_INDICES
+    for index, (question, answer, source) in enumerate(_ENTRIES):
+        if index in skip:
+            continue
         store.add(MemoryEntry(question=question, answer=answer, sources=[source]))
     return store
 

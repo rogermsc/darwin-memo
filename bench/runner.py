@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import time
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -150,9 +151,18 @@ def _build_store(overrides: dict[str, Any], arm: str = "") -> MemoryStore:
             content_filter=bool(overrides.get("content_filter", False)),
             upkeep=upkeep,
         )
+    testsuite = _is_testsuite(_env_family(overrides))
+    if "testsuite_twins" in overrides and not testsuite:
+        raise ValueError(
+            "testsuite_twins selects the TestSuiteEnv corpus and the storage "
+            "family does not have one; refusing to record a config that "
+            "claims a variation that never took effect"
+        )
     build = (
-        build_testsuite_store
-        if _is_testsuite(_env_family(overrides))
+        partial(
+            build_testsuite_store, twins=bool(overrides.get("testsuite_twins", True))
+        )
+        if testsuite
         else build_headline_store
     )
     if arm == "survival_embedding":
