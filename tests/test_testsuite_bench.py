@@ -467,3 +467,73 @@ def test_the_redundancy_grid_varies_both_halves_of_its_explanation():
     # grid under a second name and attributes nothing.
     assert {s.overrides["hold_cost"] for s in redundancy_rent_suite([0])} == {1.0}
     assert all("hold_cost" not in s.overrides for s in redundancy_suite([0]))
+
+
+def test_a_twin_mask_selects_exactly_the_pairs_it_names():
+    """The dose axis is a five-bit mask; make each bit mean one entry.
+
+    An off-by-one here would silently relabel every dose, and every cell
+    would still look like a valid run. So the mapping is checked at both
+    ends -- the indices the mask keeps, and the store it produces --
+    rather than trusted from the zip.
+
+    Mutations this catches: reversing the mask (bit order no longer
+    matches twin order); treating the mask as a count; accepting a mask
+    of the wrong width, which would silently ignore trailing pairs.
+    """
+    import pytest
+
+    from bench.testsuite_fixtures import (
+        _TWIN_INDICES,
+        build_testsuite_store,
+        kept_twins,
+    )
+
+    assert kept_twins(True) == _TWIN_INDICES
+    assert kept_twins(False) == ()
+    assert kept_twins("11111") == _TWIN_INDICES
+    assert kept_twins("00000") == ()
+    for position, index in enumerate(_TWIN_INDICES):
+        mask = "".join("1" if i == position else "0" for i in range(5))
+        assert kept_twins(mask) == (index,), mask
+        assert len(build_testsuite_store(twins=mask).alive()) == 16
+    # The two boolean forms and their masks must be the same store, or
+    # the dose grid's canary against redundancy.json is meaningless.
+    for flag, mask in ((True, "11111"), (False, "00000")):
+        a = {(e.question, e.answer) for e in build_testsuite_store(twins=flag).alive()}
+        b = {(e.question, e.answer) for e in build_testsuite_store(twins=mask).alive()}
+        assert a == b
+    for bad in ("1111", "111111", "1112", ""):
+        with pytest.raises(ValueError, match="testsuite_twins mask"):
+            kept_twins(bad)
+
+
+def test_the_dose_grid_enumerates_every_subset_once():
+    """A sampled dose axis cannot separate a dose from one entry.
+
+    32 masks is the whole power set, so within a dose the grid varies
+    *which* twins survive. Sampling would leave "the loss scales with
+    redundancy" and "the loss is one of these entries" confounded
+    exactly where the two-point comparison left them.
+    """
+    from collections import Counter
+
+    from bench.testsuite_suites import REDUNDANCY_MASKS, redundancy_dose_suite
+
+    assert len(set(REDUNDANCY_MASKS)) == 32
+    assert Counter(m.count("1") for m in REDUNDANCY_MASKS) == {
+        0: 1,
+        1: 5,
+        2: 10,
+        3: 10,
+        4: 5,
+        5: 1,
+    }
+    specs = redundancy_dose_suite(list(range(30)))
+    assert len(specs) == 9600
+    assert {s.overrides["consolidate_every"] for s in specs} == {5}
+    assert {s.cycles for s in specs} == {30, 60}
+    masks = [s.overrides["testsuite_twins"] for s in specs]
+    assert [m for i, m in enumerate(masks) if i == 0 or m != masks[i - 1]] == list(
+        REDUNDANCY_MASKS
+    ), "mask is no longer the outermost axis of the dose grid"

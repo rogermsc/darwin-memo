@@ -186,8 +186,27 @@ _ENTRIES: list[tuple[str, str, str]] = [
 _TWIN_INDICES = (1, 3, 5, 7, 9)
 
 
+def kept_twins(twins: bool | str) -> tuple[int, ...]:
+    """Which twin entries a ``testsuite_twins`` value keeps.
+
+    ``True``/``False`` are all and none. A five-character mask over the
+    pairs -- ``"10010"`` keeps the first and fourth twin -- is the dose
+    form, and it exists because two points cannot tell a dose from five
+    particular entries: with only "all" and "none" measured, "the loss
+    scales with redundancy" and "the loss is one entry" fit equally.
+    """
+    if isinstance(twins, bool):
+        return _TWIN_INDICES if twins else ()
+    if len(twins) != len(_TWIN_INDICES) or set(twins) - {"0", "1"}:
+        raise ValueError(
+            f"testsuite_twins mask must be {len(_TWIN_INDICES)} characters of "
+            f"0 and 1, got {twins!r}"
+        )
+    return tuple(i for bit, i in zip(twins, _TWIN_INDICES, strict=True) if bit == "1")
+
+
 def build_testsuite_store(
-    upkeep: float = 0.05, twins: bool = True, **store_kwargs: object
+    upkeep: float = 0.05, twins: bool | str = True, **store_kwargs: object
 ) -> MemoryStore:
     """The TestSuiteEnv bench store: 20 entries, 5 twin pairs.
 
@@ -197,9 +216,12 @@ def build_testsuite_store(
     redundant, so consolidation keeps finding surplus to starve"; that
     is an explanation nothing had varied, and this is the half of the
     counterfactual the ``consolidate_every`` knob cannot supply.
+
+    A mask keeps an arbitrary subset (see :func:`kept_twins`), which is
+    what turns the two-point comparison into a dose-response.
     """
     store = MemoryStore(upkeep=upkeep, **store_kwargs)  # type: ignore[arg-type]
-    skip = () if twins else _TWIN_INDICES
+    skip = set(_TWIN_INDICES) - set(kept_twins(twins))
     for index, (question, answer, source) in enumerate(_ENTRIES):
         if index in skip:
             continue
