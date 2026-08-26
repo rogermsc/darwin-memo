@@ -4233,3 +4233,65 @@ python -m bench.run --suite redundancy --seeds 0:30 \
 python -m bench.run --suite redundancy_rent --seeds 0:30 \
   --out bench/results/redundancy_rent.json --update-manifest
 ```
+
+### Result: 4 held, 1 refuted — and the second-family loss is mostly five entries
+
+| # | prediction | verdict |
+|---|---|---|
+| 1 | the capability decay needs both halves | **held** — 30/30 at the published corner, 0/30 at the other three |
+| 2 | the rent bill's load-bearing half is the surplus | **held** — 30/30 on both horizons |
+| 3 | the counters never move across the merge axis | **held** — 0 of 2,400 cells |
+| 4 | a lean corpus makes the merge setting a no-op | **held** — 0 of 240 cells |
+| 5 | the lean corpus does not simply beat the twinned one | **refuted** — lean higher in 30/30, both families |
+
+**Validity first.** The published corner (`twins=True, consolidate_every=5`)
+reproduces `rent_testsuite.json`'s unattacked cells in all 300 shared
+cells. `keep_everything`'s `final_population` is 20 twinned and 15 lean
+in every cell — exactly the five dropped entries — so the knob took
+effect and the world it changed is the one intended.
+
+**1 and 2: one sentence, two mechanisms.** The capability decay appears
+in 30/30 seeds at the published corner and 0/30 at each of the other
+three — either counterfactual removes it, neither is required alone, so
+the conjunction was right. The rent bill is not like that: dropping the
+twins recovers more of the gap than disabling the merge in 30/30 seeds
+on both horizons, and at 30 cycles disabling the merge *alone* makes the
+ledger worse (64.20 against a published 69.00). An explanation that fits
+every observation it was written from is not thereby a mechanism.
+
+**The number that matters is not either prediction.** On the rented
+family at 60 cycles `survival` scores 108.73 against
+`evict_on_negative`'s 178.00 — the second-family loss the paper reports.
+With the five twins dropped it scores 174.20 against the same 178.00.
+
+| family | horizon | loss to the counter | after dropping the twins | explained |
+|---|---|---|---|---|
+| plain | 30 | 19.00 | 3.80 | 80% |
+| plain | 60 | 56.67 | 3.80 | 93% |
+| rented | 30 | 19.00 | 3.80 | 80% |
+| rented | 60 | 69.27 | 3.80 | 95% |
+
+And the cost is not shared. Between the two corpora at 60 cycles, all
+three counters are bit-identical in 30 of 30 seeds (`evict_on_negative`
+178.00, `quarantine` 140.00, `keep_everything` 60.00) while `survival`
+and `survival_paced` move in 30 of 30. Redundancy is free to an arm that
+hoards and billed to the only arm that pays upkeep — the same asymmetry
+the rent grids found from the other side.
+
+**5 refuted, and the reasoning behind it was wrong twice over.** I
+predicted the lean corpus would not uniformly beat the twinned one,
+because "the twins are spares that answer probes when the primary has
+starved, and an arm that consolidates them keeps their energy." Lean is
+higher in 30/30 seeds on both families. The spares do not rescue the
+probe rate — it is 1.000 at 60 cycles in every lean cell — and pooling a
+spare's energy does not pay for having minted it. They were upkeep the
+ledger never earned back.
+
+**Two corrections this produced.** `limitations.tex` counted the
+laundering entry that starves by 59 as a third test-suite-family
+finding; `merge_policy.json` and `memsec.json` are storage family, and
+the miscount was being used as evidence for a test-suite-specific cause.
+And the storage corpus that same paragraph calls redundancy-free has 2
+mergeable pairs of 16 entries against the test-suite corpus's 5 of 20 —
+a difference of degree, now pinned by
+`test_the_storage_corpus_is_less_redundant_but_not_redundancy_free`.

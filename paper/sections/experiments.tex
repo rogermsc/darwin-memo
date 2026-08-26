@@ -1564,6 +1564,62 @@ a liability where refusals are free. This is the central entry in the
 regime map (\S\ref{sec:regime}): the conclusion is family-dependent in
 \emph{both} directions, and we flag it rather than average it away.
 
+We have since measured how much of that loss is the family and how much
+is five entries we chose to put in it (\S\ref{sec:redundancy}). It is
+mostly the five entries.
+
+\subsection{Was it the corpus, or the merge?}
+\label{sec:redundancy}
+Three results in this paper sit on the test-suite family alone, and one
+sentence has been explaining all three: the corpus is deliberately
+redundant, so consolidation keeps finding surplus to starve. That names
+two factors and asserts their conjunction from observations consistent
+with either alone, so we varied both. \texttt{testsuite\_twins} drops
+the five near-duplicate entries, removing the surplus while leaving the
+other fifteen byte-identical; \texttt{consolidate\_every} $0$ removes
+the merge while leaving the corpus alone. $2 \times 2 \times 2$
+horizons $\times$ 5 arms $\times$ 30 seeds, twice: once on the plain
+family and once on the rented one, because the sentence explains a
+finding on each. The published corner reproduces
+\texttt{rent\_testsuite.json}'s unattacked cells in all $300$ shared
+cells, which is what licenses reading the other three corners as the
+manipulation.
+
+\paragraph{The two findings have different load-bearing halves.} The
+capability decay needs both: \texttt{survival}'s benign probe rate falls
+$1.000 \rightarrow 0.750$ between 30 and 60 cycles in $30/30$ seeds at
+the published corner and in $0/30$ at each of the other three. Either
+counterfactual removes it and neither is required alone, so for that
+finding the conjunction was exactly right. The rent bill is not like
+that. Dropping the twins recovers more of the gap than disabling the
+merge does in $30/30$ seeds on both horizons, and at 30 cycles disabling
+the merge alone makes the ledger \emph{worse} ($64.20$ against a
+published $69.00$). One sentence was covering two mechanisms.
+
+\paragraph{The second-family loss is mostly five entries.} At 60 cycles
+the ledger trails the strike counter by $56.67$ unrented and $69.27$
+rented. Dropping the twins leaves a gap of $3.80$ in both:
+$93\%$ and $95\%$ of the loss this paper reports as a property of the
+mechanism is a property of a corpus we designed. And the five entries
+are not a shared cost. Both ledger arms move between the two corpora in
+$30$ of $30$ seeds; all three counters move in $0$ of $30$, scoring
+$178.00$, $140.00$ and $60.00$ either way. Redundancy is
+free to an arm that hoards and billed to the only arm that pays upkeep,
+which is the same asymmetry the rent grids found from the other
+direction.
+
+\paragraph{What that does and does not license.} It does not make the
+loss disappear: $3.80$ at 60 cycles is still a loss, the ordering is
+unchanged, and a redundant corpus is a legitimate world --- we built this
+one that way on purpose, as the redundancy-cushioned complement to the
+storage corpus. What it removes is the reading that the second-family
+result measures the mechanism's behaviour in redundant environments
+generally. It measures it at one redundancy level, and the effect is
+roughly linear in that level over the only two points we have. A related
+correction: the storage corpus this paper calls redundancy-free has $2$
+mergeable pairs of $16$ entries against the test-suite corpus's $5$ of
+$20$, so the contrast between the families is one of degree.
+
 \subsection{Parametric memory (secondary).}
 To connect to memory-as-a-model \citep{quek2026memo}, we distill survivors
 into a small (0.5B) model. Distilling the \emph{raw} store teaches the

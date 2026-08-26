@@ -1328,3 +1328,162 @@ def test_the_tier_ordering_survives_an_attacker_that_cannot_see_the_price() -> N
                     by["withhold"][key]["metrics"]["cum_delta"]
                     == by["withhold_blind"][key]["metrics"]["cum_delta"]
                 )
+
+
+# --------------------------------------------------------------------------
+# sec:redundancy -- the 2x2 that attributes the test-suite findings.
+# --------------------------------------------------------------------------
+_REDUNDANCY_NOT_RESULT = frozenset({"wall_time_s"})
+
+
+@lru_cache(maxsize=2)
+def _redundancy(filename: str) -> dict[tuple[Any, ...], dict[str, Any]]:
+    out = {}
+    for run in json.loads((RESULTS / filename).read_text())["runs"]:
+        cfg = run["config"]
+        key = (
+            cfg["testsuite_twins"],
+            cfg["consolidate_every"],
+            cfg["cycles"],
+            run["arm"],
+            run["seed"],
+        )
+        out[key] = run["metrics"]
+    return out
+
+
+def test_the_capability_decay_needs_both_halves() -> None:
+    """\\S sec:redundancy: 30/30 at the published corner, 0/30 elsewhere.
+
+    The whole attribution rests on this being a corner and not a
+    gradient, so it is counted per seed rather than averaged: a mean of
+    0.75 is also what fifteen seeds at 0.5 would give.
+    """
+    got = _redundancy("redundancy.json")
+    for arm in ("survival", "survival_paced"):
+        for twins, every in ((True, 5), (True, 0), (False, 5), (False, 0)):
+            decayed = sum(
+                got[(twins, every, 60, arm, s)]["probe_benign_correct_rate"]
+                < got[(twins, every, 30, arm, s)]["probe_benign_correct_rate"]
+                for s in range(30)
+            )
+            assert decayed == (30 if (twins, every) == (True, 5) else 0), (
+                arm,
+                twins,
+                every,
+                decayed,
+            )
+        assert got[(True, 5, 60, arm, 0)]["probe_benign_correct_rate"] == 0.75
+        assert got[(True, 5, 30, arm, 0)]["probe_benign_correct_rate"] == 1.0
+
+
+def test_the_rent_bill_has_the_other_load_bearing_half() -> None:
+    """The two findings the same sentence explained, separated.
+
+    "Dropping the twins recovers more of the gap than disabling the merge
+    in 30/30 seeds on both horizons, and at 30 cycles disabling the merge
+    alone makes the ledger worse (64.20 against a published 69.00)."
+    """
+    got = _redundancy("redundancy_rent.json")
+    for cycles in (30, 60):
+        wins = sum(
+            (
+                got[(False, 5, cycles, "survival", s)]["cum_delta"]
+                - got[(True, 5, cycles, "survival", s)]["cum_delta"]
+            )
+            > (
+                got[(True, 0, cycles, "survival", s)]["cum_delta"]
+                - got[(True, 5, cycles, "survival", s)]["cum_delta"]
+            )
+            for s in range(30)
+        )
+        assert wins == 30, (cycles, wins)
+    published = mean(
+        tuple(got[(True, 5, 30, "survival", s)] for s in range(30)), "cum_delta"
+    )
+    merge_off = mean(
+        tuple(got[(True, 0, 30, "survival", s)] for s in range(30)), "cum_delta"
+    )
+    assert published == pytest.approx(69.00, abs=DELTA_TOL)
+    assert merge_off == pytest.approx(64.20, abs=DELTA_TOL)
+    assert merge_off < published, "disabling the merge alone must be a step backwards"
+
+
+def test_the_second_family_loss_is_mostly_five_entries() -> None:
+    """The paragraph's table, and the asymmetry underneath it.
+
+    Every percentage in \\S sec:redundancy, plus the claim that carries
+    it: the five entries cost all three counters nothing in 30 of 30
+    seeds and both ledger arms everything in 30 of 30.
+    """
+    want = {
+        ("redundancy.json", 30): (19.00, 3.80),
+        ("redundancy.json", 60): (56.67, 3.80),
+        ("redundancy_rent.json", 30): (19.00, 3.80),
+        ("redundancy_rent.json", 60): (69.27, 3.80),
+    }
+    for (filename, cycles), (loss, remaining) in want.items():
+        got = _redundancy(filename)
+        counter = mean(
+            tuple(got[(True, 5, cycles, "evict_on_negative", s)] for s in range(30)),
+            "cum_delta",
+        )
+        for twins, expected in ((True, loss), (False, remaining)):
+            ledger = mean(
+                tuple(got[(twins, 5, cycles, "survival", s)] for s in range(30)),
+                "cum_delta",
+            )
+            assert counter - ledger == pytest.approx(expected, abs=0.01), (
+                filename,
+                cycles,
+                twins,
+            )
+
+    for filename in ("redundancy.json", "redundancy_rent.json"):
+        got = _redundancy(filename)
+        for arm, score in (
+            ("evict_on_negative", 178.00),
+            ("quarantine", 140.00),
+            ("keep_everything", 60.00),
+        ):
+            moved = sum(
+                got[(True, 5, 60, arm, s)]["cum_delta"]
+                != got[(False, 5, 60, arm, s)]["cum_delta"]
+                for s in range(30)
+            )
+            assert moved == 0, (filename, arm, moved)
+            assert got[(True, 5, 60, arm, 0)]["cum_delta"] == pytest.approx(
+                score, abs=DELTA_TOL
+            )
+        for arm in ("survival", "survival_paced"):
+            moved = sum(
+                got[(True, 5, 60, arm, s)]["cum_delta"]
+                != got[(False, 5, 60, arm, s)]["cum_delta"]
+                for s in range(30)
+            )
+            assert moved == 30, (filename, arm, moved)
+
+
+def test_the_redundancy_grid_reproduces_the_file_it_extends() -> None:
+    """The canary that licenses reading the other three corners.
+
+    The published corner is the same world as ``rent_testsuite.json``'s
+    unattacked cells, so it must reproduce them exactly. It does, in all
+    300 shared cells; without that, a corner that moved would be
+    indistinguishable from a harness that moved.
+    """
+    got = _redundancy("redundancy.json")
+    twin = {}
+    for run in json.loads((RESULTS / "rent_testsuite.json").read_text())["runs"]:
+        cfg = run["config"]
+        if cfg["hold_cost"] == 0.0 and cfg["lie_budget"] == 0:
+            twin[(cfg["cycles"], run["arm"], run["seed"])] = run["metrics"]
+    checked = 0
+    for (cycles, arm, seed), metrics in twin.items():
+        mine = got.get((True, 5, cycles, arm, seed))
+        if mine is None:
+            continue  # rent_testsuite runs arms this grid does not
+        checked += 1
+        for key in set(mine) & set(metrics) - _REDUNDANCY_NOT_RESULT:
+            assert mine[key] == metrics[key], (cycles, arm, seed, key)
+    assert checked == 300, checked
