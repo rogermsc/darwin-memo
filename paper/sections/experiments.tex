@@ -1672,9 +1672,8 @@ test-suite corpus's $5$ of $20$, so the contrast between the families is
 one of degree.
 
 \paragraph{It is not a dose. It is one entry.} Two points cannot tell a
-dose from a particular entry, and the first version of this paragraph
-said the effect looked ``roughly linear in that level'' on the strength
-of them. It is not linear and it is not a level. Running all $32$
+dose from a particular entry: on two points the effect looks ``roughly
+linear in that level'', and it is neither linear nor a level. Running all $32$
 subsets of the five pairs ($32 \times 2$ horizons $\times$ 5 arms
 $\times$ 30 seeds, with \texttt{"11111"} and \texttt{"00000"}
 reproducing the grid above in all $600$ shared cells) puts the entire
@@ -1736,16 +1735,14 @@ holding energy and competing for retrieval --- and only secondarily by
 being pooled. Our explanation named consolidation for three findings; on
 the one we can now decompose, consolidation is the minority term.
 
-\paragraph{A correction about how we measured similarity.} The
-$0.688$-versus-$0.812$ figures in the previous version of this section
-came from a Jaccard we reimplemented in a test helper rather than from
+\paragraph{How similarity is scored here.} Similarity in this sweep is
 \texttt{MemoryStore.similarity}, the function \texttt{consolidate}
-actually calls. The counts it produced were right and its values were
-not, and the error was load-bearing: it put the band edges of this sweep
-in the wrong places, which is why three of its five registered
-predictions are refuted rather than confirmed. The helper now scores
-with the retriever, and the pair similarities are pinned by value as
-well as by count.
+actually calls, not a Jaccard reimplemented in a test helper. The
+distinction is load-bearing: a reimplementation produces correct counts
+but incorrect values, and the wrong values put the band edges of this
+sweep in the wrong places --- which is why three of its five registered
+predictions are refuted rather than confirmed. Pair similarities are
+pinned by value as well as by count.
 
 \subsection{Parametric memory (secondary).}
 To connect to memory-as-a-model \citep{quek2026memo}, we distill survivors
@@ -2072,10 +2069,10 @@ sampling. We note in \S\ref{sec:limitations} that this is much tighter
 than the pilot's cross-seed spread and does not license reading the two
 as the same quantity.
 
-\paragraph{A measurement we got wrong, and the correction.}
-We first scored defence as the fraction of seeded poison \emph{entries}
-no longer alive, and read $0.98$ for the ledger against $0.07$ for the
-counter. That number measured deduplication, not removal. The seeded
+\paragraph{Why poison is counted by provenance, not by liveness.}
+Scoring defence as the fraction of seeded poison \emph{entries} no
+longer alive reads $0.98$ for the ledger against $0.07$ for the counter
+--- and measures deduplication, not removal. The seeded
 poison lessons share one template and differ only in a filename, so they
 cluster, and a single consolidation pools all fifty into one heir that
 inherits all fifty poison sources and the poison text: the store then
@@ -2084,11 +2081,11 @@ retrievable inside it. The comparison was confounded twice over, because
 only survival curation consolidates, so it set one arm that deduplicates
 poison against two that never do. Counting poison by provenance instead,
 no arm removed poison: fifty sources alive for the ledger, forty-six for
-the counter, fifty for \texttt{keep\_everything}. We report the
-corrected reading and keep the merge column visible in the released
-data. The lesson is the one our own synthetic harness had already
-written down---measure poison by provenance carried through merges, and
-treat elimination as a predicate rather than a count---and this leg
+the counter, fifty for \texttt{keep\_everything}. We report the provenance
+reading and keep the merge column visible in the released data. The
+lesson is the one our own synthetic harness had already written
+down---measure poison by provenance carried through merges, and treat
+elimination as a predicate rather than a count---and this leg
 failed to apply it.
 
 \paragraph{Statistical status, stated plainly.}
