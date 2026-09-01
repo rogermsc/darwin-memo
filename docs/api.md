@@ -531,7 +531,11 @@ darwin-memo settle-ci MEMORY
 
 Exit codes: 0 settled, 1 usage error, 3 abstained (no parseable junit
 XML, zero collected tests, or a collection error: the run measured
-nothing and the store is left untouched). Flaky tests that flip
+nothing and the store is left untouched). **Skipped tests are unmeasured,
+not failed**: a test skipped on either side contributes to no transition
+and accrues no flake history, so a skip that later turns into a pass pays
+nothing. A test that is *absent* is different and still counts, because
+deleting a passing test is a real loss. Flaky tests that flip
 direction `--flip-threshold` times inside the `--window` are
 quarantined out of the delta via the sidecar state file. See
 [the integration guide](integrations/ci-lesson-store.md).

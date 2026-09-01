@@ -182,6 +182,16 @@ a real count, skip settlement entirely. And raw counts cannot tell a
 regression from a removed test, which is why per-test diffing replaced
 them.
 
+One consequence worth knowing before you point this at a suite with
+environment-gated tests, which is most suites. A `skipped` test measured
+nothing, so it is treated as unmeasured rather than as failing: it enters
+no transition, accrues no flake history, and cannot be quarantined. That
+matters most in the direction people do not expect --- when a test skips
+at base because an extra was missing and passes at head because it landed,
+the delta stays zero rather than crediting a lesson for an outcome it did
+not cause. An *absent* test is a different thing and still counts against
+you, because deleting a passing test is a real loss.
+
 ```yaml
 - name: Settle memory tickets
   if: always()

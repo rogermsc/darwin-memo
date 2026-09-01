@@ -8,6 +8,91 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **`docs/custom-environments.md`, the guide for the one task the README
+  calls the whole trick.** Choosing a conserved resource (with the test:
+  could a liar produce this number without changing the world), pricing
+  inaction and mistakes from real costs, both phrase-reading traps,
+  picking `resource_scale`, and table-testing `verify` before running any
+  loop. Two of its five failure modes are documented nowhere else, because
+  writing `PaperClaimEnv` and `RepoEnv` hit both: a `verify` that reads a
+  *value* out of an answer has a second vocabulary rule with the same
+  starvation failure as `decision_polarity`'s verb list, and a templated
+  corpus consolidates into itself within a few cycles at the default merge
+  floor, so the run measures the merge rule rather than the selection rule.
+
+- **`bench/repo_env.py`: selection pressure from tests passing in real
+  repositories.** astropy, django, pytest and sympy, with outcomes replayed
+  from the committed SWE-bench evaluations rather than re-run, so the arm
+  is offline and deterministic. Conserved resource is net passing tests,
+  gained minus lost -- the arithmetic `settle-ci` already does, with no
+  weighting to defend. Indiscriminate shipping is net-negative in this data
+  (mean $-6.7$ tests; one instance broke 1,432 passing tests), so the value
+  is entirely in discriminating, and the discriminating rule is learnable
+  from the surface of the patch: empty 0.00, narrow $+1.20$, sprawling
+  about $-8.5$. The sprawling lesson dies on 6 of 6 seeds; the narrow one
+  survives on 5.
+  - **The useless lesson free-rides.** "An empty patch is worth shipping"
+    decides only tasks whose delta is exactly zero, so deciding pays it
+    nothing, and it still finishes 30 cycles alive on the 25% supporting
+    share of answers it merely contributed to. Alone in the store it dies.
+  - **Killing the specific lesson widens the general one.** On the sixth
+    seed the narrow lesson died too, and not from bad luck -- its own draws
+    summed to $+53$. Once its competitor died at cycle 3 it became
+    top-ranked for sprawling candidates and was executed for damage it
+    never advised: 47 uses against 35 draws it was true of.
+
+- **`bench/paperclaim_env.py`: selection pressure from a literature
+  record.** Conserved resource is claim-cells that still reconcile against
+  released data; citing a figure that reconciles is $+1$, citing one that
+  does not is $-3$. Retraction and replication are the obvious literature
+  signals and both are useless as selection pressure -- a retraction lands
+  years after the entry it should have killed has starved -- whereas
+  reconciliation settles every time anyone checks. Over 6 seeds stale
+  claims survive at 0.00-0.25 and accurate ones at 0.53-0.72. The LaTeX
+  table parser moves out of the test file into `bench/claims.py` so the
+  checkers and the corpus builder share one implementation.
+
+- **`full_context_llm`, the baseline a memory paper is judged against.**
+  Not "better than no memory" but "better than no memory *system*": the
+  whole store in the prompt. `keep_everything_llm` is not that -- it never
+  curates, but the model still sees only `store.retrieve`'s top-k, which
+  applies the relevance floor. `FullContextStore` proxies the store and
+  replaces exactly one method. Validated end to end offline against its own
+  control: same environment and identical `cum_delta`, with the attribution
+  path the only thing that moves. **No results are committed and no claim
+  is attached**; running the suite is a decision about time.
+
+- **A `Reporting rules` subsection, and a test that pins it to the code.**
+  Kill rate, poison alive, kill cycle, damage before kill, cumulative and
+  tail $\Delta$, and final population were used across eleven tables and
+  defined nowhere. Two of the rules change how a table reads: the
+  kill-cycle median is taken over the seeds that killed, and every metric
+  is scored on true resource movement rather than the reported movement the
+  ledger acted on. `tests/test_paper_reporting_rules.py` fails from either
+  side -- change `TAIL` and the paper's sentence breaks; rename a paragraph
+  and the coverage check breaks.
+
+- **Limitations now owns what no experiment here does.** None of them
+  isolates eviction under a capacity bound, which is what an energy ledger
+  is finally for; our environments impose no bound at all, so "beats
+  recency or LRU under a budget" is a claim we do not make. Four citations
+  added with metadata verified against arXiv: LoCoMo, MemoryAgentBench,
+  MemoryArena, and the Darwin-Gödel Machine -- the comparison this
+  package's name invites, which related work had not made.
+
+- **`examples/09_your_own_corpus.py`**, the step between "the demo works"
+  and "it works on my files": every other example reads the shipped demo
+  corpus. It *shows* the relevance floor going wrong rather than describing
+  it -- the same cache files asked two ways, where the phrasing sharing
+  only structural words answers about the database instead.
+
+- **Tests for the surface adopters are sent to read.**
+  `tests/test_environments.py` (`VerifiableQAEnv` was exported, documented,
+  and referenced by zero tests; `cycle_rng`'s seed independence;
+  `decision_polarity`'s contract) and `tests/test_docs_links.py`, which
+  turns `docs/README.md`'s "This index is everything else" into a check and
+  asserts every relative link in the docs resolves.
+
 - **Every 30-cycle grid re-run at 60, and the answer is a family split**
   (`bench/results/horizon.json`, 11 committed grids, 5,815 runs).
   `limitations.tex` ended its horizon paragraph with "which of those
@@ -225,6 +310,29 @@ project uses [SemVer](https://semver.org/).
 
 ### Changed
 
+- **One paper, and the citation metadata points at it.** Two papers lived
+  in `paper/` with different titles and different central claims, and
+  `CITATION.cff`, `.zenodo.json`, `reproduce.sh` and `reproduce.md` all
+  named the superseded v0.5.1 markdown report -- whose numbers nothing
+  checks -- rather than `paper/main.tex`, whose 254 printed numbers are
+  re-derived from committed evidence in CI. The report moves to
+  `docs/research/` with a header saying it is superseded and unchecked.
+
+- **The external evidence moved inside the guarded tree.** The Mem0 and
+  MemoryOS attacks are the paper's answer to "every result above runs on a
+  world you built", and they were the only evidence with no table, no
+  manifest and no test, cited in prose where no parser could catch drift.
+  They now live in `bench/results/external/` with a manifest, appear as
+  `tab:mem0` and `tab:memoryos`, and every cell is checked against the
+  committed JSON. They remain outside `bench.report --check` deliberately:
+  it reads `payload["runs"]` and enforces a suite's metric set, and
+  relaxing it for five files that have neither would weaken the check for
+  the 36 that satisfy it.
+
+- **`docs/disclosure/` no longer publishes a third party's email address**
+  or the mail message ids. Who was contacted, in what role, when, and the
+  reply in full are unchanged.
+
 - **`bench/run.py` dispatch is a table.** Nineteen of the twenty-six
   `elif args.suite ==` branches were identical apart from the function
   name, and every suite name was written a second time in the `--suite`
@@ -247,6 +355,52 @@ project uses [SemVer](https://semver.org/).
   order of a 9,000-run file.
 
 ### Fixed
+
+- **A skipped test measured nothing, so it is no longer booked as a
+  failure.** `parse_junit` folded junit `skipped` in with `error` and
+  `failure`, and `memory.yml` installed `.[dev]` where `ci.yml` installs
+  `.[dev,mcp]`. Three MCP tests hit their `importorskip` and the paper-build
+  guard found no `tectonic` on every settle run, so four tests that have
+  never once failed sat quarantined in `.darwin-memo/flaky.json` at 10 out
+  of 10 "failures".
+  - **The expensive half is the other direction.** When such a skip turns
+    into a pass because a dependency landed, `diff_runs` booked a `+1` and
+    the ledger paid an entry for an outcome it did not cause.
+    Environment-gated skips (GPU, network, optional extras) are ubiquitous,
+    so every adopter had this.
+  - `parse_junit` now returns `None` for an unmeasured test; `diff_runs`
+    treats an unmeasured side as no transition and `record_flips` records
+    no observation, so an unmeasured test cannot be quarantined. **Absence
+    stays distinct from a skip** -- deleting a passing test is still a real
+    loss -- which is why the guard tests for `None` rather than reusing the
+    membership checks. This is the rule the module already applied per run
+    (`EXIT_ABSTAINED`) applied per test.
+  - `memory.yml` now installs `.[dev,mcp]`, and the four invented
+    quarantine entries are dropped.
+
+- **The paper-build guard had never run, and the `\cite` half was
+  unguarded.** `tests/test_paper_builds_clean.py` skips without `tectonic`
+  and no job installed it, in a file whose own comment says a guard that
+  cannot run in CI is not a guard. A `paper` job installs it, runs it, and
+  uploads the PDF. Separately, the toolchain-free half covered `\ref` but
+  not `\cite`, and a `\cite` at a key absent from `references.bib` renders
+  as `[?]` by the same mechanism -- LaTeX warns and exits zero.
+  `test_every_cite_has_a_bib_entry_no_latex_required` closes it.
+
+- **Four files stated the package version and had drifted.**
+  `CITATION.cff` and both `server.json` fields said 0.5.1 while
+  `__init__` said 0.6.0. `mcp-publish.yml` stamps `server.json` from the
+  git tag and `release.yml` only checks the tag against `__version__`, so
+  the values a reader actually reads were free to rot.
+  `tests/test_version_agreement.py` pins all four on every PR.
+  `docs/benchmarks.md` keeps saying 0.4.0 on purpose: that line records the
+  version that produced those runs, and the test says so.
+
+- **The provenance guard skipped every entry without a `suite`.**
+  `test_manifest_source_commit_could_have_produced_the_file` requires only
+  a runner module by its own docstring, but its skip also demanded a
+  suite -- so the five external-evidence entries were discovered and then
+  silently skipped. Only the `--suite` half waits for a suite now.
 
 - **A new environment family is six decisions, not one.** The corpus,
   the probe set, the store builder, the environment class, the
