@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,mcp]"
       - name: Run the suite at base and merge, per test
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

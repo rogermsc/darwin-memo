@@ -53,7 +53,36 @@ def test_parse_junit_per_test_statuses(tmp_path):
         [("a", "passed"), ("b", "failed"), ("c", "error"), ("d", "skipped")],
     )
     statuses = parse_junit(report, "head")
-    assert statuses == {"t::a": True, "t::b": False, "t::c": False, "t::d": False}
+    assert statuses == {"t::a": True, "t::b": False, "t::c": False, "t::d": None}
+
+
+def test_skipped_tests_are_unmeasured_not_failed(tmp_path):
+    """A skip that turns into a pass must not pay out.
+
+    ``memory.yml`` installed fewer extras than ``ci.yml``, so three MCP
+    tests and the paper-build guard skipped on every settle run, were
+    booked as failures, and sat quarantined at 10/10 "failures" having
+    never failed once. The expensive half is the other direction: the day
+    such a skip flips to a pass because an extra got installed, the old
+    code booked a +1 that no memory entry earned.
+    """
+    base = parse_junit(
+        write_junit(tmp_path / "b.xml", [("a", "passed"), ("gated", "skipped")]),
+        "base",
+    )
+    head = parse_junit(
+        write_junit(tmp_path / "h.xml", [("a", "passed"), ("gated", "passed")]),
+        "head",
+    )
+    assert base["t::gated"] is None
+    assert diff_runs(base, head).delta() == 0.0  # skip -> pass earns nothing
+    assert diff_runs(head, base).delta() == 0.0  # pass -> skip is not a regression
+    # An unmeasured test accrues no flake history, so it cannot be quarantined.
+    assert "t::gated" not in record_flips({}, base, base)
+    # Absence is still different from a skip: deleting a passing test is a
+    # real loss, and this must not have been fixed away with it.
+    gone = parse_junit(write_junit(tmp_path / "g.xml", [("a", "passed")]), "gone")
+    assert diff_runs(head, gone).delta() == -1.0
 
 
 def test_diff_runs_classifies_every_transition():

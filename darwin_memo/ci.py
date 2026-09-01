@@ -44,6 +44,7 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path
@@ -61,12 +62,19 @@ class InfraFailure(Exception):
     """A run that measured nothing. Settling it at zero would be a lie."""
 
 
-def parse_junit(path: str | Path, label: str) -> dict[str, bool]:
+def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
     """Per-test pass map from one junit XML report.
 
-    Returns ``{test id: passed}`` where the id is ``classname::name``.
-    Skipped and errored tests count as not passing, mirroring how a raw
-    pass count never counted them. Raises :class:`InfraFailure` when
+    Returns ``{test id: passed}`` where the id is ``classname::name``
+    and ``None`` means the run measured nothing for that test.
+    Errored tests count as not passing. Skipped ones do not count as
+    either: a skip is an absence of evidence, and booking it as a
+    failure makes the store lie twice --- the test sits quarantined
+    having never failed, and the day the skip turns into a pass
+    (an extra installed, a GPU present) the suite books a +1 that no
+    memory entry earned. This is the run-level rule of this module
+    ("a run that produced no count measured nothing") applied per
+    test. Raises :class:`InfraFailure` when
     the run measured nothing: missing file, unparseable XML, zero
     collected tests, or a collection error (pytest reports those as
     testcases erroring with ``collection failure``, meaning the suite
@@ -81,12 +89,12 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool]:
         raise InfraFailure(
             f"{label} junit XML at {report} is unparseable: {exc}"
         ) from exc
-    passed_by_id: dict[str, bool] = {}
+    passed_by_id: dict[str, bool | None] = {}
     for case in root.iter("testcase"):
         name = case.get("name", "")
         classname = case.get("classname", "")
         test_id = f"{classname}::{name}" if classname else name
-        passed = True
+        passed: bool | None = True
         for child in case:
             message = child.get("message", "").lower()
             if child.tag == "error" and "collection" in message:
@@ -94,10 +102,22 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool]:
                     f"{label} run hit a collection error ({test_id}): "
                     "the suite never loaded"
                 )
-            if child.tag in ("error", "failure", "skipped"):
+            if child.tag in ("error", "failure"):
                 passed = False
-        # Rerun plugins emit duplicate ids; any recorded failure wins.
-        passed_by_id[test_id] = passed_by_id.get(test_id, True) and passed
+            elif child.tag == "skipped" and passed is not False:
+                passed = None
+        # Rerun plugins emit duplicate ids. A recorded failure still wins
+        # over everything, and a real result wins over a skip, so only an
+        # id that was skipped every time it appeared stays unmeasured.
+        if test_id in passed_by_id:
+            seen = passed_by_id[test_id]
+            if seen is False or passed is False:
+                passed = False
+            elif seen is True or passed is True:
+                passed = True
+            else:
+                passed = None
+        passed_by_id[test_id] = passed
     if not passed_by_id:
         raise InfraFailure(f"{label} run collected zero tests")
     return passed_by_id
@@ -128,10 +148,21 @@ class Transitions:
         return float(len(gained) - len(lost))
 
 
-def diff_runs(base: dict[str, bool], head: dict[str, bool]) -> Transitions:
-    """Classify every test id seen in either run."""
+def diff_runs(
+    base: Mapping[str, bool | None], head: Mapping[str, bool | None]
+) -> Transitions:
+    """Classify every test id seen in either run.
+
+    A test the other side never measured (``None``, i.e. skipped) is
+    not a transition in either direction. Absence is different and
+    still counts: a passing test deleted from the suite is a real
+    loss, which is why this checks for ``None`` rather than reusing
+    the membership tests below.
+    """
     transitions = Transitions()
     for test_id in sorted(set(base) | set(head)):
+        if base.get(test_id, False) is None or head.get(test_id, False) is None:
+            continue
         if test_id not in head:
             bucket = (
                 transitions.removed_passing
@@ -172,9 +203,9 @@ def load_flips(path: str | Path) -> dict[str, list[bool]]:
 
 
 def record_flips(
-    history: dict[str, list[bool]],
-    base: dict[str, bool],
-    head: dict[str, bool],
+    history: Mapping[str, list[bool]],
+    base: Mapping[str, bool | None],
+    head: Mapping[str, bool | None],
     window: int = FLAKY_WINDOW,
 ) -> dict[str, list[bool]]:
     """Append this run's observations, newest last, capped to the window.
@@ -182,15 +213,20 @@ def record_flips(
     Both runs are recorded: the base run usually re-executes the
     previous head commit, so a result that disagrees with the recorded
     history is flake evidence in itself. Tests absent from both runs
-    left the suite and their history is dropped with them.
+    left the suite and their history is dropped with them, and so is
+    a test both runs only skipped: an unmeasured test is not flaky,
+    and recording skips as failures is what pinned four never-failing
+    tests in this repo's own quarantine.
     """
     updated: dict[str, list[bool]] = {}
     for test_id in sorted(set(base) | set(head)):
         observed = list(history.get(test_id, []))
         for run in (base, head):
-            if test_id in run:
-                observed.append(run[test_id])
-        updated[test_id] = observed[-window:]
+            result = run.get(test_id)
+            if result is not None:
+                observed.append(result)
+        if observed:
+            updated[test_id] = observed[-window:]
     return updated
 
 
