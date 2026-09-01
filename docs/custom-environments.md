@@ -174,11 +174,20 @@ same way -- the population dying around cycle 20 with every delta at zero.
 
 ## A worked example
 
-`bench/paperclaim_env.py` is a complete environment written against this page,
-in about 200 lines: conserved resource, asymmetric cost, both phrase-reading
-rules, and its own limits stated in the module docstring.
-`tests/test_paperclaim_env.py` is the test shape from step 5 plus the end-to-end
-assertion that stale entries die and accurate ones do not.
+Two, both written against this page.
+
+`bench/repo_env.py` is the one to read first, because its resource is not
+ours: net passing tests in astropy, django, pytest and sympy, measured by the
+SWE-bench harness. It shows the delta with no weighting to defend (gained
+minus lost), and its docstring records what writing it cost -- two separate
+collisions with the relevance floor, one of which had a narrowly-true lesson
+deciding questions it was never true of. `tests/test_repo_env.py` pins the
+outcome and the two findings that fell out of it.
+
+`bench/paperclaim_env.py` is the smaller one: conserved resource, asymmetric
+cost, both phrase-reading rules, and its own limits stated up front.
+`tests/test_paperclaim_env.py` is the test shape from step 5 plus the
+end-to-end assertion that stale entries die and accurate ones do not.
 
 The three bundled environments are worth reading next, in this order:
 `StorageEnv` (`darwin_memo/environments.py`) for the canonical shape,
