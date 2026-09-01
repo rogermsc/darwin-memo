@@ -1072,7 +1072,14 @@ def llm_suite(seeds: list[int], models: list[str]) -> list[RunSpec]:
             label=f"model={model},refuse=off",
         )
         for model in models
-        for arm in ("keep_everything_llm", "evict_on_negative_llm")
+        for arm in (
+            "keep_everything_llm",
+            "evict_on_negative_llm",
+            # No memory system at all: the whole store in the prompt. The
+            # comparison a memory paper is now expected to lose or win
+            # against, and the one this suite could not make.
+            "full_context_llm",
+        )
         for seed in seeds
     ]
     return ledger + controls

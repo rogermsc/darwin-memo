@@ -69,7 +69,12 @@ TAIL = 5
 # Arms that answer through a real model. One list, because an arm added
 # to the protocol check but not the env check would run with the bare
 # action reader and silently score the model's phrasing as silence.
-LLM_LOOP_ARMS = ("survival_llm", "keep_everything_llm", "evict_on_negative_llm")
+LLM_LOOP_ARMS = (
+    "survival_llm",
+    "keep_everything_llm",
+    "evict_on_negative_llm",
+    "full_context_llm",
+)
 
 # Both noise wrappers and the adversary expose the same accounting
 # surface (true vs reported per-cycle deltas, fired-lie counters, the
@@ -375,6 +380,13 @@ def run_one(
             from .wef import build_wef_protocol
 
             audit = build_wef_protocol(store, overrides, poison_ids(store))
+        elif arm == "full_context_llm":
+            # Same model and same audit trail as the controls; the only
+            # difference is that the reader is handed the whole store
+            # instead of a retrieval over it.
+            from .llm_arm import build_full_context_protocol
+
+            audit = build_full_context_protocol(store, overrides)
         else:
             from .llm_arm import build_audited_protocol
 
@@ -623,6 +635,15 @@ def _dispatch(
         # protocol, nothing ever removed.
         if audit is None:
             raise ValueError("keep_everything_llm needs the audited protocol")
+        return run_keep_everything(store, env, cycles, on_cycle, protocol=audit)
+    if arm == "full_context_llm":
+        # The baseline the memory literature settles on: no memory SYSTEM.
+        # Nothing is ever removed (as in keep_everything_llm) and nothing is
+        # retrieved either -- the model is handed the whole store and does
+        # its own selecting. The difference from its control is one method,
+        # in FullContextStore.
+        if audit is None:
+            raise ValueError("full_context_llm needs the audited protocol")
         return run_keep_everything(store, env, cycles, on_cycle, protocol=audit)
     if arm == "ttl":
         return run_ttl(store, env, cycles, on_cycle=on_cycle)

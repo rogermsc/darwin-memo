@@ -8,9 +8,11 @@ monkeypatched where construction itself is under test. The real arm
 
 import json
 from collections import Counter
+from typing import Any
 
 import bench.llm_arm as llm_arm
 import bench.run as bench_run
+import bench.runner as bench_runner
 from bench.llm_arm import (
     AuditedProtocol,
     build_audited_protocol,
@@ -169,15 +171,19 @@ def test_write_transcript_shape(tmp_path):
 
 def test_llm_suite_grid_covers_models_mitigation_and_controls():
     specs = llm_suite([0, 1], ["llama3.2:3b", "qwen3:4b"])
-    # 2 models x refuse off/on x 2 seeds, plus 2 controls x 2 models x 2
-    # seeds. Without the controls the suite has one arm and no baseline,
-    # so no number in it is a claim about the ledger.
-    assert len(specs) == 16
+    # 2 models x refuse off/on x 2 seeds = 8 ledger runs, plus 3 controls x
+    # 2 models x 2 seeds = 12. Without the controls the suite has one arm and
+    # no baseline, so no number in it is a claim about the ledger; without
+    # full_context_llm it has no baseline for the comparison a memory paper
+    # is actually judged on, which is against no memory SYSTEM rather than
+    # against a differently-curated one.
+    assert len(specs) == 20
     arms = Counter(s.arm for s in specs)
     assert arms == {
         "survival_llm": 8,
         "keep_everything_llm": 4,
         "evict_on_negative_llm": 4,
+        "full_context_llm": 4,
     }
     labels = {s.label for s in specs}
     assert "model=llama3.2:3b,refuse=off" in labels
@@ -328,3 +334,125 @@ def test_paired_pairs_refuse_on_off_within_model_cell():
     )
     assert len(rows) == 1
     assert rows[0]["seeds"] == "2"
+
+
+# ---------------------------------------------------------------------------
+# full_context_llm: the baseline with no memory system at all
+# ---------------------------------------------------------------------------
+
+
+def _unrelated_store() -> MemoryStore:
+    """Entries no query can match, so retrieval and full context differ."""
+    store = MemoryStore()
+    for i, (q, a) in enumerate(
+        [
+            ("What about database files?", "Database files must be retained."),
+            ("Who staffs the kiosk?", "Marguerite staffs the kiosk on Thursdays."),
+            ("Where is the zamboni?", "The zamboni lives behind the pavilion."),
+        ]
+    ):
+        store.add(MemoryEntry(question=q, answer=a, sources=[f"doc-{i}"]))
+    return store
+
+
+def test_full_context_store_hands_over_everything_unfiltered():
+    """The whole point: the relevance floor does not get to decide.
+
+    ``store.retrieve`` applies the retriever's ``min_coverage``, so a query
+    sharing no vocabulary with the corpus returns nothing -- which is correct
+    for a memory system and wrong for a baseline that is supposed to have
+    none. Mutation: delegate ``retrieve`` to the wrapped store and this fails.
+    """
+    store = _unrelated_store()
+    query = "is the zamboni safe to delete"
+    assert len(store.retrieve(query, k=10)) < 3  # the floor is doing its job
+    full = llm_arm.FullContextStore(store)
+    hits = full.retrieve(query, k=1)
+    assert len(hits) == 3, "every alive entry, regardless of k or coverage"
+    assert {e.id for e, _ in hits} == {e.id for e in store.alive()}
+
+
+def test_full_context_store_proxies_everything_else():
+    """One method differs. Anything else diverging is a second variable."""
+    store = _unrelated_store()
+    full = llm_arm.FullContextStore(store)
+    assert len(full.alive()) == len(store.alive())
+    assert full.upkeep == store.upkeep
+    assert full.graveyard() == store.graveyard()
+
+
+def test_build_full_context_protocol_uses_the_same_client_config(monkeypatch):
+    built: dict[str, object] = {}
+
+    class FakeOllamaClient:
+        def __init__(self, **kwargs: object) -> None:
+            built.update(kwargs)
+
+    monkeypatch.setattr(llm_arm, "OllamaClient", FakeOllamaClient)
+    protocol = llm_arm.build_full_context_protocol(
+        seeded_store(), {"llm_model": "qwen3:4b", "llm_refuse_unparseable": True}
+    )
+    assert built["model"] == "qwen3:4b"
+    assert protocol.refuse_unparseable is True
+    assert isinstance(protocol.store, llm_arm.FullContextStore)
+
+
+def test_the_llm_suite_now_carries_the_full_context_control():
+    """Before this arm the suite could not make the comparison that decides
+    a memory paper: not "better than no memory" but "better than no memory
+    SYSTEM" -- the whole history in the prompt."""
+    specs = llm_suite(seeds=[0], models=["qwen3:4b"])
+    assert "full_context_llm" in {spec.arm for spec in specs}
+    full = [s for s in specs if s.arm == "full_context_llm"]
+    control = [s for s in specs if s.arm == "keep_everything_llm"]
+    assert len(full) == len(control), "the controls must be matched"
+    assert full[0].cycles == control[0].cycles
+    assert full[0].overrides == control[0].overrides
+
+
+class _AlwaysActs:
+    """A model that acts on every task, so the arms differ only in what they saw."""
+
+    def __init__(self, **kwargs: object) -> None:
+        pass
+
+    def complete(self, prompt: str, system: str = "") -> str:
+        return "Yes, it is safe to delete this file. [1]"
+
+
+def test_full_context_arm_runs_end_to_end_and_differs_where_it_should(monkeypatch):
+    """run_one's full-context path, no network, against its own control.
+
+    Same environment, same scripted model, same decisions -- so the resource
+    outcome is identical and the only thing that can differ is what the reader
+    was shown. It does, in the attribution path: under retrieval some queries
+    return nothing eligible and the model's citation attaches to no entry
+    (``unattributed_action``), while with the whole store in front of it there
+    is always something to attribute to and credit takes the fallback path.
+
+    That is the difference the arm exists to create. Mutation: have
+    FullContextStore delegate to the wrapped store and the two rows converge.
+    """
+    monkeypatch.setattr(llm_arm, "OllamaClient", _AlwaysActs)
+
+    def run(arm: str) -> dict[str, Any]:
+        metrics: dict[str, Any] = bench_runner.run_one(
+            arm=arm,
+            seed=0,
+            cycles=3,
+            files_per_cycle=4,
+            overrides={"llm_model": "fake"},
+        )["metrics"]
+        return metrics
+
+    control = run("keep_everything_llm")
+    full = run("full_context_llm")
+
+    # Same world, same answers: the environment must not have moved.
+    assert full["cum_delta"] == control["cum_delta"]
+    assert full["llm_queries"] == control["llm_queries"] > 0
+    assert full["final_population"] == control["final_population"]
+
+    assert control["citation_unattributed_action_rate"] == 1.0
+    assert full["citation_unattributed_action_rate"] == 0.0
+    assert full["citation_fallback_rate"] == 1.0

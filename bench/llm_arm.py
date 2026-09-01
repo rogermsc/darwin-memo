@@ -97,6 +97,48 @@ def build_audited_protocol(
     )
 
 
+class FullContextStore:
+    """A store view that hands the reader everything, unranked and unfiltered.
+
+    The baseline the memory literature now settles on is not "no memory" but
+    "no memory *system*": put the whole history in the prompt and let the
+    model do the selecting. ``keep_everything_llm`` is not that. It never
+    curates, but the model still only sees ``store.retrieve``'s top-k, and
+    that call applies the retriever's relevance floor -- so it measures a
+    store with no eviction, not a reader with no retrieval.
+
+    This proxies the store and replaces exactly one method. Everything else,
+    including the energy ledger the surrounding policy does not use, passes
+    through untouched, so the arm differs from its control in one place and
+    a reader can see where.
+
+    A uniform score of 1.0 is not a ranking claim. Entries arrive in store
+    order and the protocol's own tie-breaking decides the rest, which is the
+    point: nothing here is choosing for the model.
+    """
+
+    def __init__(self, store: MemoryStore) -> None:
+        self._store = store
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._store, name)
+
+    def retrieve(self, query: str, k: int = 3, **kwargs: Any) -> Any:
+        return [(entry, 1.0) for entry in self._store.alive()]
+
+
+def build_full_context_protocol(
+    store: MemoryStore, overrides: dict[str, Any]
+) -> AuditedProtocol:
+    """The full_context_llm arm: same model, same audit trail, no retrieval."""
+    client = build_client(overrides)
+    return AuditedProtocol(
+        FullContextStore(store),  # type: ignore[arg-type]
+        client,
+        refuse_unparseable=bool(overrides.get("llm_refuse_unparseable", False)),
+    )
+
+
 def citation_metrics(answers: list[dict[str, Any]]) -> dict[str, Any]:
     """Per-run attribution-path rates, named for the metrics block."""
     n = len(answers)
