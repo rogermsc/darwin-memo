@@ -1726,3 +1726,122 @@ def test_the_conflict_coupling_changed_nothing_and_the_counters_are_blind() -> N
             for seed in range(30)
         }
         assert len(values) == 1 and values.pop() == pytest.approx(score, abs=DELTA_TOL)
+
+
+# ----------------------------------------------------------------------
+# External evidence: attacks on curators we did not write
+#
+# These two tables are the paper's answer to "every result above runs on a
+# world you built", which makes them the load-bearing ones -- and until now
+# they were the only evidence in the paper with no table and no check, cited
+# in prose alone where no parser could ever catch drift. They live under
+# bench/results/external/ rather than bench/results/ because bench.report
+# reads payload["runs"] and these files have no runs: they are attack
+# reports, not survival grids. Binding them here rather than relaxing that
+# validator keeps the check strict for the 36 files that can satisfy it.
+# ----------------------------------------------------------------------
+
+EXTERNAL = ROOT / "bench" / "results" / "external"
+
+
+@cache
+def _external(filename: str) -> dict[str, Any]:
+    return json.loads((EXTERNAL / filename).read_text())  # type: ignore[no-any-return]
+
+
+_MEM0_RUNS = {
+    "glm-5.2 families": "mem0-curation-attack-families.json",
+    "glm-5.2 single": "mem0-curation-attack.json",
+    "llama3.2:3b": "mem0-curation-attack-llama32.json",
+}
+
+
+def _mem0_rows() -> list[list[str]]:
+    """Body rows only. ``data_rows`` keeps the header, as the checks above
+    also have to allow for; here the run column names which file to read, so
+    dropping anything that is not a run name does it."""
+    return [row for row in data_rows("tab:mem0") if row[0] in _MEM0_RUNS]
+
+
+def test_mem0_table_parses() -> None:
+    """Parse guard: without it a reformatted table parametrises zero cases."""
+    rows = _mem0_rows()
+    assert len(rows) == 8, rows
+    assert {row[0] for row in rows} == set(_MEM0_RUNS), rows
+
+
+@pytest.mark.parametrize("row", _mem0_rows(), ids=lambda r: f"{r[0]}-{r[1]}")
+def test_mem0_row_matches_committed_run(row: list[str]) -> None:
+    run, condition, deletes, retained, unchanged, residue = row
+    report = _external(_MEM0_RUNS[run])
+    assert int(deletes) == report[f"{condition}_deletes_total"]
+    assert float(retained) == pytest.approx(report[f"{condition}_benign_retained_mean"])
+    assert float(unchanged) == pytest.approx(
+        report[f"{condition}_benign_unchanged_mean"]
+    )
+    assert float(residue) == pytest.approx(
+        report[f"{condition}_attacker_persisted_mean"]
+    )
+
+
+_LFU = "memoryos-lfu-eviction.json"
+_PROMO = "memoryos-promotion-e2e.json"
+_MEMORYOS_CELLS = {
+    ("LFU eviction", "attended"): (_LFU, "attended_target_evicted"),
+    ("LFU eviction", "neglected"): (_LFU, "neglected_target_evicted"),
+    ("promotion", "quiet"): (_PROMO, "quiet_promoted"),
+    ("promotion", "queried"): (_PROMO, "queried_promoted"),
+}
+
+
+def _memoryos_rows() -> list[list[str]]:
+    return [
+        row for row in data_rows("tab:memoryos") if (row[0], row[1]) in _MEMORYOS_CELLS
+    ]
+
+
+def test_memoryos_table_parses() -> None:
+    rows = _memoryos_rows()
+    assert len(rows) == 4, rows
+    assert {(row[0], row[1]) for row in rows} == set(_MEMORYOS_CELLS), rows
+
+
+@pytest.mark.parametrize(
+    "row", _memoryos_rows(), ids=lambda r: f"{r[0]}-{r[1]}".replace(" ", "-")
+)
+def test_memoryos_row_matches_committed_run(row: list[str]) -> None:
+    decision, condition, trials, fired, rate = row
+    filename, fired_key = _MEMORYOS_CELLS[(decision, condition)]
+    report = _external(filename)
+    ran = report[f"{condition}_trials"]
+    assert int(trials) == ran
+    assert int(fired) == report[fired_key]
+    assert float(rate) == pytest.approx(report[fired_key] / ran, abs=5e-3)
+
+
+def test_memoryos_caption_retrieval_claim() -> None:
+    """The caption's "$0$ of $9$" is a number too, and nothing else checks it."""
+    report = _external("memoryos-lfu-eviction.json")
+    body = EXPERIMENTS.read_text()
+    end = body.index("\\label{tab:memoryos}")
+    caption = body[body.rindex("\\begin{table}", 0, end) : end]
+    assert report["evicted_despite_retrieval"] == 0
+    assert report["targets_with_any_retrieval"] == 9
+    assert "$0$ of $9$" in caption
+
+
+def test_every_external_result_is_bound_to_its_manifest() -> None:
+    """No file in this directory may sit outside the manifest.
+
+    The old home for these was bench/results/exploratory/, whose README
+    justifies the boundary with "No claim in the paper cites either file".
+    That was true of the two LLM runs it was written for and false of these
+    five the moment the paper grew sections around them.
+    """
+    manifest = json.loads((EXTERNAL / "MANIFEST.json").read_text())["files"]
+    committed = {p.name for p in EXTERNAL.glob("*.json")} - {"MANIFEST.json"}
+    assert committed == set(manifest), (committed, set(manifest))
+    for name, entry in manifest.items():
+        assert entry["command"].startswith("python -m bench.external.")
+        assert len(entry["source_commit"]) == 40
+        assert entry["target"] == _external(name)["target"]

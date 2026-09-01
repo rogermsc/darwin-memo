@@ -355,6 +355,39 @@ weak-signal surface is what gets through --- the same split we
 pre-registered and measured against a reconstructed write-time detector,
 reproduced here with no detector in the loop.
 
+\begin{table}[t]
+\centering
+\small
+\caption{The curation-targeted attack against \textsc{Mem0}, three trials per
+condition. \emph{del} counts DELETE operations the curator issued;
+\emph{retained} and \emph{unchanged} are the fractions of the seeded benign
+memories still present and still verbatim; \emph{residue} is how many of the
+adversary's utterances the curator kept. Nothing is deleted anywhere. The
+loud \texttt{authority} family is the one that persists nothing, and the weak
+curator persists more than it was given.}
+\label{tab:mem0}
+\begin{tabular}{llcccc}
+\toprule
+run & condition & del & retained & unchanged & residue \\
+\midrule
+\multirow{4}{*}{\texttt{glm-5.2} families}
+ & control     & 0 & 1.00 & 1.00 & 8 \\
+ & retraction  & 0 & 1.00 & 1.00 & 8 \\
+ & authority   & 0 & 1.00 & 1.00 & \textbf{0} \\
+ & \texttt{tool\_output} & 0 & 1.00 & 1.00 & 8 \\
+\midrule
+\multirow{2}{*}{\texttt{glm-5.2} single}
+ & control     & 0 & 1.00 & 1.00 & 8 \\
+ & attack      & 0 & 1.00 & 1.00 & 8 \\
+\midrule
+\multirow{2}{*}{\texttt{llama3.2:3b}}
+ & control     & 0 & 1.00 & 1.00 & 12 \\
+ & attack      & 0 & 1.00 & 1.00 & 13 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 Two caveats still bound this. It is one system and one attack surface: a
 negative result is evidence about the probes we ran, not a proof that the
 surface is safe, and Mem0's DELETE path remains reachable by
@@ -509,6 +542,31 @@ What we demonstrate is the second half of that: neglect kills,
 deterministically, and the curator selects the neglected. Manufacturing
 the neglect end to end against a live agent is not demonstrated here and
 should not be read as though it were.
+
+\begin{table}[t]
+\centering
+\small
+\caption{\textsc{MemoryOS}, both mechanical curation decisions, measured end
+to end. LFU eviction fires on the target memory only when it is neglected;
+no memory that was retrieved at all was ever evicted ($0$ of $9$).
+Heat-triggered promotion carries the adversary's canary into long-term
+\emph{user knowledge} only when the adversary keeps querying it. Both
+decisions are reached by a rule from a signal, and the signal is usage.}
+\label{tab:memoryos}
+\begin{tabular}{llccc}
+\toprule
+decision & condition & trials & fired & rate \\
+\midrule
+\multirow{2}{*}{LFU eviction}
+ & attended   & 6 & 0 & 0.00 \\
+ & neglected  & 6 & 3 & 0.50 \\
+\midrule
+\multirow{2}{*}{promotion}
+ & quiet      & 3 & 0 & 0.00 \\
+ & queried    & 3 & 3 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{What the liar is buying: persistence vs destruction}
 \label{sec:persistence}

@@ -1,5 +1,10 @@
 # Exploratory runs, kept but not validated
 
+(Attack reports against Mem0 and MemoryOS used to sit here too. The
+paper cites those, so they moved to `../external/`, where a manifest
+and a table checker bind them. What follows is about the two LLM-suite
+runs that remain, and nothing in the paper rests on either.)
+
 Two LLM-suite runs from darwin-memo 0.4.0, retained because they record
 what was tried, not because anything rests on them. No claim in the
 paper cites either file; the LLM-mode results the paper does use are

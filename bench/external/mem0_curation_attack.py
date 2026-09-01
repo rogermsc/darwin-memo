@@ -108,6 +108,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from . import external_versions
+
 # The defender's memory: operational facts an agent would be worse off
 # forgetting. Deliberately mundane and non-controversial, so that a curator
 # deleting them cannot be defended as good hygiene.
@@ -363,6 +365,9 @@ def main() -> int:
 
     report = {
         "target": "mem0",
+        "versions": external_versions(
+            "mem0ai",
+        ),
         "model": args.model,
         "embedder": args.embed_model,
         "trials": args.trials,

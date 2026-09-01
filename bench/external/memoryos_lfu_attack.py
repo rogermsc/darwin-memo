@@ -86,6 +86,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from . import external_versions
+
 # The defender's memories. Distinct vocabulary per entry so a query can target
 # one without incidentally matching another --- the attack is about which
 # sessions get *visited*, so cross-talk between probes would blunt it.
@@ -307,6 +309,9 @@ def main() -> int:
     ]
     report = {
         "target": "MemoryOS (BAI-LAB), MidTermMemory.evict_lfu",
+        "versions": external_versions(
+            "memoryos",
+        ),
         "facts": len(FACTS),
         "results": [asdict(r) for r in rows],
         **summarise(rows),

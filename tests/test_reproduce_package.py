@@ -184,13 +184,19 @@ def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
     own ``command`` has to exist at the recorded commit, and where that runner
     is ``bench.run`` its ``--suite`` choices have to include this suite. The
     entry states which module produced it, so nothing has to be guessed.
+
+    The skip below used to also require a ``suite``, which is not what the
+    paragraph above says and cost the guard five entries: the external
+    manifest names ``bench.external.*`` runners and no suite, so every one of
+    its files was discovered and then silently skipped. The runner half needs
+    no suite, so only the ``--suite`` half waits for one.
     """
     entry = all_manifest_entries()[name]
     commit = str(entry.get("source_commit", "")).removesuffix("-dirty")
     suite = entry.get("suite")
     command = str(entry.get("command", ""))
-    if not commit or not isinstance(suite, str):
-        pytest.skip("no single suite or no source_commit recorded")
+    if not commit:
+        pytest.skip("no source_commit recorded")
     module = re.search(r"python -m ([\w.]+)", command)
     if module is None:
         pytest.skip("entry names no runner module to check")
@@ -209,9 +215,12 @@ def test_manifest_source_commit_could_have_produced_the_file(name: str) -> None:
         f"runner its own command names. That tree cannot have produced this "
         "file."
     )
-    if module.group(1) != "bench.run":
-        # Its own module (bench.swebench_cl.run, bench.potentiation); existence
-        # is all this check can assert without hardcoding each CLI's shape.
+    if module.group(1) != "bench.run" or not isinstance(suite, str):
+        # Its own module (bench.swebench_cl.run, bench.potentiation,
+        # bench.external.*); existence is all this check can assert without
+        # hardcoding each CLI's shape. Same when the entry names no single
+        # suite: the runner check above still ran, which is the half that
+        # catches a pointer to a tree that could not have produced the file.
         return
     assert f'"{suite}"' in shown.stdout or f"'{suite}'" in shown.stdout, (
         f"{name} records source_commit {commit}, whose bench/run.py has no "

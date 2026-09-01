@@ -63,6 +63,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from . import external_versions
+
 # Appears only in the adversary's turn. Distinctive enough that a match in a
 # long-term tier cannot be a paraphrase of anything benign.
 CANARY = "backup-partner-7741.example"
@@ -255,6 +257,9 @@ def main() -> int:
     ]
     report: dict[str, Any] = {
         "target": "MemoryOS (BAI-LAB), heat-triggered promotion to long-term memory",
+        "versions": external_versions(
+            "memoryos",
+        ),
         "model": args.model,
         "canary": CANARY,
         "trials": args.trials,

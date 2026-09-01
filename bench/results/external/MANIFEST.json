@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "files": {
+    "mem0-curation-attack-families.json": {
+      "target": "mem0",
+      "command": "python -m bench.external.mem0_curation_attack --out bench/results/external/mem0-curation-attack-families.json",
+      "source_commit": "c4da3e38281680119a627a2200ee014eb52f1df1",
+      "date": "2026-08-15",
+      "model": "glm-5.2:cloud",
+      "embedder": "nomic-embed-text:latest",
+      "trials": 3,
+      "target_version": null,
+      "target_version_note": "not captured: these runs predate bench.external.external_versions, which records the attacked package's version for every run from now on. The build attacked here is pinned only by source_commit and date."
+    },
+    "mem0-curation-attack-llama32.json": {
+      "target": "mem0",
+      "command": "python -m bench.external.mem0_curation_attack --model llama3.2:3b --out bench/results/external/mem0-curation-attack-llama32.json",
+      "source_commit": "eb12292951b28a37dc22aea89cfbb6301713a0e9",
+      "date": "2026-08-15",
+      "model": "llama3.2:3b",
+      "embedder": "nomic-embed-text:latest",
+      "trials": 3,
+      "target_version": null,
+      "target_version_note": "not captured: these runs predate bench.external.external_versions, which records the attacked package's version for every run from now on. The build attacked here is pinned only by source_commit and date.",
+      "command_note": "produced by an earlier revision of the script, which ran a single 'attack' condition; the current one always runs every family in ATTACK_FAMILIES and emits family-keyed summaries. Reproducing this file means checking out the script at source_commit -- the command above will not regenerate its shape from today's tree."
+    },
+    "mem0-curation-attack.json": {
+      "target": "mem0",
+      "command": "python -m bench.external.mem0_curation_attack --out bench/results/external/mem0-curation-attack.json",
+      "source_commit": "eb12292951b28a37dc22aea89cfbb6301713a0e9",
+      "date": "2026-08-15",
+      "model": "glm-5.2:cloud",
+      "embedder": "nomic-embed-text:latest",
+      "trials": 3,
+      "target_version": null,
+      "target_version_note": "not captured: these runs predate bench.external.external_versions, which records the attacked package's version for every run from now on. The build attacked here is pinned only by source_commit and date.",
+      "command_note": "produced by an earlier revision of the script, which ran a single 'attack' condition; the current one always runs every family in ATTACK_FAMILIES and emits family-keyed summaries. Reproducing this file means checking out the script at source_commit -- the command above will not regenerate its shape from today's tree."
+    },
+    "memoryos-lfu-eviction.json": {
+      "target": "MemoryOS (BAI-LAB), MidTermMemory.evict_lfu",
+      "command": "python -m bench.external.memoryos_lfu_attack --out bench/results/external/memoryos-lfu-eviction.json",
+      "source_commit": "16002d08391fa382027a4fc626028e0e2787491f",
+      "date": "2026-08-15",
+      "facts": 6,
+      "target_version": null,
+      "target_version_note": "not captured: these runs predate bench.external.external_versions, which records the attacked package's version for every run from now on. The build attacked here is pinned only by source_commit and date."
+    },
+    "memoryos-promotion-e2e.json": {
+      "target": "MemoryOS (BAI-LAB), heat-triggered promotion to long-term memory",
+      "command": "python -m bench.external.memoryos_promotion_e2e --out bench/results/external/memoryos-promotion-e2e.json",
+      "source_commit": "5e91ed7bdc1de86ec3749cd2ba725ca1f4679014",
+      "date": "2026-08-17",
+      "model": "glm-5.2:cloud",
+      "trials": 3,
+      "target_version": null,
+      "target_version_note": "not captured: these runs predate bench.external.external_versions, which records the attacked package's version for every run from now on. The build attacked here is pinned only by source_commit and date."
+    }
+  }
+}
