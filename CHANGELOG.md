@@ -455,6 +455,43 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **Settlement trust boundary: a merged PR could settle any open ticket.**
+  The PR body is attacker-influenced in a public repo, open ticket ids are
+  readable in the committed store, and `settle` popped any pending id with no
+  binding -- so a merged PR could paste a scraped id and settle someone else's
+  in-flight decision at a delta whose sign it chose (add passing tests for a
+  crown, remove tests to bury the entry as damaged). Found by an adversarial
+  code audit; no prior pass had reviewed this boundary.
+  - `settle-ci --opened-since BASE_STORE` refuses any ticket already pending
+    at the base commit: a legitimate ticket is opened by `decide()` writing it
+    into the store, which the PR commits, so a ticket pending before this PR
+    was opened by someone else. Refused ids surface as
+    `refused_not_opened_here`; without the flag the output carries
+    `"ticket_provenance": "unverified"` rather than settling silently.
+  - `docs/integrations/ci-lesson-store.md` gains a trust-boundary section:
+    open ids are not capabilities, pass `--opened-since`, and move settlement
+    off the `pull_request` event if you accept fork PRs (their token is
+    read-only, so a merged fork PR's settlement never lands and the push to
+    the default branch fails).
+  - The exposure on this repo is nil -- only the maintainer can merge -- but
+    the CI lesson store is the primary production integration, so the guide
+    was teaching an insecure pattern to adopters who do have contributors.
+
+- **A malformed or PR-authored `flaky.json` no longer bricks settlement.**
+  The sidecar is committed, so the PR being measured can author it, and
+  `load_flips` trusted it fully -- a top-level list or a numeric observation
+  threw out of it, crashing `settle-ci` for every later merge until a human
+  fixed the file. It regenerates to empty history now, which also defeats a
+  PR that authored a bogus quarantine to hide its own regression. (Round 1
+  hardened `record_flips`; this closes the read path.)
+
+- **`"collection" in message` forced false abstention.** The collection-error
+  guard matched the bare word, so an ordinary test erroring with e.g.
+  "garbage collection issue" abstained the whole run -- and a run abstains
+  once, at merge, so that PR's real regressions never settled. It matches the
+  phrase pytest actually writes ("collection failure"/"collection error"),
+  which is the contract the docstring already named.
+
 - **A skipped test measured nothing, so it is no longer booked as a
   failure.** `parse_junit` folded junit `skipped` in with `error` and
   `failure`, and `memory.yml` installed `.[dev]` where `ci.yml` installs

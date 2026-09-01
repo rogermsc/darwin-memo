@@ -150,6 +150,50 @@ ledger.save(store_path)  # the open ticket must survive this process
 If the agent speaks MCP, the decide call is the `memory_query` tool of
 `darwin-memo-mcp`, and the ticket id travels in the tool results.
 
+## The trust boundary: who may settle a ticket
+
+In a public repository the PR body is attacker-influenced, and open ticket
+ids are readable in the committed store. Without a check, a merged PR could
+paste someone else's in-flight ticket id and settle their decision at a delta
+whose sign it chooses -- adding trivial passing tests to crown an entry that
+earned nothing, or removing tests to bury one as damaged. **Open ticket ids
+are not capabilities.** A store you publish leaks every id in it.
+
+`settle-ci` closes this with `--opened-since`, pointing at the store as it was
+at the base commit. A legitimate ticket is opened by `decide()` writing it
+into the store, which the PR then commits -- so a ticket that was already
+pending at the base was opened by someone else, and this run refuses it:
+
+```bash
+# check out the base-commit copy of the store to a temp path...
+git show "$BASE_SHA:.darwin-memo/lessons.json" > /tmp/base-store.json
+darwin-memo settle-ci .darwin-memo/lessons.json \
+  --base-xml /tmp/base.xml --head-xml /tmp/head.xml \
+  --opened-since /tmp/base-store.json
+```
+
+Refused ids appear in the output under `refused_not_opened_here`, and the run
+settles only what it opened. Without `--opened-since`, the output carries
+`"ticket_provenance": "unverified"` -- settlement still happens, but the run
+is telling you it could not check provenance. Pass it.
+
+Two related notes:
+
+- **Fork PRs.** GitHub caps the token to read-only for pull requests from
+  forks regardless of the `permissions:` block, so a settle step that pushes
+  the store back to the default branch fails on a merged fork PR -- and a
+  legitimate ticket in that PR settles only inside the discarded runner, never
+  landing. If you accept outside contributions, trigger settlement on `push`
+  to the default branch (or `workflow_run` from a trusted branch) and resolve
+  the merged PR through the API, so the token is always the base repo's and
+  the PR body is fetched from a trusted context rather than injected.
+- **The flaky sidecar is untrusted too.** If you commit `flaky.json`, the PR
+  being measured can author it. A malformed sidecar now regenerates to empty
+  history rather than crashing settlement, and a bogus quarantine entry a PR
+  wrote to hide its own regression is lost with it -- but the cleaner posture
+  is to keep the sidecar out of the repo, in an Actions artifact the PR
+  cannot write.
+
 ## What to watch out for
 
 - **Flaky tests poison the signal.** The quarantine handles the

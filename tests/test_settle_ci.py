@@ -1,13 +1,16 @@
 """settle-ci: per-test junit diffing, abstention, quarantine, fallback."""
 
 import json
+from pathlib import Path
 
 import pytest
 
+from darwin_memo import Ledger
 from darwin_memo.ci import (
     EXIT_ABSTAINED,
     InfraFailure,
     diff_runs,
+    load_flips,
     parse_junit,
     quarantined,
     record_flips,
@@ -171,6 +174,17 @@ def test_record_flips_drops_tests_that_left_the_suite():
 # ----------------------------------------------------------------------
 
 
+def _energy_of_pending_decider(ledger: Ledger) -> float:
+    """The balance of the entry the single open ticket decided."""
+    pending = ledger.pending()
+    assert pending, "expected one open ticket"
+    decider = pending[0].deciding_entry
+    assert decider is not None
+    entry = ledger.store.get(decider)
+    assert entry is not None
+    return float(entry.energy)
+
+
 def _json(capsys, argv):
     assert cli_main(argv) == 0
     return json.loads(capsys.readouterr().out)
@@ -296,6 +310,9 @@ def test_settle_ci_pass_count_fallback(tmp_path, capsys, monkeypatch):
     assert out == {
         "mode": "pass-counts",
         "delta": 3.0,
+        # No --opened-since, so the run cannot verify it opened this ticket and
+        # says so rather than settling silently.
+        "ticket_provenance": "unverified",
         "settled": {ticket_id: True},
         "tick": out["tick"],
     }
@@ -427,3 +444,145 @@ def test_a_dropped_settle_is_still_evidence(tmp_path, capsys):
     )
     assert out["settled"] == {"deadbeef0000": False}, "the id landed on nothing"
     assert out["tick"]["tick"] == 1, "but the caller did report, so time passed"
+
+
+# ----------------------------------------------------------------------
+# Trust-boundary hardening (round 3)
+# ----------------------------------------------------------------------
+
+
+def test_a_test_erroring_with_the_word_collection_still_settles(tmp_path):
+    """A real test whose error message merely contains "collection" is a
+    failure to measure, not a collection error that abstains the whole run.
+
+    The guard matched the bare substring "collection", so a fixture raising
+    e.g. RuntimeError("garbage collection issue") made the head report abstain,
+    and a run abstains once, at merge -- so that PR's real regressions never
+    settled. Mutation: widen the phrase back to "collection" and this fails.
+    """
+    report = tmp_path / "run.xml"
+    report.write_text(
+        '<?xml version="1.0"?><testsuites><testsuite name="pytest" tests="2">'
+        '<testcase classname="t" name="a" time="0.01" />'
+        '<testcase classname="t" name="b">'
+        '<error message="RuntimeError: garbage collection issue">boom</error>'
+        "</testcase></testsuite></testsuites>"
+    )
+    statuses = parse_junit(report, "head")
+    assert statuses == {"t::a": True, "t::b": False}
+
+
+def test_a_real_collection_failure_still_abstains(tmp_path):
+    """The documented phrase pytest actually writes must still abstain."""
+    report = write_junit(tmp_path / "run.xml", [("mod", "collection")])
+    with pytest.raises(InfraFailure, match="collection error"):
+        parse_junit(report, "head")
+
+
+def test_load_flips_regenerates_rather_than_crashing_on_a_hostile_sidecar(tmp_path):
+    """The sidecar is committed to the repo, so the PR being measured can
+    author it. A malformed file must not brick settle-ci for every later merge.
+
+    Each of these used to raise out of load_flips (JSONDecodeError, or
+    AttributeError/TypeError from .items()/iteration); now they regenerate to
+    empty history, which also happens to defeat a PR that authored a bogus
+    quarantine to hide its own regression.
+    """
+    for bad in ('{"tests": [1, 2, 3]}', "[1, 2, 3]", '{"tests": {"x": 5}}', "not json"):
+        sidecar = tmp_path / "flaky.json"
+        sidecar.write_text(bad)
+        assert load_flips(sidecar) == {}, bad
+
+
+def test_load_flips_still_reads_a_valid_sidecar(tmp_path):
+    sidecar = tmp_path / "flaky.json"
+    sidecar.write_text('{"tests": {"pkg::test_x": [true, false, true]}}')
+    assert load_flips(sidecar) == {"pkg::test_x": [True, False, True]}
+
+
+def test_a_scraped_open_ticket_cannot_be_settled_by_another_pr(tmp_path, capsys):
+    """The high-severity finding: the PR body is attacker-influenced and open
+    ticket ids are public in the committed store, so without a provenance check
+    a merged PR could settle someone else's in-flight decision at a delta it
+    chose. --opened-since refuses any ticket already pending at the base.
+
+    Break-test: drop the guard (omit --opened-since) and the victim settles.
+    """
+    # The victim's in-flight decision, pending on main (base == head here).
+    store, victim = _store_with_ticket(tmp_path, capsys)
+    before = _energy_of_pending_decider(Ledger.load(store))
+    head = str(tmp_path / "head.json")
+    Path(head).write_text(Path(store).read_text())
+
+    base_xml = write_junit(tmp_path / "b.xml", [("keep", "passed")])
+    head_xml = write_junit(
+        tmp_path / "h.xml",
+        [("keep", "passed"), *[(f"new{i}", "passed") for i in range(20)]],
+    )
+    out = _json(
+        capsys,
+        [
+            "settle-ci",
+            head,
+            "--base-xml",
+            str(base_xml),
+            "--head-xml",
+            str(head_xml),
+            "--opened-since",
+            store,
+            "--pr-body",
+            f"lgtm\ndarwin-memo-ticket: {victim}\n",
+        ],
+    )
+    assert victim in out["refused_not_opened_here"]
+    assert victim not in out["settled"]
+
+    reloaded = Ledger.load(head)
+    assert victim in {t.id for t in reloaded.pending()}, "ticket still open"
+    assert _energy_of_pending_decider(reloaded) == before, "no credit flowed"
+
+
+def test_a_ticket_this_run_opened_still_settles(tmp_path, capsys):
+    """The guard must not block the legitimate flow: a ticket pending in head
+    but absent from base was opened by this PR and settles normally."""
+
+    # base: an entry, no open ticket yet.
+    base = str(tmp_path / "lessons.json")
+    _json(
+        capsys,
+        [
+            "ledger",
+            base,
+            "add",
+            "Is the cache disposable?",
+            "The cache is disposable and safe to remove.",
+        ],
+    )
+    # this PR opens the ticket, committing it into the head store.
+    decided = _json(capsys, ["ledger", base, "decide", "is the cache safe to remove?"])
+    mine = decided["ticket_id"]
+    # snapshot the base as it was BEFORE this PR opened the ticket.
+    base_before = str(tmp_path / "base_before.json")
+    lb = Ledger.load(base)
+    lb._pending.clear()  # the base commit had no such ticket
+    lb.save(base_before)
+
+    base_xml = write_junit(tmp_path / "b.xml", [("t", "passed")])
+    head_xml = write_junit(tmp_path / "h.xml", [("t", "passed"), ("x", "passed")])
+    out = _json(
+        capsys,
+        [
+            "settle-ci",
+            base,
+            "--base-xml",
+            str(base_xml),
+            "--head-xml",
+            str(head_xml),
+            "--opened-since",
+            base_before,
+            "--pr-body",
+            f"darwin-memo-ticket: {mine}\n",
+        ],
+    )
+    assert out["settled"].get(mine) is True
+    assert not out.get("refused_not_opened_here")

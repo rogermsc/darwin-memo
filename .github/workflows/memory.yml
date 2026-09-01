@@ -52,6 +52,15 @@ jobs:
           report "$BASE_SHA" /tmp/base.xml
           report "$MERGE_SHA" /tmp/head.xml
           git checkout -q main
+      # PR_BODY is attacker-influenced in a public repo and open ticket ids
+      # are readable in the committed store, so settle-ci grew --opened-since
+      # to refuse tickets not opened by this run (see the trust-boundary
+      # section of docs/integrations/ci-lesson-store.md). This repo's loop
+      # runs through darwin-memo-action, which does not forward that flag yet;
+      # until it does, provenance here is unverified. The practical exposure
+      # is nil -- the only account that can merge is the maintainer's -- but
+      # an adopter with outside contributors must pass --opened-since and move
+      # settlement off the pull_request event (fork tokens are read-only).
       - name: Settle tickets and tick
         id: settle
         uses: rogermsc/darwin-memo-action@v1

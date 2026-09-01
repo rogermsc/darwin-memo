@@ -97,7 +97,16 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
         passed: bool | None = True
         for child in case:
             message = child.get("message", "").lower()
-            if child.tag == "error" and "collection" in message:
+            # pytest writes the exact phrase "collection failure" (or
+            # "collection error") on a testcase whose module never imported;
+            # this used to match the bare word "collection", so an ordinary
+            # test that errored with "garbage collection issue" in its message
+            # forced the whole run to abstain -- and a run abstains exactly
+            # once, at merge, so that PR's real regressions never settled. Match
+            # the phrase the docstring already names, not the substring.
+            if child.tag == "error" and (
+                "collection failure" in message or "collection error" in message
+            ):
                 raise InfraFailure(
                     f"{label} run hit a collection error ({test_id}): "
                     "the suite never loaded"
@@ -191,15 +200,33 @@ def diff_runs(
 
 
 def load_flips(path: str | Path) -> dict[str, list[bool]]:
-    """Read the sidecar flip history; a missing file is empty history."""
+    """Read the sidecar flip history; a missing file is empty history.
+
+    The sidecar is untrusted. In the CI lesson store it is committed to the
+    repository (``memory.yml`` does ``git add .darwin-memo/flaky.json``), so
+    the very PR being measured can author it, and a corrupt or hostile file
+    must not be able to crash settlement. A malformed sidecar -- a top-level
+    list, a non-dict ``tests``, a numeric observation -- therefore regenerates
+    to empty history rather than raising out of here: a traceback would brick
+    ``settle-ci`` for every later merge until a human fixed the file, whereas
+    empty history only un-quarantines tests for one cycle, which recovers on
+    its own. Regenerating is also the more secure reading -- a PR that authored
+    a bogus quarantine to hide its own regression loses it -- though a
+    *well-formed* PR-authored entry is a separate hole the sidecar's location
+    (not its parser) has to close.
+    """
     state = Path(path)
     if not state.exists():
         return {}
-    payload = json.loads(state.read_text())
-    return {
-        test_id: [bool(v) for v in observed]
-        for test_id, observed in payload.get("tests", {}).items()
-    }
+    try:
+        payload = json.loads(state.read_text())
+        tests = payload.get("tests", {})
+        return {
+            str(test_id): [bool(v) for v in observed]
+            for test_id, observed in tests.items()
+        }
+    except (json.JSONDecodeError, AttributeError, TypeError, ValueError):
+        return {}
 
 
 def record_flips(
@@ -329,6 +356,42 @@ def cmd_settle_ci(args: argparse.Namespace) -> int:
 
     body = args.pr_body if args.pr_body is not None else os.environ.get("PR_BODY", "")
     tickets = list(dict.fromkeys(TICKET_RE.findall(body)))
+
+    # Trust boundary. The PR body is attacker-influenced in a public repo, and
+    # open ticket ids are readable in the committed store, so a merged PR could
+    # paste someone else's in-flight ticket id and settle their decision at a
+    # delta whose sign it chooses. A legitimate ticket is opened by decide()
+    # writing it into the store, which the PR then commits -- so a ticket that
+    # was ALREADY pending before this PR was opened by someone else. With
+    # --opened-since pointing at the base-commit store, refuse any scraped id
+    # that was already pending there; this run may only settle what it opened.
+    refused: list[str] = []
+    if args.opened_since is not None:
+        base_store = Path(args.opened_since).expanduser()
+        if base_store.exists():
+            try:
+                base_pending = {
+                    t.id for t in Ledger.load(base_store, event_log=None).pending()
+                }
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                # Verification was requested and the base is unreadable: fail
+                # closed rather than settle unverified. A base that simply does
+                # not exist yet (the first run) is handled above as no prior
+                # tickets, which is not this case.
+                print(json.dumps({"abstained": True, "reason": f"base store: {exc}"}))
+                print(f"abstained, base store unreadable: {exc}", file=sys.stderr)
+                return EXIT_ABSTAINED
+        else:
+            base_pending = set()
+        refused = [t for t in tickets if t in base_pending]
+        tickets = [t for t in tickets if t not in base_pending]
+        out["refused_not_opened_here"] = refused
+    else:
+        # No base store to check against, so provenance is unverified. Say so
+        # loudly in the output rather than settling silently: an operator (and
+        # the CI lesson-store guide) should pass --opened-since.
+        out["ticket_provenance"] = "unverified"
+
     out["settled"] = {
         ticket_id: ledger.settle(ticket_id, delta, detail=args.detail)
         for ticket_id in tickets
@@ -399,6 +462,15 @@ def add_settle_ci_parser(
         default=None,
         help="text carrying darwin-memo-ticket lines (default: the PR_BODY "
         "environment variable)",
+    )
+    settle_ci.add_argument(
+        "--opened-since",
+        default=None,
+        help="the store as it was at the base commit; this run may only settle "
+        "tickets it opened, so any ticket already pending there is refused. "
+        "Without it, ticket provenance is unverified and the output says so. "
+        "In CI, check out the base-commit copy of the store to a temp path and "
+        "pass it here -- see docs/integrations/ci-lesson-store.md.",
     )
     settle_ci.add_argument(
         "--detail", default="", help="settlement detail, e.g. the CI run URL"
