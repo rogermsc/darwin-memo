@@ -477,6 +477,41 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **Admission denial can no longer be reversed by escrow.** *(high)* A
+  juvenile (admission-gated) entry deciding two concurrent tickets: the first
+  settling negative denied its admission -- zeroing its balance and its
+  juvenile counter -- but the burial sweep skips an entry a second pending
+  ticket still escrows, so it survived, now looking graduated, and the second
+  ticket's positive settle re-admitted it at full deciding credit. The one
+  control whose job is "one negative deciding outcome buries a bad young lesson
+  on the spot" was defeated for exactly the entry it targets. Denial is a
+  terminal verdict, so escrow no longer protects it: a denied decider is
+  buried on the spot, and the second ticket finds it gone. Found and confirmed
+  3-0 by an adversarial audit; `test_trust.py` only covered the single-ticket
+  path.
+
+- **A malformed committed pending ticket no longer bricks `Ledger.load`.**
+  `Ticket(**t)` raised `TypeError` on an unexpected or missing key, and in the
+  CI lesson store the PR being measured commits the store unreviewed -- so one
+  bad ticket crashed every future load until a human hand-edited the JSON. The
+  ticket is dropped and the rest loads, mirroring the `load_flips` hardening.
+
+- **A truncated store names itself.** `MemoryStore.load` and `Ledger.load`
+  raised an opaque `JSONDecodeError`/`KeyError` from deep in a dataclass
+  constructor on an empty or wrong-shaped file (what a crash without the fsync
+  guarantee can leave). They raise a clear `not a valid darwin-memo store`
+  error now.
+
+- **`encode` names a non-text file** instead of a raw `UnicodeDecodeError`
+  traceback when a shell glob catches a binary or non-UTF-8 file, matching the
+  clean exit its own not-found path already produces.
+
+- **The LLM memory block collapses whitespace.** An entry whose answer carried
+  newlines plus a forged `[n] Q:/A:` block could inject a second numbered
+  snippet and misroute the model's citation -- and its credit -- to an innocent
+  entry. Question and answer are whitespace-collapsed before interpolation, as
+  `render.py` already does on the parallel surface.
+
 - **One un-embeddable entry no longer blinds every query.**
   `EmbeddingRetriever._entry_vector` raises on an empty vector (correct: a
   degenerate vector must never be cached or persisted), but `rank` called it

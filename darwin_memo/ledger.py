@@ -259,9 +259,12 @@ class Ledger:
                 delta=delta,
                 detail=detail,
             )
+        denied: set[str] = set()
         for entry_id, event in advance_lifecycle(
             self.store, applied, delta, ticket.deciding_entry
         ):
+            if event == "admission_denied":
+                denied.add(entry_id)
             self._note_lifecycle(entry_id, event, delta, ticket)
 
         # Escrow released for THIS ticket: bury what is dead, unless
@@ -282,7 +285,16 @@ class Ledger:
                 # way it survives starvation, until a human unpins it.
                 entry.energy = max(entry.energy, 0.0)
                 continue
-            if not entry.alive and entry_id not in still_escrowed:
+            # A denied juvenile decider has already received its terminal
+            # verdict, so escrow no longer protects it. Without the `denied`
+            # override a second pending ticket keeps it un-buried while
+            # advance_lifecycle has already zeroed its juvenile counter, and
+            # that ticket's next positive settle re-admits it at full deciding
+            # credit -- defeating the admission control precisely for the entry
+            # it targets.
+            if not entry.alive and (
+                entry_id not in still_escrowed or entry_id in denied
+            ):
                 self.store.bury(entry_id)
                 buried.append(entry_id)
                 self._note(
@@ -580,8 +592,12 @@ class Ledger:
         state, so upgrading from MemoryStore persistence just works.
         """
         with store_lock(path):
-            payload = json.loads(Path(path).read_text())
-        store = MemoryStore.from_payload(payload, retriever=retriever)
+            raw = Path(path).read_text()
+        try:
+            payload = json.loads(raw)
+            store = MemoryStore.from_payload(payload, retriever=retriever)
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise ValueError(f"{path} is not a valid darwin-memo store: {exc}") from exc
         ledger = cls(
             store,
             protocol=protocol,
@@ -593,7 +609,14 @@ class Ledger:
         if state:
             ledger.tick_count = int(state.get("tick_count", 0))
             for t in state.get("pending", []):
-                ticket = Ticket(**t)
+                try:
+                    ticket = Ticket(**t)
+                except TypeError:
+                    # A structurally-invalid committed ticket is dropped, not
+                    # fatal: in the CI lesson store the PR being measured
+                    # commits this file and nobody reviews it, so one bad ticket
+                    # must not brick every future load. Mirrors load_flips.
+                    continue
                 ledger._pending[ticket.id] = ticket
             ledger._history = {k: list(v) for k, v in state.get("history", {}).items()}
             ledger._damaged = set(state.get("damaged", []))

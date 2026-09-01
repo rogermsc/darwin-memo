@@ -209,8 +209,13 @@ class QueryProtocol:
         ids = list(consulted)
         memory_block = (
             "\n\n".join(
-                f"[{i + 1}] Q: {consulted[eid].question}\n"
-                f"A: {consulted[eid].answer}\n{age_annotation(consulted[eid])}"
+                # Collapse whitespace (as render.py does) so an entry whose
+                # answer contains newlines plus a forged "[n] Q:/A:" block
+                # cannot inject a second numbered snippet and misroute the
+                # model's citation to an innocent entry.
+                f"[{i + 1}] Q: {' '.join(consulted[eid].question.split())}\n"
+                f"A: {' '.join(consulted[eid].answer.split())}\n"
+                f"{age_annotation(consulted[eid])}"
                 for i, eid in enumerate(ids)
             )
             or "(memory returned nothing)"

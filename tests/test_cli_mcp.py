@@ -330,3 +330,11 @@ def test_cli_encode_uses_the_reflection_encoder_when_given_a_model(
     assert cli_main(["encode", str(doc), "-o", str(memory), "--model", "ollama:x"]) == 0
     assert used == {"client": "client:ollama:x", "documents": 1}
     assert json.loads(memory.read_text())["entries"]
+
+
+def test_encode_names_a_non_text_file_instead_of_a_traceback(tmp_path, capsys):
+    binary = tmp_path / "image.bin"
+    binary.write_bytes(b"\xff\xfe\x00\x01not utf-8\xff")
+    code = cli_main(["encode", str(binary), "-o", str(tmp_path / "m.json")])
+    assert code == 1
+    assert "cannot read" in capsys.readouterr().err

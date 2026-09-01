@@ -135,7 +135,12 @@ def cmd_encode(args: argparse.Namespace) -> int:
         if not p.exists():
             print(f"error: {path} not found", file=sys.stderr)
             return 1
-        documents.append(Document(doc_id=p.stem, text=p.read_text()))
+        try:
+            text = p.read_text()
+        except (UnicodeDecodeError, OSError) as exc:
+            print(f"error: cannot read {path} as text: {exc}", file=sys.stderr)
+            return 1
+        documents.append(Document(doc_id=p.stem, text=text))
     # Same --model spec the query subcommand takes. Without it this path was
     # hardcoded to LocalEncoder, so the CLI could not produce a
     # reflection-encoded store at all and nothing said so: the only route to

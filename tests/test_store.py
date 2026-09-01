@@ -131,3 +131,22 @@ def test_energy_share_by_kind():
     shares = store.energy_share_by_kind()
     assert abs(shares["explicit"] - 0.75) < 1e-9
     assert abs(shares["experience"] - 0.25) < 1e-9
+
+
+def test_load_names_a_corrupt_store_instead_of_an_opaque_error(tmp_path):
+    """A truncated or empty store file (what a crash without the fsync
+    guarantee can leave, or a hand-edit) names itself, not a raw
+    JSONDecodeError deep in a dataclass constructor."""
+    import pytest
+
+    from darwin_memo import MemoryStore
+
+    empty = tmp_path / "m.json"
+    empty.write_text("")
+    with pytest.raises(ValueError, match="not a valid darwin-memo store"):
+        MemoryStore.load(empty)
+
+    wrong = tmp_path / "w.json"
+    wrong.write_text("[1, 2, 3]")  # valid JSON, wrong shape
+    with pytest.raises(ValueError, match="not a valid darwin-memo store"):
+        MemoryStore.load(wrong)

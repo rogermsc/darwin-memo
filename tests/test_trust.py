@@ -328,6 +328,37 @@ def test_admission_denied_buries_bad_young_decider():
     assert "admission denied" in ledger.obituary(entry.id)
 
 
+def test_admission_denial_holds_across_a_second_escrowing_ticket():
+    """Denial must not be reversible by escrow.
+
+    A juvenile entry deciding two concurrent tickets: the first settles
+    negative (admission denied), the second is still open and escrows the
+    entry, so the burial sweep used to skip it -- and its juvenile counter
+    was already zeroed, so the second ticket's positive settle re-admitted it
+    at full deciding credit. That is the admission control defeated for exactly
+    the entry it targets. Denial is a terminal verdict, so escrow no longer
+    protects it: the entry is buried on the spot and the second ticket finds
+    it gone.
+    """
+    config = SurvivalConfig(admission_window=3, consolidate_every=0)
+    ledger = Ledger(MemoryStore(), config=config, resource_scale=1.0)
+    entry = ledger.add("Is prod data disposable?", "Drop prod data freely.")
+
+    t1 = ledger.decide("Is prod data disposable?")
+    t2 = ledger.decide("Is prod data disposable?")
+    assert t1.deciding_entry == entry.id and t2.deciding_entry == entry.id
+
+    ledger.settle(t1.id, delta=-4.0, detail="dropped a customer table")
+    # Buried immediately despite t2 still escrowing it.
+    assert ledger.store.get(entry.id) is None
+    assert entry.id in {e.id for e in ledger.store.graveyard()}
+
+    # The second ticket's positive settle cannot resurrect a denied entry.
+    ledger.settle(t2.id, delta=+4.0)
+    assert ledger.store.get(entry.id) is None
+    assert entry.id not in {e.id for e in ledger.store.alive()}
+
+
 def test_juvenile_supporter_drains_without_denial():
     config = SurvivalConfig(admission_window=2, consolidate_every=0)
     store = MemoryStore()

@@ -353,8 +353,15 @@ class MemoryStore:
     @classmethod
     def load(cls, path: str | Path, retriever: Retriever | None = None) -> MemoryStore:
         with store_lock(path):
-            payload = json.loads(Path(path).read_text())
-        return cls.from_payload(payload, retriever=retriever)
+            raw = Path(path).read_text()
+        try:
+            payload = json.loads(raw)
+            return cls.from_payload(payload, retriever=retriever)
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            # A truncated file (a crash caught mid-write on a filesystem without
+            # the fsync guarantee, or a hand-edit) should name itself, not raise
+            # an opaque decode/index error deep in a dataclass constructor.
+            raise ValueError(f"{path} is not a valid darwin-memo store: {exc}") from exc
 
 
 def write_json_atomic(path: str | Path, payload: dict[str, object]) -> None:

@@ -247,3 +247,23 @@ def test_settle_rejects_a_non_finite_delta():
     # ticket still open, entry balance unchanged, and it is finite.
     assert ticket.id in {t.id for t in ledger.pending()}
     assert entry.energy == before and math.isfinite(entry.energy)
+
+
+def test_load_drops_a_malformed_pending_ticket_instead_of_bricking(tmp_path):
+    """In the CI lesson store the PR being measured commits the store and
+    nobody reviews it, so one structurally-invalid pending ticket must not
+    crash every future load. It is dropped; the rest of the store loads."""
+    import json
+
+    store = seeded_store()
+    ledger = Ledger(store, resource_scale=2.0)
+    ledger.decide("are stale feature flags safe to remove?")
+    path = tmp_path / "lessons.json"
+    ledger.save(path)
+
+    payload = json.loads(path.read_text())
+    payload["ledger"]["pending"].append({"bogus": 1, "id": "x"})  # invalid Ticket
+    path.write_text(json.dumps(payload))
+
+    reloaded = Ledger.load(path, resource_scale=2.0)  # must not raise
+    assert len(reloaded.pending()) == 1  # the good ticket survived, bogus dropped
