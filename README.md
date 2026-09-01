@@ -409,6 +409,10 @@ plainly, and honest caveats: [docs/benchmarks.md](https://github.com/rogermsc/da
   primary production shape, lessons settled by CI pass deltas. This
   repo runs it on itself: `.darwin-memo/lessons.json` is curated by
   `memory.yml` on every merged PR.
+- **[AGENTS.md / CLAUDE.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/agents-md.md)**:
+  the cross-tool memory convention has no schema, no expiry and no pruning —
+  files only grow. `darwin-memo render` projects a store that *has* been
+  pruned by measured outcomes into the file your agent already reads.
 - **[Claude Code](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/claude-code.md)**: `darwin-memo
   render` projects the store into the auto-memory `MEMORY.md` Claude
   Code reads at session start, inside its 200-line / 25KB ceiling, or

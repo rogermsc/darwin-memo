@@ -28,6 +28,24 @@ must \emph{earn} energy from a conserved resource has nothing to earn
 from there. We report no numbers on them for that reason, not because
 the comparison is unfavourable.
 
+\paragraph{Upkeep is not a modelling convenience.}
+The premise under all of this is that memory an agent carries but does not
+earn from has a real, recurring cost. \citet{gloaguen2026agentsmd} price it
+directly on the surface where agent memory is most widely deployed:
+repository-level context files, always loaded, never curated. Across four
+models and two task sets they report that context files increase inference
+cost by over 20\% on average while not generally improving task success, and
+that repository overviews---the section every provider's initialisation prompt
+recommends---are not helpful. Two things about that measurement bound what we
+may take from it. It compares against \emph{no context file}, and
+developer-written files do beat model-written ones, so it is not a finding
+that written-down memory is worthless. And it prices a file injected into
+every prompt, not an entry fetched by retrieval, so it is a strong analogy for
+our upkeep term rather than a measurement of it. What it does establish is
+that the cost side of the ledger is not a modelling device we introduced to
+make selection work: somebody else measured it, on a mechanism with no
+curation at all, and found it substantial.
+
 \paragraph{Axis 2: Do measurements lie \emph{on purpose}?}
 This is the axis the paper is about, and it decides on its own. If an
 attacker can corrupt the signal the curator decides on, it can turn the

@@ -86,6 +86,32 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **`docs/integrations/agents-md.md`: the file nothing prunes.** `AGENTS.md`
+  and its equivalents are what every coding agent reads, and the convention
+  has no schema, no expiry, no pruning and no signal deciding whether an entry
+  stays -- files only grow. `darwin-memo render` already projects a store into
+  exactly that shape, so this is a guide and a loop, not new code.
+  - The guide's worked example is this repository's own store, which contains
+    a lesson that is **false**: "bench/results is regenerated, not committed",
+    alive at balance 1.05 while 132 result files are committed and the whole
+    reproduction architecture depends on them. That is the mechanism behaving
+    as documented -- the entry advises nothing CI ever executes, so nothing
+    has ever charged it, and inert entries can only starve. It is in the guide
+    because "read the diff before it enters your prompt" lands better with a
+    real defect than with a warning.
+  - Deliberately **not** shipped: a generated `AGENTS.md` in this repo. It
+    would put that false lesson into every agent session working here.
+
+- **The paper prices its own premise with someone else's measurement.**
+  \citet{gloaguen2026agentsmd} (arXiv:2602.11988, ETH Zurich SRI) report that
+  repository context files raise inference cost by over 20% on average without
+  generally improving task success, and that repository overviews are not
+  helpful. `regime.tex` cites it with both required softenings stated: the
+  comparison is against *no context file* and developer-written files do beat
+  model-written ones, and it prices an always-injected file rather than a
+  retrieved entry. It establishes that the cost side of the ledger is not a
+  modelling device we invented to make selection work.
+
 - **The README is now correct, reachable, and renders on PyPI.** Three
   counts had drifted from the code and nothing compared them: five baselines
   read as six, five bundled environments read as three, and eight MCP tools

@@ -51,6 +51,9 @@ demo, and the quickstart. This index is everything else.
 - **[CI lesson store](integrations/ci-lesson-store.md)**: the primary
   production shape, lessons settled by CI pass deltas; this repo runs
   it on itself.
+- **[AGENTS.md / CLAUDE.md](integrations/agents-md.md)**: the convention
+  every coding agent reads, which has no pruning mechanism at all; render a
+  settled store into it.
 - **[Claude Code](integrations/claude-code.md)**: `darwin-memo render`
   projects the store into the auto-memory `MEMORY.md` Claude Code
   reads at session start, capped to its 200-line / 25KB ceiling.
