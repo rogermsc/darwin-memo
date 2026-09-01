@@ -11,6 +11,12 @@ The core has zero runtime dependencies. Optional extras:
 (sentence-transformers), `[mcp]` (the server), `[dev]` (tests and
 linters).
 
+## Version
+
+`darwin_memo.__version__` is the installed package version as a string.
+`CITATION.cff`, `server.json` and `.zenodo.json` must agree with it; a test
+enforces that.
+
 ## Core types (`darwin_memo.types`)
 
 ### `MemoryEntry`
@@ -299,6 +305,11 @@ environments that never pay out).
   contribute nothing.
 - `death_cause(entry, poisoned_ids, merged_away) -> str`: classify a
   graveyard entry as `"merged"`, `"executed"`, or `"starved"`.
+- `advance_lifecycle(store, applied, delta, deciding_entry) -> list[tuple[str, str]]`:
+  the one trust-lifecycle rule, shared by `Ledger.settle` and the loop.
+  Advances probation and juvenile counters after a credited outcome and
+  returns the (entry_id, transition) pairs. Only relevant when the trust
+  lifecycle is enabled; see [the threat model](threat-model.md).
 
 ## Ledger (`darwin_memo.ledger`)
 
@@ -391,6 +402,27 @@ population starves.
 - `VerifiableQAEnv(qa_pairs: list[tuple[str, str]], per_cycle=5,
   seed=7)`, `resource_scale = 1.0`. Exact containment of a known
   token: the weakest grounding, still a measurement.
+
+### Priced inaction
+
+Both bundled environments score inaction at exactly zero: a kept file and
+a skipped patch cost nothing, so a store that has gone silent pays nothing
+for it. Several conclusions rest on that, and it is a property of these
+worlds rather than of curation, so each has a subclass on the other side
+of it.
+
+- `RentedStorageEnv(..., hold_cost=0.0, rent_tier="uniform")`. Same world,
+  but the conserved quantity is quota **occupancy** in byte-cycles: a file
+  left in place occupies its own size for the cycle it was left.
+  `hold_cost=0.0` delegates to the parent identically, on purpose, as a
+  reproducibility canary.
+- `RentedTestSuiteEnv(..., hold_cost=0.0)`. The counterpart, where leaving
+  the suite broken is measured rather than free.
+- `RENT_TIERS = ("uniform", "aligned", "inverted")` and
+  `rent_multipliers(tier) -> dict[str, float]`: per-category multipliers,
+  normalised on expected cost so a tier changes the *shape* of the price
+  and not its total. `aligned` bills only the disposable categories, which
+  is the economy a real retention policy has; `inverted` is its mirror.
 
 ## LLM clients (`darwin_memo.llm`)
 

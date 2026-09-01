@@ -86,6 +86,24 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **`docs/api.md` is checked against `__all__`.** The page states its own
+  rule -- "when this page and the code disagree, the code wins and the page
+  has a bug" -- and six of the package's 54 exported names were missing:
+  `RentedStorageEnv`, `RentedTestSuiteEnv`, `RENT_TIERS`,
+  `rent_multipliers`, `advance_lifecycle` and `__version__`. All are
+  documented now and a test keeps it that way. Matching is on word
+  boundaries, not substrings: the first version of that test survived a
+  break aimed straight at it, because renaming a heading to
+  `RentedTestSuiteEnvX` still contains the name it was looking for.
+
+- **A Windows CI job.** `pyproject` claims `Operating System :: OS
+  Independent` and every job was ubuntu, so the claim had never been
+  checked. `test_ui.py` would not even have reached a skip there:
+  `os.geteuid` does not exist on Windows and the `skipif` calls it at
+  collection time, so the guard now tests for the attribute rather than
+  its result. The store's advisory lock still degrades to a no-op without
+  `fcntl`, which is documented and deliberate.
+
 - **Tests for the surface adopters are sent to read.**
   `tests/test_environments.py` (`VerifiableQAEnv` was exported, documented,
   and referenced by zero tests; `cycle_rng`'s seed independence;

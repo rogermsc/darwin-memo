@@ -26,6 +26,25 @@ jobs:
           pipx run build
           pipx run twine check --strict dist/*
 
+  windows:
+    # pyproject claims "Operating System :: OS Independent" and nothing has
+    # ever checked it: every job here is ubuntu. The store's advisory lock
+    # degrades to a no-op without fcntl, which is documented and deliberate,
+    # but whether the package and its suite actually RUN on Windows was an
+    # untested claim of the same kind this repo keeps finding. One version,
+    # not the matrix: this asks "does it work at all", not "does it work
+    # everywhere".
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,mcp]"
+      - run: pytest -q -p no:cacheprovider
+
   paper:
     # The build guard has never run. tests/test_paper_builds_clean.py skips
     # without tectonic, and no job installed it, so the one check that

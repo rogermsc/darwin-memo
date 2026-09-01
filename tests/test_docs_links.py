@@ -10,6 +10,12 @@ repository keeps rediscovering. This is that sentence, enforced.
 The second test is the cheaper and broader one: a relative link to a file that
 does not exist. ``paper/reproduce.md`` pointed at ``paper/darwin-memo.md`` for
 some time after nothing else did, and nothing noticed.
+
+The third is the same failure in ``docs/api.md``, which states its own rule --
+"when this page and the code disagree, the code wins and the page has a bug" --
+and had six of the package's 54 exported names missing when this was written.
+A page that declares its own correctness and is not checked is the exact
+pattern the first two tests exist for.
 """
 
 from __future__ import annotations
@@ -71,3 +77,33 @@ def test_every_relative_link_resolves(source: Path) -> None:
         if not (source.parent / target).resolve().exists()
     ]
     assert not broken, f"{source.relative_to(ROOT)} links to missing {broken}"
+
+
+def test_api_reference_documents_every_exported_name() -> None:
+    """``docs/api.md`` covers everything in ``darwin_memo.__all__``.
+
+    The page says the code wins when they disagree, which makes the page a
+    bug report rather than a contract unless something enforces it. Six names
+    were missing when this was added: the two rent-priced environments and
+    their tier helpers, ``advance_lifecycle``, and ``__version__``.
+
+    Only this direction is checked. The page legitimately names things that
+    are not exports -- CLI subcommands, MCP tools, exception behaviour -- so
+    the reverse would be noise.
+    """
+    import darwin_memo
+
+    doc = (DOCS / "api.md").read_text()
+    exported = list(darwin_memo.__all__)
+    assert len(exported) > 40, "__all__ shrank unexpectedly; is the walk right?"
+    # Word boundaries, not substrings. A plain ``in`` check is satisfied by any
+    # superstring, so documenting only ``RentedStorageEnv`` would silently
+    # count as documenting ``StorageEnv`` -- and renaming a heading to
+    # ``RentedTestSuiteEnvX`` would keep this green, which is how the first
+    # version of this test passed a break aimed straight at it.
+    missing = sorted(
+        name
+        for name in exported
+        if not re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", doc)
+    )
+    assert not missing, f"exported but undocumented in docs/api.md: {missing}"

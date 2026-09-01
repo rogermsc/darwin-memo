@@ -404,7 +404,15 @@ def test_state_endpoint_answers_with_a_status_on_corrupt_json(tmp_path):
         server.server_close()
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permission bits")
+# ``os.geteuid`` does not exist on Windows, and this decorator is
+# evaluated at collection time, so guarding the call rather than its
+# result is what keeps a non-POSIX run from erroring during collection
+# instead of skipping. The behaviour under test is a POSIX permission
+# bit, which Windows does not have to honour for the owner anyway.
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="needs POSIX permission bits, and root ignores them",
+)
 def test_state_endpoint_answers_with_a_status_on_unreadable_file(tmp_path):
     memory = tmp_path / "memory.json"
     MemoryStore().save(memory)
