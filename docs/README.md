@@ -10,6 +10,10 @@ demo, and the quickstart. This index is everything else.
   retrieval floors), what each does mechanically, failure symptoms in
   both directions, and evidence-backed starting points for CI lesson
   stores, coding-agent lesson stores, and generic agent memory.
+- **[Writing your own environment](custom-environments.md)**: the
+  load-bearing task -- picking a conserved resource, both phrase-reading
+  traps, unit-testing `verify` before running a loop, and the five ways a
+  run degenerates.
 - **[API reference](api.md)**: the public Python surface with real
   signatures, the CLI subcommands, the MCP tools, and every raised
   exception (including `StoreLockedError`).
@@ -35,6 +39,12 @@ demo, and the quickstart. This index is everything else.
   from MeMo and the survival paper, where it lives in the code, and
   where the implementation deviates and why.
 - **[Launch post](launch-post.md)**: the story of why this exists.
+- **[Threat model](threat-model.md)**: what an adversary with write
+  access to your corpus or your settlement signal can do, and which of
+  it this package defends against.
+- **[Organic memory](organic.md)**: the experimental, opt-in adaptive
+  layer (links, gisting, spreading recall) and the measured cost of its
+  earned-importance phase.
 
 ## Integrations
 

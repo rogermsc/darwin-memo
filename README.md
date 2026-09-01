@@ -440,7 +440,14 @@ python examples/03_survival_loop.py    # the headline demo
 python examples/04_agent_loop.py       # memory as a tool in an agent loop
 python examples/05_testsuite_env.py    # selection pressure from a test suite
 python examples/06_ci_lesson_store.py  # the Ledger settling lessons by CI delta
+python examples/07_local_stack.py      # the whole stack on Ollama, no cloud
+python examples/08_evm_settler.py      # on-chain balance deltas as the signal
+python examples/09_your_own_corpus.py  # your documents instead of the demo's
 ```
+
+`09` is the one to read when the demo works and your own files do not:
+it takes a directory, and it shows the retrieval floor rejecting a
+question phrased in structural words rather than hiding it.
 
 Three environments ship: `StorageEnv` (bytes on a real disk),
 `TestSuiteEnv` (passing tests in a generated micro-project, with
