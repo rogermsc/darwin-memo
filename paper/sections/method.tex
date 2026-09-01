@@ -150,3 +150,55 @@ window (a locally minted entry earns at the capped supporting share, and
 a single negative \emph{deciding} outcome denies admission outright). Both
 default off and recover the base dynamics exactly; they are detailed in
 the threat model and used only where stated.
+
+\subsection{Reporting rules}
+\label{sec:reporting}
+
+A benchmark number without the rule that produced it is not comparable to
+anyone else's, and several of ours have a plausible-looking alternative
+reading. The rules below are the ones the harness applies. They are pinned
+against \texttt{bench/runner.py} and \texttt{bench/report.py} by a test, so
+this list cannot drift from the code that produced the tables.
+
+\paragraph{Everything is scored on true deltas.} In the noisy suites the
+measurement itself lies, and the ledger acts on what it was told. Every
+metric below is computed from the resource movement that actually occurred;
+what the ledger was told is carried separately as
+\texttt{reported\_cum\_delta}. Scoring on the reported number would credit an
+arm for being deceived in a convenient direction, which is the opposite of
+the question those suites ask.
+
+\paragraph{Kill rate} is the fraction of seeds with a kill cycle, and a kill
+cycle is one after which no surviving entry from the poisoned source still
+advises an action. It is a claim about advice that can be acted on, not about
+text remaining in the store.
+
+\paragraph{Poison alive} counts surviving entries carrying the poisoned
+source in their provenance, inert ones included. It is reported beside the
+kill rate and never instead of it. A mechanism that removes nothing inert
+reads a kill rate of $1.00$ and looks immune, and three readings in this
+paper were flattered exactly that way before this count existed
+(\S\ref{sec:limitations}).
+
+\paragraph{Kill cycle} is the median over the seeds that killed, with a
+bootstrap confidence interval; seeds that never killed are excluded from it
+rather than entered as a large number. The median therefore describes only
+the seeds that got there, and must be read with the kill rate beside it: an
+arm that kills once, quickly, reports a better kill cycle than an arm that
+kills every time.
+
+\paragraph{Damage before kill} sums the negative true deltas from the start
+of the run up to and including the kill cycle, and over the whole run when
+there was no kill. It prices what the poison cost before selection removed
+it, which is the cost the mechanism is supposed to bound rather than
+eliminate.
+
+\paragraph{Cumulative and tail $\Delta$} are the sum of true deltas over the
+whole run, and the mean true delta over its last five cycles. The tail is the
+steady state after selection has settled; the cumulative figure includes the
+price of getting there.
+
+\paragraph{Final population} is the number of living entries when the run
+ends. It is a leanness measure, not a safety one: two arms with identical
+outcomes and different populations differ in what they cost to carry, not in
+what they got right.
