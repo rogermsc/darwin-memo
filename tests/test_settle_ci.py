@@ -586,3 +586,15 @@ def test_a_ticket_this_run_opened_still_settles(tmp_path, capsys):
     )
     assert out["settled"].get(mine) is True
     assert not out.get("refused_not_opened_here")
+
+
+def test_record_flips_window_zero_keeps_no_history_not_all_of_it():
+    """observed[-0:] is the whole list, so a zero window used to keep an
+    unbounded, permanently-quarantining history -- the opposite of every
+    positive window. A zero window keeps nothing."""
+    history = record_flips({}, {"t::x": True}, {"t::x": False}, window=0)
+    assert history == {} or history.get("t::x") == []
+    # a positive window still caps as before.
+    long = {"t::x": [True, False] * 10}
+    capped = record_flips(long, {"t::x": True}, {"t::x": True}, window=3)
+    assert len(capped["t::x"]) == 3

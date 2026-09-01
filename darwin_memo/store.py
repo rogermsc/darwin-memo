@@ -362,5 +362,20 @@ def write_json_atomic(path: str | Path, payload: dict[str, object]) -> None:
     never leave a truncated file behind (the previous snapshot survives)."""
     target = Path(path)
     temp = target.with_name(target.name + ".tmp")
-    temp.write_text(json.dumps(payload, indent=2))
+    # fsync the data before the rename and the directory after it, so the
+    # docstring's promise holds against a power or kernel crash, not only a
+    # process crash: without the flush, the rename metadata can reach disk
+    # while the new file's blocks have not, leaving a zero-length store.
+    with open(temp, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, indent=2))
+        fh.flush()
+        os.fsync(fh.fileno())
     os.replace(temp, target)
+    try:
+        dir_fd = os.open(str(target.parent) or ".", os.O_RDONLY)
+    except OSError:
+        return  # directory fsync unsupported here (e.g. Windows); the file fsync stands
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)

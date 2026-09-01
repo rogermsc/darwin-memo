@@ -189,3 +189,18 @@ def test_split_citations_strips_think_blocks():
     assert cited == ["b"]
     assert none is False
     assert "<think>" not in text
+
+
+def test_split_citations_keeps_real_citations_that_co_occur_with_none():
+    """A SOURCES line that both cites an entry and contains the word "none"
+    used memory, so its credit must route to the cited entry -- not spread as
+    a fallback because "none" appeared. Mutation: check "none" before parsing
+    brackets and this drops [1]."""
+    _text, cited, none = _split_citations(
+        "Answer.\nSOURCES: [1], none of the others applied", ["a", "b"]
+    )
+    assert cited == ["a"]
+    assert none is False
+    # A bare "none" with no brackets is still an explicit none.
+    _, cited2, none2 = _split_citations("Answer.\nSOURCES: none", ["a", "b"])
+    assert cited2 == [] and none2 is True

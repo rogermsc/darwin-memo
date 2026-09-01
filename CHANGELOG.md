@@ -477,6 +477,31 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **`write_json_atomic` now fsyncs.** It wrote the temp file and renamed with
+  no flush, so its own promise ("a crash mid-write can never leave a truncated
+  file behind") held for a process crash but not a power or kernel crash: the
+  rename metadata could reach disk while the data blocks had not, zeroing the
+  store. It fsyncs the data before the rename and the directory after
+  (directory fsync guarded for platforms that do not support it).
+
+- **`Ledger.settle` rejects a non-finite delta.** A NaN or infinity from any
+  caller -- an MCP agent computing `passed/total` as `0/0`, say -- would
+  bypass the tanh energy cap (`min(cap, nan)` is `nan`) and write an invalid
+  JSON token into the event log, breaking the audit and the dashboard. It is
+  now dropped as a no-op, like an unknown ticket, at the shared function so
+  every caller is covered.
+
+- **A SOURCES line no longer loses real citations to a co-occurring "none".**
+  `_split_citations` checked for the word "none" before parsing brackets, so
+  an answer citing `[1]` and also saying "none of the others applied" was read
+  as using no memory, spreading its credit as a fallback instead of routing it
+  to the cited entry. Brackets are parsed first; "none" is an explicit-none
+  only when no citation was found.
+
+- **`settle-ci --window 0` no longer keeps unbounded history.** `observed[-0:]`
+  is the whole list, so a zero window kept a permanently-quarantining history
+  -- the opposite of every positive window. A zero window keeps nothing.
+
 - **`EvmSettler` can cross-check a second RPC endpoint.** `evm.py`'s own
   docstring documents that some public endpoints (it names
   `base-rpc.publicnode.com`) serve wrong-block state at HTTP 200 with no error

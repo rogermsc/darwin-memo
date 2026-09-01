@@ -253,7 +253,10 @@ def record_flips(
             if result is not None:
                 observed.append(result)
         if observed:
-            updated[test_id] = observed[-window:]
+            # window <= 0 would make observed[-0:] the WHOLE list (an
+            # unbounded, permanently-quarantining history), the opposite of
+            # every positive window; a zero window keeps no history.
+            updated[test_id] = observed[-window:] if window > 0 else []
     return updated
 
 

@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import uuid
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
@@ -223,6 +224,14 @@ class Ledger:
         one. The False path stays a no-op rather than an exception
         because duplicate deliveries are normal in event-driven systems.
         """
+        if not math.isfinite(delta):
+            # A NaN or infinity is not a measurement. Left unguarded it would
+            # bypass the tanh energy cap (min(cap, nan) is nan) and write an
+            # invalid JSON token into the event log, breaking the audit and the
+            # dashboard. Reject it as a no-op, like an unknown ticket, and keep
+            # the log valid by not echoing the value.
+            self._log("settle_rejected", ticket=ticket_id, detail="non-finite delta")
+            return False
         ticket = self._pending.pop(ticket_id, None)
         if ticket is None:
             self._log("settle_dropped", ticket=ticket_id, delta=delta, detail=detail)

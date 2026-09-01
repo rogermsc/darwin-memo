@@ -324,11 +324,15 @@ def _split_citations(answer: str, ids: list[str]) -> tuple[str, list[str], bool]
     match = matches[-1]
     text = (answer[: match.start()] + answer[match.end() :]).strip()
     payload = match.group(1)
-    if re.search(r"\bnone\b", payload, re.IGNORECASE):
-        return text, [], True
     cited: list[str] = []
     for number in re.findall(r"\[(\d+)\]", payload):
         index = int(number) - 1
         if 0 <= index < len(ids) and ids[index] not in cited:
             cited.append(ids[index])
-    return text, cited, False
+    if cited:
+        # Real citations win over an also-present "none": a SOURCES line that
+        # both cites [1] and says "none of the others applied" used memory, so
+        # its credit must route to the cited entries, not spread as a fallback.
+        return text, cited, False
+    explicit_none = bool(re.search(r"\bnone\b", payload, re.IGNORECASE))
+    return text, [], explicit_none

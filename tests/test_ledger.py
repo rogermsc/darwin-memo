@@ -229,3 +229,21 @@ def test_pinned_entry_at_zero_makes_the_charge_less_than_the_naive_estimate(tmp_
     assert tick_event["upkeep_charged"] < naive_estimate, (
         "the pinned entry's zero floor forgave part of its upkeep"
     )
+
+
+def test_settle_rejects_a_non_finite_delta():
+    """A NaN or infinity is not a measurement. Unguarded it would bypass the
+    energy cap (min(cap, nan) is nan) and write an invalid JSON token into the
+    event log. settle drops it as a no-op, and the entry is untouched."""
+    import math
+
+    store = seeded_store()
+    ledger = Ledger(store, resource_scale=2.0)
+    ticket = ledger.decide("are stale feature flags safe to remove?")
+    entry = deciding_entry_of(store, ticket)
+    before = entry.energy
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        assert ledger.settle(ticket.id, bad) is False
+    # ticket still open, entry balance unchanged, and it is finite.
+    assert ticket.id in {t.id for t in ledger.pending()}
+    assert entry.energy == before and math.isfinite(entry.energy)
