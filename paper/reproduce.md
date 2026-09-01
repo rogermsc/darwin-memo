@@ -1,7 +1,10 @@
 # Frozen reproduction package
 
-This package reproduces the evidence behind the technical report
-(`paper/darwin-memo.md`). The verification path is offline by default: it
+This package reproduces the evidence behind the paper
+(`paper/main.tex`, *Attacking the Curator*). The superseded v0.5.1
+technical report is kept at
+`docs/research/2026-06-13-conserved-resource-selection-report.md` and is
+not checked. The verification path is offline by default: it
 checks the committed per-seed result JSON against the manifest, with no
 model and no network.
 

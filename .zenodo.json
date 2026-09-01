@@ -1,9 +1,9 @@
 {
   "title": "darwin-memo: self-curating memory for LLM agents",
-  "description": "Survival-selection memory for LLM agents. Lessons hold balances of a single conserved resource; a decide/settle/tick ledger credits and debits them from measured outcomes, charges upkeep, and buries entries that starve. No LLM judge is used in the mechanism, a design stance justified on cost and circularity grounds. This deposit archives version 0.5.1, which ships a technical report (paper/darwin-memo.md) on the cost and leanness of a judge-free conserved-resource buffer and a map of the noise regimes where it beats, ties, or loses to discrete strike counters, a successive-elimination bandit, and a local LLM judge, plus a frozen reproduction package (paper/reproduce.md, paper/reproduce.sh) with per-seed result JSON bound to a manifest. The report claims a cost argument, leanness, and an empirical noise-regime map, not a state-of-the-art result and not a demonstrated judge-free superiority.",
+  "description": "Survival-selection memory for LLM agents. Lessons hold balances of a single conserved resource; a decide/settle/tick ledger credits and debits them from measured outcomes, charges upkeep, and buries entries that starve. No LLM judge is used in the mechanism, a design stance justified on cost and circularity grounds. This deposit archives the software together with the paper (paper/main.tex, \"Attacking the Curator: Curation-Targeted Attacks on Agent Memory, and What Survives Them\"), which defines the curation-targeted attack -- an adversary that corrupts the settlement signal rather than injecting poison -- and measures curation mechanisms against it across attack budgets and seeds, with exact paired permutation tests and Holm-Bonferroni correction. It reports negative results as prominently as positive ones: absent an attacker the mechanism buys leanness and cost, not accuracy, and on real coding tasks no memory arm beat no memory at all. Ships a frozen reproduction package (paper/reproduce.md, paper/reproduce.sh) whose per-seed result JSON is bound to a manifest and checked in CI, where tests re-derive the paper's printed numbers from that committed evidence. The superseded v0.5.1 technical report is kept under docs/research/.",
   "upload_type": "software",
-  "publication_type": "report",
-  "version": "0.5.1",
+  "publication_type": "preprint",
+  "version": "0.6.0",
   "license": "MIT",
   "access_right": "open",
   "creators": [

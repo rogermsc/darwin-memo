@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 #
-# Frozen reproduction package for the darwin-memo technical report
-# (paper/darwin-memo.md), version 0.5.1.
+# Frozen reproduction package for the darwin-memo paper
+# (paper/main.tex, "Attacking the Curator").
+#
+# The evidence predates any one release; see paper/reproduce.md. The
+# environment below pins v0.5.1 because that is the release the earliest
+# committed suites were cut against, not because the paper is that old.
 #
 # What this script does, and only this, by default:
 #   1. Creates a fresh virtual environment.

@@ -1,3 +1,9 @@
+> **Superseded.** This is the v0.5.1 technical report, kept for the
+> record. The current paper is `paper/main.tex` (*Attacking the
+> Curator*), and it is the only document whose numbers are enforced
+> against committed evidence in CI. Nothing here is checked; where the
+> two disagree, `paper/main.tex` wins.
+
 # Conserved-Resource Selection for Agent Memory: Cost, Leanness, and the Noise Regimes Where a Judge-Free Buffer Helps
 
 Roger Simoes
