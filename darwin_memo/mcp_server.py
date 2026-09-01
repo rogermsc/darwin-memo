@@ -30,7 +30,6 @@ from pathlib import Path
 from .ledger import Ledger
 from .observe import audit_digest, filter_events, read_events
 from .store import MemoryStore
-from .types import EntryKind, MemoryEntry
 
 DEFAULT_MEMORY = "~/.darwin-memo/memory.json"
 
@@ -150,14 +149,12 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
     def memory_add(question: str, answer: str, source: str = "agent") -> str:
         """Write a new entry. It starts at spawn energy and must earn
         its keep from here: adding is cheap, surviving is not."""
-        entry = store.add(
-            MemoryEntry(
-                question=question,
-                answer=answer,
-                kind=EntryKind.EXPERIENCE,
-                sources=[source],
-            )
-        )
+        # Through the ledger, not store.add directly: ledger.add stamps
+        # born_cycle from the current tick, logs the birth to the audit, and
+        # applies admission gating. store.add left born_cycle at 0, so an
+        # agent-added entry showed as the oldest in the store and ranked as
+        # ancient under recency weighting, with no birth event recorded.
+        entry = ledger.add(question, answer, source)
         _persist()
         return f"added {entry.id}"
 

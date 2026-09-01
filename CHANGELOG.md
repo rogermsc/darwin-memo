@@ -477,6 +477,18 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **One un-embeddable entry no longer blinds every query.**
+  `EmbeddingRetriever._entry_vector` raises on an empty vector (correct: a
+  degenerate vector must never be cached or persisted), but `rank` called it
+  for every candidate with no guard, so a single un-embeddable entry raised
+  out of retrieval and took down every query against the whole store until it
+  was buried. `rank` skips it now; the entry goes dark, as intended.
+
+- **`memory_add` writes through the ledger.** The MCP add tool called
+  `store.add` directly, bypassing `ledger.add`, so an agent-added entry was
+  stamped `born_cycle=0` -- shown as the oldest in the store, ranked as
+  ancient under recency weighting -- with no birth event in the audit log.
+
 - **`write_json_atomic` now fsyncs.** It wrote the temp file and renamed with
   no flush, so its own promise ("a crash mid-write can never leave a truncated
   file behind") held for a process crash but not a power or kernel crash: the

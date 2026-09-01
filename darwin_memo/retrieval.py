@@ -281,7 +281,14 @@ class EmbeddingRetriever:
         query_vec = self.embed(query)
         scored: list[tuple[MemoryEntry, float]] = []
         for entry in entries:
-            score = _cosine(query_vec, self._entry_vector(entry))
+            try:
+                entry_vec = self._entry_vector(entry)
+            except ValueError:
+                # One un-embeddable entry goes dark, as intended -- but it must
+                # not raise out of rank and blind every query against the whole
+                # store until it is buried.
+                continue
+            score = _cosine(query_vec, entry_vec)
             if score >= self.min_similarity:
                 scored.append((entry, score))
         return scored

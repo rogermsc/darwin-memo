@@ -106,3 +106,21 @@ def test_buried_entries_drop_from_retriever_cache():
     assert entry.id in retriever._vectors
     store.bury(entry.id)
     assert entry.id not in retriever._vectors
+
+
+def test_one_unembeddable_entry_does_not_blind_every_query():
+    """_entry_vector raises on an empty vector (correct: never cache a
+    degenerate one), but rank must skip that entry, not let it take down
+    retrieval for the whole store. Mutation: drop the try/except and this
+    raises instead of returning the good entry."""
+    from darwin_memo import EmbeddingRetriever, MemoryEntry
+
+    good = MemoryEntry(question="cache files", answer="caches are disposable")
+    bad = MemoryEntry(question="", answer="")
+
+    def embed(text: str) -> list[float]:
+        return [] if not text.strip() else [float(len(text)), 1.0]
+
+    r = EmbeddingRetriever(embed, min_similarity=0.0)
+    ranked = r.rank("cache", [good, bad])
+    assert [e.id for e, _ in ranked] == [good.id], "good entry survives, bad goes dark"
