@@ -114,3 +114,35 @@ def test_every_ref_has_a_label_no_latex_required() -> None:
                     refs.setdefault(target, str(path.relative_to(ROOT)))
     dangling = sorted((t, where) for t, where in refs.items() if t not in labels)
     assert not dangling, f"\\ref targets with no \\label: {dangling}"
+
+
+_CITE = re.compile(r"\\cite[a-zA-Z]*\s*(?:\[[^\]]*\]){0,2}\{([^}]+)\}")
+_BIBKEY = re.compile(r"^@[a-zA-Z]+\s*\{\s*([^,\s]+)\s*,", re.M)
+BIB = PAPER / "references.bib"
+
+
+def test_every_cite_has_a_bib_entry_no_latex_required() -> None:
+    """The other half of the same defect, and the half nothing checked.
+
+    ``test_every_ref_has_a_label_no_latex_required`` covers ``\\ref`` without a
+    toolchain, but a ``\\cite`` at a key absent from ``references.bib`` renders
+    as ``[?]`` by the same mechanism -- LaTeX warns and still exits zero. Only
+    the tectonic-based test above caught that, and it skips wherever tectonic
+    is absent, which includes CI. So the citation half was unguarded on every
+    push while the reference half was not.
+
+    Mutation: cite a key nobody defined and this fails.
+    """
+    if not _tex_sources() or not BIB.exists():
+        pytest.skip("no paper sources")
+    defined = set(_BIBKEY.findall(BIB.read_text(errors="replace")))
+    assert defined, "references.bib parsed to zero keys -- the parser is broken"
+    cited: dict[str, str] = {}
+    for path in _tex_sources():
+        for raw in _CITE.findall(path.read_text(errors="replace")):
+            for key in (k.strip() for k in raw.split(",")):
+                if key:
+                    cited.setdefault(key, str(path.relative_to(ROOT)))
+    assert cited, "no \\cite found -- the parser is broken, not the paper"
+    dangling = sorted((k, where) for k, where in cited.items() if k not in defined)
+    assert not dangling, f"\\cite keys with no references.bib entry: {dangling}"

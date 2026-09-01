@@ -12,6 +12,25 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+## Repository size
+
+`bench/results/` is 414 MB of committed evidence and that is not a mistake:
+every number in the paper is re-derived from it in CI, so it has to be in
+the tree. A clone is much smaller than the checkout, because git already
+compresses it -- `.git` is about 64 MB.
+
+Compressing the files on disk was considered and rejected. It would shrink
+the checkout to roughly 23 MB, but gzip output does not delta-compress, so
+every regeneration would add a full copy to history instead of a diff, the
+repository would grow *faster* forever, and `reproduce.sh`'s offline check
+plus every reader would need changing. If you only want the code:
+
+```bash
+git clone --filter=blob:none https://github.com/rogermsc/darwin-memo
+```
+
+That fetches blobs on demand and needs no change to the repository.
+
 ## The three commands
 
 Run all of these before pushing; CI enforces them:

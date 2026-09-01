@@ -26,6 +26,34 @@ jobs:
           pipx run build
           pipx run twine check --strict dist/*
 
+  paper:
+    # The build guard has never run. tests/test_paper_builds_clean.py skips
+    # without tectonic, and no job installed it, so the one check that
+    # compiles the paper measured nothing on every push since it was written
+    # -- while its own file carries a comment saying a guard that cannot run
+    # in CI is not a guard. The ref and cite halves are covered without a
+    # toolchain in the test job; this covers the half that needs one, and
+    # publishes the PDF nobody could otherwise see.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Install tectonic
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tectonic
+      - run: tectonic --version
+      - name: The paper must build with no undefined references
+        run: pytest -q tests/test_paper_builds_clean.py
+      - name: Build the PDF
+        run: tectonic --keep-logs --outdir "${RUNNER_TEMP:-/tmp}" paper/main.tex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paper
+          path: ${{ runner.temp }}/main.pdf
+          if-no-files-found: error
+
   test:
     runs-on: ubuntu-latest
     strategy:
