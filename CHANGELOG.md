@@ -477,6 +477,22 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **A collection error is detected structurally, not by its message text.**
+  *(medium)* pytest attributes every collected test to its module, so a
+  testcase's classname is the dotted module path; the one case it cannot
+  attribute -- a module that never imported -- it emits as `<error>` with an
+  *empty* classname (verified against real pytest output across xunit1 and
+  xunit2). `settle-ci` now keys the collection-failure abstain on that empty
+  classname instead of the error message. The message match mis-fired both
+  ways: the original bare word "collection" abstained on an ordinary
+  `RuntimeError("garbage collection issue")`, and even the tightened exact
+  phrase "collection failure" still false-abstained on a genuine setup/fixture
+  error whose message merely *quoted* it -- and a run abstains once, at merge,
+  so that PR's real regressions never settled. A real error keeps its module's
+  classname; a collect failure alone has none. The synthetic junit fixtures,
+  which had hardcoded `classname="t"` on collection cases that no real pytest
+  ever produces, now emit the empty classname they actually carry.
+
 - **The MCP server retries a save through a transient store lock.** The
   read-only dashboard -- the server's own documented companion -- holds the
   store's exclusive lock for the length of one read, so a concurrent

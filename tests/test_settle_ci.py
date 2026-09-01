@@ -32,6 +32,13 @@ _CASE_BODIES = {
 def _case(name, status):
     if status == "passed":
         return f'<testcase classname="t" name="{name}" time="0.01" />'
+    if status == "collection":
+        # Real pytest attributes a collection failure to no module, so the
+        # testcase carries an EMPTY classname -- the structural signal the
+        # settler keys on. Earlier fixtures hardcoded classname="t", which no
+        # real collection error ever produces.
+        body = _CASE_BODIES["collection"]
+        return f'<testcase classname="" name="{name}">{body}</testcase>'
     return f'<testcase classname="t" name="{name}">{_CASE_BODIES[status]}</testcase>'
 
 
@@ -455,10 +462,11 @@ def test_a_test_erroring_with_the_word_collection_still_settles(tmp_path):
     """A real test whose error message merely contains "collection" is a
     failure to measure, not a collection error that abstains the whole run.
 
-    The guard matched the bare substring "collection", so a fixture raising
-    e.g. RuntimeError("garbage collection issue") made the head report abstain,
-    and a run abstains once, at merge -- so that PR's real regressions never
-    settled. Mutation: widen the phrase back to "collection" and this fails.
+    The guard now keys on an empty classname (a collect failure attributes to
+    no module); a real error like RuntimeError("garbage collection issue")
+    keeps its module's classname="t", so it settles as a failure instead of
+    abstaining the whole run at merge. Mutation: abstain on any <error> and
+    this fails.
     """
     report = tmp_path / "run.xml"
     report.write_text(
@@ -477,6 +485,30 @@ def test_a_real_collection_failure_still_abstains(tmp_path):
     report = write_junit(tmp_path / "run.xml", [("mod", "collection")])
     with pytest.raises(InfraFailure, match="collection error"):
         parse_junit(report, "head")
+
+
+def test_a_setup_error_quoting_collection_failure_still_settles(tmp_path):
+    """A genuine setup/fixture error whose message literally contains
+    "collection failure" is a measured failure, not a collect failure.
+
+    pytest emits it as <error> with a non-empty classname (the test's module or
+    class), whereas a real collect failure has classname="". The retired
+    phrase-match guard keyed on the message and false-abstained on this exact
+    shape -- verified against real pytest output (a class fixture raising
+    RuntimeError). Mutation: fall back to matching "collection failure" in the
+    message and this fails (the run wrongly abstains).
+    """
+    report = tmp_path / "run.xml"
+    report.write_text(
+        '<?xml version="1.0"?><testsuites><testsuite name="pytest" tests="2">'
+        '<testcase classname="t" name="a" time="0.01" />'
+        '<testcase classname="pkg.TestThing" name="test_x">'
+        '<error message="failed on setup with '
+        '&quot;RuntimeError: collection failure lookalike&quot;">boom</error>'
+        "</testcase></testsuite></testsuites>"
+    )
+    statuses = parse_junit(report, "head")
+    assert statuses == {"t::a": True, "pkg.TestThing::test_x": False}
 
 
 def test_load_flips_regenerates_rather_than_crashing_on_a_hostile_sidecar(tmp_path):

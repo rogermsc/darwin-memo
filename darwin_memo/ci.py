@@ -96,17 +96,18 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
         test_id = f"{classname}::{name}" if classname else name
         passed: bool | None = True
         for child in case:
-            message = child.get("message", "").lower()
-            # pytest writes the exact phrase "collection failure" (or
-            # "collection error") on a testcase whose module never imported;
-            # this used to match the bare word "collection", so an ordinary
-            # test that errored with "garbage collection issue" in its message
-            # forced the whole run to abstain -- and a run abstains exactly
-            # once, at merge, so that PR's real regressions never settled. Match
-            # the phrase the docstring already names, not the substring.
-            if child.tag == "error" and (
-                "collection failure" in message or "collection error" in message
-            ):
+            # pytest attributes every collected test to its module, so a
+            # testcase's classname is the dotted module path (non-empty). The
+            # one case it cannot attribute is a module that never imported -- a
+            # collection failure -- which it emits as <error> with an EMPTY
+            # classname (verified across xunit1/xunit2). That structural signal,
+            # not the message text, marks a suite that never loaded. Matching
+            # the message mis-fired both ways: the bare word "collection"
+            # abstained on "garbage collection issue", and even the exact phrase
+            # "collection failure" false-abstains on a genuine setup error that
+            # merely quotes it -- such an error still carries its module's
+            # classname; a collect failure alone has none.
+            if child.tag == "error" and classname == "":
                 raise InfraFailure(
                     f"{label} run hit a collection error ({test_id}): "
                     "the suite never loaded"
