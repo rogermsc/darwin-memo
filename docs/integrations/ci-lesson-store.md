@@ -177,6 +177,19 @@ settles only what it opened. Without `--opened-since`, the output carries
 `"ticket_provenance": "unverified"` -- settlement still happens, but the run
 is telling you it could not check provenance. Pass it.
 
+**What `--opened-since` does and does not close.** It closes the pasted-id
+hijack: settling *someone else's already-open ticket* by copying its id from
+the public store. It does **not** stop a PR from opening its *own* fresh
+ticket whose query is crafted (from a victim entry's public question text) to
+elect that victim as the deciding entry, then settling it negative to drain
+it -- that ticket is legitimately opened-here. Two things bound that residual,
+neither perfect: one settle's damage is tanh-capped (`credit_gain`), so a
+single malicious PR cannot bury a well-established entry outright; and the
+same review that would catch a PR gratuitously deleting tests is the backstop.
+If your entries are high-value and your contributor set is untrusted, review
+the settle diff, and treat a negative settlement on an entry a PR did not
+author as something to check.
+
 Two related notes:
 
 - **Fork PRs.** GitHub caps the token to read-only for pull requests from

@@ -338,3 +338,26 @@ def test_encode_names_a_non_text_file_instead_of_a_traceback(tmp_path, capsys):
     code = cli_main(["encode", str(binary), "-o", str(tmp_path / "m.json")])
     assert code == 1
     assert "cannot read" in capsys.readouterr().err
+
+
+def test_save_with_retry_survives_a_transient_lock(monkeypatch):
+    """A concurrent dashboard read holds the store lock for one load; the MCP
+    save must retry through it, not surface a spurious failure after settle has
+    already moved credit in memory. Mutation: set retries=1 and it re-raises."""
+    from darwin_memo.mcp_server import save_with_retry
+    from darwin_memo.store import StoreLockedError
+
+    calls = {"n": 0}
+
+    class Ledger:
+        def save(self, path):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise StoreLockedError("held by a reader")
+
+    save_with_retry(Ledger(), "/tmp/x.json", retries=5, backoff=0.0)
+    assert calls["n"] == 3  # two locked, third succeeds
+
+    calls["n"] = 0
+    with pytest.raises(StoreLockedError):
+        save_with_retry(Ledger(), "/tmp/x.json", retries=1, backoff=0.0)

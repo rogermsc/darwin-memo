@@ -477,6 +477,22 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **The MCP server retries a save through a transient store lock.** The
+  read-only dashboard -- the server's own documented companion -- holds the
+  store's exclusive lock for the length of one read, so a concurrent
+  `memory_settle` save could raise `StoreLockedError` *after* the settle had
+  already popped the ticket and moved credit in memory: the agent was told its
+  settle failed, and a retry then reported the ticket unknown. `save_with_retry`
+  clears the millisecond-long read with bounded retries (the UI already handles
+  the mirror case with a 503-and-retry), re-raising only on genuine contention.
+
+- **`--opened-since` is described accurately.** The CI guide now says what it
+  does *and does not* close: it stops settling someone else's already-open
+  ticket (the pasted-id hijack), but not a PR opening its own crafted ticket
+  that elects a victim entry to drive negative -- that residual is bounded by
+  the per-settle tanh damage cap and by review, and the guide says so instead
+  of implying the burial attack is fully closed.
+
 - **Admission denial can no longer be reversed by escrow.** *(high)* A
   juvenile (admission-gated) entry deciding two concurrent tickets: the first
   settling negative denied its admission -- zeroing its balance and its

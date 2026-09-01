@@ -25,13 +25,49 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from pathlib import Path
+from typing import Protocol
 
 from .ledger import Ledger
 from .observe import audit_digest, filter_events, read_events
-from .store import MemoryStore
+from .store import MemoryStore, StoreLockedError
 
 DEFAULT_MEMORY = "~/.darwin-memo/memory.json"
+_PERSIST_RETRIES = 5
+_PERSIST_BACKOFF = 0.05  # seconds; grows linearly per attempt
+
+
+class _Persistable(Protocol):
+    def save(self, path: str | Path) -> None: ...
+
+
+def save_with_retry(
+    ledger: _Persistable,
+    path: str | Path,
+    retries: int = _PERSIST_RETRIES,
+    backoff: float = _PERSIST_BACKOFF,
+) -> None:
+    """Persist the ledger, retrying a transient StoreLockedError.
+
+    A concurrent reader -- most often the read-only dashboard, the server's own
+    documented companion -- holds the store's exclusive lock for the length of
+    one load, so a save can collide with a benign read. Without a retry the
+    collision raised out of the tool AFTER settle had already popped the ticket
+    and moved credit in memory, so the agent was told its settle failed and a
+    retry then reported the ticket unknown. Brief bounded retries clear the
+    millisecond-long read; the UI handles the mirror case with a 503-and-retry.
+    A save that stays locked past the last attempt re-raises: genuine
+    contention is not something to swallow.
+    """
+    for attempt in range(retries):
+        try:
+            ledger.save(path)
+            return
+        except StoreLockedError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(backoff * (attempt + 1))
 
 
 def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-untyped-def]
@@ -81,7 +117,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
     )
 
     def _persist() -> None:
-        ledger.save(memory_path)
+        save_with_retry(ledger, memory_path)
 
     @server.tool()
     def memory_query(query: str, half_life: float = 0) -> str:
