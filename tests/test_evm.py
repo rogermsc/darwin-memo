@@ -230,3 +230,60 @@ def test_tx_cost_missing_tx_body_is_loud(fake_rpc):
     # No matching entry in FakeRpc.txs: eth_getTransactionByHash -> null.
     with pytest.raises(EvmRpcError, match="no transaction body"):
         EvmSettler(ADDR, rpc=fake_rpc).tx_cost("0xorphan")
+
+
+# ----------------------------------------------------------------------
+# Round 3: the documented "lies at HTTP 200" failure, made detectable
+# ----------------------------------------------------------------------
+
+
+class _StubRpc(EvmRpc):
+    """A minimal EvmRpc: enough for a native-balance snapshot, no socket.
+
+    Serves one fixed balance for every block, so two stubs with different
+    balances model two endpoints disagreeing about the same block -- which is
+    exactly what a wrong-block-state endpoint looks like next to an honest one.
+    Subclasses EvmRpc (whose __init__ only stores url/timeout, no network) so
+    it is a real EvmRpc to the type checker.
+    """
+
+    def __init__(self, url: str, balance: int, head: int = 1000) -> None:
+        super().__init__(url)
+        self._balance = balance
+        self._head = head
+
+    def block_number(self) -> int:
+        return self._head
+
+    def call(self, method: str, params: list[Any]) -> Any:
+        assert method == "eth_getBalance"
+        return hex(self._balance)
+
+
+def test_a_second_endpoint_that_disagrees_refuses_to_settle() -> None:
+    """The module's docstring warns that some endpoints serve wrong-block state
+    at HTTP 200; verify_rpc turns that silent lie into a hard error instead of
+    a confidently wrong delta that credits or damages entries on fiction.
+
+    Mutation: drop the verify_rpc comparison and this settles on the honest
+    endpoint's number, never noticing the liar.
+    """
+    honest = _StubRpc("https://honest", balance=5_000)
+    liar = _StubRpc("https://liar", balance=9_999)  # wrong-block state
+    settler = EvmSettler(ADDR, rpc=honest, verify_rpc=liar)
+    with pytest.raises(EvmRpcError, match="disagrees across endpoints"):
+        settler.snapshot(block=1000)
+
+
+def test_two_agreeing_endpoints_snapshot_normally() -> None:
+    a = _StubRpc("https://a", balance=5_000)
+    b = _StubRpc("https://b", balance=5_000)
+    settler = EvmSettler(ADDR, rpc=a, verify_rpc=b)
+    snap = settler.snapshot(block=1000)
+    assert snap == {"block": 1000, "balance": 5_000}
+
+
+def test_without_verify_rpc_behaviour_is_unchanged() -> None:
+    """Opt-in: a single trusted endpoint still works with no second opinion."""
+    snap = EvmSettler(ADDR, rpc=_StubRpc("https://solo", balance=42)).snapshot(block=7)
+    assert snap == {"block": 7, "balance": 42}

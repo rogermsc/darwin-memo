@@ -205,8 +205,19 @@ class EvmSettler:
         address: str,
         rpc: EvmRpc | None = None,
         token: str | None = None,
+        verify_rpc: EvmRpc | None = None,
     ) -> None:
         self.rpc = rpc or EvmRpc()
+        # A second, independent endpoint. When set, every snapshot is read from
+        # both and must agree, or settlement refuses. This is the enforcement
+        # behind this module's own docstring warning: some public endpoints
+        # (base-rpc.publicnode.com is named above) serve wrong-block state at
+        # HTTP 200 with no error, which would credit or damage entries on
+        # fiction -- the exact thing a judge-free measurement must not do. Two
+        # endpoints serving different balances for one block is that failure
+        # made visible. Opt-in, because a single trusted archive node needs no
+        # second opinion and the extra call is not free.
+        self.verify_rpc = verify_rpc
         self.address = _validate_address(address)
         self.token = _validate_address(token) if token else None
 
@@ -223,14 +234,24 @@ class EvmSettler:
         """
         if block is None:
             block = self.rpc.block_number()
+        balance = self._balance_at(self.rpc, block)
+        if self.verify_rpc is not None:
+            other = self._balance_at(self.verify_rpc, block)
+            if other != balance:
+                raise EvmRpcError(
+                    f"balance at block {block} disagrees across endpoints "
+                    f"({self.rpc.url}={balance} vs {self.verify_rpc.url}={other}); "
+                    "one is serving wrong-block state -- refusing to settle on it"
+                )
+        return {"block": block, "balance": balance}
+
+    def _balance_at(self, rpc: EvmRpc, block: int) -> int:
         tag = hex(block)
         if self.token is None:
-            balance = int(self.call_balance(tag), 16)
-        else:
-            data = _BALANCE_OF + self.address[2:].rjust(64, "0")
-            raw = self.rpc.call("eth_call", [{"to": self.token, "data": data}, tag])
-            balance = _decode_uint(raw, self.token, "balanceOf")
-        return {"block": block, "balance": balance}
+            return int(rpc.call("eth_getBalance", [self.address, tag]), 16)
+        data = _BALANCE_OF + self.address[2:].rjust(64, "0")
+        raw = rpc.call("eth_call", [{"to": self.token, "data": data}, tag])
+        return _decode_uint(raw, self.token, "balanceOf")
 
     def call_balance(self, tag: str) -> str:
         result: str = self.rpc.call("eth_getBalance", [self.address, tag])

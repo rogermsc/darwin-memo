@@ -455,6 +455,16 @@ project uses [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **`EvmSettler` can cross-check a second RPC endpoint.** `evm.py`'s own
+  docstring documents that some public endpoints (it names
+  `base-rpc.publicnode.com`) serve wrong-block state at HTTP 200 with no error
+  signal, which would settle credit or damage on a confidently wrong delta --
+  defeating the judge-free-measurement property the module exists for. The
+  warning was prose enforced by nothing. `EvmSettler(..., verify_rpc=...)`
+  reads every snapshot from both endpoints and refuses to settle when they
+  disagree about the same block. Opt-in; a single trusted archive node is
+  unchanged.
+
 - **Settlement trust boundary: a merged PR could settle any open ticket.**
   The PR body is attacker-influenced in a public repo, open ticket ids are
   readable in the committed store, and `settle` popped any pending id with no
