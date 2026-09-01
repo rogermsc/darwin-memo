@@ -11,11 +11,11 @@ import math
 from typing import Protocol
 
 from darwin_memo import MemoryEntry, MemoryStore
-from darwin_memo.retrieval import HashingEmbedder
+from darwin_memo.retrieval import EmbeddingFn, HashingEmbedder
 
-
-class Embedder(Protocol):
-    def __call__(self, text: str) -> list[float]: ...
+# The exported `EmbeddingFn` is this exact protocol, and this module already
+# imports from that one. Re-declaring it here was a second name for one type.
+Embedder = EmbeddingFn
 
 
 class Backend(Protocol):

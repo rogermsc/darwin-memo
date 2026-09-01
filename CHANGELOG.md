@@ -103,6 +103,14 @@ project uses [SemVer](https://semver.org/).
   break aimed straight at it, because renaming a heading to
   `RentedTestSuiteEnvX` still contains the name it was looking for.
 
+- **`Embedder` was a second name for `EmbeddingFn`.** The organic layer
+  re-declared the exported protocol byte for byte in a module that already
+  imports from `darwin_memo.retrieval`; it is an alias now. Found by a
+  repo-wide over-engineering audit, which turned up almost nothing else:
+  625 symbols with 2 unreferenced (both documented public API), 28 CLI
+  flags all read, no delegate-only wrappers, and every `observe.py`
+  function and dashboard panel reached.
+
 - **A Windows CI job.** `pyproject` claims `Operating System :: OS
   Independent` and every job was ubuntu, so the claim had never been
   checked. `test_ui.py` would not even have reached a skip there:
