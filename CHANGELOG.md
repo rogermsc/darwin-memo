@@ -86,6 +86,17 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **An Ethics and responsible disclosure section** (`paper/sections/ethics.tex`).
+  A grep for "ethic", "broader impact" or "responsible disclosure" across
+  `paper/` returned zero, in a paper that runs attacks against two named
+  third-party systems. Every security venue and NeurIPS/ICLR require this as a
+  discrete section, and the disclosure account was a `\paragraph` buried in
+  the experiments. It now states what was attacked and in what sandbox, that
+  no hosted service or third-party data was touched, the disclosure exchange
+  and where the redacted record lives, why publishing is the lower risk when
+  no deployed system has the targeted surface yet, and what the artifact
+  deliberately does not release.
+
 - **`docs/integrations/agents-md.md`: the file nothing prunes.** `AGENTS.md`
   and its equivalents are what every coding agent reads, and the convention
   has no schema, no expiry, no pruning and no signal deciding whether an entry

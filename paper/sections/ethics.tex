@@ -1,0 +1,54 @@
+\section{Ethics and responsible disclosure}
+\label{sec:ethics}
+
+This paper describes an attack. Three things bound what we did with it.
+
+\paragraph{What was attacked, and with whose knowledge.}
+Two of the systems measured here are other people's:
+\textsc{Mem0} (\S\ref{sec:mem0}) and \textsc{MemoryOS}
+\citep{kang2025memoryos} (\S\ref{sec:memoryos}). Both were exercised against
+their published source at a pinned commit, in local sandboxes, with synthetic
+corpora we wrote. No hosted service was attacked, no account other than our
+own was involved, and no third party's data was read, moved or destroyed at
+any point.
+
+Findings against \textsc{MemoryOS} were sent to the corresponding author
+before this section was written, with the code paths, the scripts, and an
+offer to correct anything we had described wrongly. The reply neither disputed
+a finding nor requested an embargo, and invited fixes through the project's
+repository. The correspondence, with the maintainer's address and our mail
+identifiers removed, is archived in the artifact under
+\texttt{docs/disclosure/}. We record that exchange as what it is: the
+maintainers were given the findings in full and raised no objection. It is not
+an endorsement, and every claim about their system rests on our own reading of
+their published source.
+
+Of the three \textsc{MemoryOS} findings, one is a defect with a patch to
+submit; the other two describe a mechanism working exactly as designed, which
+is why they are reported as properties of a design rather than as
+vulnerabilities.
+
+\paragraph{Why publishing this is the lower risk.}
+The attack targets curators that remove entries \emph{automatically, by a rule,
+from a signal}. Our survey of deployed systems (\S\ref{sec:mem0}) found that
+none of them does this today: they decline to forget at all, forget only when
+a caller asks, or forget only when a model agrees. The threat model is
+therefore forward-looking with respect to the current ecosystem rather than a
+vulnerability report against shipping software, and the mechanism most exposed
+to it is the one this paper itself proposes. We would rather describe the
+failure mode of a class of design before it is widely deployed than after.
+
+That framing carries an obligation we have tried to meet: every defence we
+measured is reported with the regime in which it fails, and the two negative
+results (\S\ref{sec:limitations}) are stated as prominently as the positive
+ones, because a reader deciding whether to deploy outcome-driven curation
+needs the losses more than the wins.
+
+\paragraph{What we are not releasing.}
+The released artifact contains the attack harnesses used for the measurements
+in this paper, against sandboxed local instances and synthetic corpora. It
+contains no exploit for a hosted service, no credential, no scraped or
+personal data, and no corpus derived from anyone's private notes. The
+\textsc{Mem0} and \textsc{MemoryOS} scripts are released because a claim about
+somebody else's curator is unverifiable without them, and because both
+findings are already in the maintainers' hands.
