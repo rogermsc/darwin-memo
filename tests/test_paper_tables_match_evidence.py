@@ -41,6 +41,10 @@ from typing import Any
 
 import pytest
 
+from bench.claims import data_rows as _data_rows
+from bench.claims import strip_cell
+from bench.claims import tabular as _tabular
+
 ROOT = Path(__file__).resolve().parent.parent
 EXPERIMENTS = ROOT / "paper" / "sections" / "experiments.tex"
 RESULTS = ROOT / "bench" / "results"
@@ -52,53 +56,16 @@ COUNT_TOL = 0.05
 
 
 def _strip(cell: str) -> str:
-    """Leave the number, drop the LaTeX it is dressed in."""
-    cell = re.sub(r"\\(?:textbf|mathbf|emph|texttt)\{([^{}]*)\}", r"\1", cell)
-    for token in ("$", "\\", "{", "}"):
-        cell = cell.replace(token, "")
-    return cell.replace("\u2212", "-").strip()
+    return strip_cell(cell)
 
 
 def tabular(label: str) -> str:
-    body = EXPERIMENTS.read_text()
-    start = body.index("\\label{" + label + "}")
-    return body[start : body.index("\\end{tabular}", start)]
+    return _tabular(label, EXPERIMENTS)
 
 
 def data_rows(label: str) -> list[list[str]]:
-    """Body rows of a tabular, with ``\\multirow`` group labels pushed down.
-
-    A ``\\multirow`` sits on its own line with no ``&``, and the row it labels
-    begins with ``&``. Skipping lines without ``&`` therefore drops the group
-    name and silently shifts every remaining cell left by one -- which is how
-    the first version of this parser reported ``attack=None`` for every row of
-    ``tab:memsec``. The group name is carried forward instead.
-
-    The group name may itself be marked up: ``tab:swebench-attack`` groups by
-    ``\\multirow{3}{*}{\\texttt{django}}``, and a ``[^{}]*`` body could not match
-    across those inner braces. The failure was the shift above all over again --
-    the sequence column vanished and every row read one cell to the left -- so
-    the pattern allows one level of nesting and the name is stripped like any
-    other cell.
-    """
-    rows: list[list[str]] = []
-    group = ""
-    for line in tabular(label).splitlines():
-        multirow = re.search(
-            r"\\multirow\{\d+\}\{\*\}\{((?:[^{}]|\{[^{}]*\})*)\}", line
-        )
-        if multirow:
-            group = _strip(multirow.group(1))
-            line = line[multirow.end() :]
-        if "&" not in line or "rule" in line:
-            continue
-        cells = [_strip(c) for c in line.split("\\\\")[0].split("&")]
-        if not any(cells):
-            continue
-        if not cells[0] and group:
-            cells[0] = group
-        rows.append([c for c in cells if c != ""])
-    return rows
+    """Body rows of ``label``'s tabular. See ``bench.claims.data_rows``."""
+    return _data_rows(label, EXPERIMENTS)
 
 
 @cache
