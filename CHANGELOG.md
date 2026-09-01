@@ -86,6 +86,28 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **The novelty claim is sharpened to its exact cell, with the blocking
+  citation.** A direct-fetch pass over the prior-art primary sources (the
+  angle two earlier search-based passes could not answer) placed every
+  selection/eviction mechanism in a different cell: Voyager and Generative
+  Agents and A-MEM judge with an LLM, MemGPT pages under a token budget,
+  Titans forgets by a learned gradient gate, DGM/AlphaEvolve select agents and
+  programs rather than memory, and the nearest neighbour --
+  \citet{wu2026forget}, "Forget to Improve" (arXiv:2606.25115) -- curates
+  under a real conserved byte/energy budget but evicts by a value-minus-harm-
+  per-byte *score*. `related.tex` now cites it and states the axis: a budget
+  is not enough if a valuation still decides what it spends on; the unclaimed
+  cell is conserved *and* measurement-settled *and* judge-free at once.
+  Citation metadata verified against arXiv.
+- **`PaperClaimEnv`'s task is positioned as unclaimed, not hedged.** Verifying
+  a paper's own numbers against its own released data is not an established
+  benchmark task -- SciFact checks claim-vs-abstract, TabFact statement-vs-
+  Wikipedia-table, PaperQA2 settles contradictions with human experts. Its
+  docstring now says so.
+- **`paper/submission-notes.md`** captures the novelty cell, a venue shortlist
+  (NeurIPS Evaluations & Datasets is the strongest fit; dates flagged as
+  needing re-check), and the literature-signal finding.
+
 - **An Ethics and responsible disclosure section** (`paper/sections/ethics.tex`).
   A grep for "ethic", "broader impact" or "responsible disclosure" across
   `paper/` returned zero, in a paper that runs attacks against two named

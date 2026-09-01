@@ -17,6 +17,17 @@ changes nothing and earns nothing.
 
 No model scores anything. The comparison is `==` against a number on disk.
 
+**The task itself is largely unclaimed.** "Does a paper's stated number still
+reconcile with its own released data" is not an established benchmark task.
+The adjacent work verifies something else: SciFact checks a claim against an
+abstract, TabFact a statement against a Wikipedia table, SEM-TAB-FACTS a
+generated statement against a scientific table -- none checks a paper's own
+figures against its own released artifact as internal-consistency error
+detection. PaperQA2 detects contradictions but settles them with human
+experts (a judge, ~30% false positive). So the signal here is not a hedge; it
+is a task framing with no dense, judge-free incumbent, which is exactly why it
+can settle a memory entry automatically when those cannot.
+
 **Why this domain and not retraction.** Retraction and replication are the
 obvious outcome signals for literature memory and both are far too slow: a
 retraction arrives years after the entry it should have killed would already
