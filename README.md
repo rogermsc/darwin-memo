@@ -13,7 +13,7 @@ actually freed on a real disk, tests actually passing. Poisoned advice
 gets executed by the environment it damaged. Useless trivia starves.
 There is no reward model, no LLM judge, and no human curation anywhere.
 
-![Survival loop demo: a poisoned memory entry going extinct](docs/assets/demo.gif)
+![Survival loop demo: a poisoned memory entry going extinct](https://raw.githubusercontent.com/rogermsc/darwin-memo/main/docs/assets/demo.gif)
 
 Watch a poisoned entry go extinct in your own terminal, one command,
 no keys, no checkout:
@@ -27,7 +27,7 @@ pip install darwin-memo && darwin-memo demo
 Use darwin-memo where a **conserved, measurable outcome** exists to
 settle decisions against: coding-agent lesson stores settled by CI
 pass counts (the primary target, see
-[the integration guide](docs/integrations/ci-lesson-store.md)), storage
+[the integration guide](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/ci-lesson-store.md)), storage
 and artifact retention, cache and dedup advisors, spend-cap automation.
 
 Do not use it for chat-preference memory, RAG over documentation, or
@@ -73,6 +73,26 @@ Three death modes show up in the graveyard, and the distinction matters:
 - **merged**: near-duplicate survivors absorbed into consolidated
   entries. Their energy pools, their lineage is recorded, and the
   population shrinks while capability per entry rises.
+
+## The paper
+
+**Attacking the Curator: Curation-Targeted Attacks on Agent Memory, and
+What Survives Them.** An adversary that corrupts the *settlement signal*
+rather than injecting poison — denial of memory — measured against six
+curation mechanisms across attack budgets and seeds, with exact paired
+permutation tests and Holm-Bonferroni correction.
+
+It reports its negative results as prominently as its positive ones.
+Absent an attacker the ledger buys leanness and cost, not accuracy; and
+across 2,115 evaluated SWE-Bench-CL tasks, no memory arm beat carrying no
+memory at all.
+
+- [The paper](https://github.com/rogermsc/darwin-memo/blob/main/paper/main.tex) and its
+  [threat model](https://github.com/rogermsc/darwin-memo/blob/main/docs/threat-model.md)
+- [Reproduction package](https://github.com/rogermsc/darwin-memo/blob/main/paper/reproduce.md) — every printed number is
+  re-derived from committed per-seed runs in CI, so a table that drifts
+  from its evidence fails the build
+- Cite it with the BibTeX in [Citations](#citations) below
 
 ## Where it comes from
 
@@ -177,7 +197,8 @@ The agent gets `memory_query` (returns an answer plus a ticket id),
 `memory_settle` (report the measured delta later; the reply says
 plainly when a settlement did NOT land), `memory_abandon` (release a
 ticket you chose not to act on), `memory_add`, `memory_tick`,
-`memory_stats`, and `memory_obituary`. The full state, including open
+`memory_stats`, `memory_obituary`, and `memory_audit` (read the event
+log). The full state, including open
 tickets, persists across sessions and restarts, so a ticket opened
 today settles correctly from tomorrow's process.
 
@@ -280,6 +301,12 @@ them up front:
    everything dies at once around there, your environment never paid
    out: check 1 and 2.
 
+Two more failure modes, how to pick a conserved resource, how to price a
+mistake from a real cost, and how to table-test `verify` before running
+any loop are in
+**[docs/custom-environments.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/custom-environments.md)** — the full
+guide this section condenses, with two worked environments to read.
+
 ## Retrieval modes
 
 Retrieval is pluggable through the `Retriever` protocol; the store stays
@@ -335,7 +362,7 @@ the world to hurt:
 
 ## Benchmarks
 
-Survival is benchmarked against six baselines across 10 seeds, with
+Survival is benchmarked against five baselines across 10 seeds, with
 ablations and a scaling probe, all reproducible offline from `bench/`.
 The sharpest comparison is `random_matched`: identical per-cycle
 eviction counts, random victims.
@@ -374,27 +401,31 @@ A paraphrase probe set, scored by provenance rather than keywords,
 quantifies how the demo degrades outside its own vocabulary, and an
 embedding-retriever arm shows the mechanism does not depend on the
 lexical-match path. Full tables, every baseline's best metric stated
-plainly, and honest caveats: [docs/benchmarks.md](docs/benchmarks.md).
+plainly, and honest caveats: [docs/benchmarks.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/benchmarks.md).
 
 ## Integrations
 
-- **[CI lesson store](docs/integrations/ci-lesson-store.md)**: the
+- **[CI lesson store](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/ci-lesson-store.md)**: the
   primary production shape, lessons settled by CI pass deltas. This
   repo runs it on itself: `.darwin-memo/lessons.json` is curated by
   `memory.yml` on every merged PR.
-- **[OpenClaw](docs/integrations/openclaw.md)**: mount over MCP, or
+- **[Claude Code](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/claude-code.md)**: `darwin-memo
+  render` projects the store into the auto-memory `MEMORY.md` Claude
+  Code reads at session start, inside its 200-line / 25KB ceiling, or
+  into an index plus topic files with `--split-dir`.
+- **[OpenClaw](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/openclaw.md)**: mount over MCP, or
   claim the memory slot with
   [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin):
   measured (not self-reported) settlement from `agent_end` outcomes.
-- **[OpenAI Agents SDK](docs/integrations/openai-agents.md)**: a
+- **[OpenAI Agents SDK](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/openai-agents.md)**: a
   dependency-free `DarwinMemoSession` implements the SDK's Session
   protocol (transcript replay as honest JSONL) and adds the long-term
   layer the SDK leaves vacant: opt-in `consult`/`settle` against a
   lesson store, deltas always measured by the host.
-- **[Hermes](docs/integrations/hermes.md)**: Hermes models run through
+- **[Hermes](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/hermes.md)**: Hermes models run through
   the Ollama client (think-blocks handled), and Hermes Agent mounts the
   MCP server natively.
-- **[Animoca Minds / EVM](docs/integrations/animoca-minds.md)**: the
+- **[Animoca Minds / EVM](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/animoca-minds.md)**: the
   generic settler is built in (`EvmSettler`, zero dependencies):
   on-chain balance deltas and gas are judge-free settlement signals,
   readable with no API key (the snapshot flow needs no archive node;
@@ -415,17 +446,17 @@ importance) is the exception and is **opt-in** — it biases ranking by default,
 and slows upkeep only if you pass `om.upkeep_scale()` to `charge_upkeep`. That
 makes usage a retention signal, which this repo's own `salience_matched` arm
 measured at a 0.20 poison kill rate against random eviction's 0.80; read
-[docs/organic.md](docs/organic.md) before wiring it. Zero-dependency by
+[docs/organic.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/organic.md) before wiring it. Zero-dependency by
 default; `pip install darwin-memo[organic]` adds a turbovec ANN backend for
 scale.
 
 ## Documentation
 
-The [docs index](docs/README.md) links everything. The operator set:
-the [tuning guide](docs/tuning.md) (the load-bearing knobs, failure
+The [docs index](https://github.com/rogermsc/darwin-memo/blob/main/docs/README.md) links everything. The operator set:
+the [tuning guide](https://github.com/rogermsc/darwin-memo/blob/main/docs/tuning.md) (the load-bearing knobs, failure
 symptoms, evidence-backed starting points per profile), the
-[API reference](docs/api.md) (Python surface, CLI, MCP tools,
-exceptions), and the [store format](docs/store-format.md) (the
+[API reference](https://github.com/rogermsc/darwin-memo/blob/main/docs/api.md) (Python surface, CLI, MCP tools,
+exceptions), and the [store format](https://github.com/rogermsc/darwin-memo/blob/main/docs/store-format.md) (the
 on-disk JSON, the event log and its rotation, the sidecars, the
 compatibility policy).
 
@@ -449,10 +480,18 @@ python examples/09_your_own_corpus.py  # your documents instead of the demo's
 it takes a directory, and it shows the retrieval floor rejecting a
 question phrased in structural words rather than hiding it.
 
-Three environments ship: `StorageEnv` (bytes on a real disk),
-`TestSuiteEnv` (passing tests in a generated micro-project, with
-destructive patches dressed as cleanup), and `VerifiableQAEnv` (exact
-containment, the weakest grounding but still a measurement).
+Five environments ship. Three measure a resource: `StorageEnv` (bytes
+on a real disk), `TestSuiteEnv` (passing tests in a generated
+micro-project, with destructive patches dressed as cleanup), and
+`VerifiableQAEnv` (exact containment, the weakest grounding but still a
+measurement). Two price *inaction*, which the other three score at
+zero: `RentedStorageEnv` and `RentedTestSuiteEnv` charge for holding on
+rather than only for acting, because several conclusions here rest on
+inaction being free and that is a property of the world, not of
+curation.
+
+Writing your own is the load-bearing task, and it has a guide:
+[docs/custom-environments.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/custom-environments.md).
 
 To distill survivors into an actual parametric memory model (MeMo's
 native form), `training/train_memory_model.py` fine-tunes a small model
@@ -468,7 +507,7 @@ buried poison?). The result is survival selection working as a data
 filter for parametric memory: the survivor-distilled model recalls the
 good facts and reproduces **none** of the poison, while the raw-distilled
 model reproduces it — because the poison was in its training set. See
-[docs/benchmarks.md](docs/benchmarks.md#parametric-memory-distillation-as-a-data-filter).
+[docs/benchmarks.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/benchmarks.md#parametric-memory-distillation-as-a-data-filter).
 
 ## Design notes
 
@@ -500,8 +539,8 @@ model reproduces it — because the poison was in its training set. See
   arrive after the execution. Unsettled tickets expire at delta zero.
 
 The full concept-to-code mapping, including honest deviations from both
-papers, is in [docs/paper-to-code.md](docs/paper-to-code.md). The story
-of why this exists: [docs/launch-post.md](docs/launch-post.md).
+papers, is in [docs/paper-to-code.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/paper-to-code.md). The story
+of why this exists: [docs/launch-post.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/launch-post.md).
 
 ## Tests
 
@@ -518,8 +557,32 @@ never reads energy), all with no labels anywhere.
 
 ## Citations
 
+To cite darwin-memo itself, or the paper it ships:
+
+```bibtex
+@software{simoes2026darwinmemo,
+  title  = {darwin-memo: self-curating memory for LLM agents},
+  author = {Sim\~oes, Roger},
+  year   = {2026},
+  url    = {https://github.com/rogermsc/darwin-memo}
+}
+
+@misc{simoes2026attacking,
+  title  = {Attacking the Curator: Curation-Targeted Attacks on Agent
+            Memory, and What Survives Them},
+  author = {Sim\~oes, Roger},
+  year   = {2026},
+  url    = {https://github.com/rogermsc/darwin-memo/blob/main/paper/main.tex}
+}
+```
+
+Both entries are provisional: there is no archival deposit yet, so
+neither carries a DOI. `CITATION.cff` is the machine-readable version and
+says the same thing.
+
 This repo is an independent practical interpretation, not the official
-code of either paper. If you build on the ideas, cite the originals:
+code of either source paper. If you build on the ideas, cite the
+originals too:
 
 ```bibtex
 @misc{quek2026memo,

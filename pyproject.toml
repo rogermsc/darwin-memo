@@ -10,19 +10,30 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Roger Simoes" }]
+# PyPI indexes these and nothing else. CITATION.cff and .zenodo.json carried
+# a better set for a while and it never reached the one file search uses.
+# "mcp" matters most: this package ships an MCP server, and without the
+# keyword a PyPI search for "mcp memory" does not surface it at all.
 keywords = [
     "llm",
     "memory",
     "agents",
     "agent-memory",
-    "self-training",
-    "selection",
-    "survival",
-    "memo",
+    "long-term-memory",
+    "memory-curation",
+    "mcp",
+    "model-context-protocol",
+    "coding-agent",
+    "agent-security",
+    "memory-poisoning",
+    "continual-learning",
+    "survival-selection",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -84,6 +95,8 @@ Homepage = "https://github.com/rogermsc/darwin-memo"
 Documentation = "https://github.com/rogermsc/darwin-memo/blob/main/docs/README.md"
 Changelog = "https://github.com/rogermsc/darwin-memo/blob/main/CHANGELOG.md"
 Issues = "https://github.com/rogermsc/darwin-memo/issues"
+Source = "https://github.com/rogermsc/darwin-memo"
+Paper = "https://github.com/rogermsc/darwin-memo/blob/main/paper/main.tex"
 
 [tool.setuptools.dynamic]
 version = { attr = "darwin_memo.__version__" }

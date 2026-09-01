@@ -86,6 +86,35 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **The README is now correct, reachable, and renders on PyPI.** Three
+  counts had drifted from the code and nothing compared them: five baselines
+  read as six, five bundled environments read as three, and eight MCP tools
+  read as seven (`memory_audit` shipped and was never listed). All three are
+  fixed and pinned by tests against `bench.policies.ARMS`,
+  `darwin_memo.__all__`, and the `@server.tool` registrations.
+  - **Every link in the README is absolute now.** PyPI does not rewrite
+    relative URLs, so the hero GIF was a broken image above the fold on the
+    project's primary distribution page, and all 14 doc links 404'd there. A
+    test fails on any relative link for that reason.
+  - **A `## Paper` section**, with the title, the honest summary (including
+    the null on 2,115 SWE-Bench-CL tasks), links to the paper, the
+    reproduction package and the threat model, and BibTeX for citing
+    darwin-memo itself. The artifact previously did not mention its own
+    paper anywhere: every arXiv link in it was for one of the two source
+    papers.
+  - **`docs/custom-environments.md` and the Claude Code integration are
+    linked from the front door.** The README carried a 50-line condensation
+    of the environment guide with no pointer to it, so a reader who hit the
+    action-vocabulary trap never reached the two failure modes documented
+    only in the long version.
+
+- **Searchable metadata.** `pyproject.toml` keywords omitted `mcp` entirely,
+  so a PyPI search for "mcp memory" did not surface a package that ships an
+  MCP server; added alongside `agent-security`, `memory-poisoning`,
+  `continual-learning`, `long-term-memory` and `coding-agent`. Classifiers
+  gain `Intended Audience :: Science/Research` and `Environment :: Console`;
+  `[project.urls]` gains `Source` and `Paper`.
+
 - **`darwin-memo encode --model ollama:NAME | anthropic:NAME`.** The encode
   path was hardcoded to `LocalEncoder`, so the CLI could not produce a
   reflection-encoded store at all, and nothing said so -- the only route to

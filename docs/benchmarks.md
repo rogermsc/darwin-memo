@@ -2471,6 +2471,12 @@ zero-dependency core.
 
 ## Reproduce
 
+These commands regenerate the tables **on this page**. The complete
+reproduction package for the paper -- all 36 committed result files plus the
+SWE-Bench-CL matrix, each bound to a manifest entry and verified offline --
+is [paper/reproduce.md](../paper/reproduce.md), and it is the one with a
+test keeping it honest.
+
 ```bash
 pip install -e .
 python -m bench.run --suite headline --seeds 0:10 --out bench/results/headline.json --update-manifest
@@ -2520,7 +2526,7 @@ suite, seeds, config hash, exact reproduction command, library version,
 and producing git commit; `bench.report <file> --check` validates a
 file against its manifest entry. The commit matters: the environments'
 per-cycle seed scheme changed after the 0.4.0 release while
-`__version__` still reads 0.4.0, so reproducing the committed numbers
+`__version__` still read 0.4.0 at the time, so reproducing the committed numbers
 means checking out the manifest's `source_commit`, not installing the
 released version. The scaling table is timing data from one machine and
 stays uncommitted. Runs are deterministic per seed: rerunning a suite

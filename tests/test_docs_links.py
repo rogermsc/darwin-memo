@@ -107,3 +107,87 @@ def test_api_reference_documents_every_exported_name() -> None:
         if not re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", doc)
     )
     assert not missing, f"exported but undocumented in docs/api.md: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# The README is the front door and the PyPI long description. Three counts in
+# it had drifted from the code -- five baselines read as six, five bundled
+# environments read as three, eight MCP tools read as seven -- because nothing
+# compared them. These are cheap to state and were wrong for months.
+# ---------------------------------------------------------------------------
+
+README = ROOT / "README.md"
+
+_WORD = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+
+
+def _stated(pattern: str) -> int:
+    """The number the README claims, written as a word."""
+    match = re.search(pattern, README.read_text())
+    assert match, f"the README sentence matching {pattern!r} was reworded"
+    return _WORD[match.group(1).lower()]
+
+
+def test_readme_baseline_count_matches_the_arms_tuple() -> None:
+    from bench.policies import ARMS
+
+    baselines = [arm for arm in ARMS if not arm.startswith("survival")]
+    assert _stated(r"benchmarked against (\w+) baselines") == len(baselines)
+
+
+def test_readme_environment_count_matches_the_exports() -> None:
+    import darwin_memo
+
+    shipped = [name for name in darwin_memo.__all__ if name.endswith("Env")]
+    assert len(shipped) == 5, shipped
+    assert _stated(r"(\w+) environments ship") == len(shipped)
+
+
+def test_readme_names_every_mcp_tool_the_server_registers() -> None:
+    """Mutation: add a @server.tool() and this fails until the README lists it.
+
+    ``memory_audit`` shipped and the README kept advertising seven tools.
+    """
+    server = (ROOT / "darwin_memo" / "mcp_server.py").read_text()
+    registered = set(re.findall(r"@server\.tool\(\)\s*\n\s*def (memory_\w+)", server))
+    assert len(registered) == 8, registered
+    named = set(re.findall(r"memory_\w+", README.read_text()))
+    missing = registered - named
+    assert not missing, f"MCP tools the README does not name: {missing}"
+
+
+def test_readme_links_the_load_bearing_docs() -> None:
+    """A guide nothing links to is a guide nobody reads.
+
+    ``docs/custom-environments.md`` is the one task the README itself calls
+    the whole trick, and it was reachable only by listing the directory.
+    """
+    body = README.read_text()
+    assert "docs/custom-environments.md" in body
+    for guide in sorted((DOCS / "integrations").glob("*.md")):
+        assert guide.name in body, f"README does not link integrations/{guide.name}"
+
+
+def test_readme_has_no_relative_links_because_pypi_renders_it() -> None:
+    """PyPI does not rewrite relative URLs, so they 404 on the project page.
+
+    The hero GIF was a broken image above the fold on the primary
+    distribution page of a project whose pitch is "watch it go extinct".
+    """
+    targets = re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", README.read_text())
+    assert targets, "the link parser found nothing -- it is broken, not the README"
+    relative = [
+        t for t in targets if not t.startswith(("http://", "https://", "#", "mailto:"))
+    ]
+    assert not relative, f"relative links break on PyPI: {relative}"

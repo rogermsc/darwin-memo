@@ -405,9 +405,10 @@ population starves.
 
 ### Priced inaction
 
-Both bundled environments score inaction at exactly zero: a kept file and
-a skipped patch cost nothing, so a store that has gone silent pays nothing
-for it. Several conclusions rest on that, and it is a property of these
+The two environments with a priced counterpart score inaction at exactly
+zero: a kept file and a skipped patch cost nothing, so a store that has
+gone silent pays nothing for it. (`VerifiableQAEnv` scores it at zero too
+and has no counterpart.) Several conclusions rest on that, and it is a property of these
 worlds rather than of curation, so each has a subclass on the other side
 of it.
 
