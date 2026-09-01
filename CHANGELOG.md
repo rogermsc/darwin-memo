@@ -86,6 +86,13 @@ project uses [SemVer](https://semver.org/).
   it -- the same cache files asked two ways, where the phrasing sharing
   only structural words answers about the database instead.
 
+- **`darwin-memo encode --model ollama:NAME | anthropic:NAME`.** The encode
+  path was hardcoded to `LocalEncoder`, so the CLI could not produce a
+  reflection-encoded store at all, and nothing said so -- the only route to
+  one was dropping into Python. It reuses `_client_for`, the same spec the
+  `query` subcommand already took, and defaults to the offline encoder
+  exactly as before.
+
 - **`docs/api.md` is checked against `__all__`.** The page states its own
   rule -- "when this page and the code disagree, the code wins and the page
   has a bug" -- and six of the package's 54 exported names were missing:

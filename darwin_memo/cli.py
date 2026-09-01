@@ -36,7 +36,7 @@ from collections import Counter
 from pathlib import Path
 
 from .ci import add_settle_ci_parser
-from .encode import Document, LocalEncoder, demo_corpus
+from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import StorageEnv
 from .ledger import DEFAULT_PROBATION, Ledger
 from .llm import LLMClient
@@ -136,8 +136,14 @@ def cmd_encode(args: argparse.Namespace) -> int:
             print(f"error: {path} not found", file=sys.stderr)
             return 1
         documents.append(Document(doc_id=p.stem, text=p.read_text()))
+    # Same --model spec the query subcommand takes. Without it this path was
+    # hardcoded to LocalEncoder, so the CLI could not produce a
+    # reflection-encoded store at all and nothing said so: the only route to
+    # one was dropping into Python.
+    client = _client_for(getattr(args, "model", None))
+    encoder = ReflectionEncoder(client) if client else LocalEncoder()
     store = MemoryStore()
-    for entry in LocalEncoder().encode(documents):
+    for entry in encoder.encode(documents):
         store.add(entry)
     store.save(args.out)
     kinds = Counter(e.kind.value for e in store.alive())
@@ -378,6 +384,12 @@ def main(argv: list[str] | None = None) -> int:
     encode = sub.add_parser("encode", help="encode text files into a memory")
     encode.add_argument("documents", nargs="+")
     encode.add_argument("-o", "--out", default="memory.json")
+    encode.add_argument(
+        "--model",
+        default=None,
+        help="LLM for reflection encoding: ollama:NAME or anthropic:NAME "
+        "(default: the offline LocalEncoder, no model)",
+    )
     encode.set_defaults(fn=cmd_encode)
 
     query = sub.add_parser("query", help="ask a saved memory a question")

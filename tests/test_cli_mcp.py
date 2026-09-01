@@ -287,3 +287,46 @@ def test_cli_ledger_writes_the_shared_event_log(tmp_path, capsys):
     assert log.exists()
     events = [json.loads(line)["event"] for line in log.read_text().splitlines()]
     assert "decide" in events
+
+
+def test_cli_encode_rejects_an_unknown_model_spec(tmp_path, capsys):
+    doc = tmp_path / "notes.txt"
+    doc.write_text("The cache may be cleared after a deploy.")
+    with pytest.raises(SystemExit) as exit_info:
+        cli_main(
+            ["encode", str(doc), "-o", str(tmp_path / "m.json"), "--model", "nope:x"]
+        )
+    assert exit_info.value.code == 1
+    assert "unknown model spec" in capsys.readouterr().err
+
+
+def test_cli_encode_uses_the_reflection_encoder_when_given_a_model(
+    tmp_path, monkeypatch
+):
+    """`encode` was hardcoded to LocalEncoder, so the CLI could not produce a
+    reflection-encoded store at all and nothing documented the limit: the only
+    route to one was dropping into Python. The client is faked here because
+    what is under test is which encoder the flag selects, not the prompting.
+    """
+    from darwin_memo import MemoryEntry
+    from darwin_memo import cli as cli_module
+
+    used: dict[str, object] = {}
+
+    class FakeReflectionEncoder:
+        def __init__(self, client: object) -> None:
+            used["client"] = client
+
+        def encode(self, documents: list[object]) -> list[MemoryEntry]:
+            used["documents"] = len(documents)
+            return [MemoryEntry(question="q?", answer="a", sources=["fake"])]
+
+    monkeypatch.setattr(cli_module, "_client_for", lambda spec: f"client:{spec}")
+    monkeypatch.setattr(cli_module, "ReflectionEncoder", FakeReflectionEncoder)
+
+    doc = tmp_path / "notes.txt"
+    doc.write_text("The cache may be cleared after a deploy.")
+    memory = tmp_path / "m.json"
+    assert cli_main(["encode", str(doc), "-o", str(memory), "--model", "ollama:x"]) == 0
+    assert used == {"client": "client:ollama:x", "documents": 1}
+    assert json.loads(memory.read_text())["entries"]

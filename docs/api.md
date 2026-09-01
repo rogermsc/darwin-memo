@@ -505,7 +505,7 @@ it).
 | command | what it does |
 |---|---|
 | `darwin-memo demo [--cycles N] [-o FILE]` | the self-contained poisoned-entry demo |
-| `darwin-memo encode DOCS... [-o memory.json]` | text files to a reflection-QA memory (LocalEncoder) |
+| `darwin-memo encode DOCS... [-o memory.json] [--model SPEC]` | text files to a reflection-QA memory; offline `LocalEncoder` by default, `ReflectionEncoder` with `--model ollama:NAME` or `anthropic:NAME` |
 | `darwin-memo query MEMORY "question" [--model ollama:NAME\|anthropic:NAME] [--half-life N] [--kind KIND] [--source SRC]` | interrogate a saved memory; default is local retrieval; answers carry age lines and conflict blocks |
 | `darwin-memo stats MEMORY` | population and energy overview |
 | `darwin-memo ledger MEMORY [--scale F] OP ...` | one Ledger operation, one JSON object on stdout |
