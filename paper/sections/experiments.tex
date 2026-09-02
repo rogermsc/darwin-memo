@@ -9,7 +9,8 @@ confidence intervals are seed-level percentile bootstrap ($10^4$ seeded
 resamples), and arm comparisons are exact paired permutation tests (all
 $2^{10}$ sign assignments enumerated at 10 seeds; seeded Monte Carlo at
 30), with $p$-values Holm--Bonferroni adjusted across each reported grid.
-Hypotheses and cell definitions are committed before runs. Per-seed raw
+Hypotheses and cell definitions are committed before runs, in the public
+commit history where one such prediction is later refuted (\S\ref{sec:rent}). Per-seed raw
 JSON is committed and bound to its configuration and reproduction command
 by a manifest that CI validates on every push. We summarize the main
 findings here; full tables, ablations, and the published failure
@@ -158,9 +159,9 @@ The result is a sharp separation with an equally sharp boundary
 (Table~\ref{tab:adversary}). At one lie per cycle the ledger retains
 \emph{all} benign capability and $99.4\%$ of its unattacked outcome
 while absorbing 30 fired lies. Every strike and quarantine heuristic
-loses most or all of it at the same budget: \texttt{evict\_on\_negative}
-($k{=}1$) loses \emph{all} of it, destroyed by \emph{three} lies; a
-consecutive-$k{=}2$ counter keeps $0.52$ and quarantine $0.21$, and both
+keeps at most about half its benign capability at the same budget:
+\texttt{evict\_on\_negative} ($k{=}1$) keeps none of it, destroyed by
+\emph{three} lies; a consecutive-$k{=}2$ counter keeps $0.52$ and quarantine $0.21$, and both
 are at $0.12$ or below by $b{=}2$. The ledger wins on all 30 seeds at
 $b{\in}\{1,2\}$
 against every counter (Holm $p = 0.0015$). Two asymmetries deserve
