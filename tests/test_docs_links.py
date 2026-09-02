@@ -191,3 +191,50 @@ def test_readme_has_no_relative_links_because_pypi_renders_it() -> None:
         t for t in targets if not t.startswith(("http://", "https://", "#", "mailto:"))
     ]
     assert not relative, f"relative links break on PyPI: {relative}"
+
+
+# ---------------------------------------------------------------------------
+# The README's Python fences teach the actual entry points, and the README is
+# the PyPI long description. docs/api.md is checked against __all__, but the
+# README examples were not: renaming or removing an export -- QueryProtocol,
+# Ledger, decision_polarity -- would rot the front-door snippet with nothing
+# to catch it. This checks the two rots that actually happen: broken syntax,
+# and a name imported from darwin_memo that no longer exists. It does not
+# execute the fences -- they open illustrative files and use placeholder
+# variables (passes_after, entry_id) by design -- so method-level renames on
+# those objects are out of scope, which the api.md test covers by other means.
+# ---------------------------------------------------------------------------
+
+_PY_FENCE = re.compile(r"```python\n(.*?)```", re.S)
+
+
+def test_readme_python_examples_compile_and_import_real_api() -> None:
+    """Mutation: rename any darwin_memo export used in a README fence (or break
+    a fence's syntax) and this fires. 16 exported names ride on these snippets.
+    """
+    import ast
+
+    import darwin_memo
+
+    fences = _PY_FENCE.findall(README.read_text())
+    assert len(fences) >= 5, "the fence parser found too few -- it is broken"
+    exported = set(darwin_memo.__all__)
+    imported: set[str] = set()
+    for i, code in enumerate(fences):
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as exc:  # pragma: no cover - the assert reports it
+            msg = f"README python fence {i} does not parse: {exc}"
+            raise AssertionError(msg) from exc
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "darwin_memo":
+                for alias in node.names:
+                    assert alias.name in exported, (
+                        f"README fence {i} imports darwin_memo.{alias.name}, "
+                        "which is not an export -- the front-door example is stale"
+                    )
+                    imported.add(alias.name)
+    assert len(imported) >= 10, (
+        f"only {len(imported)} darwin_memo names checked; the examples thinned "
+        "out or the import walk missed them"
+    )

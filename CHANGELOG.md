@@ -8,6 +8,17 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **The README's Python examples are checked against the real API.** The
+  README is the PyPI long description and its fences teach the entry points,
+  but only its prose *counts* were guarded -- a rename or removal of an export
+  (QueryProtocol, Ledger, StorageEnv) would rot the front-door snippet
+  silently, the way docs/api.md drifted before it was enforced. A new test
+  parses every ```python``` fence and asserts each name imported from
+  darwin_memo is a real export (16 ride on these snippets today), catching the
+  two rots that happen: broken syntax and a vanished import. It does not
+  execute the fences -- they open illustrative files and use placeholder
+  variables by design.
+
 - **`docs/custom-environments.md`, the guide for the one task the README
   calls the whole trick.** Choosing a conserved resource (with the test:
   could a liar produce this number without changing the world), pricing
