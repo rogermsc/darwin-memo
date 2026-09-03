@@ -82,7 +82,12 @@ jobs:
           path: dist/
       - name: Extract changelog section
         run: |
-          awk -v ver="${GITHUB_REF_NAME#v}" '/^## \[/{p=($0 ~ "\\[" ver "\\]")} p' CHANGELOG.md > notes.md
+          # GitHub caps a release body at 125000 chars; a large accumulated
+          # section (0.7.0 was ~2000 lines) 422s the create. Cap and link out.
+          {
+            awk -v ver="${GITHUB_REF_NAME#v}" '/^## \[/{p=($0 ~ "\\[" ver "\\]")} p' CHANGELOG.md | head -c 120000
+            printf '\n\n[Full changelog](https://github.com/rogermsc/darwin-memo/blob/%s/CHANGELOG.md)\n' "$GITHUB_REF_NAME"
+          } > notes.md
       - run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}
