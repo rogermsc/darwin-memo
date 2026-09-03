@@ -456,3 +456,17 @@ def test_full_context_arm_runs_end_to_end_and_differs_where_it_should(monkeypatc
     assert control["citation_unattributed_action_rate"] == 1.0
     assert full["citation_unattributed_action_rate"] == 0.0
     assert full["citation_fallback_rate"] == 1.0
+
+
+def test_full_context_store_getattr_does_not_recurse_before_init():
+    """__getattr__ proxies to _store, so it must refuse private names -- else any
+    attribute access before __init__ assigns _store (unpickle, copy) recurses on
+    _store forever. Mutation: drop the underscore guard and this is a
+    RecursionError, not a clean AttributeError."""
+    import pytest
+
+    from bench.llm_arm import FullContextStore
+
+    raw = FullContextStore.__new__(FullContextStore)  # _store never assigned
+    with pytest.raises(AttributeError):
+        _ = raw.anything

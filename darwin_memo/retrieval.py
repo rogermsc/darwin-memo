@@ -270,7 +270,12 @@ class EmbeddingRetriever:
                     self._vectors[entry.id] = vec
         else:
             for entry in cold:
-                self._entry_vector(entry)
+                try:
+                    self._entry_vector(entry)
+                except ValueError:
+                    # Matches the batch branch's `if vec` skip and rank()'s
+                    # guard: one un-embeddable entry must not abort warming.
+                    continue
         return len(cold)
 
     def rank(
@@ -294,7 +299,13 @@ class EmbeddingRetriever:
         return scored
 
     def similarity(self, a: MemoryEntry, b: MemoryEntry) -> float:
-        return max(0.0, _cosine(self._entry_vector(a), self._entry_vector(b)))
+        try:
+            return max(0.0, _cosine(self._entry_vector(a), self._entry_vector(b)))
+        except ValueError:
+            # An un-embeddable entry has no vector to compare, so it reads as
+            # maximally dissimilar rather than aborting a consolidation pass --
+            # the same "goes dark, does not crash" contract rank() gives.
+            return 0.0
 
     def forget(self, entry_id: str) -> None:
         self._vectors.pop(entry_id, None)

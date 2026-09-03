@@ -606,9 +606,20 @@ class Ledger:
             event_log=event_log,
         )
         state = payload.get("ledger")
-        if state:
-            ledger.tick_count = int(state.get("tick_count", 0))
-            for t in state.get("pending", []):
+        if isinstance(state, dict):
+            # The whole ledger block is attacker-committed and unreviewed in the
+            # CI lesson store, so a malformed CONTAINER -- not just one bad
+            # ticket -- must degrade to dropped fields, never a traceback that
+            # bricks every future settle. Each field is guarded the way one bad
+            # ticket already is below, and the flaky sidecar already is in
+            # load_flips. Anything unparseable falls back to the empty default
+            # __init__ set.
+            try:
+                ledger.tick_count = int(state.get("tick_count", 0))
+            except (TypeError, ValueError):
+                ledger.tick_count = 0
+            pending = state.get("pending", [])
+            for t in pending if isinstance(pending, list) else []:
                 try:
                     ticket = Ticket(**t)
                 except TypeError:
@@ -618,8 +629,16 @@ class Ledger:
                     # must not brick every future load. Mirrors load_flips.
                     continue
                 ledger._pending[ticket.id] = ticket
-            ledger._history = {k: list(v) for k, v in state.get("history", {}).items()}
-            ledger._damaged = set(state.get("damaged", []))
+            history = state.get("history", {})
+            if isinstance(history, dict):
+                ledger._history = {
+                    k: list(v)
+                    for k, v in history.items()
+                    if isinstance(v, (list, tuple))
+                }
+            damaged = state.get("damaged", [])
+            if isinstance(damaged, (list, tuple, set)):
+                ledger._damaged = set(damaged)
         return ledger
 
     # ------------------------------------------------------------------

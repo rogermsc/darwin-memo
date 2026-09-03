@@ -92,3 +92,18 @@ def test_stale_claims_die_and_accurate_ones_do_not(seed: int) -> None:
     assert stale_survival <= 0.35, f"stale survival {stale_survival:.2f}"
     assert accurate_survival >= 0.45, f"accurate survival {accurate_survival:.2f}"
     assert stale_survival < accurate_survival
+
+
+@pytest.mark.parametrize("value", [1_000_000.0, 0.00001, -2_500_000.0, 12345.0])
+def test_quoted_figure_survives_scientific_notation(value: float) -> None:
+    """Corpus answers format the figure with :g, which switches to scientific
+    notation at large/small magnitudes; the quote regex must parse whatever :g
+    emits or an accurate claim is mis-scored as a false citation. Mutation: drop
+    the [eE] branch from _QUOTED and the >=1e6 / <1e-4 cases capture only the
+    mantissa (float 1.0, not 1e6) and reconcile falsely."""
+    from bench.paperclaim_env import _QUOTED
+
+    rendered = f"The paper reports {value:g} for it."
+    match = _QUOTED.search(rendered)
+    assert match is not None
+    assert float(match.group(1)) == value

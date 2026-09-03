@@ -167,3 +167,26 @@ def test_history_is_capped(store_factory):
         ledger._note(entry_id, f"event {i}")
     assert len(ledger._history[entry_id]) == 100
     assert note_text(ledger._history[entry_id][-1]) == "event 299"
+
+
+def test_load_survives_a_malformed_ledger_container(store_factory, tmp_path):
+    """A hostile or corrupt committed store must not brick settle-ci. The ledger
+    block is attacker-committed and unreviewed, so a malformed CONTAINER -- not
+    just one bad ticket -- degrades to dropped fields instead of a traceback.
+    Mutation: drop the isinstance/try guards in Ledger.load and the four fields
+    below raise ValueError, TypeError, AttributeError and TypeError in turn."""
+    path = tmp_path / "memory.json"
+    Ledger(store_factory(), resource_scale=1.0).save(path)
+    payload = json.loads(path.read_text())
+    payload["ledger"] = {
+        "tick_count": "not-a-number",  # int() -> ValueError
+        "pending": 5,  # for t in 5 -> TypeError
+        "history": [],  # [].items() -> AttributeError
+        "damaged": 7,  # set(7) -> TypeError
+    }
+    path.write_text(json.dumps(payload))
+
+    ledger = Ledger.load(path)  # must not raise
+    assert ledger.tick_count == 0
+    assert ledger.pending() == []
+    assert ledger.history("anything") == []

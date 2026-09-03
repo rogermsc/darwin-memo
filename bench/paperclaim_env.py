@@ -89,7 +89,7 @@ _MEMORYOS_FILES = {
 # a corpus that says "the value is 8" instead of "reports 8" quotes nothing,
 # every task scores zero, and the population starves around cycle 20 with no
 # error anywhere. This is the first thing to change for a new corpus.
-_QUOTED = re.compile(r"\breports\s+(-?\d+(?:\.\d+)?)")
+_QUOTED = re.compile(r"\breports\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)")
 
 
 @dataclass(frozen=True)

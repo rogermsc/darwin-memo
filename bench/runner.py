@@ -373,6 +373,11 @@ def run_one(
     # must outlive the dispatch to reach metrics and the transcript.
     audit: AuditedProtocol | None = None
     if arm in LLM_LOOP_ARMS:
+        if arm == "full_context_llm" and "attack" in overrides:
+            # full_context_llm has no attack variant. Without this the branch
+            # below would silently build the retrieval-based W/E/F protocol
+            # under the no-memory-system arm's name and mismeasure it.
+            raise ValueError("full_context_llm has no attack variant")
         if "attack" in overrides:
             # The W/E/F variant additionally records, per answer, whether
             # the poison was retrieved and whether the MODEL's own

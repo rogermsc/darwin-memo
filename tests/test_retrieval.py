@@ -124,3 +124,22 @@ def test_one_unembeddable_entry_does_not_blind_every_query():
     r = EmbeddingRetriever(embed, min_similarity=0.0)
     ranked = r.rank("cache", [good, bad])
     assert [e.id for e, _ in ranked] == [good.id], "good entry survives, bad goes dark"
+
+
+def test_unembeddable_entry_does_not_crash_consolidation_or_warm():
+    """The rank() guard is not enough: similarity() (consolidation) and warm()
+    (pre-embed) call _entry_vector too. Mutation: drop the try/except in either
+    and one degenerate entry aborts a whole consolidation pass or warm sweep."""
+    from darwin_memo import EmbeddingRetriever, MemoryEntry
+
+    good = MemoryEntry(question="cache files", answer="caches are disposable")
+    bad = MemoryEntry(question="", answer="")
+
+    def embed(text: str) -> list[float]:
+        return [] if not text.strip() else [float(len(text)), 1.0]
+
+    r = EmbeddingRetriever(embed, min_similarity=0.0)
+    assert r.similarity(good, bad) == 0.0, (
+        "un-embeddable pair is dissimilar, not a crash"
+    )
+    EmbeddingRetriever(embed, min_similarity=0.0).warm([good, bad])  # must not raise

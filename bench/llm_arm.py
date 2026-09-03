@@ -121,6 +121,14 @@ class FullContextStore:
         self._store = store
 
     def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            # Standard proxy guard. Without it, any attribute access before
+            # __init__ has set self._store (unpickle, copy, some introspection)
+            # looks up _store, which re-enters __getattr__ on _store forever --
+            # RecursionError instead of a clean AttributeError. The protocol
+            # only ever reaches the store through public methods, so nothing is
+            # lost by not proxying private names.
+            raise AttributeError(name)
         return getattr(self._store, name)
 
     def retrieve(self, query: str, k: int = 3, **kwargs: Any) -> Any:
