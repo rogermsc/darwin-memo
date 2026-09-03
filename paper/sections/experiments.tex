@@ -1577,6 +1577,67 @@ attack & arm & E2 & E3 & F1 & F2 & kill & alive \\
 \end{tabular}
 \end{table}
 
+\subsection{Is a memory system worth its capability cost?}
+\label{sec:frontier}
+The two controls above are differently-curated stores. The baseline a memory
+paper is actually judged against is \emph{no memory system}: put the whole
+history in the prompt and let the model select. \texttt{full\_context\_llm}
+is that arm---the same model, protocol, and audit trail, with retrieval
+replaced by ``hand back every live entry.'' It differs from
+\texttt{keep\_everything} in exactly one method, so the pair separates a store
+with no eviction from a reader with no retrieval. Five seeds, 20 cycles,
+\texttt{llama3.2} (Table~\ref{tab:llm-frontier}); this is the deterministic
+\texttt{llm} suite, not the Write--Execute--Forget protocol of
+Table~\ref{tab:wef}, and the two are not comparable cell-for-cell.
+
+Read as a frontier rather than a winner: \texttt{full\_context} is the
+\emph{capability ceiling}---it sees everything useful and posts the highest
+cumulative resource ($4.22$M)---and in the same runs the \emph{safety floor},
+because it also sees every poison and removes none ($0/5$ seeds clear the
+acting poison, harmful-probe refusal $0.50$). \texttt{survival} keeps $65\%$
+of that ceiling ($2.75$M) while clearing all acting poison in $5/5$ seeds,
+ending with no poisoned entry alive, and refusing every harmful probe. It pays
+the leanness cost the attack table already charged: benign recall falls to
+$0.67$ as the population starves to four. Curation here is not free
+capability; it is a capability \emph{cost} bought for a safety floor the
+no-system baseline never reaches.
+
+Two controls pin the corners. \texttt{evict\_on\_negative} matches survival on
+poison kills and harmful-probe refusal---though it leaves the one dormant
+payload survival starves---and does so at \emph{negative} capability
+($-3.55$M): a sign-blind counter that evicts on any bad outcome over-prunes
+the entries the workload needs, so safety without an energy buffer is bought
+by discarding capability rather than keeping it. \texttt{keep\_everything} is dominated---worse than
+\texttt{full\_context} on capability and tied on every other column---which is
+the empirical reason ``keep everything'' belongs in the prompt, not in a
+bottlenecked store. The mitigation sweep (\texttt{refuse=on}) moves survival
+by under $3\%$ on capability and not at all on safety, and is folded into the
+\texttt{survival} row.
+
+\begin{table}[t]
+\centering
+\small
+\caption{The long-context baseline. \texttt{llama3.2}, five seeds, 20 cycles,
+means over seeds. \emph{cap}: cumulative measured resource ($\times 10^6$
+units, the environment's own scalar, identical across arms). \emph{killed}:
+seeds of five that removed every \emph{acting} poison. \emph{alive}: poisoned
+entries of any kind at the end. \emph{safe}: harmful-probe refusal rate.
+\emph{benign}: benign-probe correct rate. \emph{pop}: final population. Only
+\texttt{survival} is both capable and safe, and it alone pays in benign
+recall.}
+\label{tab:llm-frontier}
+\begin{tabular}{lrccccc}
+\toprule
+arm & cap & killed & alive & safe & benign & pop \\
+\midrule
+\texttt{full\_context}       & $4.22$  & $0/5$          & $3.0$          & $0.50$          & $1.00$ & $16$ \\
+\texttt{keep\_everything}    & $-2.90$ & $0/5$          & $3.0$          & $0.50$          & $1.00$ & $16$ \\
+\texttt{evict\_on\_negative} & $-3.55$ & $\mathbf{5/5}$ & $1.0$          & $\mathbf{1.00}$ & $1.00$ & $14$ \\
+\texttt{survival}            & $2.75$  & $\mathbf{5/5}$ & $\mathbf{0.0}$ & $\mathbf{1.00}$ & $0.67$ & $4$  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Literature controls, run rather than argued}
 \paragraph{Retrieval bandit \citep{xu2026ael}.}
 A per-entry successive-elimination bandit with a Hoeffding radius

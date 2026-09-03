@@ -77,10 +77,11 @@ committed evidence.
 That sentence is the repo's strongest claim about itself, so it is checked
 rather than asserted. Every cell of every table in the paper that has
 committed evidence behind it is recomputed from that evidence in CI:
-`tab:headline` in `tests/test_paper_matches_evidence.py` and the other eight
-tables in `tests/test_paper_tables_match_evidence.py` — 98 checks covering 254
+`tab:headline` in `tests/test_paper_matches_evidence.py` and the other nine
+tables in `tests/test_paper_tables_match_evidence.py` — 102 checks covering 274
 printed numbers, across the noise grid, the adversary grid, persistence, memsec,
-the Write-Execute-Forget table and both SWE-Bench-CL matrices. When the check was
+the Write-Execute-Forget table, the long-context baseline and both SWE-Bench-CL
+matrices. When the check was
 first written it found the paper **correct in every cell**; it is here because an
 unenforced true claim is the kind that goes quietly stale, and because this repo
 has twice shipped a number that did not trace to its source. Each table's check
@@ -124,7 +125,7 @@ manifest at the time this package was frozen:
 | headline.json              | headline        | 10    | 80   | 948870223a2ad897401e28e30550bfa1cfe5971d |
 | judge-llama.json           | judge           | 5     | 10   | 519118ea714e9df9ac71843f79e7b12d43538079 |
 | judge-qwen.json            | judge           | 5     | 10   | 519118ea714e9df9ac71843f79e7b12d43538079 |
-| llm-llama.json             | llm             | 5     | 20   | 9eef3df8758a467cef3a5617634de7969bfbbb3d |
+| llm-llama.json             | llm             | 5     | 25   | 21a2593ffc85bc6b4c82bd4449d809caccbf70d9 |
 | llm-qwen.json              | llm             | 2     | 2    | 9eef3df8758a467cef3a5617634de7969bfbbb3d |
 | memsec.json                | memsec          | 10    | 120  | 948870223a2ad897401e28e30550bfa1cfe5971d |
 | neighbours.json            | neighbours      | 10    | 30   | 92433ffb5a7996ed74cbe4aecb404a3ccaf5cd9f |

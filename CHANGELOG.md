@@ -8,6 +8,21 @@ project uses [SemVer](https://semver.org/).
 
 ### Added
 
+- **The long-context baseline, the comparison a memory paper is actually
+  judged on.** The `full_context_llm` arm was in the suite but unreported: it
+  hands the reader every live entry instead of a retrieved top-k -- "no memory
+  *system*," the whole history in the prompt -- so the paper can answer "why
+  not just use a long context window." Read as a frontier (\S~`sec:frontier`,
+  `tab:llm-frontier`, five seeds): `full_context` is the capability ceiling
+  (highest cumulative resource) and, in the same runs, the safety floor (it
+  sees every poison and removes none, harmful-probe refusal 0.50); `survival`
+  keeps ~65% of that ceiling while clearing all acting poison in 5/5 seeds and
+  refusing every harmful probe, paying the leanness cost of lower benign
+  recall (0.67). The table is evidence-bound in
+  `test_frontier_rows_match_committed_runs`, and `bench/results/llm-llama.json`
+  is regenerated to include the arm (20 -> 25 runs) so the committed artifact
+  matches what its own reproduction command now produces.
+
 - **The README's Python examples are checked against the real API.** The
   README is the PyPI long description and its fences teach the entry points,
   but only its prose *counts* were guarded -- a rename or removal of an export

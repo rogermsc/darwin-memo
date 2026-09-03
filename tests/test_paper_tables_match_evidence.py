@@ -516,6 +516,72 @@ def test_wef_rows_match_committed_runs(
 
 
 # --------------------------------------------------------------------------
+# tab:llm-frontier -- the long-context baseline (the llm suite, refuse=off).
+# The question a memory paper is judged on is against no memory SYSTEM, so the
+# capability/safety frontier across arms is a claim and earns the same check
+# every other table has. cum_delta is the environment's own scalar, recorded
+# per action (runner writes r.resource_delta) and identical across arms, so the
+# cross-arm comparison is a comparison and not an artifact of differing meters.
+# --------------------------------------------------------------------------
+FRONTIER_ARMS = {
+    "full_context": "full_context_llm",
+    "keep_everything": "keep_everything_llm",
+    "evict_on_negative": "evict_on_negative_llm",
+    "survival": "survival_llm",
+}
+
+
+@lru_cache(maxsize=1)
+def _frontier_by_arm() -> dict[str, tuple[dict[str, Any], ...]]:
+    out: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for run in json.loads((RESULTS / "llm-llama.json").read_text())["runs"]:
+        # Every printed row is the refuse=off grid; the mitigation sweep is
+        # folded into the survival row in prose, not shown as its own row.
+        if run["label"] != "model=llama3.2:3b,refuse=off":
+            continue
+        out[run["arm"]].append(run["metrics"])
+    return {k: tuple(v) for k, v in out.items()}
+
+
+def _frontier_rows() -> list[tuple[str, tuple[str, ...]]]:
+    out: list[tuple[str, tuple[str, ...]]] = []
+    for row in data_rows("tab:llm-frontier"):
+        if not row or row[0] not in FRONTIER_ARMS:
+            continue
+        out.append((row[0], tuple(row[1:7])))
+    return out
+
+
+@pytest.mark.parametrize(("arm", "printed"), _frontier_rows())
+def test_frontier_rows_match_committed_runs(arm: str, printed: tuple[str, ...]) -> None:
+    """Mutation: edit any cell of tab:llm-frontier and this fires. These are
+    the numbers behind the paper's answer to 'why not just use a long context
+    window' -- the memory system's capability cost and its safety benefit."""
+    ms = _frontier_by_arm()[FRONTIER_ARMS[arm]]
+    cap, killed, alive, safe, benign, pop = printed
+    assert float(cap) == pytest.approx(mean(ms, "cum_delta", 1e6), abs=0.02), (
+        f"{arm} cap: paper says {cap}M"
+    )
+    seeds_killed = sum(1 for m in ms if m["poison_killed"])
+    assert int(killed.split("/")[0]) == seeds_killed, (
+        f"{arm} killed: paper says {killed}, runs have {seeds_killed}/{len(ms)}"
+    )
+    assert int(killed.split("/")[1]) == len(ms)
+    assert float(alive) == pytest.approx(
+        mean(ms, "poison_alive_final"), abs=COUNT_TOL
+    ), f"{arm} alive"
+    assert float(safe) == pytest.approx(
+        mean(ms, "probe_harmful_safe_rate"), abs=0.006
+    ), f"{arm} safe"
+    assert float(benign) == pytest.approx(
+        mean(ms, "probe_benign_correct_rate"), abs=0.006
+    ), f"{arm} benign"
+    assert float(pop) == pytest.approx(mean(ms, "final_population"), abs=COUNT_TOL), (
+        f"{arm} pop"
+    )
+
+
+# --------------------------------------------------------------------------
 # tab:swebench-attack -- the paper's central real-task claim, and until now
 # the one table in the paper nothing checked. Its numbers have moved twice:
 # once when the sympy arm landed and the burial tripling stopped replicating,
@@ -614,6 +680,7 @@ EXPECTED_CELLS: dict[str, tuple[Callable[[], Sequence[object]], int]] = {
     "swebench": (_swebench_rows, 10),
     "swebench-attack": (_swebench_attack_rows, 6),
     "wef": (_wef_rows, 9),
+    "llm-frontier": (_frontier_rows, 4),
 }
 
 
@@ -640,6 +707,7 @@ NUMBERS_PER_CHECK = {
     "swebench": 2,
     "swebench-attack": 4,
     "wef": 5,
+    "llm-frontier": 6,
 }
 
 
@@ -651,6 +719,10 @@ def _unprinted(name: str) -> int:
     denominator is zero) but must not be counted as a printed number in a
     sentence whose whole purpose is not over-claiming.
     """
+    if name == "llm-frontier":
+        # the 'killed' cell is 'x/5', a seed count that is checked but is not a
+        # single scalar the way the other five columns are.
+        return len(_frontier_rows())
     if name != "swebench-attack":
         return 0
     return sum(1 for row in _swebench_attack_rows() if row[3] == "---")
