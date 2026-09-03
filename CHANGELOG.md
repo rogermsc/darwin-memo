@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-03
+
 ### Added
 
 - **The long-context baseline, the comparison a memory paper is actually
@@ -502,6 +504,17 @@ project uses [SemVer](https://semver.org/).
   order of a 9,000-run file.
 
 ### Fixed
+
+- **Five findings from a max-effort review, each fixed at the shared path.**
+  `Ledger.load` degrades a malformed committed *container* (history a list,
+  pending an int, non-numeric tick_count), not just a bad ticket, instead of
+  bricking every future settle; the un-embeddable-entry guard now also covers
+  `similarity()` (consolidation) and `warm()`, not only `rank()`;
+  `PaperClaimEnv`'s quote regex parses the scientific notation `:g` emits for
+  large/small figures; `FullContextStore.__getattr__` refuses private names so
+  a copy/unpickle cannot recurse forever; and `full_context_llm` paired with an
+  attack override now fails loud rather than silently building the retrieval
+  protocol under the no-memory-system arm's name. Each is break-tested.
 
 - **A collection error is detected structurally, not by its message text.**
   *(medium)* pytest attributes every collected test to its module, so a
@@ -2757,7 +2770,8 @@ one: its central promise now holds across process boundaries.
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/rogermsc/darwin-memo/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rogermsc/darwin-memo/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/rogermsc/darwin-memo/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/rogermsc/darwin-memo/compare/v0.5.0...v0.5.1
