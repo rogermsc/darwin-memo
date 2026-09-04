@@ -1884,3 +1884,60 @@ def test_every_external_result_is_bound_to_its_manifest() -> None:
         assert entry["command"].startswith("python -m bench.external.")
         assert len(entry["source_commit"]) == 40
         assert entry["target"] == _external(name)["target"]
+
+
+# --------------------------------------------------------------------------
+# tab:adversary prose -- the "never loses a seed" claim, previously unbound.
+# The D0 audit found the caption said "beats every counter on all 30 seeds"
+# while the committed runs have 10 ties (b=1, consecutive k=2). Bind the
+# per-seed win/tie/loss so the corrected claim cannot rot back to a lie.
+# --------------------------------------------------------------------------
+def test_adversary_never_loses_a_seed_to_a_counter() -> None:
+    from bench.report import _group_key, _world_cell
+
+    runs = json.loads(Path("bench/results/adversary.json").read_text())
+    runs = runs if isinstance(runs, list) else runs["runs"]
+
+    def budget(run: dict[str, Any]) -> int | None:
+        m = re.search(r"budget=(\d+)", _group_key(run))
+        return int(m.group(1)) if m else None
+
+    def base(run: dict[str, Any]) -> str:
+        return _group_key(run).split(":")[0]
+
+    survival = {
+        (_world_cell(r), budget(r), r["seed"]): r["metrics"]["cum_delta"]
+        for r in runs
+        if base(r) == "survival"
+    }
+    # "counter" = the deletion policies the paper contrasts; the retention
+    # bandit and keep_everything are discussed separately, not as counters.
+    counters = ("evict_on_negative", "evict_consecutive", "quarantine")
+    wtl: dict[tuple[str, int | None], list[int]] = defaultdict(lambda: [0, 0, 0])
+    for r in runs:
+        if base(r) not in counters or budget(r) not in (1, 2):
+            continue
+        sv = survival.get((_world_cell(r), budget(r), r["seed"]))
+        if sv is None:
+            continue
+        diff = sv - r["metrics"]["cum_delta"]
+        cell = wtl[(_group_key(r), budget(r))]
+        cell[0 if diff > 0 else 2 if diff < 0 else 1] += 1
+
+    assert wtl, "no survival-vs-counter pairs found in adversary.json"
+    for (group, b), (wins, ties, losses) in wtl.items():
+        assert losses == 0, (
+            f"survival LOST {losses} seed(s) to {group} at b={b}; the caption "
+            "says it never loses a seed to a counter at b in {1,2}"
+        )
+        assert wins + ties == 30, (
+            f"{group} at b={b}: {wins + ties} paired seeds, want 30"
+        )
+
+    # The one named non-sweep the corrected prose calls out: 20 wins, 10 ties.
+    ck2_b1 = next(
+        tuple(v) for (g, b), v in wtl.items() if "evict_consecutive" in g and b == 1
+    )
+    assert ck2_b1 == (20, 10, 0), (
+        f"consecutive k=2 at b=1 is {ck2_b1}; the prose says 20 wins with 10 ties"
+    )

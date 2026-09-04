@@ -162,9 +162,10 @@ while absorbing 30 fired lies. Every strike and quarantine heuristic
 keeps at most about half its benign capability at the same budget:
 \texttt{evict\_on\_negative} ($k{=}1$) keeps none of it, destroyed by
 \emph{three} lies; a consecutive-$k{=}2$ counter keeps $0.52$ and quarantine $0.21$, and both
-are at $0.12$ or below by $b{=}2$. The ledger wins on all 30 seeds at
-$b{\in}\{1,2\}$
-against every counter (Holm $p = 0.0015$). Two asymmetries deserve
+are at $0.12$ or below by $b{=}2$. The ledger never loses a seed to a
+counter at $b{\in}\{1,2\}$: it wins all 30 against every counter but
+consecutive $k{=}2$ at $b{=}1$, where it wins 20 and ties the other 10
+(Holm $p = 0.0015$). Two asymmetries deserve
 naming. First, cheapness of attack: the counters fire so few lies
 because once their benign memory is gone they stop acting, and an
 adversary stops paying for a defence that has already fallen---the
@@ -205,8 +206,9 @@ measurement in six per cycle.
 \small
 \caption{Curation-targeted adversary at $b$ lies per cycle, 30 seeds.
 Cells are mean true cum $\Delta$ (M) / benign capability. $b{=}0$ is the
-in-suite reproduction of the deterministic tie. Survival beats every
-counter at $b{\in}\{1,2\}$ on all 30 seeds (Holm $p = 0.0015$); at
+in-suite reproduction of the deterministic tie. Survival never loses a
+seed to a counter at $b{\in}\{1,2\}$ (Holm $p = 0.0015$; the lone
+non-sweep is consecutive $k{=}2$ at $b{=}1$, 20 wins with 10 ties); at
 $b{\ge}4$ it has fallen, and the arms that still show capability are
 those that never delete (poison-kill rate in prose).}
 \label{tab:adversary}
