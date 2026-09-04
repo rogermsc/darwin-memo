@@ -51,7 +51,7 @@ from .temporal import (
 from .testsuite_env import RentedTestSuiteEnv, TestSuiteEnv
 from .types import CycleStats, EntryKind, MemoryEntry, Outcome, Trajectory
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 __all__ = [
     "CONFLICT_HEADER",

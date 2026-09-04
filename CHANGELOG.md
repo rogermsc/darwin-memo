@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-04
+
 ### Fixed
 
 - **Four findings from the D0 adversarial audit** -- the nine code lenses the
@@ -2790,7 +2792,8 @@ one: its central promise now holds across process boundaries.
 - Typed package (`py.typed`, mypy strict), ruff lint and format,
   coverage floor in CI across Python 3.10 to 3.14.
 
-[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/rogermsc/darwin-memo/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/rogermsc/darwin-memo/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rogermsc/darwin-memo/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rogermsc/darwin-memo/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/rogermsc/darwin-memo/compare/v0.5.1...v0.5.2
