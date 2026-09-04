@@ -119,6 +119,15 @@ def assign_credit(
     themselves advance in :func:`advance_lifecycle`, called by
     Ledger.settle and the loop's credit path.
     """
+    if not math.isfinite(delta) or not math.isfinite(resource_scale):
+        # A NaN or infinity is not a measurement, and neither is a non-finite
+        # scale. store.credit does min(cap, energy + amount), which returns the
+        # cap for a NaN amount -- so an unguarded garbage delta or scale MAXES
+        # an entry's energy, the exact inverse of survival selection. A finite
+        # but huge delta is left alone; tanh saturates it on its own. The guard
+        # lives in the shared rule on purpose: Ledger.settle guards delta only,
+        # and SurvivalLoop's loop path guarded neither delta nor scale.
+        return []
     normalized = math.tanh(delta / resource_scale)
     credit = config.credit_gain * normalized
     if credit == 0.0:

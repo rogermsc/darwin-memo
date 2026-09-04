@@ -89,6 +89,14 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
         raise InfraFailure(
             f"{label} junit XML at {report} is unparseable: {exc}"
         ) from exc
+    except OSError as exc:
+        # report.exists() is True but the path is not a readable file: a
+        # directory (a mis-set --junitxml), or a mode that denies read. The run
+        # produced no usable XML -- an infra failure to abstain on, not a crash
+        # past the abstain handler (which only expects ET.ParseError).
+        raise InfraFailure(
+            f"{label} junit XML at {report} is not a readable file: {exc}"
+        ) from exc
     passed_by_id: dict[str, bool | None] = {}
     for case in root.iter("testcase"):
         name = case.get("name", "")

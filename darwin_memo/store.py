@@ -357,7 +357,7 @@ class MemoryStore:
         try:
             payload = json.loads(raw)
             return cls.from_payload(payload, retriever=retriever)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
             # A truncated file (a crash caught mid-write on a filesystem without
             # the fsync guarantee, or a hand-edit) should name itself, not raise
             # an opaque decode/index error deep in a dataclass constructor.

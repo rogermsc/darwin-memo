@@ -596,7 +596,11 @@ class Ledger:
         try:
             payload = json.loads(raw)
             store = MemoryStore.from_payload(payload, retriever=retriever)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
+            # AttributeError covers a structurally-wrong-but-valid-JSON store
+            # (e.g. {"config": null} -> null.items() in from_payload); without
+            # it the raw traceback would escape the fail-closed base-store
+            # abstain in settle-ci, which only catches ValueError.
             raise ValueError(f"{path} is not a valid darwin-memo store: {exc}") from exc
         ledger = cls(
             store,

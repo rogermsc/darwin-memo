@@ -1,12 +1,17 @@
 """Regression tests for the max-effort review findings."""
 
 import json
+import math
+
+import pytest
 
 from darwin_memo import (
     Document,
     Ledger,
     LocalEncoder,
     MemoryStore,
+    SurvivalConfig,
+    assign_credit,
     decision_polarity,
     demo_corpus,
 )
@@ -190,3 +195,82 @@ def test_load_survives_a_malformed_ledger_container(store_factory, tmp_path):
     assert ledger.tick_count == 0
     assert ledger.pending() == []
     assert ledger.history("anything") == []
+
+
+# --------------------------------------------------------------------------
+# D0 adversarial audit findings (the 9 lenses the round-3 limit killed).
+# --------------------------------------------------------------------------
+def test_non_finite_outcome_is_a_no_op_not_a_max_energy_pin(store_factory):
+    """A NaN/inf delta or scale must credit nothing, never MAX an entry.
+
+    store.credit does ``min(max_energy, energy + amount)``; for a NaN amount
+    that returns max_energy, so an unguarded garbage outcome would pin an entry
+    to the cap -- maximally immortal, the exact inverse of survival selection.
+    The guard lives in the shared assign_credit rule so both Ledger.settle
+    (which guarded delta only) and SurvivalLoop's loop path (which guarded
+    neither delta nor scale) are covered. Reverting the guard pins to 5.0.
+    """
+    cfg = SurvivalConfig()
+    for delta, scale in [
+        (math.nan, 1.0),
+        (math.inf, 1.0),
+        (-math.inf, 1.0),
+        (5.0, math.nan),
+        (5.0, math.inf),
+    ]:
+        store = store_factory(upkeep=0.0)
+        entry = store.alive()[0]
+        entry.energy = 1.0
+        applied = assign_credit(store, entry.id, [], delta, scale, cfg, cycle=0)
+        assert applied == [], f"non-finite ({delta}, {scale}) credited {applied}"
+        assert store.get(entry.id).energy == 1.0, (
+            f"non-finite ({delta}, {scale}) changed energy to "
+            f"{store.get(entry.id).energy} (max_energy is 5.0)"
+        )
+
+
+def test_settle_with_a_non_finite_scale_does_not_corrupt_the_store(store_factory):
+    """The hardened settle path guards delta but passed scale through; a NaN
+    scale slipped past ``resource_scale or 1.0`` (nan is truthy) and pinned the
+    deciding entry via the shared rule. The shared guard now stops it."""
+    store = store_factory(upkeep=0.0)
+    ledger = Ledger(store, resource_scale=math.nan)
+    ticket = ledger.decide("What about stale feature flags?")
+    before = {e.id: e.energy for e in store.alive()}
+    ledger.settle(ticket.id, 50.0)  # finite delta passes settle's guard
+    for e in store.alive():
+        assert e.energy == before[e.id], f"nan scale pinned {e.id} to {e.energy}"
+
+
+def test_load_of_a_structurally_wrong_store_raises_valueerror_not_attributeerror(
+    tmp_path,
+):
+    """A valid-JSON-but-wrong store ({"config": null}) hit null.items() in
+    from_payload, raising AttributeError -- which neither loader's except tuple
+    caught, so a raw traceback escaped and defeated settle-ci's fail-closed
+    base-store abstain (it catches ValueError). Both loaders now name it."""
+    payloads: list[dict[str, object]] = [
+        {"config": None, "entries": [], "graveyard": []},
+        {"config": [1, 2], "entries": [], "graveyard": []},
+        {"config": 7, "entries": [], "graveyard": []},
+    ]
+    for payload in payloads:
+        p = tmp_path / "bad.json"
+        p.write_text(json.dumps(payload))
+        with pytest.raises(ValueError):
+            Ledger.load(p)
+        with pytest.raises(ValueError):
+            MemoryStore.load(p)
+
+
+def test_parse_junit_on_an_unreadable_path_abstains_not_crashes(tmp_path):
+    """report.exists() is True for a directory (a mis-set --junitxml) or a
+    read-denied file, so the missing-file branch is skipped and ET.parse raises
+    IsADirectoryError/PermissionError -- OSError, not ET.ParseError -- crashing
+    past the abstain handler. parse_junit now catches OSError as InfraFailure."""
+    from darwin_memo.ci import InfraFailure, parse_junit
+
+    d = tmp_path / "not_a_file"
+    d.mkdir()
+    with pytest.raises(InfraFailure):
+        parse_junit(d, "base")
