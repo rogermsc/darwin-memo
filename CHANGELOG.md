@@ -6,6 +6,26 @@ project uses [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Four findings from the D0 adversarial audit** -- the nine code lenses the
+  round-3 usage limit killed, re-run as a review + 3-vote-verify sweep. (1) A
+  non-finite settlement delta or `resource_scale` pinned an entry to
+  `max_energy` via `min(cap, energy + NaN) == cap`, making it maximally
+  immortal -- the inverse of survival; `Ledger.settle` guarded the delta only
+  and the `SurvivalLoop` path guarded neither, so the guard now lives in the
+  shared `assign_credit` rule. (2) A structurally-wrong-but-valid-JSON store
+  (`{"config": null}`) raised `AttributeError` past both loaders' except
+  tuples, escaping as a traceback and defeating `settle-ci`'s fail-closed
+  base-store abstain; both loaders now name it a `ValueError`. (3) `parse_junit`
+  caught only `ET.ParseError`, so a junit path that is a directory or
+  read-denied crashed past the abstain handler on `OSError`; it now abstains.
+  (4) `tab:adversary` claimed survival "beats every counter on all 30 seeds,"
+  but the committed runs show 10 ties at `b=1` vs the consecutive-`k=2`
+  counter; reworded to the true "never loses a seed" and bound by a new
+  evidence test. Each code fix has a break-test that fails under the reverted
+  code; four other surfaced findings were adversarially refuted and left alone.
+
 ## [0.7.0] - 2026-09-03
 
 ### Added
