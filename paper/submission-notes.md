@@ -54,6 +54,53 @@ scientific table). PaperQA2 detects contradictions but settles them with human
 experts (~30% false positive). So `PaperClaimEnv`'s signal is a novel task
 framing, not a hedge — positioned that way in its module docstring.
 
+## Main-body / appendix split: EXECUTED, and it is not enough
+
+Done. `paper/sections/appendix.tex` exists, `main.tex` wires it behind
+`\ifdefined\bodyonly`, and both builds are measured with tectonic:
+
+| build | pages |
+|---|---|
+| full (body + appendix) | 57 |
+| body alone (`\def\bodyonly{}`) | **39** |
+
+Two moves were made. The first is the split this file planned: rent
+tiers, the confound control, the 60-cycle horizon grid, the
+defence/attack matrix, the model-in-the-loop arm, literature controls,
+the second environment, the corpus-or-merge question, moving the floor,
+and parametric memory. The second moved another tier when 43 pages was
+still nowhere near a limit: the retention attack, MemoryOS, withholding,
+and the long-context frontier.
+
+**The residual is not a moving problem.** At 39 body pages against a
+9-page NeurIPS D&B limit or ~13 at a security venue, no further
+reshuffling closes the gap: the body is long because the paper reports
+roughly twenty experiments and a venue paper reports five or six. The
+remaining decision is editorial and is the author's -- which results
+*are* the paper -- so it is written down here rather than made silently.
+
+**A 13-page body, if a security venue is the target.** Keep: intro,
+related, method (including \S\ref{sec:whocanlie}, which answers the
+first question a security reviewer asks), the headline, the
+curation-targeted attack, the counter-family sweep, persistence vs
+destruction, the SWE-Bench-CL null and the attack on real tasks, the
+regime map, limitations, ethics, conclusion. That is the argument end to
+end with nothing load-bearing removed. Everything else is already in the
+appendix and stays reachable.
+
+Getting *that* set to 13 pages needs prose compression rather than
+further cuts -- the experiments section still carries long paragraph
+titles and multi-sentence justifications that a venue draft states once.
+Budget roughly a 40% prose reduction across the body, concentrated in
+`experiments.tex` and `limitations.tex`, which are the two longest files.
+
+**When executing further:** `bench/claims.py`, both evidence-test
+modules and `bench/paperclaim_env.py` already search body *and* appendix
+for a labelled table, so a table may move between them freely without
+losing its binding to the runs. That was verified by perturbing a cell
+in a moved table and watching the test fail.
+
+## Original split plan (superseded by the section above)
 ## Main-body / appendix split (ready to execute; gated on a venue page limit)
 
 The built PDF is ~53 pages. The split target is venue-specific -- NeurIPS
