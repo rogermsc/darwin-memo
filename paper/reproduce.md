@@ -127,7 +127,7 @@ manifest at the time this package was frozen:
 | judge-qwen.json            | judge           | 5     | 10   | 519118ea714e9df9ac71843f79e7b12d43538079 |
 | llm-llama.json             | llm             | 5     | 25   | 21a2593ffc85bc6b4c82bd4449d809caccbf70d9 |
 | llm-qwen.json              | llm             | 2     | 2    | 9eef3df8758a467cef3a5617634de7969bfbbb3d |
-| counter_sweep.json         | counter_sweep   | 30    | 1920 | dc1e397c6b69075e50ac2f242cf4dd9ad26252ba |
+| counter_sweep.json         | counter_sweep   | 30    | 1920 | e480c1487b976a65362c1a9a1499d4df9f0df666 |
 | memsec.json                | memsec          | 10    | 120  | 948870223a2ad897401e28e30550bfa1cfe5971d |
 | neighbours.json            | neighbours      | 10    | 30   | 92433ffb5a7996ed74cbe4aecb404a3ccaf5cd9f |
 | noisy.json                 | noisy           | 30    | 2640 | 948870223a2ad897401e28e30550bfa1cfe5971d |
