@@ -48,9 +48,9 @@ def _relative_links(text: str) -> list[str]:
 
 
 def test_index_links_every_user_facing_page() -> None:
-    linked = set(_relative_links(INDEX.read_text()))
+    linked = set(_relative_links(INDEX.read_text(encoding="utf-8")))
     pages = {
-        str(path.relative_to(DOCS))
+        path.relative_to(DOCS).as_posix()
         for path in DOCS.rglob("*.md")
         if path != INDEX and not (set(path.relative_to(DOCS).parts) & INTERNAL)
     }
@@ -67,13 +67,13 @@ def test_index_links_every_user_facing_page() -> None:
         [*DOCS.rglob("*.md"), ROOT / "README.md", ROOT / "CONTRIBUTING.md"],
         key=str,
     ),
-    ids=lambda p: str(p.relative_to(ROOT)),
+    ids=lambda p: p.relative_to(ROOT).as_posix(),
 )
 def test_every_relative_link_resolves(source: Path) -> None:
     """Mutation: point any link at a file that does not exist and this fails."""
     broken = [
         target
-        for target in _relative_links(source.read_text())
+        for target in _relative_links(source.read_text(encoding="utf-8"))
         if not (source.parent / target).resolve().exists()
     ]
     assert not broken, f"{source.relative_to(ROOT)} links to missing {broken}"
@@ -93,7 +93,7 @@ def test_api_reference_documents_every_exported_name() -> None:
     """
     import darwin_memo
 
-    doc = (DOCS / "api.md").read_text()
+    doc = (DOCS / "api.md").read_text(encoding="utf-8")
     exported = list(darwin_memo.__all__)
     assert len(exported) > 40, "__all__ shrank unexpectedly; is the walk right?"
     # Word boundaries, not substrings. A plain ``in`` check is satisfied by any
@@ -134,7 +134,7 @@ _WORD = {
 
 def _stated(pattern: str) -> int:
     """The number the README claims, written as a word."""
-    match = re.search(pattern, README.read_text())
+    match = re.search(pattern, README.read_text(encoding="utf-8"))
     assert match, f"the README sentence matching {pattern!r} was reworded"
     return _WORD[match.group(1).lower()]
 
@@ -159,14 +159,14 @@ def test_readme_names_every_mcp_tool_the_server_registers() -> None:
 
     ``memory_audit`` shipped and the README kept advertising seven tools.
     """
-    server = (ROOT / "darwin_memo" / "mcp_server.py").read_text()
+    server = (ROOT / "darwin_memo" / "mcp_server.py").read_text(encoding="utf-8")
     registered = set(re.findall(r"@server\.tool\(\)\s*\n\s*def (memory_\w+)", server))
     # No hardcoded count: the previous `== 8` had to be edited by hand every
     # time a tool shipped, which is a second thing to forget alongside the
     # README itself. A non-empty set plus the subset check below is the
     # property that actually matters.
     assert registered, "the tool-registration parser found nothing -- it is broken"
-    named = set(re.findall(r"memory_\w+", README.read_text()))
+    named = set(re.findall(r"memory_\w+", README.read_text(encoding="utf-8")))
     missing = registered - named
     assert not missing, f"MCP tools the README does not name: {missing}"
 
@@ -177,7 +177,7 @@ def test_readme_links_the_load_bearing_docs() -> None:
     ``docs/custom-environments.md`` is the one task the README itself calls
     the whole trick, and it was reachable only by listing the directory.
     """
-    body = README.read_text()
+    body = README.read_text(encoding="utf-8")
     assert "docs/custom-environments.md" in body
     for guide in sorted((DOCS / "integrations").glob("*.md")):
         assert guide.name in body, f"README does not link integrations/{guide.name}"
@@ -189,7 +189,7 @@ def test_readme_has_no_relative_links_because_pypi_renders_it() -> None:
     The hero GIF was a broken image above the fold on the primary
     distribution page of a project whose pitch is "watch it go extinct".
     """
-    targets = re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", README.read_text())
+    targets = re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", README.read_text(encoding="utf-8"))
     assert targets, "the link parser found nothing -- it is broken, not the README"
     relative = [
         t for t in targets if not t.startswith(("http://", "https://", "#", "mailto:"))
@@ -220,7 +220,7 @@ def test_readme_python_examples_compile_and_import_real_api() -> None:
 
     import darwin_memo
 
-    fences = _PY_FENCE.findall(README.read_text())
+    fences = _PY_FENCE.findall(README.read_text(encoding="utf-8"))
     assert len(fences) >= 5, "the fence parser found too few -- it is broken"
     exported = set(darwin_memo.__all__)
     imported: set[str] = set()

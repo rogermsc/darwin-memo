@@ -47,6 +47,16 @@ def test_budget_never_exceeded_single_file(tmp_path, budget):
     summary = render_store(path, out, budget)
     assert out.stat().st_size <= budget, "the hard cap holds at every budget"
     assert summary["bytes"] == out.stat().st_size
+    # The two assertions above are the contract, and both of them only ever
+    # failed on Windows: write_text's default newline translation turned each
+    # "\n" into "\r\n", so a 120-byte budget wrote 122 bytes and the reported
+    # size was a byte per line short of the truth. This one states the cause
+    # rather than the symptom, so a future edit that drops `newline="\n"`
+    # fails everywhere instead of only on the one job people skip.
+    assert b"\r" not in out.read_bytes(), (
+        "the renderer must write the bytes it measured; a CR means newline "
+        "translation is back and the byte budget is no longer a budget"
+    )
 
 
 @pytest.mark.parametrize("budget", [120, 700, 1500, 25 * 1024])
