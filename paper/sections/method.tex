@@ -16,14 +16,13 @@ $\varepsilon = 10^{-9}$.
 \paragraph{Retrieval is energy-blind.}
 Given a query, the store ranks entries by a pure relevance score
 $\rho(\text{query}, e)$ that \emph{never reads energy}; energy breaks ties
-only. This invariant is load-bearing: if retrieval preferred
-high-energy incumbents, selection pressure would come from the retriever
-rather than from outcomes, and a wrong-but-entrenched entry could defend
-itself. The default $\rho$ is a stdlib smoothed-IDF token overlap with a
-coverage floor (an entry scores only if it covers at least a fraction
-$m_{\text{cov}} = 0.25$ of the query's IDF mass); any
+only. The invariant is load-bearing: if retrieval preferred high-energy
+incumbents, selection pressure would come from the retriever rather than
+from outcomes, and a wrong-but-entrenched entry could defend itself. The
+default $\rho$ is a stdlib smoothed-IDF token overlap with a coverage
+floor ($m_{\text{cov}} = 0.25$ of the query's IDF mass); any
 $\text{text}\!\to\!\mathbb{R}^d$ embedder is a drop-in alternative under
-the same energy-blind invariant.
+the same invariant.
 
 \subsection{Selection dynamics}
 Let one \emph{cycle} present a batch of tasks drawn from a procedurally
@@ -47,10 +46,12 @@ enormous outcome from making an entry immortal and one disaster from
 instantly executing an entry that has been right many times. Credit is
 distributed along provenance,
 \begin{equation}
-  \Delta E_d = w_d\, c(\Delta), \quad
-  w_d = \begin{cases} s & d \text{ juvenile}\\ 1 & \text{otherwise}\end{cases}
-  \qquad
-  \Delta E_j = s\, c(\Delta)\ \ \forall j \in \mathcal{P},
+  \begin{aligned}
+    \Delta E_d &= w_d\, c(\Delta), \quad
+      w_d = \begin{cases} s & d \text{ juvenile}\\
+                           1 & \text{otherwise}\end{cases}\\[2pt]
+    \Delta E_j &= s\, c(\Delta)\ \ \forall j \in \mathcal{P},
+  \end{aligned}
   \label{eq:provenance}
 \end{equation}
 with supporting share $s = 0.25$. When no single entry decides
@@ -71,9 +72,11 @@ useful.
 Existence costs energy. Every cycle, each alive entry pays a fixed
 upkeep, and any entry that thereby crosses the floor is buried:
 \begin{equation}
-  E_i \leftarrow E_i - \upkeep \quad \forall i \ \text{alive};
-  \qquad \text{bury } i \ \text{ iff } E_i \le \varepsilon
-  \ \wedge\ i \notin (\text{protected} \cup \text{pinned}),
+  \begin{aligned}
+    &E_i \leftarrow E_i - \upkeep \quad \forall i \ \text{alive};\\[2pt]
+    &\text{bury } i \ \text{ iff } E_i \le \varepsilon
+      \ \wedge\ i \notin (\text{protected} \cup \text{pinned}),
+  \end{aligned}
   \label{eq:upkeep}
 \end{equation}
 with $\upkeep = 0.05$. Upkeep is what makes never-consulted entries
@@ -126,21 +129,20 @@ tasks, and consolidation runs last and only periodically.
 \end{algorithm}
 
 \subsection{Why poison dies without a label}
-No rule in Algorithm~\ref{alg:cycle} refers to correctness, safety, or
-quality. The three death modes are emergent. \emph{Starvation}: an entry
+No rule in Algorithm~\ref{alg:cycle} refers to correctness, safety or
+quality; the three death modes are emergent. \emph{Starvation}: an entry
 never retrieved earns nothing and decays at rate $\upkeep$ per cycle.
 \emph{Execution}: a poisoned entry that wins a query drives a harmful
-action, the environment measures the damage (in the storage environment,
+action, the environment measures the damage---in the storage environment
 deleting a protected file triggers a restore costing $3\times$ its size,
-so the negative delta is itself physical), and that negative $c(\Delta)$
+so the negative delta is itself physical---and that negative $c(\Delta)$
 flows back along provenance until the entry crosses the floor.
 \emph{Merging}: near-duplicate survivors pool into one. The mechanism is
 robust to lying measurements because credit is bounded
-(Eq.~\ref{eq:credit}) and replenished by earning: a healthy entry sitting
-near $\Emax$ absorbs roughly $\Emax/(\credit) \approx 8$ maximal false
-negatives before dying and refills the buffer whenever it wins---a
-property a fixed strike counter cannot have, and the source of the
-forgiveness results in \S\ref{sec:experiments}.
+(Eq.~\ref{eq:credit}) and replenished by earning: an entry sitting near
+$\Emax$ absorbs roughly $\Emax/\credit \approx 8$ maximal false negatives
+before dying and refills the buffer whenever it wins, which a fixed
+strike counter cannot do.
 
 \subsection{Trust lifecycle (optional)}
 For adversarial imports, entries may enter on \emph{probation}
@@ -156,49 +158,34 @@ the threat model and used only where stated.
 
 The premise of this paper is that a conserved resource cannot be talked
 into paying out: no memory entry frees bytes by being persuasive. That
-premise invites the obvious objection to the attack we then measure: if
-the resource is real, who corrupts it, and would an adversary capable of
+invites the obvious objection to the attack we then measure---if the
+resource is real, who corrupts it, and would an adversary capable of
 doing so not already own the machine? The objection dissolves once the
 resource and the \emph{report} of it are separated, and keeping them
-separate is the whole of the threat model.
-
-\paragraph{The resource is conserved; the settlement channel is not.}
-Selection never touches the resource. It reads a number that some
-process wrote down: a JUnit XML file, a process exit code, a line in a
-pull-request body, a metrics endpoint, a billing export. Conservation is
-a property of the world; the settlement channel is ordinary software,
-and its write permissions are almost never the same set as ``can change
-the true resource''. An adversary does not have to free fewer bytes. It
-has to be one of the parties that already writes to the channel, and in
-the deployment this mechanism is built for, that set is unusually wide.
+separate is the whole of the threat model. Selection never touches the
+resource; it reads a number some process wrote down, in a JUnit XML file,
+a process exit code, a pull-request body, a metrics endpoint, a billing
+export. Conservation is a property of the world, but the settlement
+channel is ordinary software, and its write permissions are almost never
+the same set as ``can change the true resource''.
 
 \paragraph{The CI lesson store, concretely.} Our primary target
 (\S\ref{sec:regime}) settles a coding agent's lessons against test
 outcomes: a merged pull request's pass-count delta pays the lessons that
 advised it. Three parties write to that channel without any of them
-controlling whether the tests truly pass.
-
-\emph{The pull request being measured commits the store.} The lesson
-file and the flaky-test sidecar are versioned in the repository, so the
-change under evaluation ships the evidence used to evaluate it. Nobody
-reviews a JSON diff line by line.
-
-\emph{The pull-request body names the tickets.} Settlement scrapes ticket
-identifiers out of attacker-influenced prose. Open ticket ids are
-readable in the committed store, so absent a check a contributor can
-paste somebody else's in-flight ticket id and settle a stranger's
-decision at a delta whose sign they choose. Our implementation refuses
-any id that was already pending in the base commit for exactly this
-reason, and reports \texttt{ticket\_provenance: unverified} when it is
-not given a base to check against---a defence that exists because the
-attack is reachable by opening a pull request, which is the intended
-way to use the system.
-
-\emph{The test suite reports on itself.} A contributor who adds a test
-adds a writer to the settlement channel. The benign version of this is
-flakiness, which is why the harness carries a quarantine sidecar at all;
-the adversarial version differs only in intent, and a test that fails on
-a schedule the contributor chooses is a lie budget with a cron entry.
+controlling whether the tests truly pass---the pull request being
+measured commits the store, the pull-request body names the tickets
+settlement scrapes, and a contributor who adds a test adds a writer to
+the channel. The middle one is the sharpest: open ticket ids are readable
+in the committed store, so absent a check a contributor can paste
+somebody else's in-flight ticket id and settle a stranger's decision at a
+delta whose sign they choose. Our implementation refuses any id already
+pending in the base commit for exactly this reason, and reports
+\texttt{ticket\_provenance: unverified} when given no base to check
+against---a defence that exists because the attack is reachable by
+opening a pull request, which is the intended way to use the system.
+\pointer{\S\ref{sec:cichannel} works all three through.}
+\inplace{method-ci-channel}
 
 \paragraph{Why this is a weaker precondition than compromise.} None of
 the three requires code execution on the runner, a stolen credential, or
@@ -209,67 +196,29 @@ write-time and retrieval-time models of the memory-security literature
 adversary must get text into the store, while this one needs only to
 influence a number about work that genuinely happened. The adversary in
 our experiments is weaker still---it observes the sign of the true delta
-and nothing else, not the store, not provenance, not which entry
-decided.
-
-\paragraph{The generalization, and its limit.} The same separation holds
-wherever settlement is mediated: a storage agent reads a filesystem
-report rather than counting sectors, a spend-cap agent reads a billing
-export that arrives a day late. The limit is honest---in deployments
-where the settling process is the same trusted component that performs
-the work, and no third party can write to the channel, this threat model
-does not apply and the attack budget is zero. We measure a curve from
-$b{=}0$ upward partly so that such deployments can read their own
-column.
+and nothing else. The same separation holds wherever settlement is
+mediated: a storage agent reads a filesystem report rather than counting
+sectors, a spend-cap agent reads a billing export that arrives a day
+late. The limit is honest---where the settling process is the same
+trusted component that performs the work and no third party can write to
+the channel, this threat model does not apply and the attack budget is
+zero, which is partly why we measure a curve from $b{=}0$ upward.
 
 \subsection{Reporting rules}
 \label{sec:reporting}
 
-A benchmark number without the rule that produced it is not comparable to
-anyone else's, and several of ours have a plausible-looking alternative
-reading. The rules below are the ones the harness applies. They are pinned
-against \texttt{bench/runner.py} and \texttt{bench/report.py} by a test, so
-this list cannot drift from the code that produced the tables.
-
-\paragraph{Everything is scored on true deltas.} In the noisy suites the
-measurement itself lies, and the ledger acts on what it was told. Every
-metric below is computed from the resource movement that actually occurred;
-what the ledger was told is carried separately as
-\texttt{reported\_cum\_delta}. Scoring on the reported number would credit an
-arm for being deceived in a convenient direction, which is the opposite of
-the question those suites ask.
-
-\paragraph{Kill rate} is the fraction of seeds with a kill cycle, and a kill
-cycle is one after which no surviving entry from the poisoned source still
-advises an action. It is a claim about advice that can be acted on, not about
-text remaining in the store.
-
-\paragraph{Poison alive} counts surviving entries carrying the poisoned
-source in their provenance, inert ones included. It is reported beside the
-kill rate and never instead of it. A mechanism that removes nothing inert
-reads a kill rate of $1.00$ and looks immune, and three readings in this
-paper were flattered exactly that way before this count existed
-(\S\ref{sec:limitations}).
-
-\paragraph{Kill cycle} is the median over the seeds that killed, with a
-bootstrap confidence interval; seeds that never killed are excluded from it
-rather than entered as a large number. The median therefore describes only
-the seeds that got there, and must be read with the kill rate beside it: an
-arm that kills once, quickly, reports a better kill cycle than an arm that
-kills every time.
-
-\paragraph{Damage before kill} sums the negative true deltas from the start
-of the run up to and including the kill cycle, and over the whole run when
-there was no kill. It prices what the poison cost before selection removed
-it, which is the cost the mechanism is supposed to bound rather than
-eliminate.
-
-\paragraph{Cumulative and tail $\Delta$} are the sum of true deltas over the
-whole run, and the mean true delta over its last five cycles. The tail is the
-steady state after selection has settled; the cumulative figure includes the
-price of getting there.
-
-\paragraph{Final population} is the number of living entries when the run
-ends. It is a leanness measure, not a safety one: two arms with identical
-outcomes and different populations differ in what they cost to carry, not in
-what they got right.
+Every metric is computed from the resource movement that actually
+occurred, never from what a lying measurement reported: scoring on the
+reported number would credit an arm for being deceived in a convenient
+direction. Two rules carry the paper's argument and are worth stating
+here. \emph{Kill rate} is the fraction of seeds after which no surviving
+entry from the poisoned source still advises an action---a claim about
+advice that can be acted on, not about text remaining in the store.
+\emph{Poison alive} counts surviving entries carrying the poisoned
+provenance, inert ones included, and is reported beside the kill rate and
+never instead of it, because a mechanism that removes nothing inert reads
+$1.00$ and looks immune. Three readings in this paper were flattered
+exactly that way before this count existed.
+\pointer{\S\ref{sec:reporting-full} defines every reported quantity, and
+a test pins that list against the code producing the tables.}
+\inplace{method-reporting}

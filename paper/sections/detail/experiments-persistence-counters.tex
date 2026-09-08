@@ -1,0 +1,17 @@
+% Why the counters' flat kill rate under the persistence attack is
+% abstention rather than immunity, counted by provenance.
+The counters' kill rate does not move under the attack, and it would be
+easy---and wrong---to read that as immunity. Counted by provenance they
+never removed the poison at all. At every budget \emph{including zero},
+\texttt{evict\_on\_negative} ends with two poisoned entries alive;
+\texttt{evict\_consecutive} rises from $2.0$ to $2.4$; and quarantine is
+\emph{worse} under attack than without one ($2.0 \rightarrow 2.8$), as
+evicted entries return. The unattacked ledger ends with none, and under
+the heaviest attack with $1.0$---still fewer than any counter with no
+attacker present ($2.0$; mean difference $-1.0$, $p = 0.0020$). A
+mechanism that retains the inert poison indefinitely has nothing left for
+a persistence adversary to take, which is abstention rather than defence.
+This is the second time in this paper that a poison count has flattered a
+mechanism that had simply never eliminated anything
+(\S\ref{sec:swebench-attack}), and we applied the defensible predicate
+only after first reaching the opposite conclusion. 

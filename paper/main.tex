@@ -2,12 +2,24 @@
 % Compiles with: pdflatex main && bibtex main && pdflatex main && pdflatex main
 % Neutral preprint style (article); swap to a venue style (neurips/icml/colm)
 % by replacing the class + geometry block only. No exotic packages.
-\documentclass[11pt]{article}
+% The preprint is 11pt single-column A4; the venue build is the two-column
+% 10pt letter layout every page limit in the shortlist is written against,
+% because measuring a preprint layout against a two-column limit compares
+% the wrong things. Class and geometry are the only difference.
+\ifdefined\bodyonly
+  \documentclass[10pt,twocolumn]{article}
+\else
+  \documentclass[11pt]{article}
+\fi
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{geometry}
-\geometry{a4paper, margin=1in}
+\ifdefined\bodyonly
+  \geometry{letterpaper, margin=0.75in, columnsep=0.25in}
+\else
+  \geometry{a4paper, margin=1in}
+\fi
 \usepackage{amsmath, amssymb}
 \usepackage{booktabs}
 \usepackage{array}
@@ -22,12 +34,57 @@
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{microtype}
+\usepackage{enumitem}
+
+% This paper is float-heavy: nine tables and two figures in the body, all
+% full-width. LaTeX's defaults reserve so much of each page for text that
+% double-column floats queue up and spill onto pages of their own, which
+% costs pages a venue limit counts. These are the standard relaxations for
+% a table-dense paper; nothing is scaled or shrunk.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\dbltopfraction}{0.92}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.8}
+\renewcommand{\dblfloatpagefraction}{0.8}
+\setcounter{topnumber}{4}
+\setcounter{dbltopnumber}{4}
+\setcounter{totalnumber}{6}
 
 \newcommand{\todo}[1]{\textcolor{red}{[\textbf{TODO:} #1]}}
 \newcommand{\resscale}{\sigma}      % resource scale
 \newcommand{\credit}{g}             % credit gain
 \newcommand{\upkeep}{u}             % upkeep
 \newcommand{\Emax}{E_{\max}}        % energy cap
+
+% One source, two builds. Both carry every word; they differ only in where
+% the supporting detail sits.
+%
+%   tectonic main.tex                        -> preprint: detail inline
+%   tectonic body.tex (\def\bodyonly{})      -> venue: detail in the appendix
+%
+% A block named \inplace{x} lives in sections/detail/x.tex and is typeset
+% either where it is written or in the appendix's deferred region, never in
+% both and never in neither. tests/test_paper_deferred_blocks.py holds that
+% invariant: a block dropped from one build is the failure this mechanism
+% would otherwise make silent.
+%
+% The venue page limit is measured to where the appendix begins, not to the
+% last page -- security venues exclude the appendix -- so both builds are
+% complete documents and neither deletes anything.
+% \pointer{...} is the sentence that only makes sense once the detail has
+% moved: it names where the block went, and vanishes in the build where the
+% block is on the same page.
+\ifdefined\bodyonly
+  \newcommand{\inplace}[1]{}
+  \newcommand{\pointer}[1]{#1}
+  % Two columns are narrower than one, so the tables step down a size.
+  \newcommand{\tabsize}{\footnotesize}
+\else
+  \newcommand{\inplace}[1]{\input{sections/detail/#1}}
+  \newcommand{\pointer}[1]{}
+  \newcommand{\tabsize}{\small}
+\fi
 
 \title{\textbf{Attacking the Curator:\\
 Curation-Targeted Attacks on Agent Memory,\\
@@ -55,58 +112,50 @@ and What Survives Them}}
 \begin{abstract}
 Agent memory that only grows is eventually dominated by stale and
 poisoned entries, so every practical system curates, and every curator
-decides on some signal---a classifier's verdict, a judge's rating, a
-measured outcome. The memory-security literature defends the store at
-\emph{write} and at \emph{retrieval}, and both read content. Recent work
-names a third possibility without measuring it: an adversary who attacks
-the deciding signal itself. We make that threat quantitative. In a
-\emph{curation-targeted attack} the adversary injects no poison at all
-and instead corrupts settlement so that the defence starves the memory
-it protects---denial of memory---and we measure six curation mechanisms
-against it at five attack budgets over 30 seeds.
+decides on some signal. The memory-security literature defends the store
+at \emph{write} and at \emph{retrieval}, and both read content. Recent
+work names a third possibility without measuring it: an adversary who
+attacks the deciding signal itself. In a \emph{curation-targeted attack}
+the adversary injects no poison and instead corrupts settlement so that
+the defence starves the memory it protects---denial of memory---and we
+measure six curation mechanisms against it at five budgets over 30 seeds.
 
 The ledger that survives it is \textsc{darwin-memo}, in which each entry
 pays energy upkeep and earns only from a conserved resource the
 environment already measures: no reward model, no judge, no labels. At
-one corrupted measurement per cycle it keeps all of its benign
-capability and $99.4\%$ of its unattacked outcome, where the strike
-counters and quarantine policies in our attack grid keep at most about
-half---an evict-on-negative counter keeps none. A Thompson-sampling
-bandit also keeps capability, but only by never removing anything: its
-poison-kill rate falls to $0.07$ by four lies per cycle. Retention is
-not defence. The ledger's own failure boundary lies between two and four
-lies per cycle and we publish it rather than stopping at the win. An
-adversary that buys \emph{persistence} instead of destruction takes its
-poison-kill rate from $1.00$ to $0.00$ (paired $p = 0.0039$) while
-benign capability never moves, so the guarantee disappears without
-anything changing in the metric an operator watches.
+one corrupted measurement per cycle it keeps all benign capability and
+$99.4\%$ of its unattacked outcome, where the strike counters and
+quarantine policies keep at most about half and an evict-on-negative
+counter keeps none. A Thompson-sampling bandit also keeps capability, but
+only by never removing anything: its poison-kill rate falls to $0.07$ by
+four lies per cycle. Retention is not defence. We publish the ledger's
+own failure boundary, between two and four lies per cycle, rather than
+stopping at the win, and an adversary buying \emph{persistence} instead
+of destruction takes its poison-kill rate from $1.00$ to $0.00$ (paired
+$p = 0.0039$) while benign capability never moves---the guarantee
+disappears without anything changing in the metric an operator watches.
 
-That counter result is a statement about four settings, so we swept the
-family's whole dial and it refuted our own pre-registered prediction: a
-forgiveness counter tuned to $k{=}5$ reaches the ledger's corner at two
-lies per cycle. It gets there by barely evicting, and pays for it on an
+Sweeping the counter family's whole dial refuted our own pre-registered
+prediction: a forgiveness counter at $k{=}5$ reaches the ledger's corner
+at two lies per cycle. It gets there by barely evicting, and pays on an
 axis the corner does not price---$16\%$ less measured outcome from a
-store nearly four times larger, at every budget ($p = 0.0003$). The
-lifetime-strike shape has no such setting at any $k$ we tested.
+store nearly four times larger, at every budget ($p = 0.0003$).
 
 We are equally precise about where the mechanism is unnecessary. Absent
-an adversary a one-line heuristic ties it on outcomes and a confidence
-bandit matches it under one-sided noise; across $2{,}115$ evaluated
-SWE-Bench-CL tasks no memory arm beat carrying no memory at all, and
-what it buys there is leanness---the same capability from half the
-store. Capability therefore cannot separate under attack on those tasks
-either. What separates is an ordering rather than a magnitude: the
-counter loses more benign memory to the attack than the ledger does in
-$5$ of $6$ paired worlds, but the tripling we measure on one repository
-is absent on a second, where the counter already buries four times as
-much with no adversary present---so we report an effect scoped to one
-repository and claim significance for neither half. We give the regime
-map that says which curator to use when---including where a tuned
-counter is the right answer and where a one-line heuristic is---and
-report every one of those losses. Every number comes from a
-stdlib-only harness with pre-registered hypotheses, exact paired
-permutation tests, and committed per-seed data validated against its
-manifest in CI, including the prediction this paper refuted.
+an adversary a one-line heuristic ties it and a confidence bandit matches
+it under one-sided noise; across $2{,}115$ evaluated SWE-Bench-CL tasks
+no memory arm beat carrying no memory at all, and what it buys there is
+leanness. What separates under attack on real tasks is an ordering rather
+than a magnitude: the counter loses more benign memory in $5$ of $6$
+paired worlds, but the tripling we measure on one repository is absent on
+a second, so we report an effect scoped to one repository and claim
+significance for neither half. We give the regime map that says which
+curator to use when---including where a tuned counter or a one-line
+heuristic is the right answer---and report every one of those losses.
+Every number comes from a stdlib-only harness with pre-registered
+hypotheses, exact paired permutation tests, and committed per-seed data
+validated against its manifest in CI, including the prediction this paper
+refuted.
 \end{abstract}
 
 \input{sections/intro}
@@ -118,16 +167,12 @@ manifest in CI, including the prediction this paper refuted.
 \input{sections/ethics}
 \input{sections/conclusion}
 
-% Body carries the contribution and the negative results; the exhaustive
-% grids live here so a venue page limit costs coverage, not evidence.
-% One source, two builds: define \bodyonly to measure the body against a
-% page limit without deleting anything.
-%   tectonic main.tex                       -> body + appendix
-%   pdflatex "\def\bodyonly{}\input{main}"  -> body alone
-\ifdefined\bodyonly\else
-  \appendix
-  \input{sections/appendix}
-\fi
+% The appendix starts its own page in both builds, so the body's page count
+% -- the number a venue limit applies to -- is exactly the page before it.
+% tools/body-pages.sh reads it that way and CI enforces the limit.
+\clearpage
+\appendix
+\input{sections/appendix}
 
 \bibliographystyle{plainnat}
 \bibliography{references}

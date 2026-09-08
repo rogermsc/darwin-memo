@@ -12,187 +12,50 @@ their own, and the rest are refinements.
 \paragraph{Axis 1: Is there a conserved resource at all?}
 This is the gating precondition, not a tuning choice. The mechanism
 applies only where settlement can be a conserved, physically measured
-quantity: bytes freed, tests passed, issues resolved, spend capped.
-Where the only available signal is a model scoring an answer---chat
-preference, open-ended QA quality, ``helpfulness''---there is no conserved
-resource pushing back, upkeep would starve the long tail of
-correct-but-rarely-used knowledge, and the mechanism is the wrong tool by
-construction. We scope this out explicitly: systems like
-Mem0 \citep{mem0}, Zep \citep{zep}, Letta \citep{letta} and
-A-MEM \citep{xu2025amem} serve that market and \textsc{darwin-memo}
-deliberately does not. The benchmarks that market is measured on---%
-LoCoMo \citep{maharana2024locomo}, LongMemEval
-\citep{wu2024longmemeval} and their successors---score
-retrieval quality against reference answers, and a store whose entries
-must \emph{earn} energy from a conserved resource has nothing to earn
-from there. We report no numbers on them for that reason, not because
-the comparison is unfavourable.
-
-\paragraph{Upkeep is not a modelling convenience.}
-The premise under all of this is that memory an agent carries but does not
-earn from has a real, recurring cost. \citet{gloaguen2026agentsmd} price it
-directly on the surface where agent memory is most widely deployed:
-repository-level context files, always loaded, never curated. Across four
-models and two task sets they report that context files increase inference
-cost by over 20\% on average while not generally improving task success, and
-that repository overviews---the section every provider's initialisation prompt
-recommends---are not helpful. Two things about that measurement bound what we
-may take from it. It compares against \emph{no context file}, and
-developer-written files do beat model-written ones, so it is not a finding
-that written-down memory is worthless. And it prices a file injected into
-every prompt, not an entry fetched by retrieval, so it is a strong analogy for
-our upkeep term rather than a measurement of it. What it does establish is
-that the cost side of the ledger is not a modelling device we introduced to
-make selection work: somebody else measured it, on a mechanism with no
-curation at all, and found it substantial.
+quantity: bytes freed, tests passed, issues resolved, spend capped. Where
+the only signal is a model scoring an answer---chat preference,
+open-ended QA quality, ``helpfulness''---nothing pushes back, upkeep
+would starve the long tail of correct-but-rarely-used knowledge, and the
+mechanism is the wrong tool by construction. Systems like Mem0
+\citep{mem0}, Zep \citep{zep}, Letta \citep{letta} and A-MEM
+\citep{xu2025amem} serve that market and \textsc{darwin-memo}
+deliberately does not. The benchmarks it is measured on---LoCoMo
+\citep{maharana2024locomo}, LongMemEval \citep{wu2024longmemeval} and
+their successors---score retrieval quality against reference answers, and
+a store whose entries must \emph{earn} energy has nothing to earn from
+there. We report no numbers on them for that reason, not because the
+comparison is unfavourable.
 
 \paragraph{Axis 2: Do measurements lie \emph{on purpose}?}
-This is the axis the paper is about, and it decides on its own. If an
-attacker can corrupt the signal the curator decides on, it can turn the
-defence into a weapon and starve the benign entries that stand in its
-way (\S\ref{sec:adversary}). At one corrupted measurement per cycle the
-ledger retains all of its benign capability and $99.4\%$ of its
-unattacked outcome, while \texttt{evict\_on\_negative} loses \emph{all}
-capability (destroyed by three lies), a consecutive-$k{=}2$ counter
-keeps $0.52$, and quarantine keeps $0.21$---across all 30 seeds, Holm
-$p = 0.0015$. What separates them is not how aggressively they curate
-but what a lie costs: a counter spends a life it cannot recover, a
-bounded credit buffer spends energy an entry can earn back. The buffer
-stops being ornamental the moment the noise has an author.
+This is the axis the paper is about, and it decides on its own. What
+separates the mechanisms under a curation-targeted adversary
+(\S\ref{sec:adversary}) is not how aggressively they curate but what a
+lie costs: a counter spends a life it cannot recover, a bounded credit
+buffer spends energy an entry can earn back. The buffer stops being
+ornamental the moment the noise has an author.
 
 Three cautions keep this from being a victory lap. The bandit and
-\texttt{keep\_everything} hold capability at $1.00$ under every attack
-budget we test, but only by never removing anything: their poison-kill
-rate falls to $0.07$ and $0.00$, so they are not defending, they are
-abstaining. The ledger has its own boundary---between two and four
-lies per cycle its capability collapses to $0.06$---which we publish
-because a defence with an unstated limit is one nobody can deploy
-safely.
+\texttt{keep\_everything} hold capability under every budget we test only
+by never removing anything, so they are abstaining rather than defending.
+The ledger has its own boundary, between two and four lies per cycle,
+which we publish because a defence with an unstated limit is one nobody
+can deploy safely. And our counter numbers are four settings, not a
+family: sweeping the dial (\S\ref{sec:countersweep}) refuted our own
+prediction, and a forgiveness counter at $k{=}5$ or $k{=}8$ holds both
+axes through two lies per cycle. So the instruction here is narrower than
+``use the ledger''. If your store may grow without cost and you are
+willing to tune $k$, a consecutive-strike counter is a legitimate choice
+under a small attack budget, and it is one line of code. Reach for the
+ledger when the store's size is itself a cost, when you cannot bound the
+adversary's budget in advance, or when the counter you already have is
+the lifetime-strike shape, which has no working setting at any $k$ we
+tested.
 
-And the counter numbers above are four settings, not a family. Sweeping
-the dial (\S\ref{sec:countersweep}) refuted our own prediction: a
-\emph{forgiveness} counter at $k{=}5$ or $k{=}8$ holds capability and
-poison-kill together through two lies per cycle, as the ledger does.
-So the honest instruction on this axis is narrower than ``use the
-ledger''. If your store may grow without cost and you are willing to
-tune $k$, a consecutive-strike counter is a legitimate choice under a
-small attack budget, and it is one line of code. Reach for the ledger
-when the store's size is itself a cost---the tuned counter kept $14.9$
-entries to the ledger's $4.0$ and returned $16\%$ less measured
-resource---when you cannot bound the adversary's budget in advance, or
-when the counter you already have is the lifetime-strike shape, which
-has no working setting at any $k$ we tested.
-
-\paragraph{Axis 2a: If measurements lie on purpose, \emph{what is the
-liar buying}?} Our adversary was written to buy destruction: it spends
-its budget on every measured outcome, blaming benign entries as well as
-paying the poison. A deployed system suggested the other objective is
-the one an attacker would actually choose (\S\ref{sec:memoryos}), so we
-ran it --- an adversary identical in every respect except that it lies
-\emph{only} when the poison has just done damage.
-
-Persistence is a real attack on the ledger and we report it as one. Its
-poison-kill rate falls from $1.00$ to $0.10$ at two lies per cycle and
-to $0.00$ at four (paired $p = 0.0039$, 10 seeds), and it does so
-without moving benign capability at all, so nothing appears in the
-metric an operator watches. The cause is our own central mechanism read
-from the other side: bounded credit with earn-back is what forgives a
-lie the defender did not deserve, and equally what lets a \emph{paid}
-poison earn its way back above the floor.
-
-What it does \emph{not} do is reverse the recommendation, and getting
-that wrong is a trap this paper has already fallen into once
-(\S\ref{sec:swebench-attack}). The strike counters' kill rate is
-unmoved by the attack, which reads as immunity until one counts poison
-by \emph{provenance} rather than by whether it currently advises action.
-On that predicate the counters never removed the poison at all: two
-poisoned entries survive in \texttt{evict\_on\_negative} at every
-budget \emph{including zero}, against none for the unattacked ledger,
-and quarantine ends worse under attack than it began ($2.0
-\rightarrow 2.8$). The ledger under the heaviest attack we run still
-holds fewer poisoned entries ($1.0$) than any counter holds with no
-attacker present ($2.0$; mean difference $-1.0$, $p = 0.0020$). A
-mechanism that keeps the inert poison forever has nothing left for a
-persistence adversary to take, which is abstention rather than defence
---- the same reading we give the bandit and \texttt{keep\_everything}
-on Axis 2.
-
-The honest statement is therefore narrower than a flip: \emph{persistence
-narrows the ledger's advantage from total elimination to partial, and
-costs it the guarantee, without making any counter preferable.} The
-attack is worth publishing because a defence whose guarantee can be
-removed silently is one an operator should know about, not because the
-alternative is better.
-
-\paragraph{Axis 3: Do measurements lie by accident?}
-When measurements are truthful and deterministic, a one-line
-``evict-on-negative'' heuristic \emph{ties} the full ledger on outcomes
-(Table~\ref{tab:headline}); the ledger's extra machinery buys only
-leanness there. As measurements become noisy, the picture splits by
-\emph{shape}. Under one-sided false-bad noise (good actions sometimes
-misreport as bad---the flaky-CI case), the ledger's bounded-credit buffer
-with earn-back is decisively better than any fixed strike counter
-(Table~\ref{tab:noise}), and matches an optimistic confidence bandit only
-at high rates. Under symmetric noise that also rewards the guilty, every
-mechanism has a failure boundary; we locate the ledger's at roughly one
-lie in three and publish it. The honest rule: \emph{if your measurements
-never lie and you do not need leanness, the if-statement is the right
-tool}; the ledger earns its complexity exactly when measurements are
-noisy in a one-sided way, which is the common CI failure mode.
-
-\paragraph{Axis 4: Are refusals measured?}
-This axis decides the second-environment reversal. The ledger's leanness
-is an asset when inaction produces a measurable outcome (storage: keeping
-a file is measured) and a liability when refusing to act is free
-(test-suite: a skipped patch runs no suite, so a protective entry that
-keeps refusing a destructive change can never earn and starves). Where
-refusals are unpriced, a mechanism that never removes entries (a strike
-counter, or the bandit) outlasts the ledger because its protector refuses
-forever. The design implication is concrete: pair conserved-resource
-selection with an environment that prices inaction (e.g.\ a
-reverted-incident counter that pays a blocked bad change), or with a
-quarantine-style cooldown, and the reversal is expected to close. We do
-not claim it; the environment that would show it is future work.
-
-\paragraph{Axis 5: Is the horizon longer than the time constant?}
-The mechanism has a clock, and it is the first thing to check. An entry
-spawns with $1.0$ energy and pays $0.05$ upkeep, so removal by disuse
-takes $20$ cycles; nothing the ledger does that a simpler policy does not
-can appear before then. Our own real-task leg violated this and we did
-not notice until it returned a null: SWE-Bench-CL's two pinned sequences
-are $19$ and $22$ tasks, $10$ of the $246$ lessons minted by the two
-upkeep-charging arms ever starved, and
-\texttt{memory\_on} tied \texttt{keep\_everything} to three decimals
-because on that horizon they are the same policy
-(\S\ref{sec:swebench}). The rule is blunt: if the deployment is shorter
-than a few multiples of $\textrm{spawn}/\textrm{upkeep}$, use the
-if-statement---the ledger cannot yet have done anything else---or raise
-upkeep so the time constant fits the horizon.
-
-\paragraph{Axis 6: What do you need besides correctness?}
-Three needs select the ledger regardless of the above, because no other
-mechanism we tested provides them. \emph{Leanness}: only the energy
-ledger starves never-consulted entries; counters and the bandit hoard
-them (population 15--16 vs 4). \emph{Completeness}: among arms that
-retain any capability, the ledger is the only one that ends with no
-poisoned entry alive, acting or dormant---every counter, quarantine
-policy and bandit we test ends holding two or three poisoned entries at
-\emph{every} attack budget including zero, and \texttt{ttl} matches the
-ledger's zero only by emptying the store (benign capability $0.00$). Two
-scope conditions belong on this claim rather than in a footnote, because
-both are measured in this paper. It holds \emph{unattacked}: a
-persistence adversary takes the ledger to $1.0$ poisoned entries alive
-(\S\ref{sec:persistence}), which is still fewer than any counter holds
-with no attacker present, but it is not zero. And it does not hold on
-real tasks: on SWE-Bench-CL no arm removed poison at all, the ledger
-included (\S\ref{sec:swebench-attack}). Note also that this is
-completeness and not speed---in the deterministic suites it kills
-actionable poison within one cycle, but with a real model deciding
-adoption a one-line counter revokes five to nine cycles sooner and the
-ledger's advantage is that it finishes the job
-(\S\ref{sec:wef}). \emph{Cost}: settlement by a conserved scalar is
-$10^4$--$10^6\times$ cheaper than an LLM judge or generator, with no API
-dependency and no determinism loss.
+\pointer{Four axes refine rather than decide---what the adversary is
+buying, accidental lying, whether refusals are measured, and whether the
+horizon outruns the upkeep time constant, the condition our real-task leg
+failed. \S\ref{sec:axes} states each in full.}
+\inplace{regime-axes}
 
 \paragraph{Summary.}
 Conserved-resource selection is the right curator when (1) a conserved
@@ -201,10 +64,9 @@ corrupted by an adversary, (3) inaction is priced or paired with
 recovery, (4) the deployment runs for several multiples of the upkeep
 time constant, and (5) leanness, complete removal of harmful entries,
 label-free operation, or near-zero settlement cost are required. Outside
-that region a one-line heuristic, a confidence bandit, or a quarantine
+that region a one-line heuristic, a confidence bandit or a quarantine
 policy can match or beat it, and we have shown exactly where---including
-on the one real-task benchmark we ran, where condition (4) failed and the
-ledger was indistinguishable from keeping everything. The mechanism's deepest property is the one that holds
-across the entire map: because settlement is a conserved quantity the
-environment already produces, there is no proxy to optimize against, and
-nothing to hack.
+on the one real-task benchmark we ran, where condition (4) failed. The
+property that holds across the entire map is that because settlement is a
+conserved quantity the environment already produces, there is no proxy to
+optimize against, and nothing to hack.

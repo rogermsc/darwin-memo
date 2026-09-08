@@ -31,9 +31,9 @@ it is a canary, not a data point. Five rents $\times$ two budgets
 $\times$ two horizons $\times$ five arms $\times$ 30 seeds, 3,000 runs.
 Five predictions were registered in a commit before the grid ran.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{Total suppression (budget 12), true cumulative delta in M of
 bytes, 30 seeds. The four arms that are not \texttt{survival} are
 identical to the last byte at every rent, all at \texttt{poison\_killed}
@@ -53,7 +53,7 @@ horizon & arm & rent 0 & 0.25 & 0.5 & 0.75 & 1.0 \\
  & do-nothing floor  & $-18.17$ & $-20.19$ & $\mathbf{-22.20}$ & $\mathbf{-24.21}$ & $\mathbf{-26.23}$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \paragraph{The headline reverses, and it reverses cheaply.} At rent
 $1.0$ and total suppression \texttt{survival} is last of five on both
@@ -126,9 +126,9 @@ cycles \texttt{fired\_false\_bad} is identical to the unit at every rent
 $289$. Every arm saturates. The entire extra budget is spent paying
 negative truths and none of it on new blame.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{A liar at budget 2, 60 cycles, true cumulative delta in M of
 bytes, 30 seeds. \texttt{survival\_paced} is omitted: it is identical to
 \texttt{survival} in every cell here. Compare Table~\ref{tab:rent},
@@ -145,7 +145,7 @@ quarantine & $-7.26$ & $-6.95$ & $-14.18$ & $-21.40$ & $-28.63$ \\
 keep\_everything & $-18.17$ & $-20.19$ & $-22.20$ & $-24.21$ & $-26.23$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 At total lying every arm has \texttt{poison\_killed} $0.00$ and
 \texttt{survival} sits at rank 3 of 5 at every rent, unchanged --- the
@@ -254,9 +254,9 @@ ran. The \texttt{uniform} tier reproduces \texttt{rent.json} across
 60,000 cell-metrics with zero differences, including both published
 crossing rents.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{Unattacked (budget 0), \texttt{survival}, true cumulative delta
 in M of bytes, 30 seeds. All three tiers charge the same expected rent
 per task. The \texttt{aligned} row is not merely flat for
@@ -280,7 +280,7 @@ horizon & tier & rent 0 & 0.25 & 0.5 & 0.75 & 1.0 \\
  & \texttt{inverted}          & $+25.55$ & $+13.32$ & $+1.09$ & $-11.13$ & $-23.36$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \paragraph{The unattacked bill was charged for being right.} No arm ever
 declines a disposable file. Instrumenting \texttt{verify} over one
@@ -474,10 +474,10 @@ seeds. At 30 cycles the ledger answers every benign probe and is safe on
 \emph{no} harmful one; at 60 exactly one entry has starved:
 
 \begin{center}
-\small
+\footnotesize
 \begin{tabular}{lcccc}
 \toprule
- & benign correct & silence & harmful safe & population \\
+ & benign & silence & harmful safe & pop \\
 \midrule
 30 cycles & $1.00$ & $0.00$ & $\mathbf{0.00}$ & 4 \\
 60 cycles & $0.75$ & $0.40$ & $\mathbf{1.00}$ & 3 \\
@@ -623,9 +623,9 @@ no-op; all four \emph{are} equal, and the difference lived in metrics we
 had not printed and in one that did not yet exist. A comparison over a
 subset of the metrics cannot support a claim about all of them.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{Attack class $\times$ where the defence sits, 10 seeds. Harm and
 cum $\Delta$ in M of true bytes; starve cycle is when the last poisoned
 entry of any kind is gone. The filter wins the strong-signal row; it is
@@ -650,7 +650,7 @@ attack & defence & filter TPR & harm & cum $\Delta$ & starve & alive@30 \\
  & ledger        & 0.00 & 0.00 & 13.52 & \textbf{19} & \textbf{0} \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{A model in the loop, and where the claim does not hold}
 \label{sec:wef}
@@ -732,9 +732,9 @@ only one that keeps the population small, and it pays for both with
 revocation latency and with benign entries lost to the same starvation
 that removes the dormant poison.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{Write--Execute--Forget with \texttt{llama3.2} deciding
 adoption; means over seeds 0--2. \emph{kill} is the cycle the last
 \emph{acting} poisoned entry is gone; \emph{alive} counts poisoned
@@ -761,7 +761,7 @@ attack & arm & E2 & E3 & F1 & F2 & kill & alive \\
  & ledger & 0.00 & 0.0 & \textbf{1.00} & 1.00 & starve 19 & \textbf{0} \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Literature controls, run rather than argued}
 \paragraph{Retrieval bandit \citep{xu2026ael}.}
@@ -778,14 +778,14 @@ reward lets the poison feed until it bleeds to $\texttt{keep\_everything}$
 territory.
 
 \paragraph{LLM-judge settlement, and the cost result.}
-Replacing measured settlement with keep/cull verdicts from a local model
+Replacing measured settlement with keep-or-cull verdicts from a local model
 (an operationalization of LLM-curated memory, cf.\ \citealp{zhang2026faulty})
 gives a mixed quality result---one local judge degrades benign capability
 to $0.67$, another does not, at five seeds---so we do \emph{not} claim
 categorical superiority. The robust result is cost: judged settlement
 runs $87.6$\,s (llama3.2:3b) to $1{,}514$\,s (qwen3:4b) per five-cycle
-run against the ledger's $0.03$--$0.09$\,s, four to six orders of
-magnitude, before a verdict is even parsed. Settlement by a scalar the
+run, against the ledger's $0.03$--$0.09$\,s: four to six orders of
+magnitude, before a verdict is parsed. Settlement by a scalar the
 environment already returns is effectively free.
 
 \subsection{Second environment, and where the ledger loses}
@@ -1106,9 +1106,9 @@ deterministically, and the curator selects the neglected. Manufacturing
 the neglect end to end against a live agent is not demonstrated here and
 should not be read as though it were.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{\textsc{MemoryOS}, both mechanical curation decisions, measured end
 to end. LFU eviction fires on the target memory only when it is neglected;
 no memory that was retrieved at all was ever evicted ($0$ of $9$).
@@ -1129,7 +1129,7 @@ decision & condition & trials & fired & rate \\
  & queried    & 3 & 3 & 1.00 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Withholding: the dual of lying}
 \label{sec:withholding}
@@ -1153,9 +1153,9 @@ per-entry state, which is what separates it from the salience control of
 \S\ref{sec:headline}, where a per-entry usage signal cannot distinguish
 ``used'' from ``useful'' and the poison is the most-used entry.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{Withholding, 30 seeds, storage environment, 60 cycles. Budget is
 suppressions per cycle out of 12 measurable tasks, so 12 is total
 suppression. \emph{Sel.} is the selective withholder, which suppresses
@@ -1183,7 +1183,7 @@ evict\_on\_negative & 0 & 1.00 & 1.00 & $+25.74$M & 1.00 \\
 keep\_everything & 12 & 1.00 & 0.00 & $-18.17$M & 0.00 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \paragraph{Withholding does not spare the counters, it dissolves them.}
 At total suppression \texttt{evict\_on\_negative} and quarantine are
@@ -1235,9 +1235,9 @@ published ordering and we name it rather than bury it: at budget 4
 survival revokes at cycle $10.7$ against the counter's $12.5$, where
 \S\ref{sec:adversary} has the counter revoking roughly five times faster.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{The same indiscriminate attack on the test-suite environment,
 30 seeds, 60 cycles. Budget 12 is total suppression here as well.
 Cumulative delta is in passing tests rather than resource units, so the
@@ -1262,7 +1262,7 @@ evict\_on\_negative & 0 & 1.00 & 1.00 & $\mathbf{+178.00}$ \\
 keep\_everything & 12 & 1.00 & 0.00 & $+60.00$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \paragraph{On the second environment family the direction replicates and
 the magnitude does not.} The limitation we recorded for this section was
@@ -1348,9 +1348,9 @@ bottlenecked store. The mitigation sweep (\texttt{refuse=on}) moves survival
 by under $3\%$ on capability and not at all on safety, and is folded into the
 \texttt{survival} row.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\small
+\tabsize
 \caption{The long-context baseline. \texttt{llama3.2}, five seeds, 20 cycles,
 means over seeds. \emph{cap}: cumulative measured resource ($\times 10^6$
 units, the environment's own scalar, identical across arms). \emph{killed}:
@@ -1370,5 +1370,82 @@ arm & cap & killed & alive & safe & benign & pop \\
 \texttt{survival}            & $2.75$  & $\mathbf{5/5}$ & $\mathbf{0.0}$ & $\mathbf{1.00}$ & $0.67$ & $4$  \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
+
+% Deferred detail. In the preprint these blocks are typeset where they were
+% written; the venue build moves them here so the page limit costs placement
+% rather than evidence. Exactly one build shows each block --
+% tests/test_paper_deferred_blocks.py enforces it.
+\ifdefined\bodyonly
+\section{The strike counter's two shapes}
+\label{sec:sweepshapes}
+\input{sections/detail/experiments-sweep-shapes}
+
+\section{The persistence attack, counted by provenance}
+\label{sec:persistcounters}
+\input{sections/detail/experiments-persistence-counters}
+
+\section{The MemoryOS disclosure}
+\label{sec:disclosure}
+\input{sections/detail/ethics-disclosure}
+
+\section{The CI settlement channel's three writers}
+\label{sec:cichannel}
+\input{sections/detail/method-ci-channel}
+
+\section{The real-task attack, repository by repository}
+\label{sec:attacktransfer}
+\input{sections/detail/experiments-attack-transfer}
+
+\section{Reporting rules in full}
+\label{sec:reporting-full}
+\input{sections/detail/method-reporting}
+
+\section{The regime map's remaining axes}
+\label{sec:axes}
+\input{sections/detail/regime-axes}
+
+\section{Grids carried as figures and tables}
+\label{sec:extrafloats}
+\input{sections/detail/figure-adversary}
+\input{sections/detail/table-mem0}
+\input{sections/detail/table-noise}
+
+\section{Both SWE-Bench-CL matrices}
+\label{sec:swebench-result}
+\input{sections/detail/experiments-swebench-result}
+
+\subsection{The pilot}
+\label{sec:swebench-pilot}
+\input{sections/detail/experiments-swebench-pilot}
+
+\section{SWE-Bench-CL protocol}
+\label{sec:swebench-protocol}
+\input{sections/detail/experiments-swebench-protocol}
+
+\section{Why the attack did not transfer to Mem0}
+\label{sec:mem0-analysis}
+\input{sections/detail/experiments-mem0-analysis}
+
+\subsection{The phrasing families}
+\label{sec:mem0-families}
+\input{sections/detail/experiments-mem0-families}
+
+\subsection{What deployed memory systems do when a memory should stop
+being used}
+\label{sec:deployed}
+\input{sections/detail/experiments-deployed-surface}
+
+\section{A note on one survey's two versions}
+\label{sec:citationnote}
+\input{sections/detail/related-survey-versions}
+
+\section{The neighbouring literature}
+\label{sec:neighbours}
+\input{sections/detail/related-neighbours}
+
+\section{Threats to validity, in detail}
+\label{sec:threats}
+\input{sections/detail/limitations-threats}
+\fi

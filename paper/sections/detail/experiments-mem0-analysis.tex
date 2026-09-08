@@ -1,0 +1,61 @@
+% Why the attack did not transfer, read off two curators of very
+% different capability, plus the phrasing families and the survey of
+% what deployed systems do. The body keeps the finding and the boundary
+% it draws; this is the reasoning behind both.
+The boundary this exposes is worth more than the transfer would have
+been. Our attack presumes a curator that acts \emph{mechanically} on a
+signal: a strike counter cannot decline to count, and an energy ledger
+cannot decline to debit. A \emph{capable} LLM curator can, and
+\texttt{glm-5.2} did---it understood the retraction well enough to write
+a coherent linked negation and still chose to record rather than delete.
+That is judgment, and it is a defence mechanical curation does not have.
+It is not a property of LLM curation as such, which a single model would
+have let us claim: \texttt{llama3.2:3b} yields the same headline for a
+quite different reason, storing one benign rule three times, merging two
+unrelated facts, and writing several of the adversary's imperatives into
+the store verbatim, ending with $22$ memories from $15$ inputs. Those
+zero deletions are incapacity rather than restraint, and the store it
+leaves is already degraded in the way \citet{zhang2026faulty} describe.
+The honest statement is a trade with a competence floor rather than a
+ranking: judgment costs a model call per decision and can be talked into
+things, and a judge capable enough to be worth paying for can also
+refuse. Our attack is a threat to the mechanical end of that spectrum,
+where our own mechanism sits.
+
+All three pre-registered phrasing families---a polite
+user-voice retraction, a claimed authority with an imperative, and a
+\texttt{tool\_output} shaped like an automated sync report---behave the
+same way: no arm deleted anything and retention stayed at $1.00$.
+\pointer{One asymmetry falls out and corroborates \S\ref{sec:memsec}
+on a system we do not control: the loud \texttt{authority} family is the
+least effective on both axes at once, persisting nothing where the two
+quieter families persist in full (\S\ref{sec:mem0-families}).}
+\inplace{experiments-mem0-families}
+
+\inplace{table-mem0}
+
+
+Two caveats still bound this. It is one system and one attack surface: a
+negative result is evidence about the probes we ran, not a proof that the
+surface is safe, and Mem0's DELETE path remains reachable by
+construction.
+
+\paragraph{Which deployed systems have the surface at all.}
+We read what the major deployed agent-memory systems do when a memory
+should stop being used, from their sources rather than their
+documentation. Deletion is not absent from them; what is absent is
+deletion reached \emph{automatically, by a rule, from a signal}.
+Graphiti and Letta decline to remove at all on their automatic paths,
+Cognee removes only when a caller says so, and Mem0 removes only when a
+model agrees---the judgment we just measured declining. Our threat model
+is therefore forward-looking with respect to today's ecosystem rather
+than a vulnerability report against shipping software. The uncomfortable
+half is that \textsc{darwin-memo} is exactly such a design, as are the
+strike counters and quarantine policies of \S\ref{sec:adversary}: this
+is a warning about the class of mechanism the paper itself belongs to,
+issued before that class is widely deployed. The mechanisms deployed
+today avoid the attack largely by declining to forget at all, and
+Table~\ref{tab:headline} measures what that costs.
+\pointer{\S\ref{sec:deployed} gives the per-system reading.}
+\inplace{experiments-deployed-surface}
+

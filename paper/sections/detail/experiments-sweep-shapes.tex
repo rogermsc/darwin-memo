@@ -1,0 +1,22 @@
+% Why the two published counter shapes fail differently, and how narrow
+% the tuned counter's safe interval turns out to be.
+\paragraph{The lifetime shape is trapped, for a reason we did not
+predict.} We expected its kill rate to decay toward
+\texttt{keep\_everything}'s as evictions became unaffordable. It does
+not: kill is $1.00$ at every $k$ from 1 to 20, because the poison keeps
+\emph{earning} lifetime blame---it does damage whenever it acts, so even
+a twenty-strike budget catches it eventually. Lifetime strikes do not
+stop curating under attack; they destroy the benign store first, their
+best capability at $b{=}2$ anywhere in the sweep being $0.70$. The two
+shapes fail for opposite reasons, and only one has a setting that
+works.
+
+\paragraph{The honest residual.} Two of seven settings hold at $b{=}2$
+and the interval's edges are steep---$k{=}3$ is in the corner at $b{=}1$
+and at $0.12$ capability by $b{=}2$, $k{=}12$ down to $0.47$ kill---while
+the defender chooses $k$ once, without knowing the budget it will face.
+The ledger holds the corner across $b \in \{0,1,2\}$ untuned, but so do
+$k{=}5$ and $k{=}8$, so this is an argument about how wide the safe
+interval is, not about whether one exists. At $b{=}4$ nothing holds, the
+ledger included.
+

@@ -1,0 +1,62 @@
+% SWE-Bench-CL protocol: the control that makes the comparison mean
+% something, the dataset pin, the two disclosed prompt deviations, and
+% the retrieval recall that ceilings every arm.
+The decisive control is \texttt{random\_matched}: beating
+\texttt{memory\_off} alone could be a token-budget effect, so the
+learning-curve claim is the second-half-minus-first-half improvement of
+\texttt{memory\_on} over \texttt{random\_matched} on at least three
+seeds per sequence.
+
+Two properties of this leg bound what it can show, and both are reported
+rather than assumed: BM25's recall, below, and the fact that a seed here
+does not fix the world it does in the deterministic suites---the endpoint
+is sampled, so three seeds are three draws rather than three controlled
+replicates (\S\ref{sec:limitations}).
+
+That difference, and not either arm's own second-half-minus-first-half
+figure, is the quantity. These sequences are \emph{curricula} ordered by
+increasing difficulty, so the second half is harder by construction and
+every arm posts a negative within-arm delta whether or not it learned
+anything. Both arms walk the identical ordering, so the difficulty
+gradient cancels in the paired difference; reading an arm's raw delta as
+a learning signal would be reading the curriculum instead.
+
+The dataset is pinned by an exact (commit, sha256) pair; the loader
+refuses any file whose hash differs. As of this writing the pin
+re-verifies against live upstream, and the two pilot sequences hold
+(pytest, 19 tasks; astropy, 22 tasks). The full pipeline is validated
+end-to-end \emph{including the real evaluation}, and it resolves real
+issues. A minimal prompt (problem statement only) resolves $\approx 0$ for
+any model, for two structural reasons: the model never sees the code, and
+it cannot compute correct diff hunk line numbers. The run configuration
+that produces a curve adds two stdlib pieces, disclosed as a deviation
+from the minimal pre-registered prompt: \emph{(i)} BM25 retrieval of the
+repository's source files at the task's base commit against the issue text
+(no oracle---the gold patch is never read; the query is issue-only and
+identical across arms, so arms still differ only in lesson memory), and
+\emph{(ii)} a search/replace edit format from which the harness computes
+the diff with \texttt{difflib}, so hunk line numbers are correct by
+construction. With these, gpt-4.1 resolves \texttt{pytest-dev\_\_pytest-5262}
+end-to-end in the official docker harness under \texttt{linux/amd64}
+emulation (BM25 retrieved the correct file from the issue text alone; the
+edit applied; fail-to-pass 1/1, pass-to-pass 108/108); the same task under
+the minimal prompt produced an unappliable diff.
+
+\paragraph{Retrieval recall bounds every arm, so we measured it.}
+A file the model never sees is a task no arm can solve, which makes
+BM25's recall a ceiling on the whole experiment rather than an
+implementation detail. We report it directly: over the pytest sequence,
+the fraction of tasks where the file the gold patch edits appears in the
+retrieved context is $37\%$ at a 60k-character budget over 5 files,
+$63\%$ at 150k/5, $74\%$ at 300k/10, and $89\%$ at 600k/20. The budget
+rather than the file count is what binds at the low end---one or two
+large modules exhaust it---and the first configuration we ran was the
+60k one, where a third of tasks produced no patch at all because the
+model wrote edits against files it had not been shown. We report the
+matrix at 300k/10 and state the residual: roughly a quarter of tasks
+remain unanswerable for retrieval reasons, and they depress every arm
+equally. The gold patch is read \emph{only} for this measurement, never
+by the retriever and never by any arm; the retrieval query is issue-only
+and identical across arms, so recall sets how many tasks are answerable
+and never which arm answers them.
+

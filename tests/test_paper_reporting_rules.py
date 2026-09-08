@@ -1,8 +1,13 @@
 """The paper's stated reporting rules have to be the ones the harness applies.
 
-``\\S`` "Reporting rules" in ``paper/sections/method.tex`` says what each
-published number means. That is prose, and prose about code rots -- which is
-this repository's most-repeated failure. These pin it.
+``\\S`` "Reporting rules" says what each published number means. The body
+states the two rules that carry the argument and the definitions live in
+``paper/sections/detail/method-reporting.tex``, which the preprint typesets
+in place and the venue build moves to the appendix; this reads both, so a
+future move cannot quietly take the definitions out of the checked set.
+
+That is prose, and prose about code rots -- which is this repository's
+most-repeated failure. These pin it.
 
 The rules matter more here than the usual documentation-drift argument
 allows. Two of them change how a table reads: the kill-cycle median is taken
@@ -24,6 +29,7 @@ from bench.runner import TAIL
 
 ROOT = Path(__file__).resolve().parent.parent
 METHOD = ROOT / "paper" / "sections" / "method.tex"
+DEFINITIONS = ROOT / "paper" / "sections" / "detail" / "method-reporting.tex"
 
 # Every metric the subsection defines, and the harness key behind it.
 DEFINED = {
@@ -39,7 +45,7 @@ DEFINED = {
 def _section() -> str:
     body = METHOD.read_text()
     start = body.index("\\subsection{Reporting rules}")
-    return body[start:]
+    return body[start:] + DEFINITIONS.read_text()
 
 
 def test_the_subsection_is_present_and_parses() -> None:

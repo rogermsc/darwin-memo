@@ -42,7 +42,7 @@ from typing import Any
 import pytest
 
 from bench.claims import data_rows as _data_rows
-from bench.claims import strip_cell
+from bench.claims import paper_sections, strip_cell
 from bench.claims import tabular as _tabular
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,10 +50,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # either. Both are searched: a table that moved must keep being checked
 # against its evidence, and a lookup that found nothing would silently
 # stop checking instead of failing.
-EXPERIMENTS = (
-    ROOT / "paper" / "sections" / "experiments.tex",
-    ROOT / "paper" / "sections" / "appendix.tex",
-)
+EXPERIMENTS = paper_sections()
 RESULTS = ROOT / "bench" / "results"
 
 # Cells are printed to 2dp, so agreement means "rounds to the same thing".
@@ -1870,7 +1867,7 @@ def test_memoryos_caption_retrieval_claim() -> None:
     report = _external("memoryos-lfu-eviction.json")
     body = "\n".join(p.read_text() for p in EXPERIMENTS)
     end = body.index("\\label{tab:memoryos}")
-    caption = body[body.rindex("\\begin{table}", 0, end) : end]
+    caption = body[body.rindex("\\begin{table*}", 0, end) : end]
     assert report["evicted_despite_retrieval"] == 0
     assert report["targets_with_any_retrieval"] == 9
     assert "$0$ of $9$" in caption

@@ -36,6 +36,7 @@ from typing import Any
 
 import pytest
 
+from bench.claims import paper_sections
 from bench.report import aggregate
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,10 +44,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # either. Both are searched: a table that moved must keep being checked
 # against its evidence, and a lookup that found nothing would silently
 # stop checking instead of failing.
-EXPERIMENTS = (
-    ROOT / "paper" / "sections" / "experiments.tex",
-    ROOT / "paper" / "sections" / "appendix.tex",
-)
+EXPERIMENTS = paper_sections()
 RESULTS = ROOT / "bench" / "results"
 
 # Which committed file carries each arm of the headline table. salience_matched
