@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from dataclasses import fields as dataclass_fields
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -189,11 +190,12 @@ def test_documented_signatures_match_the_code() -> None:
     parameter; a reader copying it would not know the knob existed.
     """
     import inspect
+    from collections.abc import Callable
 
     from darwin_memo.store import MemoryStore
 
     body = _text(API)
-    checks = {
+    checks: dict[str, Callable[..., Any]] = {
         "charge_upkeep": MemoryStore.charge_upkeep,
         "ticks_to_starvation": MemoryStore.ticks_to_starvation,
     }

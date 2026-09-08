@@ -17,8 +17,10 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -27,7 +29,7 @@ from darwin_memo.ui import serve
 
 
 @pytest.fixture
-def served(tmp_path: Path):
+def served(tmp_path: Path) -> Iterator[tuple[str, str, Path, str, str]]:
     """A live dashboard over a store holding one entry and one open ticket."""
     memory = tmp_path / "memory.json"
     store = MemoryStore(upkeep=0.05)
@@ -58,13 +60,13 @@ def served(tmp_path: Path):
 def post(
     base: str,
     action: str,
-    body: dict | None = None,
+    body: dict[str, Any] | None = None,
     *,
     token: str | None = None,
     content_type: str | None = "application/json",
     origin: str | None = None,
     host: str | None = None,
-) -> tuple[int, dict]:
+) -> tuple[int, dict[str, Any]]:
     request = urllib.request.Request(
         f"{base}/api/{action}",
         data=json.dumps(body or {}).encode(),
@@ -147,9 +149,11 @@ def test_an_unknown_action_is_not_dispatched(served):
 def test_pin_and_unpin_round_trip(served):
     base, token, memory, _, entry_id = served
     assert post(base, "pin", {"id": entry_id}, token=token)[1]["pinned"] is True
-    assert Ledger.load(memory).store.get(entry_id).pinned is True
+    pinned = Ledger.load(memory).store.get(entry_id)
+    assert pinned is not None and pinned.pinned is True
     assert post(base, "unpin", {"id": entry_id}, token=token)[1]["pinned"] is False
-    assert Ledger.load(memory).store.get(entry_id).pinned is False
+    unpinned = Ledger.load(memory).store.get(entry_id)
+    assert unpinned is not None and unpinned.pinned is False
 
 
 def test_settle_from_the_dashboard_is_marked_operator_entered(served):
@@ -175,7 +179,9 @@ def test_settle_from_the_dashboard_is_marked_operator_entered(served):
     assert settles and all(event["source"] == "operator" for event in settles)
 
     notes = Ledger.load(memory).history(entry_id)
-    assert any(note.get("source") == "operator" for note in notes)
+    assert any(
+        isinstance(note, dict) and note.get("source") == "operator" for note in notes
+    )
 
 
 def test_a_settle_the_ledger_would_reject_is_refused_before_it_gets_there(served):
