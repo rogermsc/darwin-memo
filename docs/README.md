@@ -5,6 +5,10 @@ demo, and the quickstart. This index is everything else.
 
 ## Operating it
 
+- **[Glossary](glossary.md)**: every term this project invents or
+  overloads, in plain words -- energy and balance are one number, tick is
+  not a wall clock, and "the ledger" means three different things. Start
+  here if a page assumes a word you have not met.
 - **[Tuning guide](tuning.md)**: the load-bearing knobs (upkeep,
   resource_scale, credit_gain, merge_threshold, expire_after, the
   retrieval floors), what each does mechanically, failure symptoms in
@@ -20,10 +24,11 @@ demo, and the quickstart. This index is everything else.
 - **[Store format](store-format.md)**: the on-disk JSON format field
   by field, the events JSONL log and its rotation, the lock and
   flaky-test sidecars, and the honest compatibility policy.
-- **`darwin-memo doctor FILE [--json]`**: names which of six
-  degeneracies (if any) a live store hit, with evidence and a fix; see
+- **`darwin-memo doctor FILE [--json]`**: names which of the eight
+  degeneracies (if any) a live store hit, with evidence and a fix, and
+  distinguishes "nothing measured yet" from a clean bill of health; see
   [the finding table](api.md#doctor-findings).
-- **`darwin-memo ui FILE [--port N] [--no-open]`**: a local read-only
+- **`darwin-memo ui FILE [--port N] [--no-open]`**: a local operator
   dashboard over one memory file — population and energy over time,
   the graveyard, pending tickets, and the `doctor` findings, served
   loopback-only with no mutation endpoints, so nothing needs auth.

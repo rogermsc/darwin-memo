@@ -767,7 +767,7 @@ def _operator_findings(events: list[dict[str, Any]]) -> list[Finding]:
 def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     """Name the failure mode behind a store that is not earning.
 
-    Takes the ledger rather than the store because three of the seven
+    Takes the ledger rather than the store because three of the eight
     rules read state the JSONL log does not carry: death causes and the
     tick of the last credited settlement (both per-entry history,
     persisted in the memory file) and open tickets.

@@ -57,7 +57,18 @@ The output of `MemoryEntry.to_dict`, one per entry:
 | `last_used_cycle` | int | no | `-1` (never credited) |
 | `uses` | int | no | `0` |
 | `lineage` | list[str] | no | `[]` (ids of entries merged into this one) |
+| `pinned` | bool | no | `false` (exempt from starvation and merges) |
+| `probation` | int | no | `0` (net-positive settlements owed before it may decide) |
+| `juvenile` | int | no | `0` (settlements left in its admission window) |
+| `imported_from` | str \| null | no | `null` (source store path, set by `import`) |
+| `imported_at` | str \| null | no | `null` (UTC ISO-8601 import moment) |
 | `id` | str | yes | the loader keys entries by it (`KeyError` when missing) |
+
+The five trust-lifecycle fields (`pinned` through `imported_at`) are
+**written only when they differ from those defaults**, so a store that
+never used them is byte-identical to one written before they existed,
+and a reader from before the addition still loads it. Do not infer from
+their absence that a store predates them.
 
 An entry is alive when `energy > 1e-9`; graveyard entries have their
 energy clamped to at most `0.0` at burial.
@@ -184,12 +195,30 @@ and fall outside any `--since` window. Per-kind payload fields:
 | event | fields |
 |---|---|
 | `decide` | `ticket`, `query`, `silent`, `provenance` |
-| `settle` | `ticket`, `delta`, `detail`, `applied` (list of `{entry, credit}`), `buried` (list of entry ids) |
+| `settle` | `ticket`, `delta`, `detail`, `source`, `applied` (list of `{entry, credit}`), `buried` (list of entry ids) |
 | `settle_dropped` | `ticket`, `delta`, `detail` (the ticket was unknown, settled, or expired) |
+| `settle_rejected` | `ticket`, `detail` (the delta was not finite; the value is deliberately not echoed, so the log stays valid JSON) |
 | `add` | `entry`, `question`, `source`, `stake` |
+| `import` | `entries`, `source`, `probation` (a probationary copy from another store) |
 | `forget` | `entry` |
-| `forget_refused` | `entry`, `reason` (escrowed) |
-| `tick` | `population`, `deaths`, `merges`, `pending`, `expired`, `total_energy`, `dead_entries` |
+| `forget_refused` | `entry`, `reason` (escrowed or pinned) |
+| `pin` | `entry` (exempted from starvation and merges) |
+| `unpin` | `entry` (returned to normal selection pressure) |
+| `graduate` | `entry` (a probationary import paid its last installment and may now decide) |
+| `admission_denied` | `entry` (a juvenile decider took a negative measured outcome; its balance is zeroed) |
+| `tick` | `population`, `deaths`, `merges`, `pending`, `expired`, `total_energy`, `dead_entries`, `upkeep_charged` |
+
+`settle.source` says where the delta came from: `"measured"` for a real
+measurement, `"operator"` for one a person typed into the dashboard.
+Records written before the field existed have no `source` and are read
+as `"measured"`, since nothing else could write one at the time. The
+distinction is load-bearing: `doctor` raises `operator_settled` when
+hand-entered deltas outweigh measured ones, because a store curated by
+hand is no longer being selected by a conserved resource.
+
+`tick.upkeep_charged` is what makes the economics report exact rather
+than estimated: `economics()` switches between the two on whether every
+tick record in the window carries it.
 
 Settle records from older versions lack `applied`; the audit digest
 counts them under `untracked` rather than guessing. Audit readers
