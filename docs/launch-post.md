@@ -74,12 +74,13 @@ the answers. The filesystem just responds:
 
 ```
 cycle  pop births deaths merges   energy   resource Δ   silent
-    0   17      1      0      0    17.11       -12288     0/12
-    1   16      0      1      0    17.60      -572416     0/12   <- poison being executed
+    0   16      1      1      0    15.91      -495616     0/12   <- poison being executed
     ...
-   19    5      0      7      0    15.60       338944     0/12   <- unused knowledge starves
+    4   13      0      0      4    21.37       369664     0/12   <- near-duplicates merge
     ...
-   29    4      0      0      0    15.10       346112     6/12   <- stable, positive forever
+   19    5      0      7      0    15.71       507904     0/12   <- unused knowledge starves
+    ...
+   29    4      0      0      0    15.10       515072     4/12   <- stable, positive forever
 
 Poisoned entries still alive: 0
 ```

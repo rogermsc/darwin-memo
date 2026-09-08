@@ -37,7 +37,7 @@ from .diagnose import (
     selection_findings,
 )
 from .ledger import Ledger, note_text
-from .store import MemoryStore
+from .store import MemoryStore, StoreLockedError
 from .types import MemoryEntry
 
 _TOP_MOVERS = 5  # gainers and losers listed in the audit digest
@@ -844,12 +844,23 @@ def cmd_audit(args: argparse.Namespace) -> int:
 
 
 def _load_ledger(memory: str) -> Ledger | None:
-    """Read-only load; commands here never save or append to the log."""
+    """Read-only load; commands here never save or append to the log.
+
+    Missing was already a clean line. A truncated store (ValueError from
+    ``MemoryStore.load``) and a store another process holds the lock on
+    (StoreLockedError) reached the user as tracebacks, so they join it:
+    every way ``top``/``why``/``audit``/``doctor`` can fail to read a file
+    now prints one line and exits non-zero.
+    """
     path = Path(memory).expanduser()
     if not path.exists():
         print(f"error: {memory} not found", file=sys.stderr)
         return None
-    return Ledger.load(path)
+    try:
+        return Ledger.load(path)
+    except (ValueError, StoreLockedError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
 
 
 def register_observe_commands(

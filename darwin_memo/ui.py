@@ -26,6 +26,7 @@ import argparse
 import json
 import mimetypes
 import re
+import sys
 import threading
 import webbrowser
 from functools import partial
@@ -304,6 +305,18 @@ def cmd_ui(args: argparse.Namespace) -> int:
     server = serve(memory, port=args.port)
     url = f"http://127.0.0.1:{server.server_address[1]}"
     print(f"darwin-memo ui: {url}  (ctrl-c to stop)")
+    print(f"  store: {memory}")
+    if not BUNDLE.is_dir():
+        # From a source checkout darwin_memo/data/ui is gitignored and built
+        # at release time. Saying so here beats letting the browser be the
+        # first place the reader learns it.
+        print(
+            "  note: this checkout has no built frontend, so the page is a "
+            "placeholder.\n"
+            "        build it once with: cd ui && npm install && npm run build\n"
+            "        the JSON API at /api/state works either way.",
+            file=sys.stderr,
+        )
     if not args.no_open:
         webbrowser.open(url)
     try:

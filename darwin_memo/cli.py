@@ -44,7 +44,7 @@ from .mcp_server import register_mcp_command
 from .observe import economics, read_events, register_observe_commands
 from .protocol import QueryProtocol
 from .render import register_render_command
-from .store import MemoryStore
+from .store import MemoryStore, StoreLockedError
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
 from .types import EntryKind
 from .ui import cmd_ui
@@ -192,8 +192,34 @@ def _client_for(spec: str | None) -> LLMClient | None:
     raise SystemExit(1)
 
 
+def _load_store(memory: str, label: str = "") -> MemoryStore | None:
+    """Read a store for a read-only command, naming the three ways it fails.
+
+    ``query``, ``stats`` and ``import``'s source called ``MemoryStore.load``
+    straight, so a mistyped path printed a FileNotFoundError traceback while
+    ``doctor`` printed one line for the same mistake. ``store.load`` already
+    turns a truncated file into a clean ValueError and takes the advisory
+    lock; both were reaching the user as tracebacks too. One contract now.
+
+    Commands that deliberately auto-create (``ledger``, ``import``'s DEST)
+    do not come through here.
+    """
+    what = f"{label} " if label else ""
+    path = Path(memory).expanduser()
+    if not path.exists():
+        print(f"error: {what}{memory} not found", file=sys.stderr)
+        return None
+    try:
+        return MemoryStore.load(path)
+    except (ValueError, StoreLockedError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
+
+
 def cmd_query(args: argparse.Namespace) -> int:
-    store = MemoryStore.load(args.memory)
+    store = _load_store(args.memory)
+    if store is None:
+        return 1
     client = _client_for(args.model)
     answer = QueryProtocol(store, client).answer(
         args.question,
@@ -215,7 +241,9 @@ def cmd_query(args: argparse.Namespace) -> int:
 
 
 def cmd_stats(args: argparse.Namespace) -> int:
-    store = MemoryStore.load(args.memory)
+    store = _load_store(args.memory)
+    if store is None:
+        return 1
     print(f"alive: {len(store)}  graveyard: {len(store.graveyard())}")
     print(f"total energy: {store.total_energy():.2f}")
     log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
@@ -342,14 +370,13 @@ def cmd_import(args: argparse.Namespace) -> int:
     or buried, are skipped.
     """
     src = Path(args.src).expanduser()
-    if not src.exists():
-        print(f"error: source {args.src} not found", file=sys.stderr)
-        return 1
     dest = Path(args.dest).expanduser()
-    if src.resolve() == dest.resolve():
+    if src.exists() and dest.exists() and src.resolve() == dest.resolve():
         print("error: SRC and DEST are the same file", file=sys.stderr)
         return 1
-    src_store = MemoryStore.load(src)
+    src_store = _load_store(args.src, label="source")
+    if src_store is None:
+        return 1
     dest.parent.mkdir(parents=True, exist_ok=True)
     event_log = dest.with_suffix(".events.jsonl")
     if dest.exists():

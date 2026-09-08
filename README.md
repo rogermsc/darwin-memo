@@ -52,12 +52,13 @@ answers, the filesystem just responds:
 
 ```
 cycle  pop births deaths merges   energy   resource Δ   silent
-    0   17      1      0      0    17.11       -12288     0/12
-    1   16      0      1      0    17.60      -572416     0/12   <- poison being executed
+    0   16      1      1      0    15.91      -495616     0/12   <- poison being executed
     ...
-   19    5      0      7      0    15.60       338944     0/12   <- unused knowledge starves
+    4   13      0      0      4    21.37       369664     0/12   <- near-duplicates merge
     ...
-   29    4      0      0      0    15.10       346112     6/12   <- stable, positive forever
+   19    5      0      7      0    15.71       507904     0/12   <- unused knowledge starves
+    ...
+   29    4      0      0      0    15.10       515072     4/12   <- stable, positive forever
 
 Poisoned entries still alive: 0
 ```
@@ -123,21 +124,66 @@ flowchart LR
 Requires Python 3.10+. The core has zero dependencies; everything below
 runs offline.
 
-The anatomy in 30 seconds: a `MemoryEntry` is a self-contained QA pair
-(`.question`, `.answer`, `.sources`, `.energy`). The store retrieves,
-the protocol answers with provenance, the environment measures, credit
-flows back.
+### From the demo to your own text
+
+The demo carries its own corpus. To point the same machinery at yours,
+three commands and no Python:
+
+```bash
+darwin-memo encode notes/*.txt -o memory.json     # text -> QA entries
+darwin-memo query memory.json "Is it safe to delete old log files?"
+darwin-memo doctor memory.json                    # is this store earning?
+```
+
+`encode` splits each document into self-contained QA pairs and reports
+what it made:
+
+```
+Encoded 9 entries from 2 documents -> memory.json
+      explicit: 7
+        entity: 1
+     cross_doc: 1
+```
+
+`query` answers with provenance, and stays quiet when nothing clears
+the relevance floor. Both outcomes are the point:
+
+```
+$ darwin-memo query memory.json "Is it safe to delete old log files?"
+Old log files under logs/ may be deleted after seven days.
+[recorded 2026-09-08T12:19:56+00:00; born tick 0; never settled]
+  deciding entry: [explicit] What is known about old log files under logs/ may?
+  sources: runbook
+
+$ darwin-memo query memory.json "What is the wifi password?"
+(memory is silent: no entry clears the relevance floor)
+```
+
+Nothing has died yet, because nothing has been measured yet: entries
+only start paying upkeep once you settle decisions against a real
+outcome. That is the next section. For a walkthrough on your own
+directory, including how to read a wrong-but-confident answer, see
+[`examples/09_your_own_corpus.py`](https://github.com/rogermsc/darwin-memo/blob/main/examples/09_your_own_corpus.py).
+
+### The anatomy in 30 seconds
+
+A `MemoryEntry` is a self-contained QA pair (`.question`, `.answer`,
+`.sources`, `.energy`). The store retrieves, the protocol answers with
+provenance, the environment measures, credit flows back.
 
 ```python
 from darwin_memo import Document, LocalEncoder, MemoryStore, QueryProtocol
 
 store = MemoryStore(upkeep=0.05)
-for entry in LocalEncoder().encode([Document("runbook", open("runbook.txt").read())]):
+notes = "Old log files under logs/ may be deleted after seven days."
+for entry in LocalEncoder().encode([Document("runbook", notes)]):
     store.add(entry)
 
 answer = QueryProtocol(store).answer("Is it safe to delete old log files?")
 print(answer.text)             # the top entry's answer, or "" when memory is silent
 print(answer.deciding_entry)   # provenance: the id credit will flow to
+
+store.save("memory.json")
 ```
 
 ### Event-driven (production shape): the Ledger
