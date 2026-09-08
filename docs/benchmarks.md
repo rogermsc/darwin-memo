@@ -4559,3 +4559,68 @@ produced under the coupling. It is inert on this corpus — 0 of 1,320
 ledger cells differ between the coupled and pinned columns — but inert
 by luck rather than by design. `SurvivalConfig.conflict_threshold` now
 separates them and defaults to the coupling so nothing committed moves.
+
+## The counter family's dial, swept end to end: pre-registered predictions
+
+The published tables compare the ledger against three counter settings:
+lifetime `k=1` and `k=3` in the adversary grid, consecutive `k=2` in the
+noise grid. Every one of them loses, and that invites the reviewer's
+obvious reply: *those are two brittle settings, not a brittle family.
+Tune `k` and the gap closes.* The reply deserves an answer with a number
+in it, because the counter family really does have a free parameter and
+we really did pick its values.
+
+So sweep it until it stops curating. `k` in (1, 2, 3, 5, 8, 12, 20), both
+shapes (lifetime strikes, and consecutive strikes a success resets),
+four budgets (0, 1, 2, 4), 30 seeds, with `survival` and
+`keep_everything` bracketing the sweep. 30 seeds x 4 budgets x 16 arms =
+1,920 runs.
+
+**The mechanism I am betting on: the dial is a trade with no good point.**
+A counter evicts on accumulated blame, and blame is exactly the channel
+the liar owns. At low `k` the counter acts on thin evidence and the liar
+buys evictions cheaply, which is the published `k=1` collapse. Raising
+`k` makes each eviction cost the attacker more lies — but it raises the
+price of *every* eviction equally, including the true ones the poison
+earns, because the mechanism cannot tell whose blame is real. Push `k`
+high enough that the liar cannot afford an eviction and the counter
+cannot afford one either: the arm becomes `keep_everything` under
+another name.
+
+The ledger is not on that dial. Its evictions are paid for out of a
+buffer that *earning replenishes*, so a benign entry that keeps working
+outruns a fixed lie budget while a poisoned entry, which never earns, does
+not. That is the asymmetry a strike count cannot express, and it is why I
+expect no `k` to sit in the good corner.
+
+**Predictions, before running.**
+
+1. **No `k` occupies the good corner.** At budget 2 there is no `k` in
+   either shape with benign capability >= 0.90 *and* poison-kill >= 0.90.
+   `survival` occupies it. This is the claim; the rest are its shape.
+2. **Monotone recovery of capability.** Benign capability under attack
+   rises with `k` in both shapes, approaching `keep_everything`'s.
+3. **Monotone loss of curation.** Poison-kill under attack falls with `k`,
+   approaching `keep_everything`'s, and at `k=20` both shapes are
+   indistinguishable from `keep_everything` on both axes at 30 seeds.
+4. **Consecutive beats lifetime at equal `k`, and still does not escape.**
+   Forgiveness on success helps — it is why it is in the noise table — so
+   the consecutive curve sits above the lifetime one on capability, and
+   still fails prediction 1.
+5. **The crossover is a real point, not a cliff.** Somewhere in `k` in
+   (2, 8) the two curves cross: below it the counter curates and cannot
+   keep, above it the counter keeps and cannot curate.
+
+**What would refute this.** A `k` that holds both axes at budget 2 would
+show the counter family can buy its way out and that the ledger's
+advantage is a tuning artifact of our chosen `k`. I would report that as
+the headline of this subsection and weaken the corresponding claim in the
+paper. A non-monotone capability curve would mean the dial does something
+other than what I have described and the mechanism story above is wrong.
+
+**What this cannot show.** It sweeps the one parameter a counter has. It
+does not rule out a *differently shaped* heuristic — decay, magnitude
+grading, per-source blame — and the paper already says that patching a
+counter with decay and magnitude grading reinvents the ledger. This
+measures the family as written, not every heuristic that could be
+written.
