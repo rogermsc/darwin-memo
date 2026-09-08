@@ -247,7 +247,11 @@ pre-registered the prediction that no $k$ would reach the corner.
 \texttt{consecutive} $k{=}5$ scores $0.98 / 1.00$ and $k{=}8$ scores
 $1.00 / 0.90$, against the ledger's $0.99 / 1.00$
 (Table~\ref{tab:countersweep}). A correctly tuned forgiveness counter
-reaches the corner. We report this because the alternative---leaving a
+reaches the corner. Figure~\ref{fig:countersweep} plots the dial in the
+plane it has to win in, which is where the two shapes separate: the
+consecutive path enters the corner at $k{=}5$ and falls out of it again
+by $k{=}12$, while the lifetime path runs along the top edge and never
+enters at all. We report this because the alternative---leaving a
 sweep undone that a reviewer can run in three minutes---is worse than
 losing a headline, and because our own protocol commits predictions
 before runs precisely so that a refutation has somewhere to land.
@@ -271,6 +275,8 @@ consecutive   & .00/1.0 & .00/1.0 & .12/1.0 & \textbf{.98/1.0} & \textbf{1.0/.90
 \bottomrule
 \end{tabular}
 \end{table}
+
+\input{figures/counter_sweep}
 
 \paragraph{What survives the refutation is a different axis.} The
 counter reaches the corner by \emph{not evicting}, and neither

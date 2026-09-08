@@ -163,12 +163,24 @@ is not that the signal is \emph{usage} but that it is \emph{relative},
 so one entry's standing is a function of every other entry's traffic and
 the adversary takes lifetime from the benign population rather than
 buying its own (\S\ref{sec:potentiation}).
-(7) Two negative results reported with their causes: with a real model
-deciding adoption a one-line counter revokes poison sooner than the
-ledger (\S\ref{sec:wef}), and on SWE-Bench-CL the mechanism shows no
+(7) \textbf{A sweep of the baseline family's own free parameter, and the
+refutation it produced}. Comparing against two settings of a strike
+counter is a claim about two settings, so we swept $k$ across both
+published shapes until the counter stopped curating. Our pre-registered
+prediction---that no setting would hold benign capability and
+poison-kill together under attack---was false: a forgiveness counter at
+$k{=}5$ reaches the ledger's corner. It gets there by barely evicting
+and pays for it on an axis the corner does not price, returning $16\%$
+less measured resource from a store nearly four times larger at every
+budget ($p = 0.0003$), and the lifetime-strike shape has no such setting
+at any $k$ we tested (\S\ref{sec:countersweep}). We report it because a
+baseline nobody tuned is not a baseline.
+(8) Two further negative results reported with their causes: with a real
+model deciding adoption a one-line counter revokes poison sooner than
+the ledger (\S\ref{sec:wef}), and on SWE-Bench-CL the mechanism shows no
 learning-curve advantage over a token-matched random control
 ($p = 0.50$) across $300$ evaluated tasks per arm on the main matrix
 (\S\ref{sec:swebench}).
-(8) A reproducible, stdlib-only harness with pre-registered hypotheses,
+(9) A reproducible, stdlib-only harness with pre-registered hypotheses,
 seed-level bootstrap intervals, exact paired permutation tests, and
 committed per-seed data validated against a manifest in CI.
