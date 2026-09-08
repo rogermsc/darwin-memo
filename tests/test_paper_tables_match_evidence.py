@@ -1968,7 +1968,7 @@ def _countersweep_cells() -> list[tuple[str, int, str]]:
     rows = data_rows("tab:countersweep")
     header = rows[0]
     ks = [int(x) for x in header[1:] if x.strip().isdigit()]
-    cells = []
+    cells: list[tuple[str, int, str]] = []
     for row in rows[1:]:
         shape = row[0].strip()
         if shape not in COUNTER_SHAPES:

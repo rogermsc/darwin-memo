@@ -45,13 +45,13 @@ def strip_cell(cell: str) -> str:
     return cell.replace("\u2212", "-").strip()
 
 
-def tabular(label: str, source: Path) -> str:
+def tabular(label: str, source: Path | tuple[Path, ...]) -> str:
     body = _source(source)
     start = body.index("\\label{" + label + "}")
     return body[start : body.index("\\end{tabular}", start)]
 
 
-def data_rows(label: str, source: Path) -> list[list[str]]:
+def data_rows(label: str, source: Path | tuple[Path, ...]) -> list[list[str]]:
     """Body rows of a tabular, with ``\\multirow`` group labels pushed down.
 
     A ``\\multirow`` sits on its own line with no ``&``, and the row it labels
