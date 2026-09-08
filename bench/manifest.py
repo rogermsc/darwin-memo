@@ -31,16 +31,31 @@ MANIFEST_NAME = "MANIFEST.json"
 SCHEMA_VERSION = 1
 
 
-def _git_commit(repo_dir: Path) -> str:
-    """Best-effort commit of the producing checkout, "unknown" outside git.
+def _git_commit(repo_dir: Path, produced: tuple[Path, ...] = ()) -> str:
+    """Best-effort commit of the producing CODE, "unknown" outside git.
 
-    A ``-dirty`` suffix means uncommitted changes were present when the
-    manifest was written (the freshly regenerated results themselves,
-    usually), so the named commit brackets the producing code rather
-    than pinning it exactly. The commit that finally lands the results
-    is the precise pointer; update the entry to it when committing.
+    A ``-dirty`` suffix means the code that produced these runs had
+    uncommitted changes, so the named commit brackets it rather than
+    pinning it. What it must not mean is "this tool just wrote its own
+    output": a re-run on a spotless checkout always rewrites the results
+    file (metrics are byte-identical, ``wall_time_s`` is not), so every
+    pin came back dirty and re-running could never produce a clean one.
+    Paths in ``produced`` -- the results file and the manifest beside it
+    -- are therefore excluded from the check, and nothing else is.
+
+    A squash merge still rewrites the commit this names, so the repin
+    after landing remains a manual step; that part is not fixable here.
     """
+    ignored = {path.resolve() for path in produced}
     try:
+        root = Path(
+            subprocess.run(
+                ["git", "-C", str(repo_dir), "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+        )
         head = subprocess.run(
             ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
             capture_output=True,
@@ -53,9 +68,20 @@ def _git_commit(repo_dir: Path) -> str:
             text=True,
             check=True,
         ).stdout
-        return head + ("-dirty" if status.strip() else "")
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
+
+    dirty = False
+    for line in status.splitlines():
+        if not line.strip():
+            continue
+        # "XY path", and a rename is "XY old -> new"; the new path is the
+        # one that exists, and the only one that could be an artifact.
+        entry = line[3:].split(" -> ")[-1].strip().strip('"')
+        if (root / entry).resolve() not in ignored:
+            dirty = True
+            break
+    return head + ("-dirty" if dirty else "")
 
 
 def config_hash(runs: list[dict[str, Any]]) -> str:
@@ -107,7 +133,9 @@ def update_manifest(
         "config_hash": config_hash(runs),
         "command": command,
         "darwin_memo": versions[0] if len(versions) == 1 else versions,
-        "source_commit": _git_commit(results_path.parent),
+        "source_commit": _git_commit(
+            results_path.parent, (results_path, manifest_path)
+        ),
         **(extra or {}),
     }
     manifest["files"] = dict(sorted(manifest["files"].items()))

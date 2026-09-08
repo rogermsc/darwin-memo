@@ -175,3 +175,77 @@ def test_docker_empty_patch_note_says_the_harness_did_not_run() -> None:
     report = DockerExecutor(runner_fn=never_called).evaluate(task, "   ")
     assert report.empty_patch
     assert "assumed" in report.notes and "harness not called" in report.notes
+
+
+# ----------------------------------------------------------------------
+# The pin asks about the CODE, not about the tool's own output.
+# ----------------------------------------------------------------------
+
+
+def _git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _tiny_repo(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "bench" / "results").mkdir(parents=True)
+    (repo / "bench" / "runner.py").write_text("# the code\n")
+    (repo / "bench" / "results" / "suite.json").write_text('{"runs": []}\n')
+    (repo / "bench" / "results" / "MANIFEST.json").write_text("{}\n")
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "you@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "initial")
+    return repo
+
+
+def test_a_rewritten_results_file_does_not_make_the_pin_dirty(tmp_path):
+    """Re-running a suite always rewrites its own output -- metrics are
+    byte-identical but wall_time_s is not -- so before this the tool saw
+    its own write and pinned every result "-dirty", and re-running could
+    never produce a clean pin.
+    """
+    from bench.manifest import _git_commit
+
+    repo = _tiny_repo(tmp_path)
+    results = repo / "bench" / "results" / "suite.json"
+    manifest = repo / "bench" / "results" / "MANIFEST.json"
+
+    assert not _git_commit(results.parent, (results, manifest)).endswith("-dirty")
+
+    results.write_text('{"runs": [], "wall_time_s": 0.2}\n')
+    manifest.write_text('{"files": {}}\n')
+    pin = _git_commit(results.parent, (results, manifest))
+    assert not pin.endswith("-dirty"), (
+        "the tool's own output must not count as a dirty tree; that is the "
+        f"whole point of the exclusion, got {pin}"
+    )
+
+
+def test_a_modified_source_file_still_makes_the_pin_dirty(tmp_path):
+    """The other half, and the one that matters: the exclusion must not
+    become "never dirty". A pin that cannot go dirty records nothing.
+    """
+    from bench.manifest import _git_commit
+
+    repo = _tiny_repo(tmp_path)
+    results = repo / "bench" / "results" / "suite.json"
+    manifest = repo / "bench" / "results" / "MANIFEST.json"
+
+    (repo / "bench" / "runner.py").write_text("# the code, changed\n")
+    pin = _git_commit(results.parent, (results, manifest))
+    assert pin.endswith("-dirty"), (
+        "uncommitted code produced these runs and the pin must say so"
+    )
+
+
+def test_an_untracked_file_anywhere_else_still_makes_the_pin_dirty(tmp_path):
+    from bench.manifest import _git_commit
+
+    repo = _tiny_repo(tmp_path)
+    results = repo / "bench" / "results" / "suite.json"
+    manifest = repo / "bench" / "results" / "MANIFEST.json"
+
+    (repo / "bench" / "scratch.py").write_text("# not committed\n")
+    assert _git_commit(results.parent, (results, manifest)).endswith("-dirty")
