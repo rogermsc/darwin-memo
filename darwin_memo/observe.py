@@ -773,14 +773,64 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     return findings
 
 
+def evidence_window(ledger: Ledger, events: list[dict[str, Any]]) -> dict[str, int]:
+    """How much evidence a diagnosis actually had to work with.
+
+    An empty finding list means two very different things, and until this
+    existed every surface reported them identically: a store that has been
+    measured and is healthy, and a store nothing has ever measured. The
+    second is the normal state of a brand-new store, so "no degeneracy
+    detected" was the first thing a new user saw -- a green light on an
+    empty room.
+    """
+    return {
+        "events": len(events),
+        "ticks": ledger.tick_count,
+        "settles": sum(1 for e in events if e.get("event") == "settle"),
+        "alive": len(ledger.store),
+        "graves": ledger.store.dead_count(),
+    }
+
+
+def has_evidence(window: dict[str, int]) -> bool:
+    """True when selection has actually run: time passed or outcomes landed."""
+    return bool(window["ticks"] or window["settles"] or window["graves"])
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     ledger = _load_ledger(args.memory)
     if ledger is None:
         return 1
     log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
-    findings = doctor(ledger, read_events(log))
+    events = read_events(log)
+    findings = doctor(ledger, events)
+    window = evidence_window(ledger, events)
     if args.json:
-        print(json.dumps({"findings": [f.as_dict() for f in findings]}))
+        print(
+            json.dumps(
+                {
+                    "findings": [f.as_dict() for f in findings],
+                    "evidence_window": window,
+                    "diagnosed": has_evidence(window),
+                }
+            )
+        )
+    elif not findings and not has_evidence(window):
+
+        def _n(count: int, noun: str) -> str:
+            return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+        print(
+            f"no evidence yet: {_n(window['alive'], 'entry')}, "
+            f"{_n(window['ticks'], 'tick')}, "
+            f"{_n(window['settles'], 'settled outcome')}."
+        )
+        print("  Nothing has been measured, so there is nothing to diagnose.")
+        print("  Settle a decision against a real outcome, then tick:")
+        print('    darwin-memo ledger MEMORY decide "your question"')
+        print("    darwin-memo ledger MEMORY settle TICKET_ID DELTA")
+        print("    darwin-memo ledger MEMORY tick")
+        return 0
     elif not findings:
         print("clean: no degeneracy detected")
     else:

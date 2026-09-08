@@ -239,14 +239,30 @@ pip install "darwin-memo[mcp]"
 claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.json
 ```
 
-The agent gets `memory_query` (returns an answer plus a ticket id),
-`memory_settle` (report the measured delta later; the reply says
-plainly when a settlement did NOT land), `memory_abandon` (release a
-ticket you chose not to act on), `memory_add`, `memory_tick`,
-`memory_stats`, `memory_obituary`, and `memory_audit` (read the event
-log). The full state, including open
-tickets, persists across sessions and restarts, so a ticket opened
-today settles correctly from tomorrow's process.
+The agent gets fourteen tools, in three groups.
+
+**Use it.** `memory_query` returns an answer, a ticket id, and the
+entry ids credit will flow to. `memory_settle` reports the measured
+delta later, and says plainly when a settlement did NOT land.
+`memory_abandon` releases a ticket you chose not to act on.
+`memory_add` writes a lesson. `memory_tick` advances time.
+
+**Inspect it.** `memory_stats` for the population, `memory_top` for
+what the memory is made of, `memory_pending` for open tickets *with
+their ids*, `memory_obituary` for one entry's credit history,
+`memory_audit` for the event log, and `memory_doctor` to name the
+failure mode behind a store that is not earning.
+
+**Curate it.** `memory_forget` buries a lesson that is wrong but inert
+— selection only removes what it measures, so an entry nothing acts on
+never gets settled and starves only slowly. `memory_pin` and
+`memory_unpin` exempt an entry from starvation and merges; pin
+sparingly, since a pin suspends the only mechanism that removes bad
+memory.
+
+The full state, including open tickets, persists across sessions and
+restarts, so a ticket opened today settles correctly from tomorrow's
+process.
 
 ### Fully local with Ollama (zero dependencies, zero cloud)
 

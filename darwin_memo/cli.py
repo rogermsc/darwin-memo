@@ -123,8 +123,14 @@ def cmd_demo(args: argparse.Namespace) -> int:
     still_poisoned = sum(1 for e in store.alive() if "forum-post" in e.sources)
     print(f"\nPoisoned entries still alive: {still_poisoned}")
     if args.out:
-        store.save(args.out)
+        # Through the loop, not the store: this carries the per-entry history
+        # that lets `why`, `audit`, `doctor` and `ui` read back the three
+        # death modes printed above. `store.save` drops it, so every grave in
+        # a saved demo store used to report "cause of death: unknown".
+        loop.save(args.out)
         print(f"Saved the surviving population to {args.out}")
+        print(f"  darwin-memo top {args.out}       # what survived, and why")
+        print(f"  darwin-memo why {args.out} ID    # one entry's whole life")
     return 0
 
 
@@ -291,6 +297,21 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     else:
         ledger = Ledger(MemoryStore(), resource_scale=args.scale, event_log=event_log)
     store = ledger.store
+    # Applied after the load so an explicit flag overrides what the file
+    # carries, and saved with it so the setting sticks for later calls.
+    # Left alone when the flag is absent: not passing --upkeep must not
+    # reset a store back to the default.
+    if args.upkeep is not None:
+        store.upkeep = args.upkeep
+    if args.merge_threshold is not None:
+        ledger.config.merge_threshold = args.merge_threshold
+        # The protocol flags conflicting advice at the ledger's merge floor
+        # (see Ledger.__init__), so moving one must move the other or
+        # "near duplicate" means two different things in one ledger.
+        if ledger.config.conflict_threshold is None:
+            ledger.protocol.conflict_threshold = args.merge_threshold
+    if args.admission_window is not None:
+        ledger.config.admission_window = args.admission_window
 
     out: dict[str, object]
     save = True
@@ -450,6 +471,28 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=1.0,
         help="resource_scale for settle deltas (default 1.0)",
+    )
+    # The tuning knobs docs/tuning.md spends pages on were unreachable from
+    # here: every invocation rebuilt SurvivalConfig() defaults, so following
+    # the documented advice meant abandoning the CLI. Each is sticky -- it
+    # persists into the ledger file and applies to later invocations until
+    # set again -- so scripts set it once, not on every call.
+    ledger.add_argument(
+        "--upkeep",
+        type=float,
+        help="energy charged per entry per tick; sticky (default 0.05)",
+    )
+    ledger.add_argument(
+        "--merge-threshold",
+        type=float,
+        help="similarity floor for consolidation; sticky (default 0.55, "
+        "0.85+ with embeddings)",
+    )
+    ledger.add_argument(
+        "--admission-window",
+        type=int,
+        help="juvenile settlements a new entry owes before it may decide; "
+        "sticky, 0 disables gating (default 0, 3 when enabled)",
     )
     ledger.set_defaults(fn=cmd_ledger)
     lsub = ledger.add_subparsers(dest="ledger_op", required=True)

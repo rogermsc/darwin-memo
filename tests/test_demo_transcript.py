@@ -105,9 +105,7 @@ def test_poison_annotation_marks_the_cycle_that_pays(
     wrong: it pointed at cycle 1, which is delta-positive.
     """
     marked = [
-        line
-        for line in _transcript_block(doc)
-        if "poison being executed" in line
+        line for line in _transcript_block(doc) if "poison being executed" in line
     ]
     assert len(marked) == 1, f"{doc.name}: expected exactly one poison marker"
     delta = int(marked[0].split("<-")[0].split()[6])
