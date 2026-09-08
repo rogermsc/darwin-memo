@@ -1973,9 +1973,7 @@ def _countersweep_cells() -> list[tuple[str, int, str]]:
         shape = row[0].strip()
         if shape not in COUNTER_SHAPES:
             continue  # the bracketing footer row, checked separately below
-        cells.extend(
-            (shape, k, cell) for k, cell in zip(ks, row[1:], strict=True)
-        )
+        cells.extend((shape, k, cell) for k, cell in zip(ks, row[1:], strict=True))
     return cells
 
 
