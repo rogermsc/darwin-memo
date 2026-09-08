@@ -1,0 +1,133 @@
+% The axis the upkeep term rests on, and the four refining axes. Inline
+% in the preprint; the venue build keeps the two deciding axes and the
+% summary in the body and moves these here.
+\paragraph{Upkeep is not a modelling convenience.}
+The premise under all of this is that memory an agent carries but does not
+earn from has a real, recurring cost. \citet{gloaguen2026agentsmd} price it
+directly on the surface where agent memory is most widely deployed:
+repository-level context files, always loaded, never curated. Across four
+models and two task sets they report that context files increase inference
+cost by over 20\% on average while not generally improving task success, and
+that repository overviews---the section every provider's initialisation prompt
+recommends---are not helpful. Two things about that measurement bound what we
+may take from it. It compares against \emph{no context file}, and
+developer-written files do beat model-written ones, so it is not a finding
+that written-down memory is worthless. And it prices a file injected into
+every prompt, not an entry fetched by retrieval, so it is a strong analogy for
+our upkeep term rather than a measurement of it. What it does establish is
+that the cost side of the ledger is not a modelling device we introduced to
+make selection work: somebody else measured it, on a mechanism with no
+curation at all, and found it substantial.
+
+
+\paragraph{Axis 2a: If measurements lie on purpose, \emph{what is the
+liar buying}?} Our adversary was written to buy destruction: it spends
+its budget on every measured outcome, blaming benign entries as well as
+paying the poison. A deployed system suggested the other objective is
+the one an attacker would actually choose (\S\ref{sec:memoryos}), so we
+ran it --- an adversary identical in every respect except that it lies
+\emph{only} when the poison has just done damage.
+
+Persistence is a real attack on the ledger and we report it as one. Its
+poison-kill rate falls from $1.00$ to $0.10$ at two lies per cycle and
+to $0.00$ at four (paired $p = 0.0039$, 10 seeds), and it does so
+without moving benign capability at all, so nothing appears in the
+metric an operator watches. The cause is our own central mechanism read
+from the other side: bounded credit with earn-back is what forgives a
+lie the defender did not deserve, and equally what lets a \emph{paid}
+poison earn its way back above the floor.
+
+What it does \emph{not} do is reverse the recommendation, and getting
+that wrong is a trap this paper has already fallen into once
+(\S\ref{sec:swebench-attack}). The strike counters' kill rate is
+unmoved by the attack, which reads as immunity until one counts poison
+by \emph{provenance} rather than by whether it currently advises action.
+On that predicate the counters never removed the poison at all: two
+poisoned entries survive in \texttt{evict\_on\_negative} at every
+budget \emph{including zero}, against none for the unattacked ledger,
+and quarantine ends worse under attack than it began ($2.0
+\rightarrow 2.8$). The ledger under the heaviest attack we run still
+holds fewer poisoned entries ($1.0$) than any counter holds with no
+attacker present ($2.0$; mean difference $-1.0$, $p = 0.0020$). A
+mechanism that keeps the inert poison forever has nothing left for a
+persistence adversary to take, which is abstention rather than defence
+--- the same reading we give the bandit and \texttt{keep\_everything}
+on Axis 2.
+
+The honest statement is therefore narrower than a flip: \emph{persistence
+narrows the ledger's advantage from total elimination to partial, and
+costs it the guarantee, without making any counter preferable.} The
+attack is worth publishing because a defence whose guarantee can be
+removed silently is one an operator should know about, not because the
+alternative is better.
+
+\paragraph{Axis 3: Do measurements lie by accident?}
+When measurements are truthful and deterministic, a one-line
+``evict-on-negative'' heuristic \emph{ties} the full ledger on outcomes
+(Table~\ref{tab:headline}); the ledger's extra machinery buys only
+leanness there. As measurements become noisy, the picture splits by
+\emph{shape}. Under one-sided false-bad noise (good actions sometimes
+misreport as bad---the flaky-CI case), the ledger's bounded-credit buffer
+with earn-back is decisively better than any fixed strike counter
+(Table~\ref{tab:noise}), and matches an optimistic confidence bandit only
+at high rates. Under symmetric noise that also rewards the guilty, every
+mechanism has a failure boundary; we locate the ledger's at roughly one
+lie in three and publish it. The honest rule: \emph{if your measurements
+never lie and you do not need leanness, the if-statement is the right
+tool}; the ledger earns its complexity exactly when measurements are
+noisy in a one-sided way, which is the common CI failure mode.
+
+\paragraph{Axis 4: Are refusals measured?}
+This axis decides the second-environment reversal. The ledger's leanness
+is an asset when inaction produces a measurable outcome (storage: keeping
+a file is measured) and a liability when refusing to act is free
+(test-suite: a skipped patch runs no suite, so a protective entry that
+keeps refusing a destructive change can never earn and starves). Where
+refusals are unpriced, a mechanism that never removes entries (a strike
+counter, or the bandit) outlasts the ledger because its protector refuses
+forever. The design implication is concrete: pair conserved-resource
+selection with an environment that prices inaction (e.g.\ a
+reverted-incident counter that pays a blocked bad change), or with a
+quarantine-style cooldown, and the reversal is expected to close. We do
+not claim it; the environment that would show it is future work.
+
+\paragraph{Axis 5: Is the horizon longer than the time constant?}
+The mechanism has a clock, and it is the first thing to check. An entry
+spawns with $1.0$ energy and pays $0.05$ upkeep, so removal by disuse
+takes $20$ cycles; nothing the ledger does that a simpler policy does not
+can appear before then. Our own real-task leg violated this and we did
+not notice until it returned a null: SWE-Bench-CL's two pinned sequences
+are $19$ and $22$ tasks, $10$ of the $246$ lessons minted by the two
+upkeep-charging arms ever starved, and
+\texttt{memory\_on} tied \texttt{keep\_everything} to three decimals
+because on that horizon they are the same policy
+(\S\ref{sec:swebench}). The rule is blunt: if the deployment is shorter
+than a few multiples of $\textrm{spawn}/\textrm{upkeep}$, use the
+if-statement---the ledger cannot yet have done anything else---or raise
+upkeep so the time constant fits the horizon.
+
+\paragraph{Axis 6: What do you need besides correctness?}
+Three needs select the ledger regardless of the above, because no other
+mechanism we tested provides them. \emph{Leanness}: only the energy
+ledger starves never-consulted entries; counters and the bandit hoard
+them (population 15--16 vs 4). \emph{Completeness}: among arms that
+retain any capability, the ledger is the only one that ends with no
+poisoned entry alive, acting or dormant---every counter, quarantine
+policy and bandit we test ends holding two or three poisoned entries at
+\emph{every} attack budget including zero, and \texttt{ttl} matches the
+ledger's zero only by emptying the store (benign capability $0.00$). Two
+scope conditions belong on this claim rather than in a footnote, because
+both are measured in this paper. It holds \emph{unattacked}: a
+persistence adversary takes the ledger to $1.0$ poisoned entries alive
+(\S\ref{sec:persistence}), which is still fewer than any counter holds
+with no attacker present, but it is not zero. And it does not hold on
+real tasks: on SWE-Bench-CL no arm removed poison at all, the ledger
+included (\S\ref{sec:swebench-attack}). Note also that this is
+completeness and not speed---in the deterministic suites it kills
+actionable poison within one cycle, but with a real model deciding
+adoption a one-line counter revokes five to nine cycles sooner and the
+ledger's advantage is that it finishes the job
+(\S\ref{sec:wef}). \emph{Cost}: settlement by a conserved scalar is
+$10^4$--$10^6\times$ cheaper than an LLM judge or generator, with no API
+dependency and no determinism loss.
+

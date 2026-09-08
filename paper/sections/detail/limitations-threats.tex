@@ -1,0 +1,500 @@
+% Threats to validity beyond the three the body states. Inline in the
+% preprint, appendix in the venue build; see \inplace in main.tex.
+\paragraph{Vocabulary coupling.}
+In the synthetic suites the corpus, the task prompts, and the
+action-reading function were written in the same vocabulary by the same
+hand. The crisp single-cycle poison kill lives in the near-exact
+lexical-match regime that coupling creates. We measure outside it with
+paraphrase probes scored by provenance rather than by the keyword
+reader: harmful paraphrases stay safe (silence is conservative), but the
+lexical arm grounds only a third of benign paraphrases, and an embedding
+retriever doubles that. The headline numbers should be read as
+within-distribution, with the paraphrase columns as the
+out-of-distribution honesty check. An LLM-encoded corpus with
+independently authored probes would close this gap and is the most
+important synthetic-side improvement.
+
+\paragraph{Synthetic environments, and a real-task leg that came back null.}
+The headline, noise, ablation, and control results are on two synthetic
+environment families. They are deliberately adversarial in opposite
+directions (storage prices inaction; the test-suite family does not), and
+we flag every family-dependent conclusion rather than averaging it, but
+they remain synthetic. The SWE-Bench-CL leg (\S\ref{sec:swebench}) exists
+to move the central claim onto real software-engineering tasks, and it
+did not support it: no learning-curve advantage over a token-matched
+random control, $p = 0.50$ over six paired worlds, with the no-memory arm
+scoring highest of the five.
+
+We first attributed that to the benchmark rather than the mechanism: the
+pilot's sequences are $19$ and $22$ tasks against a $20$-cycle
+starvation horizon, and only $10$ of the $246$ lessons minted by
+upkeep-charging arms ever died, so the removal the ledger depends on
+could not occur. The attribution was arithmetic rather than
+interpretation, but it was still made after seeing the result, which is
+the weakest kind---so we tested it. A second matrix over \texttt{django}
+and \texttt{sympy}, $50$ tasks each at $2.5\times$ the horizon, moved
+starvation from $4\%$ of minted lessons to $52\%$ ($155$ of $300$) and
+held the population at $24$ where \texttt{keep\_everything} reaches
+$50$.
+
+\emph{The excuse did not survive its own test.} With removal fully
+active the comparison is $+0.027$ $[-0.020, +0.073]$, $p = 0.50$; on
+\texttt{django} alone, where per-seed variance is smallest, it is
+$-0.013$ with $p = 1.0000$. Halving the store changed capability by
+nothing measurable, and \texttt{memory\_off} again scored highest. Across
+four sequences and $2{,}115$ evaluated tasks, no memory arm has beaten
+no memory at all. We therefore retract the benchmark explanation as a
+defence of the mechanism and keep it only as a description of the pilot.
+The honest status is that conserved-resource selection improves
+\emph{leanness} on real tasks---demonstrably, half the store for equal
+capability---and that its effect on task outcomes is unvalidated and, on
+the evidence we have, plausibly zero. Two further limits below
+(retrieval recall, replicate count) would each depress a real effect, so
+this null should
+not be read as an upper bound on the mechanism either.
+
+\paragraph{The task stream is not known to contain reusable work.}
+A stronger version of that caveat has since been made general.
+\citet{agentcl2026} argue that lifelong-adaptation benchmarks rest on
+``naive task streams'' in which nothing guarantees that an earlier
+sub-solution, piece of evidence, or workflow is reusable later, and
+propose \emph{controlled} streams in which reuse is constructed by
+design. SWE-Bench-CL orders tasks within a repository by date and by
+estimated fix time; it does not construct reuse. If lesson $n$ is not
+usable at task $n+k$, no curation policy can separate itself from
+\texttt{memory\_off}, and our null is then a measurement of the stream
+rather than of the ledger. We cannot distinguish these two readings with
+the data we have, and we no longer claim to: a benchmark without
+constructed reuse cannot tell ``selection did not help'' apart from
+``there was nothing to reuse.''
+\citet{cl2memory2026} locate a second bound in the same place, finding
+that memory relocates the stability--plasticity dilemma to retrieval
+rather than dissolving it, and that abstract procedural memories transfer
+where detailed trajectories do not. Our entries are detailed QA pairs.
+
+\paragraph{No representation arm.}
+Every arm in this paper stores the same thing---a question, an answer,
+and provenance---and varies only \emph{which} entries survive. The
+comparison that is now unavoidable is against strategy-level memory:
+\citet{reasoningbank2026} report $54.0 \rightarrow 57.4$ resolve on
+SWE-Bench-Verified with Gemini-2.5-pro and $34.2 \rightarrow 38.8$ with
+Gemini-2.5-flash, storing distilled reasoning strategies rather than
+episodes. Their selection is an LLM judging its own trajectories, which
+this design refuses; but representation and selection are separate axes
+and we have varied only one of them. Whether our null reflects the
+selection rule or the thing being selected is untested, and it is
+testable without adopting a judge.
+
+\paragraph{No experiment here isolates the mechanism's own job.}
+Everything above scores a population being poisoned, starved, lied to or
+attacked. None of it isolates what an energy ledger is finally for: deciding
+what to drop when the store cannot hold everything. Our environments impose
+no capacity bound at all --- entries leave because they stopped earning, not
+because room ran out --- so ``conserved-resource selection evicts better than
+recency or LRU under a budget'' is a claim we have not measured, and we do
+not make it. That is not a gap we can close by citing someone else's suite
+either. Recent agent-memory benchmarks name selective forgetting among the
+competencies they score \citep{hu2025memoryagentbench} and push evaluation
+toward interdependent multi-session tasks \citep{he2026memoryarena}, but we
+have not established that either imposes the capacity constraint at issue
+here, and we decline to characterise their constructs in order to borrow
+them. The honest position is that the mechanism's central case is currently
+unmeasured by us and, as far as we know, by anyone: building a
+capacity-constrained forgetting task is the experiment that would settle
+whether it earns its keep outside an adversary, and it is the first thing we
+would do next.
+
+\paragraph{Scale of the parametric result.}
+The distillation arm is a 0.5B model on a small corpus with deliberately
+distinctive poison tokens, so reproduction is unambiguous. It is a clean
+existence proof that selection survives the round-trip into weights, not
+a scaling law, and a corpus whose poison is reachable by generalizing
+benign patterns would not separate as cleanly. We present it as a
+secondary result and do not generalize it.
+
+\paragraph{The action reader is part of the measurement.}
+The environment decides whether an answer requested an action by reading
+its text, and that reader is narrower than the language models actually
+produce: it has ``safe to delete'' and a model writes ``deleting
+store-1.db is safe'', which parses as silence. An action the model
+plainly decided then never executes, is never measured, and yields no
+selection signal. We found this from inside while building the
+model-in-the-loop suite, and we handle it by reading LLM-mode answers
+with paraphrases of the same decision rather than by widening the shared
+vocabulary, which would silently move every committed deterministic
+number. The disagreement rate between the two readers is reported with
+the suite and bounds every LLM-mode claim we make. It is a real threat
+to validity for any benchmark of this shape: a mechanism can look
+conservative when its environment is merely deaf.
+
+\paragraph{Three replicates, and what the seed does not control.}
+In the deterministic suites a seed fixes the entire world, so a paired
+test compares two policies inside one realization. That is not true of
+the real-task leg. The pilot's seed feeds exactly one generator---the
+lesson choice in \texttt{random\_matched}---and the endpoint is called at
+temperature $0$ with no seed parameter, so for every other arm the three
+``seeds'' are three draws of endpoint nondeterminism rather than
+controlled replicates. \texttt{memory\_off}, which holds no store at all
+and therefore varies across seeds by sampling alone, resolved $7$, $10$,
+and $9$ of the 19 pytest tasks: about $8$ points of resolve-rate standard
+deviation on an identical configuration. Pairing on (sequence, seed)
+still controls the task sequence and its ordering, which is worth having,
+but it does not control the sampling. At three replicates and that
+variance, only a large memory effect clears the noise, and any null we
+report on real tasks should be read as underpowered rather than as
+evidence of absence.
+
+The adversarial leg supplies a second, much tighter estimate of the same
+quantity, and we flag the disagreement rather than averaging it. On
+\texttt{django}, \texttt{keep\_everything} never settles, so its store
+and therefore its prompts are identical with and without the attack; it
+resolved identically in all three seeds ($23/23$, $23/23$, $22/22$),
+bounding endpoint nondeterminism there at about one task in fifty
+(\S\ref{sec:swebench-attack}). That is not the $8$ points above, and the
+two are not the same measurement: the pilot figure is a cross-seed
+spread over a $19$-task sequence in a different repository, while this
+one is a within-world comparison of prompt-identical runs over $50$
+tasks. The honest reading is that \emph{paired} comparisons inside a
+world are far tighter than the pilot's spread suggests, and that the
+pilot's spread still bounds what a cross-seed comparison can resolve.
+Neither licenses reading the other. Passing the endpoint's seed parameter, where the
+provider offers one, and raising the replicate count are both cheap and
+are the first things to do before this leg is treated as settled.
+
+\paragraph{The real-task leg is bounded by its retriever.}
+On SWE-Bench-CL the model edits whatever BM25 put in front of it, and at
+the configuration we report that is the correct file on $74\%$ of the
+pytest sequence (\S\ref{sec:swebench}). The remaining quarter is
+unanswerable for every arm, so the resolve rates are depressed by an
+amount that has nothing to do with memory. Because the retrieval query
+is issue-only and identical across arms, this costs statistical power
+rather than biasing the comparison---but it does mean our real-task
+numbers are a lower bound on what the same memory mechanism would show
+with a stronger code retriever, and that a null result there would be
+consistent with either an absent memory effect or a retrieval ceiling.
+We have since measured the ceiling directly (no model and no evaluation
+harness required, since the question is only whether the prompt contains
+the file): over the full pilot, BM25 puts at least one gold file in
+context for $0.78$ of tasks at the budget the pilot ran, and $0.41$ at
+the original budget, while the oracle control reaches every gold file in
+every task. In counts, \textbf{9 of the 41 pilot tasks never showed the
+model the file it had to patch}, and $24$ of $41$ did not at the original
+budget. That bounds the null rather than rescuing it: a fifth of the
+pilot could not have shown a memory effect under any curation policy, and
+the remaining $32$ tasks still produced no separation. What we have not
+run is the oracle arm end to end --- the recall measurement says the
+files can be reached, not what the arms score once they are.
+
+A second bound applies to the \emph{pilot} sequences specifically, and
+it is worth separating from the leg as a whole because the two carry
+very different weight. On the two short pilot sequences (\texttt{pytest}
+at $19$ tasks, \texttt{astropy} at $22$), per sequence position every
+arm resolves every task in positions $1$--$4$ and \emph{nothing at all}
+from position $17$ onward --- including \texttt{memory\_off}, which
+carries no lessons. That curriculum ramps monotonically into a region no
+arm solves, so its second half has a floor of zero that no curation
+policy can improve on, and all five arms post a strongly negative curve
+($-0.535$ to $-0.606$). On those two sequences the pre-registered
+second-half metric could not have detected an effect had one been
+present, and we do not read them as evidence about memory.
+
+The main matrix does not share that defect, which is why the null rests
+on it. The $50$-task \texttt{django} and \texttt{sympy} sequences run
+$300$ evaluated tasks per arm, their per-position resolve rates
+fluctuate across the full length rather than collapsing (positions in
+the forties still resolve at $0.5$--$1.0$), and the first-to-second-half
+change is small for every arm ($-0.03$ to $-0.11$) rather than
+catastrophic. There the comparison is properly powered and properly
+floored: \texttt{memory\_off} $0.360$, \texttt{memory\_on} $0.350$,
+\texttt{random\_matched} $0.350$, curve difference $+0.027$
+$[-0.020, +0.073]$, $p = 0.50$. The null is a measurement on that
+matrix, and a non-measurement on the pilot; conflating the two would
+either overstate the evidence or discard it, and both would be wrong.
+
+\paragraph{The filter control is a reconstruction.}
+The write-time detector in \S\ref{sec:memsec} is a keyword and
+authority-marker rule we wrote, not a port of any published system. We
+give it the shape the published filters have and report its TPR/FPR in
+every row so its behaviour is visible rather than assumed, but a trained
+classifier would land elsewhere on the weak-signal class: the best
+off-the-shelf detector in \citet{mpbench2026} reports $42.50\%$ there,
+and the weakest $10.74\%$, against the $0\%$ our reconstruction achieves. The
+claim the experiment supports is directional---content inspection
+degrades sharply on payloads written to look ordinary, where consequence
+does not---and not a numerical comparison against any named filter.
+
+\paragraph{Our own defence metric flattered three readings before we
+audited it.}
+The natural way to score a memory defence is to ask whether the bad thing
+is still happening---here, whether any surviving poisoned entry currently
+advises action. That question is silent about a mechanism that never
+removed the payload and merely never acted on it, and it read as immunity
+three separate times in this work: once on real tasks, where consolidation
+made fifty poisoned sources report as one live entry
+(\S\ref{sec:swebench-attack}); once on the persistence adversary, where
+flat counter kill rates were published as resistance before the
+provenance count showed the counters had never eliminated anything
+(\S\ref{sec:persistence}); and once in the headline table, where the
+``tie'' with a one-line counter held on outcomes and on kill rate while
+the counter carried two poisoned entries to the end of every seed. The
+first two corrections cost us a conclusion; the third turned out to
+favour us, which is exactly why the pattern is worth stating as a threat
+to validity rather than as three fixed bugs. We now report both readings
+in every table and require the provenance count in the committed
+evidence, but the general lesson is not specific to poison: any metric of
+the form ``is the bad thing currently happening'' will flatter whichever
+mechanism never removed the bad thing, and needs a count of what is still
+\emph{present} beside it. Related: the code pointer in our results
+manifest went unvalidated long enough for four of twenty-one entries to
+name commits absent from the repository and one to name a commit
+predating the suite that produced its file. The run grid was bound by a
+hash the whole time; the code that walked it was not. Those entries are
+repaired and the pointer is now bound in CI---every entry must name an
+ancestor of published history, in a tree whose \texttt{bench/run.py}
+already offered the suite that produced its file---but the guard that
+sat over them while they were broken \emph{passed} them, because it
+asked whether the sha resolved in the \emph{local} object store, which a
+squash-discarded branch commit does forever. That is the same failure as
+the metric above in a different costume: a check that can succeed for a
+reason unavailable to the reader is reporting on something other than
+what it names.
+
+\paragraph{The withholding results now span two families, and every
+other result here is still one horizon deep.} Whether the ledger's
+amnesia is corpus-specific is settled across a second family
+(Table~\ref{tab:withholding-testsuite}), and it settled the
+direction rather than the size: survival still has the best cumulative
+delta at total suppression, but by $8\%$ rather than by threefold, and
+on the family where a counter beats it outright when unattacked
+(\S\ref{sec:second-env}). Two families is not many, and both scored
+inaction at exactly zero --- the property the result actually rested on.
+That is now measured too, and it is where the conclusion breaks: priced
+inaction reverses it (\S\ref{sec:rent}, Table~\ref{tab:rent}), at a rent
+of about $0.4$ of what the declined action is worth. We keep the
+withholding claim in the scoped form the sweep leaves it in: at total
+suppression the ledger is the only arm that removes the poison, and the
+only one whose kill rate is not $0.00$, but it no longer has the best
+cumulative outcome once standing still is billed. ``Amnesia is cheaper''
+was never a property of amnesia. It was a property of an environment
+that did not charge for it, and we said so as though it were the former.
+
+We have since run the lying adversary across the same axis, and it
+narrows the claim above rather than widening it. The reversal is not
+``amnesia is expensive''; it is that an empty store has no answers, and
+rent bills exactly that --- the rent an arm pays is its decline count,
+measured, to two decimal places of its cum-delta slope. Against an
+attacker the ledger can still survive, the same pricing pays it
+\emph{more}: at a budget-2 liar it is rank 1 at every rent on both
+horizons, and its margin over the counter widens from $+24.76$M to
+$+50.42$M as rent rises, in $30/30$ seeds at every step. What rent
+punishes is the state of having nothing useful left, which total
+suppression produces and a working store does not.
+
+The cost that survives all of this is not about attackers at all, and it
+is the one we would flag to a practitioner. \emph{Leanness is billed.}
+Our real-task claim is that conserved-resource selection buys leanness
+--- demonstrably, half the store for equal capability. Where inaction is
+priced, half the store is a win only if the half you kept answers the
+questions: \texttt{survival} declines twice as often as
+\texttt{keep\_everything} here and pays $2.8\times$ the rent for it. It
+wins anyway, on the poison, but that is a trade rather than a free
+lunch, and an environment with a cheaper poison and a higher rent would
+settle it the other way.
+
+The horizon has now changed a conclusion twice, and the second time it
+changed whether there was one. Under withholding, benign retention reads
+$0.92$ at 30 cycles and $0.44$ at 60. On the rented test-suite family
+every arm is flat at 30 cycles and the ledger's bill only begins around
+cycle 49, so a 30-cycle grid there does not report a smaller effect --- it
+reports no effect, which is a false negative (\S\ref{sec:rent}). Every
+other deterministic result here runs 30 cycles, four past the
+$\text{spawn}/\text{upkeep}$ starvation cliff at 20.
+
+We have now asked all of them. Eleven committed grids re-run at 60
+cycles, 5,815 cells each paired one-to-one with its published
+30-cycle twin and nothing but \texttt{cycles} varying
+(\S\ref{sec:horizon}). The answer is a split along the family line.
+$158$ of $163$ arm orderings hold, \texttt{keep\_everything}'s
+population is identical in $830$ of $830$ cells, and every storage grid
+holds benign capability flat to three decimals. Both test-suite grids
+lose it: $1.000 \rightarrow 0.750$ in $10/10$ unattacked seeds and
+$0.518 \rightarrow 0.370$ in $30/30$ noisy ones. So the storage-family
+headline is horizon-stable and does not need re-running, and every
+test-suite-family number in this paper is horizon-scoped --- the second
+finding on that family alone, after the rent bill that begins at cycle
+49. (The laundering entry that starves by 59 is a \emph{storage}-family
+result, not a third test-suite finding; counting it as one would be
+evidence for a test-suite-specific cause that it does not support.)
+
+We proposed one cause for both --- the corpus is deliberately redundant,
+so consolidation keeps finding surplus to starve --- and have since
+varied each half of it (\S\ref{sec:redundancy}). The conjunction is
+right for one finding and wrong for the other. The capability decay
+needs both the surplus and the merge, appearing in $30/30$ seeds at the
+published corner and $0/30$ at each of the other three. The rent bill
+does not: dropping the surplus recovers more of it than disabling the
+merge in $30/30$ seeds, and disabling the merge alone makes the ledger
+worse at 30 cycles. One sentence was covering two mechanisms, and it is
+the kind of error that reads as an explanation because it fits every
+observation it was written from.
+
+What the same grids show about the second-family loss is larger than the
+horizon question that prompted them, and we have moved it into the
+result it qualifies (\S\ref{sec:redundancy}): $93$--$95\%$ of that
+loss is near-duplicate entries which cost every counter nothing and both
+ledger arms everything. Enumerating all $32$ subsets of the five pairs
+then narrowed it further, and the narrowing is the more uncomfortable
+result: it is \emph{one} pair. Dropping the other four recovers nothing
+at all. Three findings we attributed to a redundant corpus are one
+near-duplicate pair in it, and we had described a single entry in
+general language for as long as the explanation existed --- including,
+for one PR, as a dose we said looked ``roughly linear'' on the strength
+of two measured points.
+
+That pair is the least similar of the five ($0.818$ against $0.889$ to
+$0.909$), so it is the one nearest the merge floor. We have since swept
+the floor (\S\ref{sec:merge-threshold}), and it decomposes the harm
+rather than explaining it: refusing to merge that pair recovers $27.7\%$
+of the gap and deleting its twin recovers $93.3\%$, so roughly three
+quarters of the cost is the entry existing and a quarter is the pooling.
+We had named consolidation as the mechanism for three findings; on the
+one we can decompose it is the minority term. What still has no
+explanation is why \emph{that} entry, and the corpus is too small for
+the question to be answered by more slicing of it.
+
+The sweep also cost us a lesson about our own instruments. Its band
+edges were placed using similarity figures from a Jaccard reimplemented
+in a test helper rather than from the function \texttt{consolidate}
+calls; the counts agreed and the values did not, and three of five
+registered predictions are refuted for that reason alone. The
+predictions were falsified by a bug in the measurement, not by the
+world, and we report them as refuted anyway because the register was
+made in advance and the design was ours. A measurement of a mechanism
+has to be taken from the mechanism, and a helper that agrees on counts
+is not evidence that it agrees on anything else. Every
+\texttt{merge\_threshold} number in this paper was also produced with
+the query protocol's conflict floor silently tied to the same field ---
+inert here, in all $1{,}320$ ledger cells, but inert by luck.
+
+What we did not anticipate is that the decay is a \emph{trade} rather
+than a loss, and that both sides of it are invisible at 30 cycles. On
+the unattacked test-suite grid the probe triple is identical in all ten
+seeds: at 30 cycles the ledger answers every benign probe and is safe on
+\emph{no} harmful one ($1.00/0.00/0.00$ for correct, silence, safe); at
+60 a single entry has starved and it reads $0.75/0.40/1.00$. The entry
+that died was answering a benign probe and a harmful one, and losing it
+converts an unsafe answer into silence. A 30-cycle grid scores that
+safety at zero while scoring the capability at full.
+
+\paragraph{The withholding budget is not spent equally across arms.} The
+adversary spends only on measurable outcomes, and a shrinking store
+produces fewer of them: at total suppression it fires 193 suppressions
+against survival and 289 against every other arm. The comparison is
+therefore at matched \emph{capacity}, not matched \emph{fired}, and
+matched-fired is unreachable here because the attack is self-limiting
+precisely when it is winning. This is the same asymmetry
+\S\ref{sec:adversary} reports for the lying adversary, in a sharper form.
+It is also a property of unpriced inaction rather than of the attack: in
+the rented environment every task returns a measured outcome, all five
+arms saturate their budget at every non-zero rent, and the asymmetry
+does not shrink but disappears (\S\ref{sec:rent}).
+
+\paragraph{Consolidation is a laundering surface, and the boundary is
+crossed upstream of it.}
+A poisoned fragment reaches the end of every seed in one cell carrying
+benign provenance (\S\ref{sec:memsec}). We have now evaluated the fix we
+named here, and both halves of our description of the problem were wrong
+(\S\ref{sec:merge-policy}). The entry never earns --- its \texttt{uses}
+is zero and its energy is pooled from its own poisoned siblings --- and
+it is not permanent, starving at cycle 59. More importantly the
+\emph{encoder} creates the mixed-provenance entry, not the merge: the
+no-defence arm, which consolidates nothing, carries two of them, because
+the payload claims authority from an entity the corpus already trusts
+and lands in that entity's cross-document entry. Consolidation's part is
+to pool the fragment's energy and so extend its runway from 20 cycles to
+59.
+
+Refusing to merge across trust boundaries therefore removes the runway
+rather than the entry. The strict form does close the channel outright
+($10/10$ seeds) for one further unanswered probe, and the natural form
+--- one shared source --- refuses nothing at all, because every merge
+here already shares one. What is still unevaluated is the fix that would
+address the actual crossing: an encoder that will not pool text from
+different documents into one entity or summary entry. That is a change
+to how memories are written rather than to how they are merged, and it
+would move every committed number in this paper.
+
+\paragraph{Silence as a harbor.}
+In environments where inaction produces no measurement, a conservative
+entry can dodge lying measurements simply by staying silent, which
+flatters safety metrics. Both halves are now measured on the storage
+corpus, and the prediction was right about the exposure and wrong about
+who it costs (\S\ref{sec:rent}). Against a withholder the harbor is real
+and pricing inaction closes it outright. Against a liar the exposure is
+sharper than we predicted --- a decline is negative, so an inverted
+measurement \emph{pays} it, and the attacker's whole extra budget goes
+into paying conservatism rather than into new blame --- but the arm it
+ruins is the counter, not the ledger, because the counter is the one
+left with nothing useful to say. We did not anticipate that direction
+and would not have found it without running the interior budget: at
+total lying every arm's kill rate is $0.00$ and the ordering is
+uninformative.
+
+The third claim in that paragraph was that pricing inaction would also
+likely reverse the second-family loss (\S\ref{sec:regime}, Axis 3). We
+have now measured it and it is wrong: rent widens that loss at 60 cycles
+and does nothing to it at 30 (\S\ref{sec:rent}). The counters cannot be
+billed on that family at all, because its corpus is deliberately
+redundant and a spare twin is always available to answer with; the
+ledger consolidates the twins away and is the only arm that ever has
+nothing to say. We predicted rent would reward the ledger's restraint.
+It charges for it.
+
+The shape of the price is now covered too, and it removes the obvious
+way the two results above could have been artifacts. A flat rate is not
+an economy anyone runs: real quotas exempt what you are required to
+retain. Billing by category at a matched total (\S\ref{sec:rent},
+Table~\ref{tab:rent-tiers}) shows the flat rate was charging the
+unattacked column entirely for \emph{correct} answers --- every negative
+outcome it produced there is a refusal to delete a protected file, and
+no arm ever declines a disposable one --- so under a policy-shaped
+quota the unattacked column is bit-identical to the unpriced world for
+every arm, and the only thing rent bills is a store the attacker has
+emptied. That sharpens the rule rather than softening it, and it makes
+the total-suppression reversal worse rather than better: the crossing
+rent moves from $0.427$ to $0.357$ and the ledger's loss against the
+do-nothing floor roughly doubles.
+
+One thing this leaves open. The tiers vary the price by category, which
+is the dimension this corpus has; age and tier, the other two a real
+quota uses, would need entries with a lifetime the environment can see.
+
+A second gap --- that pricing a category at zero also makes it
+unattackable, so shape and attack surface were confounded by
+construction --- is closed by the adversary of \S\ref{sec:blind}. Deleting the withholder's
+targeting predicate holds the surface constant across tiers, and the
+answer arrives in two parts. At the budget every tier number was
+produced at, the confound is not small but \emph{absent}: a budget equal
+to \texttt{files\_per\_cycle} saturates, so there is nothing to
+concentrate, and all $4{,}500$ cells reproduce their published twins
+exactly on all $17$ shared result metrics. At an interior budget the rule
+genuinely decides something, and it decides it almost entirely in the
+attacker's own ledger --- $2{,}100$ of $4{,}500$ paired cells differ in
+what the attacker reports and $98$ in what the world records, with the
+tier ordering and its magnitudes intact on both horizons.
+
+What the exercise did overturn is our description of the exemption. We
+had it as a property of the tier; it is a property of the tier and the
+arm together. Under \texttt{inverted} the exempt case is a declined
+disposable file, four of the five arms never decline one, and the ledger
+is the only arm the tier can hide --- and only once an attacker has
+emptied it. So the surface a price shape opens is not something the
+designer chooses; it is opened by whichever mechanism has already
+stopped answering, which is the same quantity rent bills.
+
+\paragraph{Local-judge scale.}
+The LLM-judge control uses small (3--4B) local models at five seeds; a
+frontier judge might hold capability where one local judge dropped it.
+We therefore make no categorical claim that conserved-resource settlement
+beats judge settlement on quality---only that it is orders of magnitude
+cheaper, which is robust.

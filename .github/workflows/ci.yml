@@ -87,6 +87,11 @@ jobs:
           name: paper
           path: ${{ runner.temp }}/main.pdf
           if-no-files-found: error
+      - name: The venue body must stay inside its page limit
+        # The body was cut from 39 pages to 13 by moving detail into the
+        # appendix, not by deleting it. Prose grows back; a limit nobody
+        # measures is a limit nobody meets on the day of the deadline.
+        run: tools/body-pages.sh 13
 
   test:
     runs-on: ubuntu-latest

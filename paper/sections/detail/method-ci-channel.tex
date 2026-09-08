@@ -1,0 +1,23 @@
+% The three parties that write to a CI lesson store's settlement
+% channel without controlling whether the tests truly pass.
+\paragraph{The CI lesson store, concretely.} Our primary target
+(\S\ref{sec:regime}) settles a coding agent's lessons against test
+outcomes: a merged pull request's pass-count delta pays the lessons that
+advised it. Three parties write to that channel without any of them
+controlling whether the tests truly pass. \emph{The pull request being
+measured commits the store}---the lesson file and the flaky-test sidecar
+are versioned in the repository, so the change under evaluation ships the
+evidence used to evaluate it, and nobody reviews a JSON diff line by
+line. \emph{The pull-request body names the tickets}: settlement scrapes
+ticket identifiers out of attacker-influenced prose, and open ticket ids
+are readable in the committed store, so absent a check a contributor can
+paste somebody else's in-flight ticket id and settle a stranger's
+decision at a delta whose sign they choose. Our implementation refuses
+any id already pending in the base commit for exactly this reason, and
+reports \texttt{ticket\_provenance: unverified} when given no base to
+check against---a defence that exists because the attack is reachable by
+opening a pull request, which is the intended way to use the system.
+\emph{The test suite reports on itself}: a contributor who adds a test
+adds a writer to the settlement channel, and a test that fails on a
+schedule the contributor chooses is a lie budget with a cron entry.
+

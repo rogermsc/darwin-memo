@@ -3,30 +3,25 @@
 
 \paragraph{Memory poisoning, and where its defences sit.}
 \citet{mpbench2026} systematize memory-poisoning attacks on LLM agents
-and evaluate content-based detectors against them, reporting the split
-that motivates this work: every off-the-shelf detector they test loses
-between $18$ and $42$ points of true-positive rate moving from
-strong-signal payloads to weak-signal ones---payloads written to read
-like ordinary operational facts. The best of them, PromptArmor, falls
-from $84.44\%$ to $42.50\%$; the weakest, DataFilter, from $28.86\%$ to
-$10.74\%$. Their own reading is that the limitation is structural:
-weak-signal payloads ``carry no syntactic anomaly'' and are
-``semantically indistinguishable from legitimate content.''
-\citet{memsecbench2026} track poisoning through a lifecycle, from
-persistence to consequence to repair, and identify selective repair as
-the open stage: removing poison without destroying benign memory
-alongside it. We adopt their Write--Execute--Forget checkpoint structure
-as a protocol (\S\ref{sec:wef}), reimplemented rather than ported, and
-we make no comparison to their numbers.
+and report the split that motivates this work: every off-the-shelf
+detector they test loses between $18$ and $42$ points of true-positive
+rate moving from strong-signal payloads to weak-signal ones---payloads
+written to read like ordinary operational facts, carrying, in their
+reading, ``no syntactic anomaly''. \citet{memsecbench2026} track poisoning through a lifecycle
+and identify selective repair as the open stage: removing poison without
+destroying benign memory alongside it. We adopt their
+Write--Execute--Forget checkpoint structure as a protocol
+(\S\ref{sec:wef}), reimplemented rather than ported, and make no
+comparison to their numbers.
 
 What both share with the wider defence literature is \emph{where} the
 defence sits: at write, screening text before it is stored, or at
-retrieval, screening entries before they are injected. Both read
-content, and content is exactly what a weak-signal payload is
-constructed to survive. Our threat model is orthogonal to that axis
-rather than a better position on it. We do not ask whether the defence
-can recognize the payload; we ask what the defence does when the
-evidence it decides on has itself been tampered with.
+retrieval, screening entries before they are injected. Both read content,
+and content is exactly what a weak-signal payload is constructed to
+survive. Our threat model is orthogonal to that axis rather than a better
+position on it: we do not ask whether the defence can recognize the
+payload, but what it does when the evidence it decides on has itself been
+tampered with.
 
 \paragraph{Attacking the curator: named, and left unmeasured.}
 We are not the first to describe this threat, and we are explicit about
@@ -49,67 +44,19 @@ Both also record that the threat is unmeasured. \citet{lin2026selfevolving}
 write that ``direct attacks on memory consolidation policies remain
 relatively underexplored''; \citet{lin2026memsurveyv1} report that
 availability threats on agent memory are ``architecturally plausible but
-empirically unstudied'' and that peer-reviewed availability-specific
-attacks and defences are scarce enough that the area is a research
-agenda rather than a subfield. We cite that survey's first version
-advisedly: its second is a rewrite roughly a fifth the length, which
-replaces the availability-gap analysis with a governance framework, so
-the sentence we quote is no longer in the version the bare identifier
-resolves to. The three availability threats v1 names are write flooding,
-retrieval-latency poisoning and reflection-loop denial---none of them
-ours, which sharpens rather than softens the point: denial of memory by
-corrupted settlement was not on the list of unstudied threats either.
-That is the gap this paper closes. Our
-contribution is not the observation that a curator can be attacked
-through its evidence; it is the operationalization---a resource-bounded
-adversary, six curation mechanisms, five attack budgets, thirty seeds,
-per-seed intervals, exact paired permutation tests, and a published
-failure boundary for the mechanism we defend with---together with a
-real-task leg that reports which half of that result transfers and which
-does not (\S\ref{sec:swebench-attack}).
+empirically unstudied''. \pointer{We cite that survey's first version
+advisedly, and \S\ref{sec:citationnote} says why.}
+\inplace{related-survey-versions}
+That is the gap this paper closes. Our contribution is not the
+observation that a curator can be attacked through its evidence; it is
+the operationalization---a resource-bounded adversary, six curation
+mechanisms, five attack budgets, thirty seeds, per-seed intervals, exact
+paired permutation tests, and a published failure boundary for the
+mechanism we defend with---together with a real-task leg that reports
+which half of that result transfers and which does not
+(\S\ref{sec:swebench-attack}).
 
-\paragraph{Memory as a model, and the frozen executive.}
-\citet{quek2026memo} argue for keeping the executive LLM frozen and
-placing new knowledge in a dedicated memory model, with a
-reflection-style QA encoding pipeline and a multi-stage query protocol.
-We adopt their separation of executive from memory and their encoding
-structure (\S\ref{sec:method}), but our live store is a structured set of
-self-contained QA entries rather than a fine-tuned model, because
-selection must operate on \emph{individual} entries. We close the loop to
-the parametric form as a secondary result: distilling the survivors into
-a small model (\S\ref{sec:experiments}) shows that selection survives the
-round-trip into weights.
-
-\paragraph{Environment-mediated selection.}
-\citet{dodgson2026survival} introduce sustainable self-training in which
-behaviors persist by environmental viability under a conserved resource
-and bounded memory, rather than by an explicit reward, precisely to avoid
-the reward-hacking and semantic-drift that an optimizable proxy invites.
-We take this principle as our foundation and apply it at the granularity
-of memory entries: energy is the survival currency, upkeep is the cost of
-existing, and the only income is a conserved, measured resource delta.
-Where their agents propose executable behaviors, our entries propose
-answers from which the environment reads an action, a smaller attack
-surface with the same selection geometry.
-
-\paragraph{Hand-designed memory scores.}
-\citet{park2023generative} score memories for retrieval by a weighted sum
-of recency, importance (an LLM-rated poignancy), and query relevance.
-This is the canonical hand-designed memory-management heuristic, and we
-include it as an \emph{external baseline} (\S\ref{sec:experiments}): we
-repurpose the recency$+$importance core of their score as a retention
-rule and ask whether a hand-designed salience signal curates as well as a
-conserved-resource ledger. (Because a deterministic, always-in-CI arm
-cannot call an LLM, we proxy their LLM-rated importance with consultation
-frequency and omit their query-conditioned relevance term, which is a
-retrieval property, not a retention one; we state this deviation
-explicitly.) MemGPT \citep{packer2023memgpt} manages a context hierarchy
-by paging rather than by selection; Reflexion \citep{shinn2023reflexion}
-and ExpeL \citep{zhao2024expel} accumulate verbal lessons across episodes;
-Voyager \citep{wang2023voyager} grows a skill library. None of these
-removes entries by a conserved-resource criterion.
-
-The nearest neighbour has the conserved resource and still is not this.
+\paragraph{The nearest neighbour, and the cell it leaves open.}
 \citet{wu2026forget} curate on-device agent memory under a hard byte and
 energy budget, which is a genuine conserved constraint --- but the eviction
 decision is a score, ``value minus harm, per byte'', a learned-utility ruler
@@ -121,124 +68,21 @@ earn, not the thing a ruler judged low. Conserved-and-scored and
 judged-but-unbudgeted are the two cells adjacent to ours; the unclaimed one
 is conserved \emph{and} settled by measurement \emph{and} judge-free at once.
 
-\paragraph{Selection over agents rather than over memories.}
-The name invites the comparison, so we make it. The Darwin G\"{o}del
-Machine \citep{zhang2025dgm} evolves a population of self-modifying coding
-agents and keeps what scores well on coding benchmarks. The selection unit
-there is an agent's own code and the signal is benchmark performance; here
-the unit is a single memory entry and the signal is a conserved resource the
-environment moves, which is why a wrong entry can be paid for by the damage
-it causes rather than by a score it failed to achieve. The two are
-complementary rather than competing, and neither subsumes the other: an
-evolved agent still needs somewhere to keep what it learned, and an energy
-ledger does not improve the agent that consults it.
 
-\paragraph{Bandits over retrieval policies.}
-\citet{xu2026ael} present AEL, which uses Thompson-sampling bandit
-learning to \emph{select among retrieval policies} and LLM-driven
-reflection to evolve behavior across long episode sequences. AEL is a
-positive method for using memory well, not an argument against energy
-ledgers; we are careful not to attribute such a claim to it. What it
-motivates is a sharp control for \emph{our} mechanism: if a simple
-confidence bandit over per-entry outcomes curates as well as a conserved
-ledger, the ledger is unnecessary. We therefore reconstruct a per-entry
-successive-elimination bandit with a Hoeffding radius
-(\S\ref{sec:experiments}) and report exactly the regime---one-sided
-measurement noise---where it matches survival, and the three things it
-cannot do (starve dead weight, kill promptly, survive lies that pay the
-guilty).
-
-\paragraph{LLM-curated memory and its failure mode.}
-\citet{zhang2026faulty} document that memory banks an LLM continuously
-rewrites and consolidates degrade over time: useful memories become
-faulty as the rewriting accumulates, because the model grades and
-restates plausibility rather than verified consequence. Their finding
-motivates a control we call \texttt{judge\_settled}, which is \emph{one
-operationalization} of LLM-controlled memory updates---keep/cull verdicts
-from a local model in place of measured settlement. We are explicit that
-this is our construction, not a reproduction of their setup, and we report
-a mixed result (\S\ref{sec:experiments}): the degradation appears for one
-local judge and not another at our scale, so the broad claim that
-conserved-resource settlement is categorically better is one our
-experiments do \emph{not} make. What is unambiguous is cost: judged
-settlement is $10^4$--$10^6\times$ slower than reading a scalar the
-environment already returns.
-
-\paragraph{Continual-learning evaluation for coding agents.}
-SWE-bench \citep{jimenez2024swebench} evaluates issue resolution on real
-GitHub repositories; \citet{joshi2025swebenchcl} organize its
-human-verified subset into per-repository continual-learning sequences.
-We adopt SWE-Bench-CL as the real-task testbed for whether a lesson store
-under conserved-resource selection produces a learning curve across a
-sequence (\S\ref{sec:experiments}); the resource is the change in
-passing-test count returned by the official evaluation harness.
-\citet{agentcl2026} raise the objection that bounds what any such leg can
-show: benchmarks built from ``naive task streams'' do not guarantee that
-earlier work is reusable later, so a memory arm and a no-memory arm can
-be indistinguishable for reasons that have nothing to do with curation.
-They propose controlled streams in which reuse is constructed. We report
-our null with that caveat attached rather than as a property of the
-mechanism (\S\ref{sec:limitations}).
-
-\paragraph{What is stored, as opposed to what survives.}
-An orthogonal axis to ours is representation. \citet{reasoningbank2026}
-store distilled reasoning strategies rather than episodes, selected by an
-agent judging its own successful and failed trajectories, and report
-$54.0 \rightarrow 57.4$ resolve on SWE-Bench-Verified with
-Gemini-2.5-pro. \citet{cl2memory2026} give the mechanism a name: memory
-does not dissolve the stability--plasticity dilemma but relocates it to
-retrieval, where abstract procedural memories transfer more reliably than
-detailed trajectories. Every arm in this paper stores an episode and
-varies only which episodes survive, so their axis and ours are
-independent and untested against each other. We flag this as an open
-comparison rather than a resolved one; the selection mechanism we study
-is compatible with either representation, and their selection rule---an
-LLM grading its own trajectories---is the one this work sets out to do
-without.
-
-\paragraph{Attacks that never write.}
-The attack literature this defence answers to is older and broader than
-the 2026 benchmarks. \citet{chen2024agentpoison} red-team agents by
-poisoning memory and knowledge bases directly; \citet{zou2026poisononce}
-inject through the environment a web agent reads;
-\citet{srivastava2025memorygraft} achieve persistent compromise through
-poisoned experience retrieval; and \citet{xu2026steering} target the
-memory control flow rather than its contents. The case that matters most
-for our threat model is \citet{dong2025minja}, which injects memory
-through \emph{query-only} interaction: the attacker never writes, and
-therefore never has to defeat a write-time filter or compromise the
-settler. Our trust boundary assumes a settler that may be adversarial
-(\S\ref{sec:adversary}); it does not cover an adversary who reaches memory
-without settling at all, and outcome-grounded revocation has no claim
-over an entry no consequence is ever attributed to.
-
-\paragraph{Budgets, admission, and the round trip into weights.}
-Two systems share our shape without sharing our signal.
-\citet{admission2026} gate memory at write time on measured signals
-rather than a judge, against MemGPT, MemoryBank, A-MEM
-\citep{xu2025amem}, Mem0 \citep{mem0} and HippoRAG---the nearest
-published mechanism to ours, and one evaluated with no adversary at all.
-\citet{ember2026} retain evidence under a fixed budget, which is the
-economic framing we use, with the difference that their budget is spent
-on relevance while ours is \emph{earned} from outcomes: an entry that
-looks useful keeps its place there, an entry that has been useful keeps
-its place here. Downstream, \citet{tmem2026} absorb distilled experience
-into fast LoRA weights online, and related work distils long-term memory
-into parameters periodically. None of these applies a principled filter
-to what gets distilled, which is the question our distillation arm
-isolates (\S\ref{sec:experiments}): the same corpus, filtered three ways,
-produces a model that reproduces the poison and a model that does not.
-
-\paragraph{Learned credit assignment for memory operations.}
-A parallel line keeps the memory operations and learns the credit.
-\citet{memoryr2} optimize store/retrieve/update decisions with
-group-relative policy optimization over trajectory-level reward;
-\citet{treecredit2026} distribute credit across a multi-agent memory
-system; \citet{attrimem2026} attribute process-level feedback to
-individual memory contents. They share a stated bottleneck---outcome
-signals are too coarse to say which memory content earned the result---and
-answer it with learning. The ledger answers the same question with
-arithmetic: credit is bounded by $\tanh$ and scoped to provenance, so
-attribution is a property of the write path rather than an inference
-about it. Neither approach is free; ours buys auditability and pays in
-resolution.
+\pointer{Every other neighbour sits in a different cell, and
+\S\ref{sec:neighbours} places each: memory-as-a-model
+\citep{quek2026memo}; environment-mediated selection over behaviours
+\citep{dodgson2026survival}; hand-designed salience, paging and verbal
+accumulation \citep{park2023generative,packer2023memgpt,
+shinn2023reflexion,zhao2024expel,wang2023voyager}; selection over agents
+\citep{zhang2025dgm}; retrieval-policy bandits \citep{xu2026ael};
+LLM-curated banks and their decay \citep{zhang2026faulty}; the
+continual-learning testbed and the objection bounding it
+\citep{jimenez2024swebench,joshi2025swebenchcl,agentcl2026};
+representation as the orthogonal axis
+\citep{reasoningbank2026,cl2memory2026}; attacks that never write
+\citep{chen2024agentpoison,zou2026poisononce,srivastava2025memorygraft,xu2026steering,dong2025minja};
+admission and earned-versus-spent budgets
+\citep{admission2026,ember2026,tmem2026,xu2025amem,mem0}; and learned
+credit assignment \citep{memoryr2,treecredit2026,attrimem2026}.}
+\inplace{related-neighbours}

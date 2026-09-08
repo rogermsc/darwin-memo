@@ -54,7 +54,66 @@ scientific table). PaperQA2 detects contradictions but settles them with human
 experts (~30% false positive). So `PaperClaimEnv`'s signal is a novel task
 framing, not a hedge — positioned that way in its module docstring.
 
-## Main-body / appendix split: EXECUTED, and it is not enough
+## Body length: DONE. The venue body is 13 pages.
+
+`tools/body-pages.sh [LIMIT]` measures it and CI runs it at 13.
+
+| build | command | what it is |
+|---|---|---|
+| preprint | `tectonic paper/main.tex` | 11pt single-column A4; every block typeset where it is written, appendix after it |
+| venue | `tectonic paper/body.tex` | 10pt two-column letter; supporting blocks moved into the appendix. **Body 13 pages**, appendix from p14 |
+
+**Two things had to change, and only one of them was prose.**
+
+The first was the measurement. A 13-page security-venue limit is written
+against a two-column 10pt layout; the preprint is 11pt single-column A4,
+which fits roughly half as much per page. Measuring one against the other
+is what made a 13-page target look 26 pages away. `body.tex` swaps the
+class and geometry block, exactly as `main.tex`'s opening comment always
+said a venue build would, and nothing else differs.
+
+The second was placement. Roughly a third of the body moved into the
+appendix -- neighbouring literature, the remaining regime axes, the
+SWE-Bench-CL protocol and both matrices, the Mem0 analysis, the strike
+counter's two shapes, the persistence provenance counts, the CI
+channel's three writers, the reporting-rule definitions, the disclosure
+exchange, and thirteen further threats to validity. **Nothing was
+deleted.** Each block lives in `paper/sections/detail/` and is typeset
+exactly once per build: in place in the preprint, in the appendix in the
+venue build. `\pointer{...}` carries the sentence that names where a
+block went and appears only in the build where it moved.
+
+`tests/test_paper_deferred_blocks.py` holds that invariant, because the
+failure mode is silence -- drop the appendix line and the venue PDF still
+compiles, still looks finished, and is missing a page of threats to
+validity. It caught exactly that on its first run: `regime-axes` had been
+moved out of the body and never wired back into the preprint, so
+`main.tex` was building without four axes of the regime map.
+
+Prose was tightened throughout, but tightening alone never accounted for
+more than a page or two: the body was long because it reported roughly
+twenty experiments, and the fix for that is placement.
+
+**What the body keeps**, end to end with nothing load-bearing removed:
+intro, related work (with the blocking citation and every neighbour's
+citation), method including \S`sec:whocanlie`, the headline, forgiveness
+under lying measurements, the curation-targeted attack, the counter-family
+sweep and its refutation, persistence vs destruction, the Mem0 transfer
+result, the SWE-Bench-CL null, the attack on real tasks, the regime map's
+two deciding axes and its summary, the three load-bearing limitations,
+ethics, conclusion.
+
+**For a 9-page NeurIPS D&B body**, the next tier to move is the Mem0
+transfer result and the SWE-Bench-CL leg, which would take the paper down
+to the synthetic attack and its sweep. That is a decision about which
+results *are* the paper, so it is written here rather than made.
+
+**When executing further:** `bench/claims.paper_sections()` enumerates
+every `.tex` under `paper/sections/`, so a table may move anywhere in the
+tree without losing its binding to the runs. `tests/test_paper_figures.py`
+and both evidence-test modules use it.
+
+## How the body got to 39 pages, and the split that got it there
 
 Done. `paper/sections/appendix.tex` exists, `main.tex` wires it behind
 `\ifdefined\bodyonly`, and both builds are measured with tectonic:

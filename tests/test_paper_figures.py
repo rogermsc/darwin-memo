@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from bench.claims import paper_sections
 from bench.figures import ADVERSARY_FIGURE, SERIES, render
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,8 +35,13 @@ def test_committed_figure_matches_the_runs() -> None:
 
 def test_figure_is_included_and_referenced() -> None:
     """A figure the text never points at is decoration, and a float LaTeX places
-    but nobody cites is the kind of thing a reader assumes is stale."""
-    tex = EXPERIMENTS.read_text()
+    but nobody cites is the kind of thing a reader assumes is stale.
+
+    The inclusion and the reference no longer have to sit in the same file:
+    the venue build moves this figure to the appendix while the sentence that
+    cites it stays in the body. Both still have to exist somewhere.
+    """
+    tex = "\n".join(p.read_text() for p in paper_sections())
     assert "\\input{figures/adversary}" in tex, "the figure is not included"
     assert "\\ref{fig:adversary}" in tex, "the figure is never referenced in the text"
 
@@ -142,10 +148,7 @@ def test_counter_figure_matches_the_runs() -> None:
 
 
 def test_counter_figure_is_included_and_referenced() -> None:
-    tex = "\n".join(
-        p.read_text()
-        for p in (EXPERIMENTS, ROOT / "paper" / "sections" / "appendix.tex")
-    )
+    tex = "\n".join(p.read_text() for p in paper_sections())
     assert "\\input{figures/counter_sweep}" in tex, "the figure is not included"
     assert "\\ref{fig:countersweep}" in tex, "the figure is never referenced"
 

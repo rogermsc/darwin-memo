@@ -16,6 +16,23 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+SECTIONS = ROOT / "paper" / "sections"
+
+
+def paper_sections() -> tuple[Path, ...]:
+    """Every LaTeX file the paper is assembled from, body and appendix alike.
+
+    Callers used to name ``experiments.tex`` and ``appendix.tex`` by hand,
+    which was right while those were the only two places a table could sit.
+    They are not: the venue build moves whole blocks into
+    ``sections/detail/``, and a hard-coded pair would have let a moved table
+    stop being checked against its evidence. Enumerating the tree makes
+    placement an editorial decision that cannot silently empty a corpus or
+    disarm a guard.
+    """
+    return tuple(sorted(SECTIONS.rglob("*.tex")))
+
 
 @lru_cache(maxsize=8)
 def _source(path: Path | tuple[Path, ...]) -> str:
