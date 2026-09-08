@@ -120,3 +120,59 @@ def test_plotted_values_agree_with_the_adversary_table() -> None:
             )
             checked += 1
     assert checked == len(same) * len(budgets), "not every cell was compared"
+
+
+# ----------------------------------------------------------------------
+# The counter-sweep figure. Same contract as above: generated from the
+# committed runs, cited by the text, and checked against the table that
+# shows the same cells.
+# ----------------------------------------------------------------------
+
+
+def test_counter_figure_matches_the_runs() -> None:
+    """Mutation: edit a coordinate in paper/figures/counter_sweep.tex, or
+    re-run the sweep without regenerating the figure, and this fires."""
+    from bench.figures import COUNTER_FIGURE, render_counter_sweep
+
+    assert COUNTER_FIGURE.is_file(), f"{COUNTER_FIGURE} is missing"
+    assert COUNTER_FIGURE.read_text() == render_counter_sweep(), (
+        "paper/figures/counter_sweep.tex does not match "
+        "bench/results/counter_sweep.json; run `python -m bench.figures --write`."
+    )
+
+
+def test_counter_figure_is_included_and_referenced() -> None:
+    tex = "\n".join(
+        p.read_text()
+        for p in (EXPERIMENTS, ROOT / "paper" / "sections" / "appendix.tex")
+    )
+    assert "\\input{figures/counter_sweep}" in tex, "the figure is not included"
+    assert "\\ref{fig:countersweep}" in tex, "the figure is never referenced"
+
+
+def test_the_refutation_is_visible_in_the_plotted_data() -> None:
+    """The figure's whole point is that a consecutive counter reaches the
+    corner and a lifetime one never does. If a re-run ever changed that,
+    the caption would be asserting something the coordinates deny --
+    which is the failure this repo has been bitten by before.
+    """
+    from bench.figures import SWEEP_BUDGET, SWEEP_K, _sweep_point
+
+    corner = lambda cap, kill: cap >= 0.90 and kill >= 0.90  # noqa: E731
+
+    lifetime = [_sweep_point("evict_on_negative", k, SWEEP_BUDGET) for k in SWEEP_K]
+    assert not any(corner(*p) for p in lifetime), (
+        "a lifetime-strike setting now reaches the corner; the caption and "
+        "the limitations section both say none does"
+    )
+
+    consecutive = [_sweep_point("evict_consecutive", k, SWEEP_BUDGET) for k in SWEEP_K]
+    reaching = [k for k, p in zip(SWEEP_K, consecutive, strict=True) if corner(*p)]
+    assert reaching, (
+        "no consecutive setting reaches the corner any more; the paper reports "
+        "a refuted prediction that depends on at least one doing so"
+    )
+    assert 5 in reaching, f"k=5 no longer reaches the corner; reaching={reaching}"
+
+    ledger = _sweep_point("survival", None, SWEEP_BUDGET)
+    assert corner(*ledger), "the ledger is no longer in the corner it is said to hold"

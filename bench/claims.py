@@ -18,8 +18,23 @@ from pathlib import Path
 
 
 @lru_cache(maxsize=8)
-def _source(path: Path) -> str:
-    return path.read_text()
+def _source(path: Path | tuple[Path, ...]) -> str:
+    """One searchable body, from one file or several.
+
+    The paper was split into a body and an appendix, so a table's label no
+    longer names the file it lives in. Callers pass both and the parser
+    stops caring which half a table ended up in -- which is the property
+    that matters, because a moved table must keep being checked against
+    its evidence, and a lookup that silently found nothing would instead
+    have quietly stopped checking.
+
+    Concatenation is safe here: labels are unique across the paper, and
+    each table closes its own ``\\end{tabular}`` well before the next
+    file begins.
+    """
+    if isinstance(path, Path):
+        return path.read_text()
+    return "\n".join(p.read_text() for p in path)
 
 
 def strip_cell(cell: str) -> str:
@@ -30,13 +45,13 @@ def strip_cell(cell: str) -> str:
     return cell.replace("\u2212", "-").strip()
 
 
-def tabular(label: str, source: Path) -> str:
+def tabular(label: str, source: Path | tuple[Path, ...]) -> str:
     body = _source(source)
     start = body.index("\\label{" + label + "}")
     return body[start : body.index("\\end{tabular}", start)]
 
 
-def data_rows(label: str, source: Path) -> list[list[str]]:
+def data_rows(label: str, source: Path | tuple[Path, ...]) -> list[list[str]]:
     """Body rows of a tabular, with ``\\multirow`` group labels pushed down.
 
     A ``\\multirow`` sits on its own line with no ``&``, and the row it labels

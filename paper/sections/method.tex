@@ -151,6 +151,77 @@ a single negative \emph{deciding} outcome denies admission outright). Both
 default off and recover the base dynamics exactly; they are detailed in
 the threat model and used only where stated.
 
+\subsection{Who can lie to a conserved resource}
+\label{sec:whocanlie}
+
+The premise of this paper is that a conserved resource cannot be talked
+into paying out: no memory entry frees bytes by being persuasive. That
+premise invites the obvious objection to the attack we then measure: if
+the resource is real, who corrupts it, and would an adversary capable of
+doing so not already own the machine? The objection dissolves once the
+resource and the \emph{report} of it are separated, and keeping them
+separate is the whole of the threat model.
+
+\paragraph{The resource is conserved; the settlement channel is not.}
+Selection never touches the resource. It reads a number that some
+process wrote down: a JUnit XML file, a process exit code, a line in a
+pull-request body, a metrics endpoint, a billing export. Conservation is
+a property of the world; the settlement channel is ordinary software,
+and its write permissions are almost never the same set as ``can change
+the true resource''. An adversary does not have to free fewer bytes. It
+has to be one of the parties that already writes to the channel, and in
+the deployment this mechanism is built for, that set is unusually wide.
+
+\paragraph{The CI lesson store, concretely.} Our primary target
+(\S\ref{sec:regime}) settles a coding agent's lessons against test
+outcomes: a merged pull request's pass-count delta pays the lessons that
+advised it. Three parties write to that channel without any of them
+controlling whether the tests truly pass.
+
+\emph{The pull request being measured commits the store.} The lesson
+file and the flaky-test sidecar are versioned in the repository, so the
+change under evaluation ships the evidence used to evaluate it. Nobody
+reviews a JSON diff line by line.
+
+\emph{The pull-request body names the tickets.} Settlement scrapes ticket
+identifiers out of attacker-influenced prose. Open ticket ids are
+readable in the committed store, so absent a check a contributor can
+paste somebody else's in-flight ticket id and settle a stranger's
+decision at a delta whose sign they choose. Our implementation refuses
+any id that was already pending in the base commit for exactly this
+reason, and reports \texttt{ticket\_provenance: unverified} when it is
+not given a base to check against---a defence that exists because the
+attack is reachable by opening a pull request, which is the intended
+way to use the system.
+
+\emph{The test suite reports on itself.} A contributor who adds a test
+adds a writer to the settlement channel. The benign version of this is
+flakiness, which is why the harness carries a quarantine sidecar at all;
+the adversarial version differs only in intent, and a test that fails on
+a schedule the contributor chooses is a lie budget with a cron entry.
+
+\paragraph{Why this is a weaker precondition than compromise.} None of
+the three requires code execution on the runner, a stolen credential, or
+any write to the memory store itself. They require the ability to open a
+pull request. That is the gap between our threat model and the
+write-time and retrieval-time models of the memory-security literature
+(\S\ref{sec:related}): those defences read \emph{content} and assume the
+adversary must get text into the store, while this one needs only to
+influence a number about work that genuinely happened. The adversary in
+our experiments is weaker still---it observes the sign of the true delta
+and nothing else, not the store, not provenance, not which entry
+decided.
+
+\paragraph{The generalization, and its limit.} The same separation holds
+wherever settlement is mediated: a storage agent reads a filesystem
+report rather than counting sectors, a spend-cap agent reads a billing
+export that arrives a day late. The limit is honest---in deployments
+where the settling process is the same trusted component that performs
+the work, and no third party can write to the channel, this threat model
+does not apply and the attack budget is zero. We measure a curve from
+$b{=}0$ upward partly so that such deployments can read their own
+column.
+
 \subsection{Reporting rules}
 \label{sec:reporting}
 

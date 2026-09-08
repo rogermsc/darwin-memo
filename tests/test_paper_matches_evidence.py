@@ -39,7 +39,14 @@ import pytest
 from bench.report import aggregate
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPERIMENTS = ROOT / "paper" / "sections" / "experiments.tex"
+# The paper is split into a body and an appendix, so a table may sit in
+# either. Both are searched: a table that moved must keep being checked
+# against its evidence, and a lookup that found nothing would silently
+# stop checking instead of failing.
+EXPERIMENTS = (
+    ROOT / "paper" / "sections" / "experiments.tex",
+    ROOT / "paper" / "sections" / "appendix.tex",
+)
 RESULTS = ROOT / "bench" / "results"
 
 # Which committed file carries each arm of the headline table. salience_matched
@@ -76,7 +83,7 @@ def headline_rows() -> dict[str, dict[str, str]]:
     while still looking like a real comparison. A header-keyed parser cannot
     misalign that way -- it either finds the column or raises.
     """
-    text = EXPERIMENTS.read_text()
+    text = "\n".join(p.read_text() for p in EXPERIMENTS)
     start = text.index("\\label{tab:headline}")
     body = text[start : text.index("\\end{tabular}", start)]
     header: list[str] | None = None

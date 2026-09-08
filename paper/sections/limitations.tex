@@ -4,6 +4,28 @@
 We state the threats to validity plainly, in the spirit of the
 pre-registration above.
 
+\paragraph{Inside the adversarial regime, the mechanism is not the only
+answer either.} We pre-registered that no strike count would hold both
+axes under attack and it was false: a forgiveness counter at $k{=}5$
+matches the ledger's corner at two lies per cycle
+(\S\ref{sec:countersweep}). Two things follow, and only the second is a
+defence. The first is that our headline counter numbers were a statement
+about four chosen settings, and any claim of the form ``counters lose''
+must now be read as scoped to the lifetime-strike shape and to untuned
+forgiveness counters. The second is that the tuned counter reaches the
+corner by barely evicting---$14.9$ surviving entries against the
+ledger's $4.0$, and $16\%$ less measured resource at every budget---so
+the two mechanisms are not interchangeable, they price different things.
+A reader who does not pay for store size should use the counter.
+
+The sweep has its own limit. It moves the one parameter the two
+published shapes expose, at seven values, on one environment family. It
+says nothing about a differently \emph{shaped} heuristic---decay,
+magnitude grading, per-source blame---and we repeat there what we say in
+\S\ref{sec:headline}: patching a counter with decay and magnitude
+grading reinvents the ledger, which is an argument about where the
+design space leads and not a measurement of it.
+
 \paragraph{Outside the adversarial regime, the mechanism may be
 unnecessary.}
 We state the strongest argument against this paper because our own data

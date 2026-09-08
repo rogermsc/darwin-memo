@@ -298,6 +298,61 @@ PERSISTENCE_ARMS = (
 PERSISTENCE_BUDGETS = (0, 1, 2, 4)
 
 
+# The counter family's own dial, swept end to end. Every strike counter has
+# one free parameter, and the two published tables pick two values of it
+# (k=1, k=3) plus consecutive-k=2. That invites the reviewer's obvious reply:
+# those are two brittle settings, not a brittle family -- tune k and the gap
+# closes. This suite answers it by sweeping k until the counter stops
+# curating at all, so the claim under test is about the FAMILY, not the arms
+# we happened to pick.
+COUNTER_SWEEP_K: tuple[int, ...] = (1, 2, 3, 5, 8, 12, 20)
+COUNTER_SWEEP_BUDGETS: tuple[int, ...] = (0, 1, 2, 4)
+
+
+def counter_sweep_suite(seeds: list[int]) -> list[RunSpec]:
+    """Is there ANY strike count at which a counter both keeps and curates?
+
+    A counter's dial trades the two axes against each other by
+    construction: low ``k`` evicts on thin evidence, which is what a liar
+    feeds it, and high ``k`` demands so much evidence that nothing is ever
+    evicted -- at which point the arm IS ``keep_everything`` under another
+    name and its poison-kill rate is that of no curation at all.
+
+    The claim this tests is that the trade has no good point: no ``k``
+    where benign capability under attack survives AND poison is still
+    removed. ``survival`` and ``keep_everything`` bracket the sweep, so the
+    two ends of the dial can be read against "the ledger" and "no curation"
+    rather than against each other.
+
+    Both counter shapes are swept, because they fail for different reasons:
+    lifetime strikes never forgive, while consecutive strikes forgive on
+    any success and so need the liar to land blows in a row.
+    """
+    return [
+        RunSpec(
+            suite="counter_sweep",
+            arm=arm,
+            seed=seed,
+            overrides={"lie_budget": budget, **extra},
+            label=f"budget={budget},{suffix}",
+        )
+        for budget in COUNTER_SWEEP_BUDGETS
+        for arm, extra, suffix in (
+            [("survival", {}, "ledger")]
+            + [
+                ("evict_on_negative", {"strikes": k}, f"lifetime k={k}")
+                for k in COUNTER_SWEEP_K
+            ]
+            + [
+                ("evict_consecutive", {"strikes": k}, f"consecutive k={k}")
+                for k in COUNTER_SWEEP_K
+            ]
+            + [("keep_everything", {}, "no curation")]
+        )
+        for seed in seeds
+    ]
+
+
 def persistence_suite(seeds: list[int]) -> list[RunSpec]:
     """Destruction vs persistence at matched budgets, same arms, same worlds.
 

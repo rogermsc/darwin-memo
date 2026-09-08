@@ -120,6 +120,7 @@ RESULTS=(
   wef-llama32.json
   wef-llama32-counter.json
   neighbours.json
+  counter_sweep.json
   persistence.json
   distill_noisy.json
   distill_rule.json

@@ -65,12 +65,14 @@ and instead corrupts settlement so that the defence starves the memory
 it protects---denial of memory---and we measure six curation mechanisms
 against it at five attack budgets over 30 seeds.
 
-The separation is sharp and so is its boundary. At one corrupted
-measurement per cycle, every strike counter and quarantine policy we
-test keeps at most about half its benign capability---an evict-on-negative
-counter keeps none of it---while a bounded-credit energy ledger keeps all
-of it and retains $99.4\%$ of its unattacked outcome. A Thompson-sampling bandit
-also keeps capability, but only by never removing anything: its
+The ledger that survives it is \textsc{darwin-memo}, in which each entry
+pays energy upkeep and earns only from a conserved resource the
+environment already measures: no reward model, no judge, no labels. At
+one corrupted measurement per cycle it keeps all of its benign
+capability and $99.4\%$ of its unattacked outcome, where the strike
+counters and quarantine policies in our attack grid keep at most about
+half---an evict-on-negative counter keeps none. A Thompson-sampling
+bandit also keeps capability, but only by never removing anything: its
 poison-kill rate falls to $0.07$ by four lies per cycle. Retention is
 not defence. The ledger's own failure boundary lies between two and four
 lies per cycle and we publish it rather than stopping at the win. An
@@ -78,6 +80,14 @@ adversary that buys \emph{persistence} instead of destruction takes its
 poison-kill rate from $1.00$ to $0.00$ (paired $p = 0.0039$) while
 benign capability never moves, so the guarantee disappears without
 anything changing in the metric an operator watches.
+
+That counter result is a statement about four settings, so we swept the
+family's whole dial and it refuted our own pre-registered prediction: a
+forgiveness counter tuned to $k{=}5$ reaches the ledger's corner at two
+lies per cycle. It gets there by barely evicting, and pays for it on an
+axis the corner does not price---$16\%$ less measured outcome from a
+store nearly four times larger, at every budget ($p = 0.0003$). The
+lifetime-strike shape has no such setting at any $k$ we tested.
 
 We are equally precise about where the mechanism is unnecessary. Absent
 an adversary a one-line heuristic ties it on outcomes and a confidence
@@ -90,13 +100,13 @@ counter loses more benign memory to the attack than the ledger does in
 $5$ of $6$ paired worlds, but the tripling we measure on one repository
 is absent on a second, where the counter already buries four times as
 much with no adversary present---so we report an effect scoped to one
-repository and claim significance for neither half. The ledger is \textsc{darwin-memo}, in which each
-entry pays energy upkeep and earns only from a conserved resource the
-environment already measures: no reward model, no judge, no labels. We
-give the regime map that says which curator to use when, and report
-every one of those losses. Every number comes from a stdlib-only harness
-with pre-registered hypotheses, exact paired permutation tests, and
-committed per-seed data validated against its manifest in CI.
+repository and claim significance for neither half. We give the regime
+map that says which curator to use when---including where a tuned
+counter is the right answer and where a one-line heuristic is---and
+report every one of those losses. Every number comes from a
+stdlib-only harness with pre-registered hypotheses, exact paired
+permutation tests, and committed per-seed data validated against its
+manifest in CI, including the prediction this paper refuted.
 \end{abstract}
 
 \input{sections/intro}
@@ -107,6 +117,17 @@ committed per-seed data validated against its manifest in CI.
 \input{sections/limitations}
 \input{sections/ethics}
 \input{sections/conclusion}
+
+% Body carries the contribution and the negative results; the exhaustive
+% grids live here so a venue page limit costs coverage, not evidence.
+% One source, two builds: define \bodyonly to measure the body against a
+% page limit without deleting anything.
+%   tectonic main.tex                       -> body + appendix
+%   pdflatex "\def\bodyonly{}\input{main}"  -> body alone
+\ifdefined\bodyonly\else
+  \appendix
+  \input{sections/appendix}
+\fi
 
 \bibliographystyle{plainnat}
 \bibliography{references}
