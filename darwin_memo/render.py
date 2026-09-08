@@ -91,6 +91,18 @@ def parse_budget(spec: str) -> int:
     return budget
 
 
+# Every write here goes through this, and the newline argument is the whole
+# point of it. `render` promises a hard byte cap -- an agent's context budget
+# depends on it -- and `_byte_len` measures UTF-8 bytes of text containing
+# "\n". Path.write_text with the default newline=None translates "\n" to
+# "\r\n" on Windows, so the file on disk was one byte per line larger than
+# the budget the caller asked for and larger than the `bytes` this module
+# reported back. A 120-byte budget wrote 122 bytes. Pinning the newline makes
+# what is measured and what is written the same string.
+def _write(path: Path, text: str) -> None:
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
 def _byte_len(text: str) -> int:
     return len(text.encode("utf-8"))
 
@@ -291,7 +303,7 @@ def render_store(
             budget,
             max_lines,
         )
-        out_path.write_text(text, encoding="utf-8")
+        _write(out_path, text)
         return {
             "out": str(out_path),
             "shown": 0,
@@ -317,7 +329,7 @@ def render_store(
         lambda chosen: _single_document(source, chosen, living, budget, max_lines),
         max_lines=max_lines,
     )
-    out_path.write_text(document, encoding="utf-8")
+    _write(out_path, document)
     return {
         "out": str(out_path),
         "shown": len(selected),
@@ -371,9 +383,9 @@ def _render_split(
         max_lines=max_lines,
     )
     for topic in admitted:
-        Path(topic["path"]).write_text(documents[topic["topic"]], encoding="utf-8")
+        _write(Path(topic["path"]), documents[topic["topic"]])
     _clear_stale_topics(split_dir, keep={str(topic["topic"]) for topic in admitted})
-    out_path.write_text(index, encoding="utf-8")
+    _write(out_path, index)
     return {
         "out": str(out_path),
         "shown": sum(int(topic["shown"]) for topic in admitted),

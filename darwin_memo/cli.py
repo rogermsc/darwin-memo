@@ -30,6 +30,7 @@ the other invocation finished, so the contract stays single-writer.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from collections import Counter
@@ -142,7 +143,13 @@ def cmd_encode(args: argparse.Namespace) -> int:
             print(f"error: {path} not found", file=sys.stderr)
             return 1
         try:
-            text = p.read_text()
+            # encoding is not optional here. Without it Python uses the
+            # locale default, which on Windows is cp1252 -- a codec that
+            # maps almost every byte, so a binary file "decodes" to mojibake
+            # instead of raising and gets encoded into the store as if it
+            # were prose. The check below only catches a non-text file on
+            # platforms whose default happens to be strict.
+            text = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError) as exc:
             print(f"error: cannot read {path} as text: {exc}", file=sys.stderr)
             return 1
@@ -422,6 +429,27 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def _use_utf8_output() -> None:
+    """Print UTF-8 whatever the console's default encoding is.
+
+    ``darwin-memo demo`` -- the one command the README tells a new reader to
+    run -- crashed on Windows with ``UnicodeEncodeError: 'charmap' codec
+    can't encode character '\u0394'``. The cycle table's header says
+    "resource \u0394", and a Windows console defaults to cp1252, which has no
+    delta. The headline command has never worked there; nothing noticed
+    because nothing executed the demo until a test did.
+
+    ``errors="replace"`` rather than a bare reconfigure: a console that
+    genuinely cannot render a character should print a substitute, not
+    abort a run whose output is otherwise fine. Wrapped because a stream
+    that is not a real file object (a pytest capture, a pipe under some
+    runners) may not expose ``reconfigure``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, ValueError, OSError):
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="darwin-memo",
@@ -558,6 +586,7 @@ def main(argv: list[str] | None = None) -> int:
     add_settle_ci_parser(sub)
     register_mcp_command(sub)
 
+    _use_utf8_output()
     args = parser.parse_args(argv)
     result: int = args.fn(args)
     return result

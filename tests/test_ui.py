@@ -56,7 +56,11 @@ def served_with_bundle(tmp_path, monkeypatch, served):
     bundle = tmp_path / "bundle"
     (bundle / "assets").mkdir(parents=True)
     (bundle / "index.html").write_text("<!doctype html><title>stub</title>")
-    (bundle / "assets" / "index-abc123.js").write_text("export default 1;\n")
+    # write_bytes, because the assertion downstream is a byte comparison and
+    # the server serves assets verbatim. write_text would translate the "\n"
+    # to "\r\n" on Windows, so the fixture and the expectation disagreed on a
+    # platform where the server was behaving correctly.
+    (bundle / "assets" / "index-abc123.js").write_bytes(b"export default 1;\n")
     # A file that genuinely exists one level above the bundle. Whether
     # "/../../../pyproject.toml" happens to resolve onto a real file
     # depends on where pytest happens to put tmp_path -- it does NOT
