@@ -339,8 +339,14 @@ def counter_sweep_suite(seeds: list[int]) -> list[RunSpec]:
         for budget in COUNTER_SWEEP_BUDGETS
         for arm, extra, suffix in (
             [("survival", {}, "ledger")]
-            + [("evict_on_negative", {"strikes": k}, f"lifetime k={k}") for k in COUNTER_SWEEP_K]
-            + [("evict_consecutive", {"strikes": k}, f"consecutive k={k}") for k in COUNTER_SWEEP_K]
+            + [
+                ("evict_on_negative", {"strikes": k}, f"lifetime k={k}")
+                for k in COUNTER_SWEEP_K
+            ]
+            + [
+                ("evict_consecutive", {"strikes": k}, f"consecutive k={k}")
+                for k in COUNTER_SWEEP_K
+            ]
             + [("keep_everything", {}, "no curation")]
         )
         for seed in seeds

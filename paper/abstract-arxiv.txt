@@ -1,29 +1,31 @@
 Every practical agent-memory system curates, and every curator decides on
 some signal: a classifier's verdict, a judge's rating, a measured outcome.
-The memory-security literature defends the store at write time (does this
-text look malicious?) and at retrieval (should this be used?). Recent
-surveys name a third possibility but do not measure it: an adversary
-attacking the deciding signal itself. We make that threat quantitative. In a
-curation-targeted attack the adversary injects no poison and instead
-corrupts settlement, so the defence starves the memory it protects -
-denial of memory. We measure six curation mechanisms against it at five
-attack budgets over 30 seeds.
+The memory-security literature defends the store at write time and at
+retrieval, and both read content. Recent surveys name a third possibility
+but do not measure it: an adversary attacking the deciding signal itself.
+We make that threat quantitative. In a curation-targeted attack the
+adversary injects no poison and instead corrupts settlement, so the defence
+starves the memory it protects - denial of memory. We measure six curation
+mechanisms at five attack budgets over 30 seeds.
 
-The separation is sharp and so is its boundary. At one corrupted
-measurement per cycle, every strike counter and quarantine policy we test
-keeps at most about half its benign capability - an evict-on-negative counter
-keeps none of it - while a bounded-credit energy ledger keeps all of it. A
-Thompson-sampling bandit keeps capability too, but only by never removing
-anything: retention is not defence. The ledger's own boundary lies between
-two and four lies per cycle and we publish it, not just the win. An adversary buying persistence rather than destruction removes the
-ledger's guarantee silently, while benign capability never moves.
+At one corrupted measurement per cycle, the strike counters and quarantine
+policies in our grid keep at most about half their benign capability, while
+a bounded-credit energy ledger keeps all of it. A Thompson-sampling bandit
+keeps capability too, but only by never removing anything: retention is not
+defence. We publish the ledger's own boundary, between two and four lies per
+cycle, not just the win.
 
-We then run the same attack on real software-engineering tasks.
-Capability does not separate there: on that benchmark memory buys none.
-What transfers is the mechanism in its proper currency: at 17%
-of settlements corrupted, a counter's deletion of benign memory roughly
-triples while the ledger's barely moves. A second repository does not
-reproduce that; the ordering alone holds in 5 of 6 worlds. We give a regime map saying which curator
-to use when, including where a one-line heuristic wins, and
+That counter result covers four settings, so we swept the family's whole
+dial, and it refuted our pre-registered prediction: a forgiveness counter
+tuned to k=5 reaches the ledger's corner. It gets there by barely evicting,
+and pays on an axis the corner does not price - 16% less measured outcome
+from a store four times larger (p=0.0003). The lifetime-strike shape has no
+working setting at any k we tested.
+
+We then run the same attack on real software-engineering tasks. Capability
+does not separate: across 2,115 SWE-Bench-CL tasks no memory arm beat
+carrying no memory at all, and what selection buys there is leanness. The
+ordering alone transfers, in 5 of 6 worlds, and one repository does not
+reproduce it. We give a regime map saying which curator to use when, and
 release a stdlib-only harness with pre-registered hypotheses and
 manifest-checked per-seed data.

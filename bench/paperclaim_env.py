@@ -61,7 +61,13 @@ from darwin_memo.environments import cycle_rng, decision_polarity
 from .claims import data_rows
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPERIMENTS = ROOT / "paper" / "sections" / "experiments.tex"
+# Both halves of the split paper: a table this env reads may sit in the
+# body or in the appendix, and which one is an editorial decision that
+# must not silently empty this corpus.
+EXPERIMENTS = (
+    ROOT / "paper" / "sections" / "experiments.tex",
+    ROOT / "paper" / "sections" / "appendix.tex",
+)
 EVIDENCE = ROOT / "bench" / "results" / "external"
 
 # Which committed run each row of tab:mem0 was drawn from. Deliberately not

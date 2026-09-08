@@ -46,7 +46,14 @@ from bench.claims import strip_cell
 from bench.claims import tabular as _tabular
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPERIMENTS = ROOT / "paper" / "sections" / "experiments.tex"
+# The paper is split into a body and an appendix, so a table may sit in
+# either. Both are searched: a table that moved must keep being checked
+# against its evidence, and a lookup that found nothing would silently
+# stop checking instead of failing.
+EXPERIMENTS = (
+    ROOT / "paper" / "sections" / "experiments.tex",
+    ROOT / "paper" / "sections" / "appendix.tex",
+)
 RESULTS = ROOT / "bench" / "results"
 
 # Cells are printed to 2dp, so agreement means "rounds to the same thing".
@@ -1861,7 +1868,7 @@ def test_memoryos_row_matches_committed_run(row: list[str]) -> None:
 def test_memoryos_caption_retrieval_claim() -> None:
     """The caption's "$0$ of $9$" is a number too, and nothing else checks it."""
     report = _external("memoryos-lfu-eviction.json")
-    body = EXPERIMENTS.read_text()
+    body = "\n".join(p.read_text() for p in EXPERIMENTS)
     end = body.index("\\label{tab:memoryos}")
     caption = body[body.rindex("\\begin{table}", 0, end) : end]
     assert report["evicted_despite_retrieval"] == 0
