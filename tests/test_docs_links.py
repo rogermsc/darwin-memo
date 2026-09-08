@@ -161,7 +161,11 @@ def test_readme_names_every_mcp_tool_the_server_registers() -> None:
     """
     server = (ROOT / "darwin_memo" / "mcp_server.py").read_text()
     registered = set(re.findall(r"@server\.tool\(\)\s*\n\s*def (memory_\w+)", server))
-    assert len(registered) == 8, registered
+    # No hardcoded count: the previous `== 8` had to be edited by hand every
+    # time a tool shipped, which is a second thing to forget alongside the
+    # README itself. A non-empty set plus the subset check below is the
+    # property that actually matters.
+    assert registered, "the tool-registration parser found nothing -- it is broken"
     named = set(re.findall(r"memory_\w+", README.read_text()))
     missing = registered - named
     assert not missing, f"MCP tools the README does not name: {missing}"

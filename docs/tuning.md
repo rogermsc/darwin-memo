@@ -291,7 +291,7 @@ What is evidence-backed in that table and what is not:
   `darwin-memo audit FILE` shows decides, silence, and settlement
   flow over any window. Rather than reading the table above by hand
   against a live store, run `darwin-memo doctor FILE`: it names which
-  of six failure modes (or none) the store actually hit, with the
+  of eight failure modes (or none) the store actually hit, with the
   evidence and the fix — see [the finding table](api.md#doctor-findings).
 - **An entry died and you do not know why**: `darwin-memo why FILE
   ENTRY_ID` prints its full life: birth, every settlement, merges,

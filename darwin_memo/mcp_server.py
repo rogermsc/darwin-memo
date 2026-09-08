@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .ledger import Ledger
-from .observe import audit_digest, filter_events, read_events
+from .observe import audit_digest, doctor, filter_events, read_events, top_row
 from .store import MemoryStore, StoreLockedError
 
 DEFAULT_MEMORY = "~/.darwin-memo/memory.json"
@@ -137,6 +137,10 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         memory_settle once the outcome is measurable; if you do not act,
         call memory_abandon with it. A silent result means memory has
         nothing relevant: prefer that silence over guessing.
+
+        ``deciding_entry`` and ``supporting_entries`` are the ids credit
+        will flow to. Pass one to memory_obituary to see what that entry
+        has earned, or to memory_forget if the advice was simply wrong.
         """
         ticket = ledger.decide(query, half_life=half_life if half_life > 0 else None)
         _persist()
@@ -145,6 +149,11 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
                 "answer": ticket.answer or None,
                 "ticket_id": ticket.id if ticket.provenance else None,
                 "silent": not ticket.provenance,
+                # Without these the agent gets an answer it cannot trace:
+                # every inspection tool here is keyed by entry id, and the
+                # ticket id opens none of them.
+                "deciding_entry": ticket.deciding_entry,
+                "supporting_entries": list(ticket.supporting_entries),
             }
         )
 
@@ -222,6 +231,108 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         """Why did this entry die (or how is it doing)? Full credit
         history from the ledger."""
         return ledger.obituary(entry_id)
+
+    @server.tool()
+    def memory_pending() -> str:
+        """Open tickets, with their ids: decisions still awaiting an outcome.
+
+        memory_stats reports only how many there are, which is no help to
+        a host that lost a ticket id across a restart. Settle the ones you
+        acted on, abandon the ones you did not; a ticket left open escrows
+        its entries, which keep paying upkeep but cannot be buried or
+        merged until the verdict lands.
+        """
+        return json.dumps(
+            {
+                "tick": ledger.tick_count,
+                "pending": [
+                    {
+                        "ticket_id": ticket.id,
+                        "query": ticket.query,
+                        "born_tick": ticket.born_tick,
+                        "age_ticks": ledger.tick_count - ticket.born_tick,
+                        "deciding_entry": ticket.deciding_entry,
+                    }
+                    for ticket in ledger.pending()
+                ],
+            }
+        )
+
+    @server.tool()
+    def memory_top(limit: int = 10) -> str:
+        """Living entries ranked by balance: what this memory is made of.
+
+        Balance is the entry's energy. Every entry pays upkeep each tick
+        and earns only from settled outcomes, so a high balance means
+        repeatedly measured-useful, and ticks_to_starvation is how long
+        the entry has left if it never earns again.
+        """
+        ranked = sorted(store.alive(), key=lambda e: e.energy, reverse=True)
+        return json.dumps(
+            {
+                "tick": ledger.tick_count,
+                "alive": len(store),
+                "entries": [
+                    top_row(entry, ledger.tick_count, store)
+                    for entry in ranked[: max(1, limit)]
+                ],
+            }
+        )
+
+    @server.tool()
+    def memory_doctor() -> str:
+        """Name the failure mode behind a store that is not earning.
+
+        Returns findings with a code, a severity, the evidence behind
+        each one, and what to do about it -- rather than leaving several
+        different degeneracies looking identical from the outside. An
+        empty findings list on a store that has never ticked means "no
+        evidence yet", not "healthy"; ``evidence_window`` says which.
+        """
+        events = read_events(event_log)
+        findings = [f.as_dict() for f in doctor(ledger, events)]
+        return json.dumps(
+            {
+                "findings": findings,
+                "evidence_window": {
+                    "events": len(events),
+                    "ticks": ledger.tick_count,
+                },
+            }
+        )
+
+    @server.tool()
+    def memory_forget(entry_id: str) -> str:
+        """Bury an entry outright, without waiting for selection.
+
+        For advice that is wrong but inert: selection can only remove what
+        it measures, and an entry nothing acts on is never settled, so it
+        starves only slowly and answers in the meantime. Refused for a
+        pinned entry (unpin it first) and for one escrowed against an open
+        ticket; the reply says which.
+        """
+        outcome = ledger.forget(entry_id)
+        _persist()
+        return json.dumps({"entry_id": entry_id, "outcome": outcome})
+
+    @server.tool()
+    def memory_pin(entry_id: str) -> str:
+        """Protect an entry from starvation and merges.
+
+        A pin is a standing claim that this entry is correct regardless of
+        what it earns, so it suspends the only mechanism that removes bad
+        memory. Pin sparingly, and prefer letting an entry earn its place.
+        """
+        pinned = ledger.pin(entry_id)
+        _persist()
+        return json.dumps({"entry_id": entry_id, "pinned": pinned})
+
+    @server.tool()
+    def memory_unpin(entry_id: str) -> str:
+        """Return a pinned entry to normal selection pressure."""
+        unpinned = ledger.unpin(entry_id)
+        _persist()
+        return json.dumps({"entry_id": entry_id, "pinned": not unpinned})
 
     @server.tool()
     def memory_audit(since: str = "", last: int = 0) -> str:

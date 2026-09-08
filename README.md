@@ -52,12 +52,13 @@ answers, the filesystem just responds:
 
 ```
 cycle  pop births deaths merges   energy   resource Δ   silent
-    0   17      1      0      0    17.11       -12288     0/12
-    1   16      0      1      0    17.60      -572416     0/12   <- poison being executed
+    0   16      1      1      0    15.91      -495616     0/12   <- poison being executed
     ...
-   19    5      0      7      0    15.60       338944     0/12   <- unused knowledge starves
+    4   13      0      0      4    21.37       369664     0/12   <- near-duplicates merge
     ...
-   29    4      0      0      0    15.10       346112     6/12   <- stable, positive forever
+   19    5      0      7      0    15.71       507904     0/12   <- unused knowledge starves
+    ...
+   29    4      0      0      0    15.10       515072     4/12   <- stable, positive forever
 
 Poisoned entries still alive: 0
 ```
@@ -123,21 +124,66 @@ flowchart LR
 Requires Python 3.10+. The core has zero dependencies; everything below
 runs offline.
 
-The anatomy in 30 seconds: a `MemoryEntry` is a self-contained QA pair
-(`.question`, `.answer`, `.sources`, `.energy`). The store retrieves,
-the protocol answers with provenance, the environment measures, credit
-flows back.
+### From the demo to your own text
+
+The demo carries its own corpus. To point the same machinery at yours,
+three commands and no Python:
+
+```bash
+darwin-memo encode notes/*.txt -o memory.json     # text -> QA entries
+darwin-memo query memory.json "Is it safe to delete old log files?"
+darwin-memo doctor memory.json                    # is this store earning?
+```
+
+`encode` splits each document into self-contained QA pairs and reports
+what it made:
+
+```
+Encoded 9 entries from 2 documents -> memory.json
+      explicit: 7
+        entity: 1
+     cross_doc: 1
+```
+
+`query` answers with provenance, and stays quiet when nothing clears
+the relevance floor. Both outcomes are the point:
+
+```
+$ darwin-memo query memory.json "Is it safe to delete old log files?"
+Old log files under logs/ may be deleted after seven days.
+[recorded 2026-09-08T12:19:56+00:00; born tick 0; never settled]
+  deciding entry: [explicit] What is known about old log files under logs/ may?
+  sources: runbook
+
+$ darwin-memo query memory.json "What is the wifi password?"
+(memory is silent: no entry clears the relevance floor)
+```
+
+Nothing has died yet, because nothing has been measured yet: entries
+only start paying upkeep once you settle decisions against a real
+outcome. That is the next section. For a walkthrough on your own
+directory, including how to read a wrong-but-confident answer, see
+[`examples/09_your_own_corpus.py`](https://github.com/rogermsc/darwin-memo/blob/main/examples/09_your_own_corpus.py).
+
+### The anatomy in 30 seconds
+
+A `MemoryEntry` is a self-contained QA pair (`.question`, `.answer`,
+`.sources`, `.energy`). The store retrieves, the protocol answers with
+provenance, the environment measures, credit flows back.
 
 ```python
 from darwin_memo import Document, LocalEncoder, MemoryStore, QueryProtocol
 
 store = MemoryStore(upkeep=0.05)
-for entry in LocalEncoder().encode([Document("runbook", open("runbook.txt").read())]):
+notes = "Old log files under logs/ may be deleted after seven days."
+for entry in LocalEncoder().encode([Document("runbook", notes)]):
     store.add(entry)
 
 answer = QueryProtocol(store).answer("Is it safe to delete old log files?")
 print(answer.text)             # the top entry's answer, or "" when memory is silent
 print(answer.deciding_entry)   # provenance: the id credit will flow to
+
+store.save("memory.json")
 ```
 
 ### Event-driven (production shape): the Ledger
@@ -163,15 +209,36 @@ print(ledger.obituary(entry_id))     # why did this entry die?
 
 ```bash
 darwin-memo doctor memory.json     # why is nothing earning?
-darwin-memo ui memory.json         # population, graveyard, economics
+darwin-memo ui memory.json         # the operator dashboard on localhost
 ```
 
 `doctor` reads the event log and names which failure mode a store hit
-instead of leaving three of them looking identical. `ui` serves the
-same data as a read-only dashboard on localhost: population and energy
-over time, the graveyard split by cause of death, and the resource-
-versus-upkeep accounting. Read-only and loopback-only, so there is
-nothing to authenticate.
+instead of leaving several of them looking identical. On a store nothing
+has measured yet it says so, rather than reporting a clean bill of
+health.
+
+`ui` is the same data as a working surface: the living population with
+each entry's balance, runway and flags; open tickets with their ids; the
+graveyard split by cause of death, where every id opens that entry's
+whole life; the event log, filterable to one entry; and the energy
+accounting kept visibly separate from your resource unit, because the
+two are not comparable. It also writes — pin, unpin, forget, abandon,
+add, tick and settle — so the store you are reading is the store you can
+act on.
+
+Loopback-only, and a write additionally needs a loopback `Origin`, a JSON
+content type and a per-process token embedded in the page.
+
+One thing there is deliberately different in kind. Settling from a
+browser means typing a delta, and a typed number is the human judgment
+this package exists to exclude. It is not refused; it is marked. The
+event log and every per-entry note record `source: "operator"`, `why`
+and `audit` show it, and `doctor` raises `operator_settled` once
+hand-entered deltas outweigh measured ones. A store curated by hand
+keeps working and stops being evidence, visibly.
+
+From a source checkout the dashboard needs building once
+(`cd ui && npm install && npm run build`); released wheels ship it.
 
 ### Batch (research shape): the SurvivalLoop
 
@@ -193,14 +260,30 @@ pip install "darwin-memo[mcp]"
 claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.json
 ```
 
-The agent gets `memory_query` (returns an answer plus a ticket id),
-`memory_settle` (report the measured delta later; the reply says
-plainly when a settlement did NOT land), `memory_abandon` (release a
-ticket you chose not to act on), `memory_add`, `memory_tick`,
-`memory_stats`, `memory_obituary`, and `memory_audit` (read the event
-log). The full state, including open
-tickets, persists across sessions and restarts, so a ticket opened
-today settles correctly from tomorrow's process.
+The agent gets fourteen tools, in three groups.
+
+**Use it.** `memory_query` returns an answer, a ticket id, and the
+entry ids credit will flow to. `memory_settle` reports the measured
+delta later, and says plainly when a settlement did NOT land.
+`memory_abandon` releases a ticket you chose not to act on.
+`memory_add` writes a lesson. `memory_tick` advances time.
+
+**Inspect it.** `memory_stats` for the population, `memory_top` for
+what the memory is made of, `memory_pending` for open tickets *with
+their ids*, `memory_obituary` for one entry's credit history,
+`memory_audit` for the event log, and `memory_doctor` to name the
+failure mode behind a store that is not earning.
+
+**Curate it.** `memory_forget` buries a lesson that is wrong but inert
+— selection only removes what it measures, so an entry nothing acts on
+never gets settled and starves only slowly. `memory_pin` and
+`memory_unpin` exempt an entry from starvation and merges; pin
+sparingly, since a pin suspends the only mechanism that removes bad
+memory.
+
+The full state, including open tickets, persists across sessions and
+restarts, so a ticket opened today settles correctly from tomorrow's
+process.
 
 ### Fully local with Ollama (zero dependencies, zero cloud)
 

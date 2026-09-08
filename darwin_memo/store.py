@@ -156,6 +156,18 @@ class MemoryStore:
         ``sources`` list, and an unknown ``kind`` raises ``ValueError``
         rather than silently matching nothing.
 
+        **Filtering is not just narrowing.** The filter runs BEFORE
+        ``retriever.rank``, and ``LexicalRetriever`` computes document
+        frequency over the entries it is handed, so a filter changes
+        every score and therefore the ``min_coverage`` relevance floor
+        too: a term that is common in the whole store, and thus nearly
+        worthless, can be rare and highly weighted inside one kind.
+        Measured on a nine-entry store, one entry scored 4.05 unfiltered
+        and 1.22 under ``kind="experience"`` for the same query. A query
+        that is silent unfiltered can answer when filtered, and the
+        reverse. Treat a filtered retrieval as its own corpus, not as a
+        subset of an unfiltered one.
+
         ``half_life`` opts into recency-weighted ranking, off by
         default: scores halve for every ``half_life`` ticks since an
         entry last settled (its born tick if it never has). A pure

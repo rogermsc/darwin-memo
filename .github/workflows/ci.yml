@@ -61,7 +61,22 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - name: Install tectonic
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tectonic
+        # Not from apt: `tectonic` is not in the runner image's package set,
+        # so this step has failed on every push since it was written and the
+        # paper build below has never actually run -- the same "a guard that
+        # cannot run is not a guard" the job's own comment is about, one
+        # layer down. Pinned upstream release binary instead, so the version
+        # that builds the paper is a stated fact rather than whatever apt
+        # would have resolved.
+        run: |
+          set -euo pipefail
+          version=0.17.0
+          url="https://github.com/tectonic-typesetting/tectonic/releases/download"
+          curl -fsSL -o tectonic.tar.gz \
+            "${url}/tectonic%40${version}/tectonic-${version}-x86_64-unknown-linux-gnu.tar.gz"
+          tar xzf tectonic.tar.gz
+          sudo install -m 0755 tectonic /usr/local/bin/tectonic
+          rm -f tectonic.tar.gz tectonic
       - run: tectonic --version
       - name: The paper must build with no undefined references
         run: pytest -q tests/test_paper_builds_clean.py
