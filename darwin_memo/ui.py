@@ -1,19 +1,31 @@
-"""A local, read-only dashboard over one memory file.
+"""A local operator dashboard over one memory file.
 
     darwin-memo ui memory.json [--port 8787] [--no-open]
 
-Loopback-only and read-only by construction: binding to ``127.0.0.1``
-stops remote *network* reach, and there are no mutation endpoints, so
-nothing a browser can reach here changes state. That combination is
-what lets this skip authentication, CSRF tokens and session handling
--- but the loopback bind alone is not enough, because it does not stop
+Reads on GET, mutates on POST: pin, unpin, forget, abandon, add, tick
+and settle, the same operations the CLI and MCP expose. It was read-only
+until the operator surface landed, and the argument for skipping
+authentication was precisely that there was nothing to authorize. That
+argument is gone, so writes carry four checks (see ``do_POST``): a
+loopback ``Host``, a loopback ``Origin`` when the browser sends one, a
+JSON content type, and a per-process token minted at startup and
+embedded in the page.
+
+The ``Host`` check is the load-bearing one and applies to reads too.
+Binding to ``127.0.0.1`` stops remote *network* reach but not
 *browser-mediated* reach: a page the operator has open elsewhere can
-point its own hostname at 127.0.0.1 (DNS rebinding), and the browser
-then treats this server as same-origin with that page. Every request
-therefore also checks its ``Host`` header and rejects anything that is
-not a loopback name or address before doing any other work (see
-``do_GET``). Culling, settling and pinning stay on the CLI and MCP,
-where every operation is event-logged and audited.
+point its own hostname at 127.0.0.1 (DNS rebinding) and the browser
+treats this server as same-origin. A rebound page sends the attacker's
+hostname in ``Host``, which is why the check is first, before any route
+lookup or file read.
+
+One operation is different in kind. ``settle`` here takes a delta a
+person typed, and a typed number is the human judgment this package
+exists to exclude. It is not refused -- it is marked: the settle event
+and every per-entry note record ``source: "operator"``, ``why`` and
+``audit`` show it, and ``doctor`` raises ``operator_settled`` once
+hand-entered deltas outweigh measured ones. A store curated by hand
+stays usable and stops being evidence, visibly.
 
 The store and the event log are re-read on every request. They are
 small, and a dashboard showing yesterday's population is worse than a
@@ -24,8 +36,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import mimetypes
 import re
+import secrets
 import sys
 import threading
 import webbrowser
@@ -36,11 +50,14 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .ledger import Ledger
+from .mcp_server import save_with_retry
 from .observe import (
     doctor,
     economics,
     entry_life,
+    evidence_window,
     filter_events,
+    has_evidence,
     read_events,
     timeline,
     top_row,
@@ -107,6 +124,11 @@ _NO_BUNDLE = b"""<!doctype html><meta charset="utf-8">
 # (e.g. `darwin-memo ledger settle` running concurrently against this
 # file) and do_GET maps that to a 503, not a crash.
 _STORE_READ_LOCK = threading.Lock()
+# Writes take the same lock as reads. A mutation is load-mutate-save and
+# must not interleave with a read that holds a half-old ledger, nor with
+# another mutation: the flock is per open file description, so two of this
+# server's own threads would collide on it rather than serialize.
+_STORE_WRITE_LOCK = _STORE_READ_LOCK
 
 
 def _load(memory: Path) -> tuple[Ledger, list[dict[str, Any]]]:
@@ -114,6 +136,83 @@ def _load(memory: Path) -> tuple[Ledger, list[dict[str, Any]]]:
         ledger = Ledger.load(memory)
         events = read_events(memory.with_suffix(".events.jsonl"))
     return ledger, events
+
+
+_WRITE_ACTIONS = frozenset(
+    {"pin", "unpin", "forget", "abandon", "add", "tick", "settle"}
+)
+_MAX_WRITE_BYTES = 64 * 1024
+
+
+def _apply(memory: Path, action: str, body: dict[str, Any]) -> tuple[int, Any]:
+    """Run one mutation under the store lock, then persist it.
+
+    Load-mutate-save inside one lock, because the ledger's in-memory state
+    (pending tickets, history) is authoritative for the write and a stale
+    copy would clobber whatever another writer landed in between. Reads
+    take the same lock, so the dashboard cannot race itself.
+    """
+    with _STORE_WRITE_LOCK:
+        ledger = Ledger.load(memory, event_log=memory.with_suffix(".events.jsonl"))
+
+        def entry_id() -> str:
+            value = body.get("id")
+            return value if isinstance(value, str) else ""
+
+        if action == "tick":
+            result: Any = ledger.tick()
+        elif action == "pin":
+            result = {"id": entry_id(), "pinned": ledger.pin(entry_id())}
+        elif action == "unpin":
+            result = {"id": entry_id(), "pinned": not ledger.unpin(entry_id())}
+        elif action == "forget":
+            result = {"id": entry_id(), "outcome": ledger.forget(entry_id())}
+        elif action == "abandon":
+            ticket = body.get("ticket_id")
+            if not isinstance(ticket, str):
+                return 400, {"error": "abandon needs a ticket_id"}
+            result = {"ticket_id": ticket, "released": ledger.abandon(ticket)}
+        elif action == "add":
+            question = body.get("question")
+            answer = body.get("answer")
+            if not isinstance(question, str) or not question.strip():
+                return 400, {"error": "add needs a question"}
+            if not isinstance(answer, str) or not answer.strip():
+                return 400, {"error": "add needs an answer"}
+            source = body.get("source")
+            entry = ledger.add(
+                question.strip(),
+                answer.strip(),
+                source=source if isinstance(source, str) and source else "operator",
+            )
+            result = {"id": entry.id, "question": entry.question}
+        elif action == "settle":
+            ticket = body.get("ticket_id")
+            delta = body.get("delta")
+            if not isinstance(ticket, str):
+                return 400, {"error": "settle needs a ticket_id"}
+            if isinstance(delta, bool) or not isinstance(delta, (int, float)):
+                return 400, {"error": "delta must be a number"}
+            if not math.isfinite(delta):
+                return 400, {
+                    "error": "delta must be finite; a NaN is not a measurement"
+                }
+            detail = body.get("detail")
+            # source="operator" is the whole point of allowing this from a
+            # browser: the delta was typed by a person, and every downstream
+            # reader has to be able to tell that from a measurement.
+            landed = ledger.settle(
+                ticket,
+                float(delta),
+                detail=detail if isinstance(detail, str) else "",
+                source="operator",
+            )
+            result = {"ticket_id": ticket, "settled": landed, "source": "operator"}
+        else:  # unreachable: do_POST checks the action first
+            return 404, {"error": "not found"}
+
+        save_with_retry(ledger, memory)
+        return 200, result
 
 
 def state(memory: Path) -> dict[str, Any]:
@@ -140,7 +239,17 @@ def state(memory: Path) -> dict[str, Any]:
                 "sources": life["sources"],
             }
         )
+    window = evidence_window(ledger, events)
     return {
+        # Which file this is. Nothing on screen said, so two dashboards on
+        # two ports were indistinguishable tabs.
+        "store": {
+            "path": str(memory),
+            "name": memory.name,
+            "max_energy": store.max_energy,
+            "merge_threshold": ledger.config.merge_threshold,
+            "admission_window": ledger.config.admission_window,
+        },
         "tick": tick,
         "upkeep": upkeep,
         "counts": {
@@ -150,6 +259,9 @@ def state(memory: Path) -> dict[str, Any]:
             "pending": len(ledger.pending()),
         },
         "total_energy": round(store.total_energy(), 3),
+        # An empty doctor list means "healthy" or "nothing measured yet", and
+        # the dashboard showed a green all-clear for both. This says which.
+        "evidence": {**window, "diagnosed": has_evidence(window)},
         "doctor": [f.as_dict() for f in doctor(ledger, events)],
         "timeline": timeline(events),
         "economics": economics(events, store),
@@ -168,18 +280,16 @@ def state(memory: Path) -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    """GET-only. There is nothing to write, so no other verb is defined:
+    """GET reads the store; POST mutates it under the checks in do_POST.
 
-    stdlib's ``BaseHTTPRequestHandler`` answers an undefined ``do_POST``
-    etc. with its own 501 Not Implemented, which is already the honest
-    answer for a GET-only server — writing a ``do_POST`` stub purely to
-    change 501 into 405 would be code that earns nothing.
+    Every other verb keeps stdlib's own 501, which is the honest answer.
     """
 
     server_version = "darwin-memo"
 
-    def __init__(self, memory: Path, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, memory: Path, token: str, *args: Any, **kwargs: Any) -> None:
         self.memory = memory
+        self.token = token
         super().__init__(*args, **kwargs)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -240,6 +350,80 @@ class _Handler(BaseHTTPRequestHandler):
             # memory file. Surface it instead of swallowing it.
             self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
 
+    def do_POST(self) -> None:  # stdlib callback name
+        """Mutations, behind four checks that all have to pass.
+
+        The read-only server needed no authentication because there was
+        nothing to authorize. Writes change that, so:
+
+        1. ``Host`` must be loopback -- same check as GET, and the one that
+           actually defeats DNS rebinding, because a rebound page sends the
+           attacker's hostname.
+        2. ``Origin``, when the browser sends one, must be loopback too, so
+           another app on localhost cannot drive this one.
+        3. ``Content-Type`` must be JSON. A form POST cannot set it without
+           triggering a CORS preflight this server never answers.
+        4. A per-process token, minted at startup and embedded in the page,
+           must arrive in ``X-Darwin-Memo-Token``. Cross-origin script
+           cannot read the page, so it cannot mint the header.
+        """
+        host = _host_only(self.headers.get("Host") or "")
+        if host not in LOOPBACK:
+            self._json(
+                421, {"error": "unexpected Host; the dashboard is loopback-only"}
+            )
+            return
+        origin = self.headers.get("Origin")
+        if origin is not None:
+            parsed_origin = urlparse(origin)
+            if _host_only(parsed_origin.netloc) not in LOOPBACK:
+                self._json(403, {"error": "cross-origin writes are refused"})
+                return
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip()
+        if ctype != "application/json":
+            self._json(415, {"error": "writes must be application/json"})
+            return
+        if self.headers.get("X-Darwin-Memo-Token") != self.token:
+            self._json(403, {"error": "missing or stale write token; reload the page"})
+            return
+
+        route = unquote(urlparse(self.path).path)
+        action = route[len("/api/") :] if route.startswith("/api/") else ""
+        if action not in _WRITE_ACTIONS:
+            self._json(404, {"error": "not found"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length > _MAX_WRITE_BYTES:
+            self._json(413, {"error": "request too large"})
+            return
+        try:
+            body = json.loads(self.rfile.read(length) or b"{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self._json(400, {"error": "body is not valid JSON"})
+            return
+        if not isinstance(body, dict):
+            self._json(400, {"error": "body must be a JSON object"})
+            return
+
+        try:
+            status, payload = _apply(self.memory, action, body)
+            self._json(status, payload)
+        except FileNotFoundError:
+            self._json(404, {"error": "memory file not found"})
+        except StoreLockedError:
+            self._json(
+                503,
+                {
+                    "error": "store is locked by another darwin-memo "
+                    "process; retry in a moment"
+                },
+            )
+        except Exception as exc:  # a dev server must answer, not drop the connection
+            self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
+
     def _entry(self, entry_id: str) -> None:
         ledger, _ = _load(self.memory)
         life = entry_life(ledger, entry_id)
@@ -279,6 +463,17 @@ class _Handler(BaseHTTPRequestHandler):
         if not target.is_file():
             self._json(404, {"error": "not found"})
             return
+        if target.name == "index.html":
+            # The write token reaches the page here rather than through an
+            # endpoint, so that only something able to READ this document
+            # can mint a write. Cross-origin script cannot.
+            html = target.read_text(encoding="utf-8").replace(
+                "<head>",
+                f'<head><meta name="darwin-memo-token" content="{self.token}">',
+                1,
+            )
+            self._send(200, html.encode(), "text/html; charset=utf-8")
+            return
         guessed, _ = mimetypes.guess_type(target.name)
         self._send(200, target.read_bytes(), guessed or "application/octet-stream")
 
@@ -286,15 +481,20 @@ class _Handler(BaseHTTPRequestHandler):
 def serve(memory: Path, port: int, host: str = "127.0.0.1") -> ThreadingHTTPServer:
     """Build (but do not start) the dashboard server.
 
-    Refuses a non-loopback bind: the server has no authentication
-    because it has no mutations, and that trade only holds on localhost.
+    Refuses a non-loopback bind. The dashboard can now write -- pin,
+    forget, tick, settle -- so the old "no auth because no mutations"
+    argument is gone and the loopback bind matters more, not less. It is
+    still not an authentication system: it is a single-operator tool on
+    one machine, and the per-process token below only stops OTHER local
+    pages from driving it.
     """
     if host not in LOOPBACK:
         raise ValueError(
-            f"refusing to bind {host}: the dashboard is unauthenticated "
-            "and loopback-only by design"
+            f"refusing to bind {host}: the dashboard writes to your store "
+            "and is loopback-only by design"
         )
-    return ThreadingHTTPServer((host, port), partial(_Handler, memory))
+    token = secrets.token_urlsafe(32)
+    return ThreadingHTTPServer((host, port), partial(_Handler, memory, token))
 
 
 def cmd_ui(args: argparse.Namespace) -> int:

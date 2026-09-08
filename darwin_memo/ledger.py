@@ -272,7 +272,13 @@ class Ledger:
         )
         return ticket
 
-    def settle(self, ticket_id: str, delta: float, detail: str = "") -> bool:
+    def settle(
+        self,
+        ticket_id: str,
+        delta: float,
+        detail: str = "",
+        source: str = "measured",
+    ) -> bool:
         """Report the measured outcome for a ticket. Credit flows now.
 
         ``delta`` is a measurement of a conserved resource, never a
@@ -281,6 +287,17 @@ class Ledger:
         agents) must be able to tell a real settlement from a dropped
         one. The False path stays a no-op rather than an exception
         because duplicate deliveries are normal in event-driven systems.
+
+        ``source`` records WHERE the delta came from, and exists because
+        the dashboard now lets an operator type one in by hand. A
+        hand-entered number is exactly the human judgment this package is
+        built to exclude, so it must never be silently interchangeable
+        with a measurement: it is stamped ``"operator"`` in the event log
+        and in every per-entry note, ``why`` and ``audit`` display it as
+        such, and ``doctor`` raises ``operator_settled`` once hand-entered
+        deltas start outweighing measured ones. Nothing rejects an
+        operator settle -- the point is that it stays visible, so no
+        benchmark or paper claim can rest on one unnoticed.
         """
         if not math.isfinite(delta):
             # A NaN or infinity is not a measurement. Left unguarded it would
@@ -307,15 +324,18 @@ class Ledger:
         for entry_id, credit in applied:
             if credit < -_DAMAGE_EPSILON:
                 self._damaged.add(entry_id)
+            measured = source == "measured"
             self._note(
                 entry_id,
                 f"tick {self.tick_count}: credit {credit:+.3f} "
-                f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
+                f"({'measured' if measured else source + '-entered'} delta "
+                f"{delta:+g}{', ' + detail if detail else ''})",
                 event="settle",
                 ticket=ticket.id,
                 credit=round(credit, 6),
                 delta=delta,
                 detail=detail,
+                source=source,
             )
         denied: set[str] = set()
         for entry_id, event in advance_lifecycle(
@@ -367,6 +387,7 @@ class Ledger:
             ticket=ticket.id,
             delta=delta,
             detail=detail,
+            source=source,
             applied=[{"entry": e, "credit": round(c, 6)} for e, c in applied],
             buried=buried,
         )

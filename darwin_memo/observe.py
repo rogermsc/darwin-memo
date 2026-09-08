@@ -31,6 +31,7 @@ from typing import Any
 from .diagnose import (
     MIN_DEATHS,
     MIN_QUIET_TICKS,
+    MIN_SETTLES,
     STALE_TICKET_TICKS,
     STARVED_SHARE,
     Finding,
@@ -720,6 +721,49 @@ def _operational_findings(
     return findings
 
 
+def _operator_findings(events: list[dict[str, Any]]) -> list[Finding]:
+    """Flag a store whose energy is moving on hand-entered deltas.
+
+    The dashboard can settle a ticket with a delta an operator typed, which
+    is the one place this package admits human judgment. That is a real
+    capability and it is not rejected here -- but a store where most of the
+    movement is hand-entered is no longer being selected by an environment,
+    and every claim that rests on "no judge anywhere" stops holding for it.
+    Saying so is the whole reason the settle event carries a source.
+    """
+    settles = [e for e in events if e.get("event") == "settle"]
+    if not settles:
+        return []
+    # Absent means "measured": every settle written before the source field
+    # existed came from a measurement, since nothing else could write one.
+    operator = [e for e in settles if e.get("source", "measured") != "measured"]
+    if not operator:
+        return []
+    share = len(operator) / len(settles)
+    if share <= 0.5 and len(operator) < MIN_SETTLES:
+        return []
+    return [
+        Finding(
+            code="operator_settled",
+            severity="warn",
+            summary=(
+                f"{len(operator)} of {len(settles)} settlements in this window "
+                f"carried a hand-entered delta ({share:.0%})"
+            ),
+            evidence=(
+                "settle events with source != 'measured'; total hand-entered "
+                f"delta {sum(float(e.get('delta', 0) or 0) for e in operator):+g}"
+            ),
+            fix=(
+                "these entries were selected by a person, not by a conserved "
+                "resource. Point settle at a real measurement (CI pass counts, "
+                "bytes freed) before treating this store's survivors as "
+                "evidence of anything"
+            ),
+        )
+    ]
+
+
 def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     """Name the failure mode behind a store that is not earning.
 
@@ -770,6 +814,7 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
             ledger, digest, earned=earned, last_credited=last_credited
         )
     )
+    findings.extend(_operator_findings(events))
     return findings
 
 
