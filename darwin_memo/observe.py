@@ -862,13 +862,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         )
     elif not findings and not has_evidence(window):
 
-        def _n(count: int, noun: str) -> str:
-            return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+        def _n(count: int, singular: str, plural: str) -> str:
+            # Explicit plural: appending "s" turns "entry" into "entrys",
+            # which is what the first version printed.
+            return f"{count} {singular if count == 1 else plural}"
 
         print(
-            f"no evidence yet: {_n(window['alive'], 'entry')}, "
-            f"{_n(window['ticks'], 'tick')}, "
-            f"{_n(window['settles'], 'settled outcome')}."
+            f"no evidence yet: {_n(window['alive'], 'entry', 'entries')}, "
+            f"{_n(window['ticks'], 'tick', 'ticks')}, "
+            f"{_n(window['settles'], 'settled outcome', 'settled outcomes')}."
         )
         print("  Nothing has been measured, so there is nothing to diagnose.")
         print("  Settle a decision against a real outcome, then tick:")

@@ -4,7 +4,70 @@ All notable changes to this project are documented here. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project uses [SemVer](https://semver.org/).
 
+**How to read this.** Entries here carry the reasoning and the measured
+numbers behind each change, not just its name, so a release can run to
+a couple of thousand lines. That is deliberate — a decision without its
+evidence is not reviewable — but it is not scannable. Longer entries
+open with an **In short** paragraph; read those to find the release you
+care about, then read down into it.
+
+If you want the current behaviour rather than its history, the docs are
+the better door: [the index](docs/README.md), [the API
+reference](docs/api.md), and [the glossary](docs/glossary.md).
+
 ## [Unreleased]
+
+### Added
+
+- The dashboard is an operator surface: pin, unpin, forget, abandon,
+  add, tick and settle, behind a loopback `Host`, a loopback `Origin`, a
+  JSON content type and a per-process token. A settle made there is
+  stamped `source: "operator"` everywhere it appears, and `doctor`
+  raises `operator_settled` when hand-entered deltas outweigh measured
+  ones.
+- Selection now lives in the URL, so every panel links to every other:
+  a graveyard id opens that entry's life, an event opens the entry it
+  names, a finding opens the entries in its evidence, a rail count opens
+  the view that lists them.
+- Six MCP tools that were missing: `memory_pending` (open tickets **with
+  their ids**), `memory_top`, `memory_doctor`, `memory_forget`,
+  `memory_pin` and `memory_unpin`. `memory_query` now returns
+  `deciding_entry` and `supporting_entries`, so an agent can trace the
+  answer it was given.
+- `SurvivalConfig` persists into the ledger file, and `ledger` gains
+  sticky `--upkeep`, `--merge-threshold` and `--admission-window`. The
+  tuning guide's advice was previously unfollowable from the CLI.
+- `SurvivalLoop.save()` writes the per-entry history that `why`,
+  `audit`, `doctor` and `ui` read, so a saved demo store can explain its
+  own graveyard.
+- `docs/glossary.md`; `tests/test_demo_transcript.py`;
+  `tests/test_docs_agreement.py`; `tests/test_ui_writes.py`.
+
+### Fixed
+
+- The README's headline demo transcript did not match what the demo
+  prints, and put the "poison being executed" marker on a
+  delta-positive cycle. Now generated from a real run and pinned by a
+  test.
+- A transient poll failure replaced the whole dashboard with an error
+  string — including the 503 returned by design while a CLI command
+  holds the store lock. The page keeps its last good read and shows the
+  server's own message.
+- `doctor` and the dashboard reported "no degeneracy detected" on a
+  store nothing had ever measured, which is a green light on an empty
+  room. They now distinguish that from health.
+- `stats`, `query` and `import` printed a `FileNotFoundError` traceback
+  for a mistyped path where `doctor` printed one line.
+- "Executed" meant "ever took negative credit", which mislabelled a
+  supporter that absorbed a share and starved fourteen cycles later. It
+  now means the damage is what killed it.
+
+### Changed
+
+- `darwin-memo ui` prints the store path, and says when a source
+  checkout has no built frontend.
+- Docs agree with the code on subcommands, dataclass fields, event
+  kinds, finding codes and signatures, and a test keeps them agreeing.
 
 ## [0.7.1] - 2026-09-04
 
@@ -29,6 +92,25 @@ project uses [SemVer](https://semver.org/).
   code; four other surfaced findings were adversarially refuted and left alone.
 
 ## [0.7.0] - 2026-09-03
+
+**In short.** The release that made the paper defensible and the repo
+honest about its own size. Added the long-context baseline
+(`full_context_llm`) a memory paper is actually judged against, two new
+environments that take selection pressure from real repositories
+(`bench/repo_env.py`) and from literature claims
+(`bench/paperclaim_env.py`), `docs/custom-environments.md` for the task
+the README calls the whole trick, and `examples/09_your_own_corpus.py`
+for the step between "the demo works" and "it works on my stuff".
+Re-ran every 30-cycle grid at 60 and reported the family split it
+exposed. Evaluated the obvious fix for consolidation laundering and
+reported that both halves of it cost more than they bought. Removed
+7,415 lines that nothing read: `docs/superpowers/plans/`,
+`bench/flaky_select/`, and three unused config knobs. Fixed the README
+so it is correct, reachable, and renders on PyPI.
+
+Everything below is the full record, including the reasoning and the
+numbers behind each decision. It is long on purpose; skim the bold
+sentences.
 
 ### Added
 

@@ -154,7 +154,7 @@ def test_docs_do_not_miscount_the_degeneracies() -> None:
     correct = words[len(codes)]
     wrong = [w for n, w in words.items() if w != correct]
     offenders: list[str] = []
-    for doc in sorted(DOCS.rglob("*.md")) + [ROOT / "README.md"]:
+    for doc in [*sorted(DOCS.rglob("*.md")), ROOT / "README.md"]:
         if "research" in doc.parts or "superpowers" in doc.parts:
             continue  # dated working notes, true when written
         body = _text(doc)

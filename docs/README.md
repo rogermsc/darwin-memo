@@ -76,3 +76,27 @@ demo, and the quickstart. This index is everything else.
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md), [CHANGELOG.md](../CHANGELOG.md),
   [SECURITY.md](../SECURITY.md).
+
+## Not documentation
+
+Three directories under `docs/` are working notes rather than pages
+written for a reader. They are kept because the paper cites them and
+because a dated record of what was tried is worth having, but nothing in
+them is maintained against the code, and a claim in one of them was true
+on the day it was written and may not be now.
+
+- `docs/research/` — dated reports and literature reviews. The largest,
+  `2026-06-13-conserved-resource-selection-report.md`, is the superseded
+  v0.5.1 technical report; `paper/reproduce.md` says outright that it is
+  not checked against current evidence.
+- `docs/superpowers/specs/` — dated design specs for work that was
+  planned. Some of it shipped, some did not, and the specs were not
+  updated either way.
+- `docs/disclosure/` — a coordinated-disclosure log sent to a
+  third-party maintainer.
+
+`docs/benchmarks.md` sits between the two categories. Its first
+~2,500 lines are a reader-facing account of what the suites measure and
+what they found; past that it is a lab notebook of pre-registered
+predictions, kept so the record of what was predicted before running
+survives. Read the top, search the rest.

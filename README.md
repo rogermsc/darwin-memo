@@ -209,15 +209,36 @@ print(ledger.obituary(entry_id))     # why did this entry die?
 
 ```bash
 darwin-memo doctor memory.json     # why is nothing earning?
-darwin-memo ui memory.json         # population, graveyard, economics
+darwin-memo ui memory.json         # the operator dashboard on localhost
 ```
 
 `doctor` reads the event log and names which failure mode a store hit
-instead of leaving three of them looking identical. `ui` serves the
-same data as a read-only dashboard on localhost: population and energy
-over time, the graveyard split by cause of death, and the resource-
-versus-upkeep accounting. Read-only and loopback-only, so there is
-nothing to authenticate.
+instead of leaving several of them looking identical. On a store nothing
+has measured yet it says so, rather than reporting a clean bill of
+health.
+
+`ui` is the same data as a working surface: the living population with
+each entry's balance, runway and flags; open tickets with their ids; the
+graveyard split by cause of death, where every id opens that entry's
+whole life; the event log, filterable to one entry; and the energy
+accounting kept visibly separate from your resource unit, because the
+two are not comparable. It also writes — pin, unpin, forget, abandon,
+add, tick and settle — so the store you are reading is the store you can
+act on.
+
+Loopback-only, and a write additionally needs a loopback `Origin`, a JSON
+content type and a per-process token embedded in the page.
+
+One thing there is deliberately different in kind. Settling from a
+browser means typing a delta, and a typed number is the human judgment
+this package exists to exclude. It is not refused; it is marked. The
+event log and every per-entry note record `source: "operator"`, `why`
+and `audit` show it, and `doctor` raises `operator_settled` once
+hand-entered deltas outweigh measured ones. A store curated by hand
+keeps working and stops being evidence, visibly.
+
+From a source checkout the dashboard needs building once
+(`cd ui && npm install && npm run build`); released wheels ship it.
 
 ### Batch (research shape): the SurvivalLoop
 
