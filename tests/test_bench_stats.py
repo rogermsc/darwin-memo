@@ -291,10 +291,18 @@ def test_manifest_records_source_commit(tmp_path):
     path = update_manifest(tmp_path / "h.json", _manifest_runs(), command="cmd")
     entry = json.loads(path.read_text())["files"]["h.json"]
     assert entry["source_commit"] == head
-    # The manifest itself is untracked now, so a rewrite reads dirty.
+
+    # This assertion used to read the other way, and the comment on it said
+    # why: "the manifest itself is untracked now, so a rewrite reads dirty."
+    # That was the behaviour, and it made the pin useless -- the tool saw its
+    # own two output files and reported every re-run as produced by a dirty
+    # tree, so a clean pin could only ever be written by hand. The pin now
+    # answers "was the CODE clean", and the results file and the manifest
+    # beside it are excluded from that question. Nothing else is: see
+    # test_a_modified_source_file_still_makes_the_pin_dirty.
     path = update_manifest(tmp_path / "h.json", _manifest_runs(), command="cmd")
     entry = json.loads(path.read_text())["files"]["h.json"]
-    assert entry["source_commit"] == head + "-dirty"
+    assert entry["source_commit"] == head
 
 
 def test_manifest_source_commit_unknown_outside_git(tmp_path):
