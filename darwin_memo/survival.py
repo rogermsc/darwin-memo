@@ -22,14 +22,19 @@ optimization is evolutionarily unstable here.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
 
 from .consolidate import DEFAULT_MERGE_THRESHOLD, consolidate
 from .diagnose import selection_findings
 from .environments import Environment
 from .protocol import QueryProtocol
-from .store import MemoryStore
-from .types import CycleStats, EntryKind, MemoryEntry, Trajectory
+from .store import MemoryStore, store_lock, write_json_atomic
+from .types import CycleStats, EntryKind, MemoryEntry, Trajectory, utc_now_iso
+
+_HISTORY_CAP = 100  # per-entry notes kept, matching the Ledger's cap
+_DAMAGE_EPSILON = 1e-9
 
 # An experience entry that near-duplicates a survivor is not worth a
 # spawn. Above the consolidation floor, because this decides whether
@@ -307,6 +312,58 @@ class SurvivalLoop:
                 else self.config.conflict_threshold
             ),
         )
+        # Per-entry notes in the Ledger's shape, so a store this loop saves
+        # can be read by why/audit/doctor/ui with no change on the read
+        # side. Before this, `store.save()` wrote population and graveyard
+        # only: every grave in a saved demo store reported "cause of death:
+        # unknown", including the executed poison the README leads with.
+        self.history: dict[str, list[dict[str, Any]]] = {}
+        # The cycle each entry last took negative credit on. "Executed" means
+        # the damage is what killed it -- it died on the cycle the
+        # environment charged it -- not merely that it was ever dented.
+        #
+        # Two weaker definitions were already in the tree and both are wrong
+        # here. `death_cause` calls an entry executed if it is in a
+        # caller-supplied poisoned_ids set, which only the demo can know.
+        # The Ledger calls it executed if it EVER took negative credit,
+        # which mislabels a supporter that absorbed a small share at cycle 0
+        # and then starved fourteen cycles later: measured against the
+        # demo's own printed graveyard, that rule reports 2 executed where 1
+        # was executed.
+        self._damaged: set[str] = set()
+        self._damaged_cycle: dict[str, int] = {}
+
+    def _note(self, entry_id: str, cycle: int, text: str, **data: Any) -> None:
+        """Append one note in the Ledger's exact shape.
+
+        Same keys in the same order (``tick``/``ts``/``text`` then the
+        structured fields), because ``note_text`` renders ``text`` and falls
+        back to the raw dict without it, and ``entry_life`` keys off
+        ``event``. Matching the shape is what lets one renderer serve both.
+        """
+        notes = self.history.setdefault(entry_id, [])
+        notes.append({"tick": cycle, "ts": utc_now_iso(), "text": text, **data})
+        if len(notes) > _HISTORY_CAP:
+            del notes[: len(notes) - _HISTORY_CAP]
+
+    def save(self, path: str | Path) -> None:
+        """Persist the store plus the history needed to explain it.
+
+        Writes the same ``ledger`` block :meth:`darwin_memo.ledger.Ledger.save`
+        writes, so the file stays a valid plain store file and every
+        observability command reads it without knowing which shape produced
+        it.
+        """
+        payload = self.store.to_payload()
+        payload["ledger"] = {
+            "tick_count": self.config.cycles,
+            "pending": [],
+            "history": {k: list(v) for k, v in self.history.items()},
+            "damaged": sorted(self._damaged),
+            "config": {k: v for k, v in asdict(self.config).items() if k != "cycles"},
+        }
+        with store_lock(path):
+            write_json_atomic(path, payload)
 
     def run(self) -> SurvivalReport:
         report = SurvivalReport()
@@ -364,15 +421,41 @@ class SurvivalLoop:
         # tell "used" from "useful" and the poison is the most-used entry.
         paced_quiet = cfg.upkeep_requires_settlement and nonzero_outcomes == 0
         dead = [] if paced_quiet else self.store.charge_upkeep()
+        for entry in dead:
+            # "executed" means the environment measured real damage and the
+            # negative delta flowed back here; "starved" means nothing ever
+            # punished it, it just never earned its upkeep. That distinction
+            # is the point of the graveyard and it was being thrown away.
+            cause = (
+                "executed" if self._damaged_cycle.get(entry.id) == cycle else "starved"
+            )
+            self._note(
+                entry.id,
+                cycle,
+                f"buried at cycle {cycle} ({cause})",
+                event="death",
+                cause=cause,
+                balance=round(entry.energy, 6),
+                uses=entry.uses,
+            )
 
         merges = 0
         if cfg.consolidate_every and (cycle + 1) % cfg.consolidate_every == 0:
+            before = {e.id for e in self.store.alive()}
             merges = consolidate(
                 self.store,
                 cycle,
                 threshold=cfg.merge_threshold,
                 source_policy=cfg.merge_source_policy,
             )
+            for entry_id in before - {e.id for e in self.store.alive()}:
+                self._note(
+                    entry_id,
+                    cycle,
+                    f"merged into a consolidated entry at cycle {cycle}",
+                    event="death",
+                    cause="merged",
+                )
 
         stats = CycleStats(
             cycle=cycle,
@@ -409,12 +492,29 @@ class SurvivalLoop:
             self.config,
             cycle,
         )
-        advance_lifecycle(
+        detail = trajectory.outcome.detail
+        for entry_id, credit in applied:
+            if credit < -_DAMAGE_EPSILON:
+                self._damaged.add(entry_id)
+                self._damaged_cycle[entry_id] = cycle
+            self._note(
+                entry_id,
+                cycle,
+                f"cycle {cycle}: credit {credit:+.3f} (measured delta "
+                f"{trajectory.outcome.delta:+g}{', ' + detail if detail else ''})",
+                event="settle",
+                credit=round(credit, 6),
+                delta=trajectory.outcome.delta,
+                detail=detail,
+                deciding=entry_id == trajectory.deciding_entry,
+            )
+        for entry_id, event in advance_lifecycle(
             self.store,
             applied,
             trajectory.outcome.delta,
             trajectory.deciding_entry,
-        )
+        ):
+            self._note(entry_id, cycle, f"{event} at cycle {cycle}", event=event)
 
     def _write_experience(self, trajectory: Trajectory, cycle: int) -> int:
         """Distill the cycle's best trajectory into a new entry.

@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { TimelineRow } from "../api";
+import type { State } from "../api";
 
 const TOOLTIP_STYLE = {
   background: "var(--surface)",
@@ -20,16 +20,28 @@ const AXIS_TICK = { fill: "var(--ink-faint)", fontSize: 11 };
 // ticks actually line up vertically, not just share a nominal domain.
 const Y_WIDTH = 46;
 
-// ponytail: two stacked charts on a shared, explicitly-set tick domain,
-// not one plot with a second y-axis. A second y-axis has a free
-// parameter — wherever its scale is set decides where the lines cross —
-// so it can imply a relationship the data doesn't actually fix. Stacked
-// and aligned shows the same mechanism (energy drains, population
-// collapses) with nothing tunable.
-export function Timeline({ rows }: { rows: TimelineRow[] }) {
+// Two stacked charts on a shared, explicitly-set tick domain, not one plot
+// with a second y-axis. A second y-axis has a free parameter -- wherever
+// its scale is set decides where the lines cross -- so it can imply a
+// relationship the data doesn't actually fix. Stacked and aligned shows
+// the same mechanism (energy drains, population collapses) with nothing
+// tunable.
+export function Trend({ state }: { state: State }) {
+  const rows = state.timeline;
+
   if (rows.length === 0) {
-    return <section className="panel">No ticks recorded yet.</section>;
+    return (
+      <section className="trend empty-trend">
+        <h2>Population over time</h2>
+        <p>
+          No ticks recorded yet, so there is no history to plot. This chart
+          fills in as time advances: population on top, total energy below,
+          on a shared tick axis.
+        </p>
+      </section>
+    );
   }
+
   // `rows` is chronological (see timeline()'s docstring), so the first
   // and last rows ARE the min and max -- no need to scan, and no spread
   // over a potentially huge array. Math.min(...ticks)/Math.max(...ticks)
@@ -40,20 +52,19 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
   // every tick-stat field null, so both lines above already draw
   // nothing for it -- true, but silent: the operator can't tell "no
   // tick has landed since this settlement" from "nothing happened".
-  // A short note is the cheapest correct cue: no custom dot shape, no
-  // ReferenceLine fighting the null-valued point it would sit next to.
   const last = rows[rows.length - 1];
   const open = last.open ? last : null;
+
   return (
-    <section className="panel">
+    <section className="trend">
       <h2>Population over time</h2>
-      <div className="label">population</div>
-      <ResponsiveContainer width="100%" height={140}>
+      <div className="label">living entries</div>
+      <ResponsiveContainer width="100%" height={130}>
         <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--line)" />
           {/* Numeric x-axis: a rotated-away log leaves a gap in the tick
               numbers, and it should render as a gap, not an interpolated
-              line across it. Tick labels hidden here — the bottom chart
+              line across it. Tick labels hidden here -- the bottom chart
               carries them for both, on the same domain. */}
           <XAxis
             dataKey="tick"
@@ -79,10 +90,11 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
+
       <div className="label" style={{ marginTop: "var(--space-4)" }}>
-        total energy
+        total energy held
       </div>
-      <ResponsiveContainer width="100%" height={170}>
+      <ResponsiveContainer width="100%" height={150}>
         <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
           <CartesianGrid stroke="var(--line)" />
           <XAxis
@@ -103,9 +115,10 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
+
       {open && (
-        <p className="timeline-open-note">
-          tick {open.tick} is still open — {open.delta > 0 ? "+" : ""}
+        <p className="open-note">
+          tick {open.tick} is still open &mdash; {open.delta > 0 ? "+" : ""}
           {open.delta.toLocaleString()} settled since the last tick, not yet
           closed by one
         </p>

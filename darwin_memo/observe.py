@@ -31,13 +31,14 @@ from typing import Any
 from .diagnose import (
     MIN_DEATHS,
     MIN_QUIET_TICKS,
+    MIN_SETTLES,
     STALE_TICKET_TICKS,
     STARVED_SHARE,
     Finding,
     selection_findings,
 )
 from .ledger import Ledger, note_text
-from .store import MemoryStore
+from .store import MemoryStore, StoreLockedError
 from .types import MemoryEntry
 
 _TOP_MOVERS = 5  # gainers and losers listed in the audit digest
@@ -720,10 +721,53 @@ def _operational_findings(
     return findings
 
 
+def _operator_findings(events: list[dict[str, Any]]) -> list[Finding]:
+    """Flag a store whose energy is moving on hand-entered deltas.
+
+    The dashboard can settle a ticket with a delta an operator typed, which
+    is the one place this package admits human judgment. That is a real
+    capability and it is not rejected here -- but a store where most of the
+    movement is hand-entered is no longer being selected by an environment,
+    and every claim that rests on "no judge anywhere" stops holding for it.
+    Saying so is the whole reason the settle event carries a source.
+    """
+    settles = [e for e in events if e.get("event") == "settle"]
+    if not settles:
+        return []
+    # Absent means "measured": every settle written before the source field
+    # existed came from a measurement, since nothing else could write one.
+    operator = [e for e in settles if e.get("source", "measured") != "measured"]
+    if not operator:
+        return []
+    share = len(operator) / len(settles)
+    if share <= 0.5 and len(operator) < MIN_SETTLES:
+        return []
+    return [
+        Finding(
+            code="operator_settled",
+            severity="warn",
+            summary=(
+                f"{len(operator)} of {len(settles)} settlements in this window "
+                f"carried a hand-entered delta ({share:.0%})"
+            ),
+            evidence=(
+                "settle events with source != 'measured'; total hand-entered "
+                f"delta {sum(float(e.get('delta', 0) or 0) for e in operator):+g}"
+            ),
+            fix=(
+                "these entries were selected by a person, not by a conserved "
+                "resource. Point settle at a real measurement (CI pass counts, "
+                "bytes freed) before treating this store's survivors as "
+                "evidence of anything"
+            ),
+        )
+    ]
+
+
 def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
     """Name the failure mode behind a store that is not earning.
 
-    Takes the ledger rather than the store because three of the seven
+    Takes the ledger rather than the store because three of the eight
     rules read state the JSONL log does not carry: death causes and the
     tick of the last credited settlement (both per-entry history,
     persisted in the memory file) and open tickets.
@@ -770,7 +814,32 @@ def doctor(ledger: Ledger, events: list[dict[str, Any]]) -> list[Finding]:
             ledger, digest, earned=earned, last_credited=last_credited
         )
     )
+    findings.extend(_operator_findings(events))
     return findings
+
+
+def evidence_window(ledger: Ledger, events: list[dict[str, Any]]) -> dict[str, int]:
+    """How much evidence a diagnosis actually had to work with.
+
+    An empty finding list means two very different things, and until this
+    existed every surface reported them identically: a store that has been
+    measured and is healthy, and a store nothing has ever measured. The
+    second is the normal state of a brand-new store, so "no degeneracy
+    detected" was the first thing a new user saw -- a green light on an
+    empty room.
+    """
+    return {
+        "events": len(events),
+        "ticks": ledger.tick_count,
+        "settles": sum(1 for e in events if e.get("event") == "settle"),
+        "alive": len(ledger.store),
+        "graves": ledger.store.dead_count(),
+    }
+
+
+def has_evidence(window: dict[str, int]) -> bool:
+    """True when selection has actually run: time passed or outcomes landed."""
+    return bool(window["ticks"] or window["settles"] or window["graves"])
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -778,9 +847,37 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if ledger is None:
         return 1
     log = Path(args.memory).expanduser().with_suffix(".events.jsonl")
-    findings = doctor(ledger, read_events(log))
+    events = read_events(log)
+    findings = doctor(ledger, events)
+    window = evidence_window(ledger, events)
     if args.json:
-        print(json.dumps({"findings": [f.as_dict() for f in findings]}))
+        print(
+            json.dumps(
+                {
+                    "findings": [f.as_dict() for f in findings],
+                    "evidence_window": window,
+                    "diagnosed": has_evidence(window),
+                }
+            )
+        )
+    elif not findings and not has_evidence(window):
+
+        def _n(count: int, singular: str, plural: str) -> str:
+            # Explicit plural: appending "s" turns "entry" into "entrys",
+            # which is what the first version printed.
+            return f"{count} {singular if count == 1 else plural}"
+
+        print(
+            f"no evidence yet: {_n(window['alive'], 'entry', 'entries')}, "
+            f"{_n(window['ticks'], 'tick', 'ticks')}, "
+            f"{_n(window['settles'], 'settled outcome', 'settled outcomes')}."
+        )
+        print("  Nothing has been measured, so there is nothing to diagnose.")
+        print("  Settle a decision against a real outcome, then tick:")
+        print('    darwin-memo ledger MEMORY decide "your question"')
+        print("    darwin-memo ledger MEMORY settle TICKET_ID DELTA")
+        print("    darwin-memo ledger MEMORY tick")
+        return 0
     elif not findings:
         print("clean: no degeneracy detected")
     else:
@@ -844,12 +941,23 @@ def cmd_audit(args: argparse.Namespace) -> int:
 
 
 def _load_ledger(memory: str) -> Ledger | None:
-    """Read-only load; commands here never save or append to the log."""
+    """Read-only load; commands here never save or append to the log.
+
+    Missing was already a clean line. A truncated store (ValueError from
+    ``MemoryStore.load``) and a store another process holds the lock on
+    (StoreLockedError) reached the user as tracebacks, so they join it:
+    every way ``top``/``why``/``audit``/``doctor`` can fail to read a file
+    now prints one line and exits non-zero.
+    """
     path = Path(memory).expanduser()
     if not path.exists():
         print(f"error: {memory} not found", file=sys.stderr)
         return None
-    return Ledger.load(path)
+    try:
+        return Ledger.load(path)
+    except (ValueError, StoreLockedError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
 
 
 def register_observe_commands(

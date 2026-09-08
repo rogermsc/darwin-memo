@@ -43,6 +43,7 @@ import math
 import uuid
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +78,63 @@ def note_text(event: str | dict[str, Any]) -> str:
     if isinstance(event, str):
         return event
     return str(event.get("text", event))
+
+
+def _config_from_payload(raw: object) -> SurvivalConfig | None:
+    """Rebuild a SurvivalConfig from a saved ledger block, or None.
+
+    Same fail-soft contract as the rest of the ledger block: in the CI
+    lesson store this file is committed by the PR being measured and
+    nobody reviews it, so a malformed or hostile config must degrade to
+    defaults rather than raise. Unknown keys are dropped (a file written
+    by a newer version stays loadable) and a value of the wrong type
+    falls back to that field's default rather than poisoning the run.
+    """
+    if not isinstance(raw, dict):
+        return None
+    fields = {f.name: f for f in dataclass_fields(SurvivalConfig)}
+    kwargs: dict[str, Any] = {}
+    for key, value in raw.items():
+        field_def = fields.get(key)
+        if field_def is None or key == "cycles":
+            continue
+        # Check the value against the field's DECLARED type, not merely
+        # "is it a JSON scalar". A first version accepted any scalar, which
+        # let merge_threshold load as the string "not-a-float" and blow up
+        # later at a comparison, far from the file that caused it.
+        # `from __future__ import annotations` makes .type a string here.
+        declared = str(field_def.type)
+        optional = "None" in declared
+        if value is None:
+            if not optional:
+                continue
+            kwargs[key] = None
+            continue
+        # bool before int/float: bool is a subclass of int, so without this
+        # write_experience could be set from a stray 1 and merge_threshold
+        # from True.
+        if "bool" in declared:
+            if not isinstance(value, bool):
+                continue
+        elif isinstance(value, bool):
+            continue
+        elif "float" in declared:
+            if not isinstance(value, (int, float)):
+                continue
+            value = float(value)
+        elif "int" in declared:
+            if not isinstance(value, int):
+                continue
+        elif "str" in declared:
+            if not isinstance(value, str):
+                continue
+        else:
+            continue
+        kwargs[key] = value
+    try:
+        return SurvivalConfig(**kwargs)
+    except TypeError:
+        return None
 
 
 @dataclass
@@ -214,7 +272,13 @@ class Ledger:
         )
         return ticket
 
-    def settle(self, ticket_id: str, delta: float, detail: str = "") -> bool:
+    def settle(
+        self,
+        ticket_id: str,
+        delta: float,
+        detail: str = "",
+        source: str = "measured",
+    ) -> bool:
         """Report the measured outcome for a ticket. Credit flows now.
 
         ``delta`` is a measurement of a conserved resource, never a
@@ -223,6 +287,17 @@ class Ledger:
         agents) must be able to tell a real settlement from a dropped
         one. The False path stays a no-op rather than an exception
         because duplicate deliveries are normal in event-driven systems.
+
+        ``source`` records WHERE the delta came from, and exists because
+        the dashboard now lets an operator type one in by hand. A
+        hand-entered number is exactly the human judgment this package is
+        built to exclude, so it must never be silently interchangeable
+        with a measurement: it is stamped ``"operator"`` in the event log
+        and in every per-entry note, ``why`` and ``audit`` display it as
+        such, and ``doctor`` raises ``operator_settled`` once hand-entered
+        deltas start outweighing measured ones. Nothing rejects an
+        operator settle -- the point is that it stays visible, so no
+        benchmark or paper claim can rest on one unnoticed.
         """
         if not math.isfinite(delta):
             # A NaN or infinity is not a measurement. Left unguarded it would
@@ -249,15 +324,18 @@ class Ledger:
         for entry_id, credit in applied:
             if credit < -_DAMAGE_EPSILON:
                 self._damaged.add(entry_id)
+            measured = source == "measured"
             self._note(
                 entry_id,
                 f"tick {self.tick_count}: credit {credit:+.3f} "
-                f"(measured delta {delta:+g}{', ' + detail if detail else ''})",
+                f"({'measured' if measured else source + '-entered'} delta "
+                f"{delta:+g}{', ' + detail if detail else ''})",
                 event="settle",
                 ticket=ticket.id,
                 credit=round(credit, 6),
                 delta=delta,
                 detail=detail,
+                source=source,
             )
         denied: set[str] = set()
         for entry_id, event in advance_lifecycle(
@@ -309,6 +387,7 @@ class Ledger:
             ticket=ticket.id,
             delta=delta,
             detail=detail,
+            source=source,
             applied=[{"entry": e, "credit": round(c, 6)} for e, c in applied],
             buried=buried,
         )
@@ -572,6 +651,13 @@ class Ledger:
             "pending": [asdict(t) for t in self._pending.values()],
             "history": {k: list(v) for k, v in self._history.items()},
             "damaged": sorted(self._damaged),
+            # Without this the selection rules were process-local: every CLI
+            # and MCP invocation rebuilt SurvivalConfig() defaults, so
+            # merge_threshold and admission_window -- both of which the docs
+            # spend pages tuning -- could not be set on any store those
+            # surfaces manage. ``cycles`` is a SurvivalLoop concept with no
+            # meaning to a ledger, so it stays out of the file.
+            "config": {k: v for k, v in asdict(self.config).items() if k != "cycles"},
         }
         with store_lock(path):
             write_json_atomic(path, payload)
@@ -602,6 +688,9 @@ class Ledger:
             # it the raw traceback would escape the fail-closed base-store
             # abstain in settle-ci, which only catches ValueError.
             raise ValueError(f"{path} is not a valid darwin-memo store: {exc}") from exc
+        state = payload.get("ledger")
+        if config is None and isinstance(state, dict):
+            config = _config_from_payload(state.get("config"))
         ledger = cls(
             store,
             protocol=protocol,
@@ -609,7 +698,6 @@ class Ledger:
             resource_scale=resource_scale,
             event_log=event_log,
         )
-        state = payload.get("ledger")
         if isinstance(state, dict):
             # The whole ledger block is attacker-committed and unreviewed in the
             # CI lesson store, so a malformed CONTAINER -- not just one bad

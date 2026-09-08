@@ -5,6 +5,10 @@ demo, and the quickstart. This index is everything else.
 
 ## Operating it
 
+- **[Glossary](glossary.md)**: every term this project invents or
+  overloads, in plain words -- energy and balance are one number, tick is
+  not a wall clock, and "the ledger" means three different things. Start
+  here if a page assumes a word you have not met.
 - **[Tuning guide](tuning.md)**: the load-bearing knobs (upkeep,
   resource_scale, credit_gain, merge_threshold, expire_after, the
   retrieval floors), what each does mechanically, failure symptoms in
@@ -20,10 +24,11 @@ demo, and the quickstart. This index is everything else.
 - **[Store format](store-format.md)**: the on-disk JSON format field
   by field, the events JSONL log and its rotation, the lock and
   flaky-test sidecars, and the honest compatibility policy.
-- **`darwin-memo doctor FILE [--json]`**: names which of six
-  degeneracies (if any) a live store hit, with evidence and a fix; see
+- **`darwin-memo doctor FILE [--json]`**: names which of the eight
+  degeneracies (if any) a live store hit, with evidence and a fix, and
+  distinguishes "nothing measured yet" from a clean bill of health; see
   [the finding table](api.md#doctor-findings).
-- **`darwin-memo ui FILE [--port N] [--no-open]`**: a local read-only
+- **`darwin-memo ui FILE [--port N] [--no-open]`**: a local operator
   dashboard over one memory file — population and energy over time,
   the graveyard, pending tickets, and the `doctor` findings, served
   loopback-only with no mutation endpoints, so nothing needs auth.
@@ -71,3 +76,27 @@ demo, and the quickstart. This index is everything else.
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md), [CHANGELOG.md](../CHANGELOG.md),
   [SECURITY.md](../SECURITY.md).
+
+## Not documentation
+
+Three directories under `docs/` are working notes rather than pages
+written for a reader. They are kept because the paper cites them and
+because a dated record of what was tried is worth having, but nothing in
+them is maintained against the code, and a claim in one of them was true
+on the day it was written and may not be now.
+
+- `docs/research/` — dated reports and literature reviews. The largest,
+  `2026-06-13-conserved-resource-selection-report.md`, is the superseded
+  v0.5.1 technical report; `paper/reproduce.md` says outright that it is
+  not checked against current evidence.
+- `docs/superpowers/specs/` — dated design specs for work that was
+  planned. Some of it shipped, some did not, and the specs were not
+  updated either way.
+- `docs/disclosure/` — a coordinated-disclosure log sent to a
+  third-party maintainer.
+
+`docs/benchmarks.md` sits between the two categories. Its first
+~2,500 lines are a reader-facing account of what the suites measure and
+what they found; past that it is a lab notebook of pre-registered
+predictions, kept so the record of what was predicted before running
+survives. Read the top, search the rest.

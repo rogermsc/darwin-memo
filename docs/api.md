@@ -36,15 +36,30 @@ class MemoryEntry:
     last_used_cycle: int = -1        # -1 means never credited
     uses: int = 0
     lineage: list[str] = []          # ids merged into this entry by consolidation
+    pinned: bool = False             # exempt from starvation and merges
+    probation: int = 0               # net-positive settlements owed before it may decide
+    juvenile: int = 0                # settlements left in its admission window
+    imported_from: str | None = None # source store path, set by `import`
+    imported_at: str | None = None   # UTC ISO-8601 import moment
     id: str = <12-hex uuid>
 ```
 
+- The five trust-lifecycle fields (`pinned` through `imported_at`) are
+  **omitted from `to_dict()` when they hold their defaults**, so a store
+  that never used them stays byte-identical to one written before they
+  existed and older readers keep working. They carry the guarantees
+  [threat-model.md](threat-model.md) documents: `probation` and
+  `juvenile` gate what a new or foreign entry may decide, and `pinned`
+  suspends removal entirely.
 - `recorded_ts` is the wall-clock moment the entry was created, shown
   on every consult surface as part of its age line. Files persisted
   before the field existed load as the empty string and render as
   "age unknown": the loader never fakes a timestamp. Consolidation
   carries the NEWEST member's `recorded_ts` into a merged entry.
 - `alive: bool` (property): `energy > 1e-9`.
+- `may_decide: bool` (property): `probation <= 0`. Retrieval still
+  returns an entry that may not decide; it earns as a supporting
+  citation at `supporting_share` rather than deciding.
 - `to_dict() -> dict` / `from_dict(d) -> MemoryEntry`: the on-disk
   shape, see [store-format.md](store-format.md).
 
@@ -95,7 +110,8 @@ never read energy; energy is a sort tie-break only.
 | `retrieve` | `(query: str, k: int = 3, *, half_life: float \| None = None, now_cycle: int \| None = None, kind: EntryKind \| str \| None = None, source: str \| None = None) -> list[tuple[MemoryEntry, float]]` | top-k by retriever score, energy tie-break; see [temporal options](#temporal-retrieval-options) |
 | `similarity` | `(a, b) -> float` | pairwise, via the retriever |
 | `credit` | `(entry_id: str, amount: float, cycle: int) -> None` | clamps at `max_energy`; bumps `uses`, `last_used_cycle` |
-| `charge_upkeep` | `(protect: Collection[str] = ()) -> list[MemoryEntry]` | charges all, buries the dead, returns them; `protect` pays but is not buried |
+| `charge_upkeep` | `(protect: Collection[str] = (), scale: Mapping[str, float] \| None = None) -> list[MemoryEntry]` | charges all, buries the dead, returns them; `protect` pays but is not buried. `scale` multiplies one entry's upkeep and is clamped to `[MIN_UPKEEP_SCALE, 1.0]` (0.25–1.0), so a caller may slow an entry's burn rate but never stop it: upkeep reaching zero would be a pin nobody granted |
+| `ticks_to_starvation` | `(entry: MemoryEntry, scale: Mapping[str, float] \| None = None) -> float \| None` | ticks of upkeep the entry's balance still buys. `None` when upkeep is zero. `scale` is the same per-entry multiplier `charge_upkeep` takes, so a caller that slows an entry's burn rate sees the matching runway. This is the `runway` column in `top` and in the dashboard |
 | `bury` | `(entry_id: str) -> None` | raw mechanism; prefer `Ledger.forget`, which honors escrow |
 | `total_energy` | `() -> float` | |
 | `energy_share_by_kind` | `() -> dict[str, float]` | |
@@ -183,6 +199,21 @@ them.
 - `source: str | None = None`: only entries whose `sources` list
   contains this label qualify.
 
+**Filtering changes the scores, not just the result set.** The filter is
+applied before the retriever ranks, and `LexicalRetriever` computes
+document frequency over the entries handed to it, so `kind` and
+`source` move every score and with them the `min_coverage` relevance
+floor. A term that is common store-wide, and so nearly worthless, can be
+rare and heavily weighted inside one kind. Measured on a nine-entry
+store, one entry scored 4.05 unfiltered and 1.22 under
+`kind="experience"` for the same query — and the consequence goes both
+ways: a query that is silent unfiltered can answer when filtered.
+
+Read a filtered retrieval as its own corpus rather than as a subset of
+an unfiltered one, and do not tune `min_coverage`
+([tuning.md](tuning.md)) against unfiltered queries and then deploy
+filtered ones.
+
 ### `darwin_memo.temporal`
 
 The mechanics behind the dated consult surfaces. Top-level exports:
@@ -269,11 +300,41 @@ class SurvivalConfig:
     supporting_share: float = 0.25
     consolidate_every: int = 5
     merge_threshold: float = DEFAULT_MERGE_THRESHOLD   # 0.55
+    conflict_threshold: float | None = None  # None: follow merge_threshold
     write_experience: bool = True
     resource_scale: float | None = None   # None: use the environment's
+    admission_window: int = 0             # 0 disables gating; 3 when on
+    upkeep_requires_settlement: bool = False   # EXPERIMENTAL, see below
+    merge_source_policy: str = "off"      # provenance agreement for merges
 ```
 
 See [tuning.md](tuning.md) for what each knob does and the evidence.
+
+- `conflict_threshold` splits a coupling: `merge_threshold` sets both the
+  similarity floor consolidation pools at *and* the one the query
+  protocol flags conflicting advice at, which makes a sweep of one a
+  sweep of two mechanisms. `None` keeps them coupled, so every published
+  number is unchanged; a float pins conflict detection while the merge
+  floor moves.
+- `admission_window` is the juvenile gate from
+  [threat-model.md](threat-model.md). It is **off by default**: entries
+  written through `Ledger.add` start with this many juvenile settlements
+  ahead of them, during which a deciding entry earns and loses at
+  `supporting_share`, and one negative deciding outcome denies admission
+  outright.
+- `upkeep_requires_settlement` charges upkeep only on cycles that carried
+  a measured outcome. Unproven, off by default, and it hands an adversary
+  who can suppress measurements control of the clock. Read the source
+  comment before turning it on.
+- `merge_source_policy` is how much provenance agreement consolidation
+  requires on top of similarity; see `consolidate.SOURCE_POLICIES`.
+  `"off"` is the published behaviour.
+
+A `Ledger` **persists this config** into its file, so a store carries its
+own selection rules and the CLI's `--upkeep`, `--merge-threshold` and
+`--admission-window` stick across invocations. An explicit `config=`
+passed to `Ledger.load` still wins over the file, and a malformed or
+hostile config block degrades to defaults rather than raising.
 
 ### `SurvivalLoop`
 
@@ -515,7 +576,8 @@ it).
 | `darwin-memo audit MEMORY [--since TS] [--last N] [--json]` | event-log digest across rotated files |
 | `darwin-memo render MEMORY [-o MEMORY.md] [--budget 25kb] [--max-lines 200] [--split-dir DIR]` | top-balance survivors as a budget-capped `MEMORY.md` (see the [Claude Code integration](integrations/claude-code.md)) |
 | `darwin-memo doctor MEMORY [--json]` | name the failure mode behind a store that is not earning; see [findings](#doctor-findings) below |
-| `darwin-memo ui MEMORY [--port 8787] [--no-open]` | local read-only dashboard in your browser |
+| `darwin-memo import SRC DEST [--probation N]` | copy SRC's living entries into DEST on probation: they arrive at spawn energy with import provenance and cannot decide until they re-earn locally. `--probation 0` is the explicit full-trust bootstrap. Idempotent: ids already in DEST, living or buried, are skipped. See the [threat model](threat-model.md) |
+| `darwin-memo ui MEMORY [--port 8787] [--no-open]` | local operator dashboard in your browser: reads on GET, and pins, forgets, ticks, abandons and settles on POST. Loopback-only, and a settle made here is stamped `source: "operator"` (see [doctor findings](#doctor-findings)) |
 | `darwin-memo settle-ci MEMORY ...` | settle a CI lesson store from test results |
 | `darwin-memo mcp [--memory PATH] [--resource-scale F]` | serve the memory over MCP stdio, the same server as the `darwin-memo-mcp` console script below |
 
@@ -531,12 +593,29 @@ ledger FILE settle TICKET_ID DELTA [--detail] {"settled": bool}
 ledger FILE abandon TICKET_ID                 {"abandoned": bool}
 ledger FILE add "question" "answer" [--source agent]   {"entry_id"}
 ledger FILE forget ENTRY_ID                   {"forgotten": bool, ["reason"]}
+ledger FILE pin ENTRY_ID                      {"pinned": bool}
+ledger FILE unpin ENTRY_ID                    {"pinned": bool}
 ledger FILE tick [--expire-after 50]          tick stats
 ledger FILE stats                             population overview
 ledger FILE obituary ENTRY_ID                 {"obituary": str}
 ```
 
+`pin` exempts a living entry from starvation and merges: it still pays
+upkeep, but its balance floors at zero instead of triggering burial, and
+`forget` refuses it until unpinned. A pin is a standing claim that an
+entry is correct regardless of what it earns, so it suspends the only
+mechanism that removes bad memory. Use it sparingly, and prefer letting
+an entry earn its place. `unpin` returns it to normal selection
+pressure, which resumes on the next tick.
+
 `--scale` (default 1.0) sets `resource_scale` for settle deltas.
+
+Three knobs are **sticky**: `--upkeep`, `--merge-threshold` and
+`--admission-window` persist into the ledger file and apply to later
+invocations until set again. Before they existed, every CLI and MCP call
+rebuilt `SurvivalConfig()` defaults, so the tuning advice in
+[tuning.md](tuning.md) could not be followed from these surfaces at all.
+Omitting a flag leaves the stored value alone; it does not reset it.
 `--half-life`, `--kind`, and `--source` (shared with `query`) are the
 [temporal retrieval options](#temporal-retrieval-options); a
 non-positive `--half-life` is an argparse error. The
@@ -578,7 +657,7 @@ quarantined out of the delta via the sidecar state file. See
 `darwin-memo doctor MEMORY [--json]` reads the store and its event log
 (`darwin_memo/observe.py:doctor`, rules shared with the batch loop's
 `SurvivalReport.health_warning` via `darwin_memo/diagnose.py`) and
-names which of six degeneracies it hit, instead of leaving several of
+names which of the eight degeneracies it hit, instead of leaving several of
 them looking identical (a starving population reads the same whether
 memory never speaks or never gets paid). Human output is one block per
 finding: `SEVERITY [code]: summary`, then `evidence:` and `fix:`
@@ -605,6 +684,15 @@ that store-wide evidence first.
 | `settles_dropped` | warn | `settle_dropped` events exceed the count of silent decides. A silent `decide()` never opens a ticket (`Ledger.decide` only tracks a ticket when the answer has provenance), so settling a silent decide always drops — that count is benign and subtracted out; only the excess is worth a warning |
 | `credit_untracked` | warn | one or more settlements carry no per-entry `applied` credit list (written by a version before per-entry credit was logged) |
 | `ticking_without_evidence` | warn | more ticks have passed since the last credited settlement than the living population has upkeep left to pay. The threshold is the store's own arithmetic, not a constant, because a fixed share of `max_energy / upkeep` fires only after the store is already dead. Unlike the three rules above it, this one applies to a store that *did* earn — every tick charges upkeep whether or not anything was measured, so a clock running faster than the evidence is a slow, silent, total loss |
+| `operator_settled` | warn | hand-entered deltas (settle events with `source != "measured"`, which the dashboard writes) are more than half the window's settlements, or at least `MIN_SETTLES` of them. Nothing rejects an operator settle; this says that the store's survivors were chosen by a person rather than by a conserved resource, so they are not evidence of anything |
+
+An **empty finding list means one of two things**, and the surfaces say
+which: a store that has been measured and is healthy, or a store nothing
+has ever measured. `--json` carries `evidence_window` (events, ticks,
+settles, alive, graves) and `diagnosed`; the plain output prints
+"no evidence yet" with the next command rather than a clean bill of
+health. A brand-new store is the second case, and reporting it as the
+first was a green light on an empty room.
 
 Exit code: **1 if any finding has severity `error`**, otherwise **0**
 — warnings alone (`tickets_stale`, `settles_dropped`,

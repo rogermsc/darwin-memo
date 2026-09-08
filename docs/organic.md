@@ -65,6 +65,18 @@ explicit calls you wire, like the survival loop. It gates *surfacing* only —
 never survival — and never mutates the entry. Defaults: bump→1.0, decay ×0.5,
 surface threshold 0.5.
 
+**Nothing in this layer persists, activation included.**
+`ActivationState`, `HebbianWeights` and `EarnedImportance` are plain
+in-memory dicts with no `dump_state`/`load_state`, and
+`MemoryStore.save` does not carry them: the store file holds the
+population and the energy ledger, not the associations. So the layer
+that learns which entries go together relearns it from nothing on every
+process start, and a long-lived agent gets the benefit only within one
+session. If you need it across sessions you have to persist and restore
+these structures yourself. This is a real limitation, not a
+simplification for the docs — and it is the main reason the layer is
+opt-in and Python-only.
+
 ## The moving memory: `OrganicMemory` (Phase 3)
 
 `OrganicMemory` is the adaptive facade tying Phases 1–3 together. A recall
