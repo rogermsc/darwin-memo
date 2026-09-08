@@ -1948,3 +1948,66 @@ def test_adversary_never_loses_a_seed_to_a_counter() -> None:
     assert ck2_b1 == (20, 10, 0), (
         f"consecutive k=2 at b=1 is {ck2_b1}; the prose says 20 wins with 10 ties"
     )
+
+
+# --------------------------------------------------------------------------
+# tab:countersweep -- the counter family's dial. Two shapes x seven strike
+# counts at one budget, plus the two bracketing arms in the footer row.
+# This table is what turns "the counters we picked lose" into "the family
+# has exactly two settings that do not", so a drifted cell here would make
+# the paper claim a refutation it did not measure.
+# --------------------------------------------------------------------------
+COUNTER_SWEEP_BUDGET = 2
+COUNTER_SHAPES = {
+    "lifetime": "evict_on_negative",
+    "consecutive": "evict_consecutive",
+}
+
+
+def _countersweep_cells() -> list[tuple[str, int, str]]:
+    rows = data_rows("tab:countersweep")
+    header = rows[0]
+    ks = [int(x) for x in header[1:] if x.strip().isdigit()]
+    cells = []
+    for row in rows[1:]:
+        shape = row[0].strip()
+        if shape not in COUNTER_SHAPES:
+            continue  # the bracketing footer row, checked separately below
+        cells.extend(
+            (shape, k, cell) for k, cell in zip(ks, row[1:], strict=True)
+        )
+    return cells
+
+
+@pytest.mark.parametrize(("shape", "k", "cell"), _countersweep_cells())
+def test_countersweep_grid_matches_committed_runs(
+    shape: str, k: int, cell: str
+) -> None:
+    """Mutation: drift one cell and the corner moves, which is the whole
+    claim of the subsection and of Figure~\\ref{fig:countersweep}."""
+    metrics = pick(
+        "counter_sweep.json",
+        arm=COUNTER_SHAPES[shape],
+        strikes=k,
+        lie_budget=COUNTER_SWEEP_BUDGET,
+    )
+    printed_cap, printed_kill = (float(x) for x in cell.split("/"))
+    assert printed_cap == pytest.approx(
+        round(mean(metrics, "probe_benign_correct_rate"), 2), abs=0.011
+    )
+    assert printed_kill == pytest.approx(
+        round(mean(metrics, "poison_killed"), 2), abs=0.011
+    )
+
+
+def test_countersweep_parsed_the_whole_grid() -> None:
+    """A guard on the guard, in the spirit of the one below for persistence.
+
+    Fourteen cells: two shapes at seven strike counts. A parse that silently
+    dropped a column would leave the settings that matter unchecked, and the
+    two that reach the corner are exactly the ones a shifted parse loses.
+    """
+    cells = _countersweep_cells()
+    assert len(cells) == 14, f"parsed {len(cells)} cells, expected 14"
+    assert {c[0] for c in cells} == set(COUNTER_SHAPES)
+    assert {c[1] for c in cells} == {1, 2, 3, 5, 8, 12, 20}
