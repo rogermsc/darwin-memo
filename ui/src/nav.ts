@@ -12,10 +12,10 @@ import { useCallback, useEffect, useState } from "react";
 export type View = "living" | "pending" | "graveyard" | "events";
 
 export const VIEWS: { id: View; label: string }[] = [
-  { id: "living", label: "Living" },
-  { id: "pending", label: "Pending" },
-  { id: "graveyard", label: "Graveyard" },
-  { id: "events", label: "Events" },
+  { id: "living", label: "Lessons" },
+  { id: "pending", label: "Pending outcomes" },
+  { id: "graveyard", label: "Removal reasons" },
+  { id: "events", label: "Evidence log" },
 ];
 
 export type Nav = {

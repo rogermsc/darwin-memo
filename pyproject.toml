@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "darwin-memo"
 dynamic = ["version"]
-description = "Self-curating memory for LLM agents: MeMo-style external memory kept honest by survival-based selection instead of reward models or judges."
+description = "Measured memory for coding agents: lessons, outcome evidence, and explainable retention."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -105,7 +105,7 @@ version = { attr = "darwin_memo.__version__" }
 include = ["darwin_memo*"]
 
 [tool.setuptools.package-data]
-darwin_memo = ["py.typed", "data/demo_corpus/*.txt", "data/ui/**/*"]
+darwin_memo = ["py.typed", "data/demo_corpus/*.txt", "data/ui/**/*", "data/github-pytest/**/*", "data/github-pytest/**/.*", "data/github-pytest/.darwin-memo/.gitignore", "data/github-pytest/.*/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

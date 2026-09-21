@@ -1,4 +1,4 @@
-"""TestSuiteEnv: passing tests as the conserved resource.
+"""TestSuiteEnv: passing tests as an observable outcome.
 
 The environment generates a small real project on disk each cycle (an
 ``app.py`` of pure functions and a ``test_app.py`` of plain asserts),
@@ -261,7 +261,7 @@ class RentedTestSuiteEnv(TestSuiteEnv):
     property of ``verify`` returning ``0.0`` on a declined patch, not of
     curation, so it is testable by changing the one line.
 
-    The conserved quantity is unchanged --- passing tests --- but a
+    The observable outcome is unchanged --- passing tests --- but a
     declined patch is now charged the repair it did not make:
     ``hold_cost * max(0, tests the patch would have fixed)``, measured by
     running the suite against the patched source rather than by grading

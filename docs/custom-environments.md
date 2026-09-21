@@ -24,11 +24,11 @@ class Environment(Protocol):
 end in a model scoring an answer, stop -- this package is the wrong tool, and
 the README says which ones are not.
 
-## Step 1: find the conserved resource
+## Step 1: define the observable outcome
 
-A conserved resource is a quantity the world tracks whether or not anyone is
-watching, that goes down when you are wrong and up when you are right, and
-that nobody in the loop can simply assert.
+Choose a stable evaluation definition and record who produces its outcome.
+A reported number can be falsified regardless of whether its underlying
+quantity is physical. Passing tests are outcomes, not conserved resources.
 
 | Good | Why |
 |---|---|
@@ -56,9 +56,8 @@ redundant with the default. If holding costs something in your world, price
 it -- `RentedStorageEnv` exists to show what changes when you do.
 
 *How asymmetric is a mistake?* `StorageEnv` charges 3x the file size for
-deleting a protected file, because that is the real restore cost, not a
-penalty invented to punish. Use your real cost. If you cannot name one, the
-asymmetry is a judgment and you have smuggled a grader in.
+deleting a protected file. That is a modeled penalty, not measured restoration
+I/O. Label modeled and measured costs separately and retain their configuration.
 
 ## Step 2: `tasks(cycle)`
 

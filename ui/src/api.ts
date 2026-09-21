@@ -58,6 +58,7 @@ export type Grave = {
 };
 
 export type Ticket = {
+  binding?: Record<string, string> | null;
   id: string;
   query: string;
   born_tick: number;
@@ -123,6 +124,7 @@ export type Note = {
   detail?: string;
   source?: string;
   deciding?: boolean;
+  evidence?: Record<string, string> | null;
 };
 
 export type Life = {

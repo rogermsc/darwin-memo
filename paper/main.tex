@@ -2,10 +2,8 @@
 % Compiles with: pdflatex main && bibtex main && pdflatex main && pdflatex main
 % Neutral preprint style (article); swap to a venue style (neurips/icml/colm)
 % by replacing the class + geometry block only. No exotic packages.
-% The preprint is 11pt single-column A4; the venue build is the two-column
-% 10pt letter layout every page limit in the shortlist is written against,
-% because measuring a preprint layout against a two-column limit compares
-% the wrong things. Class and geometry are the only difference.
+% These are local review layouts. Neither implements a selected venue template
+% or establishes compliance with a submission page limit.
 \ifdefined\bodyonly
   \documentclass[10pt,twocolumn]{article}
 \else
@@ -102,60 +100,31 @@ and What Survives Them}}
 \begin{document}
 \maketitle
 
-% This abstract is ~4,150 characters. arXiv's metadata field rejects anything
-% over 1920 ("abstracts longer than 1920 characters will not be accepted",
-% info.arxiv.org/help/prep.html), so the text pasted into the submission form
-% CANNOT be this one. The form's copy lives in paper/abstract-arxiv.txt and is
-% guarded by tests/test_arxiv_metadata.py for length, TeX-isms and unicode.
-% Edit the two together: nothing checks that they still say the same thing,
-% because "same claims, different length" is not mechanically checkable.
+% The metadata abstract is maintained in abstract-arxiv.txt.
 \begin{abstract}
-Agent memory that only grows is eventually dominated by stale and
-poisoned entries, so every practical system curates, and every curator
-decides on some signal. The memory-security literature defends the store
-at \emph{write} and at \emph{retrieval}, and both read content. Recent
-work names a third possibility without measuring it: an adversary who
-attacks the deciding signal itself. In a \emph{curation-targeted attack}
-the adversary injects no poison and instead corrupts settlement so that
-the defence starves the memory it protects---denial of memory---and we
-measure six curation mechanisms against it at five budgets over 30 seeds.
+We study feedback corruption against agent-memory curators: an attacker
+changes the outcome reports that determine which lessons are retained, while
+an untouched ground-truth record measures harm and useful-memory loss. Our
+contributions are an explicit budgeted threat model, a controlled comparison of
+curation policies and their failure boundaries, and a reusable artifact with
+committed observations and offline table reconstruction.
 
-The ledger that survives it is \textsc{darwin-memo}, in which each entry
-pays energy upkeep and earns only from a conserved resource the
-environment already measures: no reward model, no judge, no labels. At
-one corrupted measurement per cycle it keeps all benign capability and
-$99.4\%$ of its unattacked outcome, where the strike counters and
-quarantine policies keep at most about half and an evict-on-negative
-counter keeps none. A Thompson-sampling bandit also keeps capability, but
-only by never removing anything: its poison-kill rate falls to $0.07$ by
-four lies per cycle. Retention is not defence. We publish the ledger's
-own failure boundary, between two and four lies per cycle, rather than
-stopping at the win, and an adversary buying \emph{persistence} instead
-of destruction takes its poison-kill rate from $1.00$ to $0.00$ (paired
-$p = 0.0039$) while benign capability never moves---the guarantee
-disappears without anything changing in the metric an operator watches.
+In a filesystem-backed simulation with a modeled restoration penalty, a bounded
+outcome-credit ledger preserves benign capability at one corrupted report per
+cycle and nearly preserves it at two. At four reports per cycle, its mean benign
+capability falls to $0.06$. Simple counters fail earlier in the initial grid,
+but a wider sweep finds forgiveness settings that retain useful memory under
+small attack budgets. We retain this counterexample to universal superiority.
+These results measure behavior under the stated simulator and feedback model;
+they do not measure physical restoration cost or establish causal lesson value.
 
-Sweeping the counter family's whole dial refuted our own pre-registered
-prediction: a forgiveness counter at $k{=}5$ reaches the ledger's corner
-at two lies per cycle. It gets there by barely evicting, and pays on an
-axis the corner does not price---$16\%$ less measured outcome from a
-store nearly four times larger, at every budget ($p = 0.0003$).
-
-We are equally precise about where the mechanism is unnecessary. Absent
-an adversary a one-line heuristic ties it and a confidence bandit matches
-it under one-sided noise; across $2{,}115$ evaluated SWE-Bench-CL tasks
-no memory arm beat carrying no memory at all, and what it buys there is
-leanness. What separates under attack on real tasks is an ordering rather
-than a magnitude: the counter loses more benign memory in $5$ of $6$
-paired worlds, but the tripling we measure on one repository is absent on
-a second, so we report an effect scoped to one repository and claim
-significance for neither half. We give the regime map that says which
-curator to use when---including where a tuned counter or a one-line
-heuristic is the right answer---and report every one of those losses.
-Every number comes from a stdlib-only harness with pre-registered
-hypotheses, exact paired permutation tests, and committed per-seed data
-validated against its manifest in CI, including the prediction this paper
-refuted.
+Historical coding-agent experiments provide a separate, less conclusive view:
+no memory arm establishes an advantage over carrying no memory, and attack
+responses vary by repository. They lack the complete billing and prospective
+noninferiority evidence needed to claim lower total operating cost with preserved
+task success. We distinguish offline replay from runs where memory changes
+subsequent agent behavior, document missing evidence, and provide separate paths
+for inexpensive reconstruction and experiment reruns.
 \end{abstract}
 
 \input{sections/intro}

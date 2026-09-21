@@ -38,7 +38,7 @@ export function Rail({
     hint: string;
   }[] = [
     {
-      label: "living",
+      label: "lessons",
       value: counts.alive,
       view: "living",
       hint: "entries paying upkeep right now",
@@ -50,7 +50,7 @@ export function Rail({
       hint: "decisions still waiting on an outcome",
     },
     {
-      label: "buried",
+      label: "removed",
       value: counts.dead,
       view: "graveyard",
       hint: "entries selection has removed",
@@ -72,23 +72,6 @@ export function Rail({
           {store.name}
         </p>
       </header>
-
-      <dl className="clock">
-        <div>
-          <dt>tick</dt>
-          <dd>{state.tick}</dd>
-        </div>
-        <div>
-          <dt>upkeep / tick</dt>
-          <dd>{state.upkeep.toFixed(3)}</dd>
-        </div>
-      </dl>
-      <p className="note">
-        A tick is one round of upkeep, charged when you or a script advance
-        it &mdash; not a wall clock. Every living entry pays{" "}
-        <strong>{state.upkeep.toFixed(3)}</strong> energy per tick and can hold
-        at most <strong>{store.max_energy}</strong>.
-      </p>
 
       <ul className="vitals">
         {cells.map((cell) => {
@@ -112,74 +95,33 @@ export function Rail({
       </ul>
 
       <section className="ledgerette">
-        <h2>Energy</h2>
-        <dl>
-          <div>
-            <dt>held</dt>
-            <dd>
-              {state.total_energy.toFixed(2)}
-              {counts.alive > 0 && (
-                <span className="of">
-                  {" "}
-                  / {(counts.alive * store.max_energy).toFixed(0)} max
-                </span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt>earned</dt>
-            <dd className={economics.energy.credited ? "pos" : undefined}>
-              {signed(economics.energy.credited, "+")}
-            </dd>
-          </div>
-          <div>
-            {/* `debited` and `upkeep_paid` are magnitudes, not signed
-                amounts, so the sign belongs here. Without it the panel
-                read "lost 6.00" as though it were a gain. */}
-            <dt>lost to bad outcomes</dt>
-            <dd className={economics.energy.debited ? "neg" : undefined}>
-              {signed(economics.energy.debited, "-")}
-            </dd>
-          </div>
-          <div>
-            <dt>paid as upkeep</dt>
-            <dd className={economics.energy.upkeep_paid ? "neg" : undefined}>
-              {signed(economics.energy.upkeep_paid, "-")}
-            </dd>
-          </div>
-          <div className="net">
-            <dt>net</dt>
-            <dd
-              className={
-                economics.energy.net === 0
-                  ? undefined
-                  : economics.energy.net > 0
-                    ? "pos"
-                    : "neg"
-              }
-            >
-              {signed(Math.abs(economics.energy.net), economics.energy.net < 0 ? "-" : "+")}
-            </dd>
-          </div>
-        </dl>
-        {!economics.energy.upkeep_exact && (
-          <p className="caveat">{economics.energy.upkeep_caveat}</p>
-        )}
+        <h2>Outcome evidence</h2>
+        <p>{state.evidence.settles} settlements in the retained event window ({state.evidence.events} events, {state.evidence.ticks} ticks).</p>
+        <p className="caveat">Open a lesson to inspect its source, task, commit comparison, and run. Missing historical evidence is unknown. Settlement associates an outcome with advice; it does not establish causation.</p>
+        <p className="caveat">No cost comparison is recorded here. Energy balances are retention parameters, not savings.</p>
       </section>
+      <details className="ledgerette">
+        <summary>Advanced retention parameters</summary>
+      <dl className="clock">
+        <div>
+          <dt>tick</dt>
+          <dd>{state.tick}</dd>
+        </div>
+        <div>
+          <dt>upkeep / tick</dt>
+          <dd>{state.upkeep.toFixed(3)}</dd>
+        </div>
+      </dl>
+      <p className="note">
+        A tick is one round of upkeep, charged when you or a script advance
+        it &mdash; not a wall clock. Every living entry pays{" "}
+        <strong>{state.upkeep.toFixed(3)}</strong> energy per tick and can hold
+        at most <strong>{store.max_energy}</strong>.
+      </p>
 
-      <section className="ledgerette">
-        <h2>Resource measured</h2>
-        <p className="big">
-          {economics.resource.delta_total >= 0 ? "+" : ""}
-          {economics.resource.delta_total.toLocaleString()}
-        </p>
-        <p className="caveat">
-          over {economics.resource.decides} decisions,{" "}
-          {economics.resource.silent} of them silent. This is your unit
-          &mdash; bytes, passing tests, dollars &mdash; and it is <em>not</em>{" "}
-          comparable with the energy figures above.
-        </p>
-      </section>
+        <p>Total energy: {state.total_energy.toFixed(2)}. Recorded credit: {signed(economics.energy.credited, "+")}. Upkeep paid: {signed(economics.energy.upkeep_paid, "-")}.</p>
+        {!economics.energy.upkeep_exact && <p className="caveat">{economics.energy.upkeep_caveat}</p>}
+      </details>
 
       <button
         type="button"

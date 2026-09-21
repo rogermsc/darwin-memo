@@ -1,31 +1,23 @@
-Every practical agent-memory system curates, and every curator decides on
-some signal: a classifier's verdict, a judge's rating, a measured outcome.
-The memory-security literature defends the store at write time and at
-retrieval, and both read content. Recent surveys name a third possibility
-but do not measure it: an adversary attacking the deciding signal itself.
-We make that threat quantitative. In a curation-targeted attack the
-adversary injects no poison and instead corrupts settlement, so the defence
-starves the memory it protects - denial of memory. We measure six curation
-mechanisms at five attack budgets over 30 seeds.
+We study feedback corruption against agent-memory curators: an attacker
+changes the outcome reports that determine which lessons are retained, while
+an untouched ground-truth record measures harm and useful-memory loss. Our
+contributions are an explicit budgeted threat model, a controlled comparison of
+curation policies and their failure boundaries, and a reusable artifact with
+committed observations and offline table reconstruction.
 
-At one corrupted measurement per cycle, the strike counters and quarantine
-policies in our grid keep at most about half their benign capability, while
-a bounded-credit energy ledger keeps all of it. A Thompson-sampling bandit
-keeps capability too, but only by never removing anything: retention is not
-defence. We publish the ledger's own boundary, between two and four lies per
-cycle, not just the win.
+In a filesystem-backed simulation with a modeled restoration penalty, a bounded
+outcome-credit ledger preserves benign capability at one corrupted report per
+cycle and nearly preserves it at two. At four reports per cycle, its mean benign
+capability falls to 0.06. Simple counters fail earlier in the initial grid,
+but a wider sweep finds forgiveness settings that retain useful memory under
+small attack budgets. We retain this counterexample to universal superiority.
+These results measure behavior under the stated simulator and feedback model;
+they do not measure physical restoration cost or establish causal lesson value.
 
-That counter result covers four settings, so we swept the family's whole
-dial, and it refuted our pre-registered prediction: a forgiveness counter
-tuned to k=5 reaches the ledger's corner. It gets there by barely evicting,
-and pays on an axis the corner does not price - 16% less measured outcome
-from a store four times larger (p=0.0003). The lifetime-strike shape has no
-working setting at any k we tested.
-
-We then run the same attack on real software-engineering tasks. Capability
-does not separate: across 2,115 SWE-Bench-CL tasks no memory arm beat
-carrying no memory at all, and what selection buys there is leanness. The
-ordering alone transfers, in 5 of 6 worlds, and one repository does not
-reproduce it. We give a regime map saying which curator to use when, and
-release a stdlib-only harness with pre-registered hypotheses and
-manifest-checked per-seed data.
+Historical coding-agent experiments provide a separate, less conclusive view:
+no memory arm establishes an advantage over carrying no memory, and attack
+responses vary by repository. They lack the complete billing and prospective
+noninferiority evidence needed to claim lower total operating cost with preserved
+task success. We distinguish offline replay from runs where memory changes
+subsequent agent behavior, document missing evidence, and provide separate paths
+for inexpensive reconstruction and experiment reruns.

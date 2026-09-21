@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from collections.abc import Collection, Iterator, Mapping
 from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -29,11 +31,7 @@ from .retrieval import LexicalRetriever, Retriever, tokenize
 from .temporal import recency_weight
 from .types import EntryKind, MemoryEntry
 
-# fcntl is POSIX-only. CI runs Linux, so the flock path is the tested
-# one; where the import fails (Windows) the advisory lock degrades to a
-# no-op, which is exactly the lockless behavior every release before
-# 0.5.0 had on every platform. The single-writer contract is unchanged
-# either way.
+# File transactions require POSIX advisory locking.
 try:
     import fcntl
 except ImportError:  # pragma: no cover - Windows only
@@ -52,38 +50,42 @@ class StoreLockedError(RuntimeError):
     """Another process holds the advisory lock on a store file."""
 
 
+_held_locks = threading.local()
+
+
 @contextmanager
 def store_lock(path: str | Path) -> Iterator[None]:
-    """Hold the sidecar advisory lock for one persistence operation.
+    """Lock a complete load-modify-save transaction; reject contention.
 
-    darwin-memo is single-writer by contract, and this lock does not
-    change that: there is no blocking, no waiting, no multi-writer
-    merge. What it adds is noise. Two operations overlapping on one
-    store file used to clobber each other silently (last writer wins);
-    now the second one raises :class:`StoreLockedError` instead. The
-    lock is ``fcntl.flock`` with ``LOCK_EX | LOCK_NB`` on a sidecar
-    file (``memory.json.lock``), held only for the duration of one save
-    or load, so the atomic temp-file-and-rename dance on the store file
-    itself never touches the lock. The sidecar is never unlinked:
-    removing it would race a concurrent acquisition onto a dead inode.
+    Nested calls in the same thread reuse the lock. Other threads and
+    processes must retry the entire operation, never a stale save.
     """
-    if fcntl is None:  # pragma: no cover - Windows only
+    if fcntl is None:
+        raise StoreLockedError(
+            "Persistence requires POSIX file locking on a local filesystem"
+        )
+    target = Path(path).expanduser().resolve()
+    held = getattr(_held_locks, "paths", None)
+    if held is None:
+        held = _held_locks.paths = set()
+    key = (os.getpid(), target)
+    if key in held:
         yield
         return
-    target = Path(path)
     lock_path = target.with_name(target.name + ".lock")
-    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as exc:
             raise StoreLockedError(
-                f"{lock_path} is held by another process. darwin-memo "
-                "is single-writer: concurrent operations on one store "
-                "file would silently overwrite each other, so this one "
-                "refuses to run. Retry after the holder finishes."
+                f"{target} is busy; retry the entire operation"
             ) from exc
-        yield
+        held.add(key)
+        try:
+            yield
+        finally:
+            held.remove(key)
     finally:
         os.close(fd)
 
@@ -103,6 +105,9 @@ class MemoryStore:
         self._entries: dict[str, MemoryEntry] = {}
         self._graveyard: dict[str, MemoryEntry] = {}
         self.last_upkeep_charged = 0.0
+        self._persisted_retriever: dict[str, Any] = {}
+        self._snapshot: str | None = None
+        self._snapshot_path: Path | None = None
 
     # ------------------------------------------------------------------
     # Population access
@@ -306,6 +311,7 @@ class MemoryStore:
     def bury(self, entry_id: str) -> None:
         entry = self._entries.pop(entry_id, None)
         self.retriever.forget(entry_id)
+        self._persisted_retriever.get("vectors", {}).pop(entry_id, None)
         if entry is not None:
             entry.energy = min(entry.energy, 0.0)
             self._graveyard[entry.id] = entry
@@ -336,7 +342,7 @@ class MemoryStore:
             "entries": [e.to_dict() for e in self._entries.values()],
             "graveyard": [e.to_dict() for e in self._graveyard.values()],
         }
-        retriever_state = self.retriever.dump_state()
+        retriever_state = self.retriever.dump_state() or self._persisted_retriever
         if retriever_state:
             payload["retriever"] = retriever_state
         return payload
@@ -355,12 +361,25 @@ class MemoryStore:
         for d in payload["graveyard"]:
             store._graveyard[d["id"]] = MemoryEntry.from_dict(d)
         if "retriever" in payload:
+            store._persisted_retriever = deepcopy(payload["retriever"])
             store.retriever.load_state(payload["retriever"])
         return store
 
     def save(self, path: str | Path) -> None:
         with store_lock(path):
-            write_json_atomic(path, self.to_payload())
+            self._write_payload(path, self.to_payload())
+
+    def _write_payload(self, path: str | Path, payload: dict[str, object]) -> None:
+        target = Path(path)
+        if (
+            self._snapshot is not None
+            and self._snapshot_path == target.resolve()
+            and (not target.exists() or target.read_text() != self._snapshot)
+        ):
+            raise StoreLockedError(f"{path} changed since load; reload before writing")
+        write_json_atomic(path, payload)
+        self._snapshot = target.read_text()
+        self._snapshot_path = target.resolve()
 
     @classmethod
     def load(cls, path: str | Path, retriever: Retriever | None = None) -> MemoryStore:
@@ -368,7 +387,10 @@ class MemoryStore:
             raw = Path(path).read_text()
         try:
             payload = json.loads(raw)
-            return cls.from_payload(payload, retriever=retriever)
+            store = cls.from_payload(payload, retriever=retriever)
+            store._snapshot = raw
+            store._snapshot_path = Path(path).resolve()
+            return store
         except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
             # A truncated file (a crash caught mid-write on a filesystem without
             # the fsync guarantee, or a hand-edit) should name itself, not raise

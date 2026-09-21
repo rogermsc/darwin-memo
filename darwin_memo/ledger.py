@@ -11,7 +11,7 @@ moments:
 - :meth:`decide` answers a query through the normal protocol and
   returns a ticket carrying the provenance.
 - :meth:`settle` is called whenever the outcome is known, with the
-  measured resource delta. Credit flows along the ticket's provenance
+  reported outcome delta. Credit flows along the ticket's provenance
   exactly as in the loop. If the answer is never acted on, call
   :meth:`abandon` so the ticket releases its escrow.
 - :meth:`tick` advances time: upkeep, deaths, optional consolidation.
@@ -31,8 +31,8 @@ ledger state, and ``MemoryStore.load`` ignores the ledger key.
 
 Every event appends to an optional JSONL log, and :meth:`obituary`
 answers the production question "why did this entry die" from that
-history. The same selection rule applies throughout: no judge anywhere,
-``settle`` takes a measurement.
+history. ``settle`` accepts a reported value; it does not authenticate the
+report or establish that consulted lessons caused the outcome.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ from typing import Any
 from .consolidate import consolidate
 from .protocol import QueryProtocol
 from .retrieval import Retriever
-from .store import MemoryStore, store_lock, write_json_atomic
+from .store import MemoryStore, store_lock
 from .survival import SurvivalConfig, advance_lifecycle, assign_credit, is_silent
 from .types import EntryKind, MemoryEntry, utc_now_iso
 
@@ -148,6 +148,8 @@ class Ticket:
     born_tick: int
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
 
+    binding: dict[str, str] | None = None
+
     @property
     def provenance(self) -> list[str]:
         ids = list(self.supporting_entries)
@@ -190,6 +192,7 @@ class Ledger:
         self._pending: dict[str, Ticket] = {}
         self._history: dict[str, list[str | dict[str, Any]]] = {}
         self._damaged: set[str] = set()
+        self._settled_runs: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # The three moments
@@ -277,27 +280,22 @@ class Ledger:
         ticket_id: str,
         delta: float,
         detail: str = "",
-        source: str = "measured",
+        source: str = "unknown",
+        evidence: dict[str, Any] | None = None,
     ) -> bool:
-        """Report the measured outcome for a ticket. Credit flows now.
+        """Report an outcome for a ticket and associate it with consulted lessons.
 
-        ``delta`` is a measurement of a conserved resource, never a
-        grade. Returns True when the settlement landed, False when the
+        ``delta`` is a reported outcome. Settlement associates the
+        outcome with consulted lessons; it does not establish causation.
+        Returns True when the settlement landed, False when the
         ticket is unknown, already settled, or expired: callers (and
         agents) must be able to tell a real settlement from a dropped
         one. The False path stays a no-op rather than an exception
         because duplicate deliveries are normal in event-driven systems.
 
-        ``source`` records WHERE the delta came from, and exists because
-        the dashboard now lets an operator type one in by hand. A
-        hand-entered number is exactly the human judgment this package is
-        built to exclude, so it must never be silently interchangeable
-        with a measurement: it is stamped ``"operator"`` in the event log
-        and in every per-entry note, ``why`` and ``audit`` display it as
-        such, and ``doctor`` raises ``operator_settled`` once hand-entered
-        deltas start outweighing measured ones. Nothing rejects an
-        operator settle -- the point is that it stays visible, so no
-        benchmark or paper claim can rest on one unnoticed.
+        ``source`` identifies the reporting path: ci, operator, agent, or
+        unknown. A caller-supplied "measured" label is a legacy claim, not
+        independent verification. Evidence metadata is recorded, not authenticated.
         """
         if not math.isfinite(delta):
             # A NaN or infinity is not a measurement. Left unguarded it would
@@ -312,6 +310,12 @@ class Ledger:
             self._log("settle_dropped", ticket=ticket_id, delta=delta, detail=detail)
             return False
 
+        outcome_event = source if source in ("abandon", "expired") else "settle"
+        if evidence and evidence.get("repository") and evidence.get("run"):
+            self._settled_runs.append(
+                {"ticket": ticket.id, "source": source, "delta": delta, **evidence}
+            )
+
         applied = assign_credit(
             self.store,
             ticket.deciding_entry,
@@ -324,11 +328,11 @@ class Ledger:
         for entry_id, credit in applied:
             if credit < -_DAMAGE_EPSILON:
                 self._damaged.add(entry_id)
-            measured = source == "measured"
+            reporter = "legacy measured claim" if source == "measured" else source
             self._note(
                 entry_id,
                 f"tick {self.tick_count}: credit {credit:+.3f} "
-                f"({'measured' if measured else source + '-entered'} delta "
+                f"({reporter} delta "
                 f"{delta:+g}{', ' + detail if detail else ''})",
                 event="settle",
                 ticket=ticket.id,
@@ -336,7 +340,31 @@ class Ledger:
                 delta=delta,
                 detail=detail,
                 source=source,
+                evidence=evidence,
             )
+        credited_ids = {entry_id for entry_id, _ in applied}
+        for entry_id in ticket.provenance:
+            if entry_id not in credited_ids:
+                entry = self.store.get(entry_id)
+                if entry is not None and outcome_event == "settle":
+                    entry.last_used_cycle = self.tick_count
+                    entry.uses += 1
+                self._note(
+                    entry_id,
+                    f"tick {self.tick_count}: "
+                    + (
+                        f"reported outcome {delta:+g}; no credit moved"
+                        if outcome_event == "settle"
+                        else f"{outcome_event}; no outcome observed"
+                    ),
+                    event=outcome_event,
+                    ticket=ticket.id,
+                    credit=0.0,
+                    delta=delta,
+                    detail=detail,
+                    source=source,
+                    evidence=evidence,
+                )
         denied: set[str] = set()
         for entry_id, event in advance_lifecycle(
             self.store, applied, delta, ticket.deciding_entry
@@ -383,11 +411,12 @@ class Ledger:
                     cause="executed" if entry_id in self._damaged else "starved",
                 )
         self._log(
-            "settle",
+            outcome_event,
             ticket=ticket.id,
             delta=delta,
             detail=detail,
             source=source,
+            evidence=evidence,
             applied=[{"entry": e, "credit": round(c, 6)} for e, c in applied],
             buried=buried,
         )
@@ -401,7 +430,9 @@ class Ledger:
         instead of pinning entries until expiry. Conservative agents
         should abandon every no-act ticket.
         """
-        return self.settle(ticket_id, 0.0, detail="abandoned: not acted on")
+        return self.settle(
+            ticket_id, 0.0, detail="abandoned: not acted on", source="abandon"
+        )
 
     def add(self, question: str, answer: str, source: str = "agent") -> MemoryEntry:
         """Write a new entry through the ledger, so the event is logged.
@@ -585,7 +616,9 @@ class Ledger:
                 if self.tick_count - t.born_tick > expire_after
             ]
             for ticket_id in expired:
-                self.settle(ticket_id, 0.0, detail="expired unsettled")
+                self.settle(
+                    ticket_id, 0.0, detail="expired unsettled", source="expired"
+                )
 
         escrowed = self._escrowed_ids()
         dead = self.store.charge_upkeep(protect=escrowed)
@@ -651,6 +684,7 @@ class Ledger:
             "pending": [asdict(t) for t in self._pending.values()],
             "history": {k: list(v) for k, v in self._history.items()},
             "damaged": sorted(self._damaged),
+            "settled_runs": self._settled_runs,
             # Without this the selection rules were process-local: every CLI
             # and MCP invocation rebuilt SurvivalConfig() defaults, so
             # merge_threshold and admission_window -- both of which the docs
@@ -660,7 +694,7 @@ class Ledger:
             "config": {k: v for k, v in asdict(self.config).items() if k != "cycles"},
         }
         with store_lock(path):
-            write_json_atomic(path, payload)
+            self.store._write_payload(path, payload)
 
     @classmethod
     def load(
@@ -682,6 +716,8 @@ class Ledger:
         try:
             payload = json.loads(raw)
             store = MemoryStore.from_payload(payload, retriever=retriever)
+            store._snapshot = raw
+            store._snapshot_path = Path(path).resolve()
         except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
             # AttributeError covers a structurally-wrong-but-valid-JSON store
             # (e.g. {"config": null} -> null.items() in from_payload); without
@@ -731,6 +767,9 @@ class Ledger:
             damaged = state.get("damaged", [])
             if isinstance(damaged, (list, tuple, set)):
                 ledger._damaged = set(damaged)
+            settled_runs = state.get("settled_runs", [])
+            if isinstance(settled_runs, list):
+                ledger._settled_runs = [r for r in settled_runs if isinstance(r, dict)]
         return ledger
 
     # ------------------------------------------------------------------
@@ -739,6 +778,13 @@ class Ledger:
 
     def pending(self) -> list[Ticket]:
         return list(self._pending.values())
+
+    def has_settled_run(self, repository: str, run: str) -> bool:
+        """Check durable run identities independently of capped lesson history."""
+        return any(
+            record.get("repository") == repository and record.get("run") == run
+            for record in self._settled_runs
+        )
 
     def history(self, entry_id: str) -> list[str | dict[str, Any]]:
         """Per-entry history notes, oldest first, capped at _HISTORY_CAP.

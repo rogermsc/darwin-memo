@@ -1,7 +1,7 @@
 """Environments: where selection pressure comes from.
 
 The survival paper's design constraint is that the selection signal is a
-conserved, physically measurable resource, never a model's judgment of
+reported environmental outcome, never a model's judgment of
 success. Its reference environment scores agents by non-volatile storage
 freed inside a procedurally generated sandbox. ``StorageEnv`` reproduces
 that setup at demo scale with real files in a real temp directory, and
@@ -179,9 +179,8 @@ def decision_polarity(
 # ---------------------------------------------------------------------------
 
 # Category name, filename pattern, size range in KiB, safe to delete.
-# Protected files carry a restore cost: destroying one forces a restore
-# from backup that consumes three times the freed space, so the resource
-# delta is genuinely negative, not a bolted-on penalty score.
+# Protected-file restoration carries a modeled penalty of three times
+# file size. No scratch allocation or restoration I/O is measured.
 _FILE_SPECS = [
     ("old_log", "logs/app-{i}.log", (40, 120), True),
     ("cache", "cache/chunk-{i}.cache", (30, 90), True),
@@ -192,12 +191,13 @@ _FILE_SPECS = [
 
 
 class StorageEnv:
-    """A disk-cleanup sandbox where the reward IS bytes freed.
+    """A filesystem-backed simulation with a modeled restoration penalty.
 
     Each cycle procedurally generates a fresh directory tree, then asks
     the agent file by file: is this safe to delete? Acting on a
     disposable file frees its real size. Acting on a protected file
-    triggers a restore that costs three times the size. When memory is
+    recreates the file and reports a modeled penalty of three times its size.
+    When memory is
     silent or ambiguous the file is kept, the conservative reading of
     an irreversible action, and the delta is zero. No judge anywhere in
     the loop.
@@ -257,12 +257,13 @@ class StorageEnv:
         path.unlink(missing_ok=True)
         if task.context["safe"]:
             return Outcome(delta=float(size), detail=f"freed {size} bytes")
-        # Restore from backup: the file comes back and the restore
-        # process consumes three times its size in scratch space.
+        # Recreate the file; the historical -3 * size penalty is modeled.
         path.write_bytes(b"\0" * size)
         return Outcome(
             delta=-3.0 * size,
-            detail=f"destroyed protected data, restore cost {3 * size} bytes",
+            detail=(
+                f"destroyed protected data, modeled restore penalty {3 * size} bytes"
+            ),
         )
 
     def cleanup(self) -> None:

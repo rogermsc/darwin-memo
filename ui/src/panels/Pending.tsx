@@ -54,6 +54,7 @@ export function Pending({
             query={ticket.query}
             age={ticket.age_ticks}
             born={ticket.born_tick}
+            binding={ticket.binding}
             busy={busy}
             act={act}
             select={select}
@@ -69,6 +70,7 @@ function Ticket({
   query,
   age,
   born,
+  binding,
   busy,
   act,
   select,
@@ -77,6 +79,7 @@ function Ticket({
   query: string;
   age: number;
   born: number;
+  binding?: Record<string, string> | null;
   busy: boolean;
   act: (a: WriteAction, body: Record<string, unknown>, said: string) => void;
   select: (id: string | null) => void;
@@ -98,6 +101,8 @@ function Ticket({
         </span>
       </div>
 
+      {binding && <p>Bound to {binding.repository} · task {binding.task} · base {binding.base?.slice(0, 12)}. Use the CI workflow to record the outcome.</p>}
+      <details><summary>Operator outcome controls</summary>
       <form
         className="settle"
         onSubmit={(event) => {
@@ -113,17 +118,17 @@ function Ticket({
         }}
       >
         <label>
-          <span>measured delta</span>
+          <span>reported delta</span>
           <input
             value={delta}
             onChange={(event) => setDelta(event.target.value)}
             inputMode="decimal"
             placeholder="e.g. 1200"
-            aria-label={`Measured delta for ticket ${id}`}
+            aria-label={`Reported delta for ticket ${id}`}
           />
         </label>
         <label className="wide">
-          <span>what was measured</span>
+          <span>outcome source and comparison</span>
           <input
             value={detail}
             onChange={(event) => setDetail(event.target.value)}
@@ -159,6 +164,7 @@ function Ticket({
           <code>doctor</code> as such.
         </p>
       </form>
+      </details>
     </li>
   );
 }

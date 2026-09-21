@@ -90,3 +90,12 @@ the other way around.
    section.
 5. For a dry run, use an `rc` tag (for example `v0.2.0rc1` with the
    matching `__version__`): it routes to TestPyPI instead.
+
+## Bounded adoption tasks
+
+- Complete the fixed pytest example without assistance and report setup steps that fail.
+- Reconstruct the central attack table from committed observations on a fresh machine.
+- Document one project that needs a pytest plugin or a `src/` import layout, with its exact evaluation command.
+- Audit one paper claim from the producing function through raw rows to the printed value.
+
+Use generic sample identities and redact private task content from issue reports.

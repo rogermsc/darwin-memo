@@ -13,9 +13,8 @@ the base commit run and one from the head or merge commit run, and the
 delta is computed from per-test transitions: a pass that became a fail
 is a regression, a fail that became a pass is an improvement, added
 and removed tests are attributed as suite changes instead of smearing
-into the count. With nothing excluded the per-id delta equals the raw
-pass-count delta; the per-id form is what makes attribution and
-quarantine possible at all.
+into the count. Only transitions on shared IDs affect credit. Added and removed tests
+are reported separately.
 
 Infra failures abstain. A run with no parseable junit XML, zero
 collected tests, or a collection error measured nothing, so settling
@@ -62,7 +61,9 @@ class InfraFailure(Exception):
     """A run that measured nothing. Settling it at zero would be a lie."""
 
 
-def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
+def parse_junit(
+    path: str | Path, label: str, *, errors_are_infra: bool = False
+) -> dict[str, bool | None]:
     """Per-test pass map from one junit XML report.
 
     Returns ``{test id: passed}`` where the id is ``classname::name``
@@ -115,6 +116,11 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
             # "collection failure" false-abstains on a genuine setup error that
             # merely quotes it -- such an error still carries its module's
             # classname; a collect failure alone has none.
+            if child.tag == "error" and errors_are_infra:
+                raise InfraFailure(
+                    f"{label} run reported an evaluation error ({test_id}); "
+                    "no outcome credited"
+                )
             if child.tag == "error" and classname == "":
                 raise InfraFailure(
                     f"{label} run hit a collection error ({test_id}): "
@@ -136,8 +142,8 @@ def parse_junit(path: str | Path, label: str) -> dict[str, bool | None]:
             else:
                 passed = None
         passed_by_id[test_id] = passed
-    if not passed_by_id:
-        raise InfraFailure(f"{label} run collected zero tests")
+    if not passed_by_id or all(value is None for value in passed_by_id.values()):
+        raise InfraFailure(f"{label} run collected zero measured tests")
     return passed_by_id
 
 
@@ -153,16 +159,10 @@ class Transitions:
     removed_failing: list[str] = field(default_factory=list)
 
     def delta(self, exclude: set[str] | None = None) -> float:
-        """Change in passing tests, computed per test id.
-
-        Passing tests are the conserved resource, so the delta is the
-        passing tests gained minus the passing tests lost. With nothing
-        excluded this equals the raw pass-count delta; ``exclude`` is
-        how quarantined flakes stay out of the measurement.
-        """
+        """Net improvement on shared test IDs; suite changes earn no credit."""
         skip = exclude or set()
-        gained = [t for t in self.improvements + self.added_passing if t not in skip]
-        lost = [t for t in self.regressions + self.removed_passing if t not in skip]
+        gained = [t for t in self.improvements if t not in skip]
+        lost = [t for t in self.regressions if t not in skip]
         return float(len(gained) - len(lost))
 
 
@@ -172,10 +172,8 @@ def diff_runs(
     """Classify every test id seen in either run.
 
     A test the other side never measured (``None``, i.e. skipped) is
-    not a transition in either direction. Absence is different and
-    still counts: a passing test deleted from the suite is a real
-    loss, which is why this checks for ``None`` rather than reusing
-    the membership tests below.
+    not a transition in either direction. Added and removed tests are
+    reported separately and never earn credit.
     """
     transitions = Transitions()
     for test_id in sorted(set(base) | set(head)):
@@ -404,24 +402,21 @@ def cmd_settle_ci(args: argparse.Namespace) -> int:
         # the CI lesson-store guide) should pass --opened-since.
         out["ticket_provenance"] = "unverified"
 
-    out["settled"] = {
-        ticket_id: ledger.settle(ticket_id, delta, detail=args.detail)
+    settled = {
+        ticket_id: ledger.settle(
+            ticket_id,
+            delta,
+            detail=args.detail,
+            source="ci",
+            evidence={"mode": out["mode"], "identity": "unverified"},
+        )
         for ticket_id in tickets
     }
-    # The clock is driven by evidence, not by merges. A tick charges
-    # every alive entry upkeep, so ticking on a merge that carried no
-    # ticket bills the store for time in which it was never given a
-    # chance to earn -- and credit is capped at max_energy, so no
-    # entry outlives spawn/upkeep such ticks however valuable it is.
-    # This repo's own store died that way: 49 consecutive settlement-
-    # free ticks, one per merged PR. A dropped settle (unknown id, or
-    # a silent decide that never opened a ticket) still counts as the
-    # caller reporting on the world; requiring credit instead would
-    # make a store whose retrieval went mute immortal. The cost is
-    # that expiry and consolidation now advance in settled ticks
-    # rather than merges, which is the cadence the economy assumes.
+    out["settled"] = settled
+    # Only accepted reports advance retention time. Duplicate and unknown
+    # tickets must not impose upkeep on unrelated lessons.
     out["tick"] = (
-        ledger.tick(expire_after=args.expire_after) if out["settled"] else None
+        ledger.tick(expire_after=args.expire_after) if any(settled.values()) else None
     )
     ledger.save(path)
     if flips is not None:

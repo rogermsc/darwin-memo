@@ -1,0 +1,51 @@
+name: Settle memory from a fixed evaluation
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        description: Full task commit SHA containing the pending ticket and binding
+        required: true
+      ticket:
+        description: Pending memory ticket
+        required: true
+      task:
+        description: Task identity from the binding
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: darwin-memory
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the reviewed darwin-memo revision and pytest
+        env:
+          # Set this repository variable to the full immutable commit you reviewed.
+          DARWIN_MEMO_REVISION: ${{ vars.DARWIN_MEMO_REVISION }}
+        run: |
+          [[ "$DARWIN_MEMO_REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo 'Set DARWIN_MEMO_REVISION to a reviewed commit SHA'; exit 1; }
+          python -m pip install "darwin-memo @ git+https://github.com/rogermsc/darwin-memo.git@$DARWIN_MEMO_REVISION" 'pytest==8.4.2'
+      - name: Evaluate and settle
+        env:
+          TASK_HEAD: ${{ inputs.head }}
+          TASK_TICKET: ${{ inputs.ticket }}
+          TASK_ID: ${{ inputs.task }}
+        run: |
+          darwin-memo task evaluate --ticket "$TASK_TICKET" --repository "$GITHUB_REPOSITORY" --task "$TASK_ID" --head "$TASK_HEAD" --run "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-outcome-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: .darwin-memo/

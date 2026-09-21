@@ -62,7 +62,7 @@ from .observe import (
     timeline,
     top_row,
 )
-from .store import StoreLockedError
+from .store import StoreLockedError, store_lock
 
 BUNDLE = Path(__file__).parent / "data" / "ui"
 LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -152,7 +152,7 @@ def _apply(memory: Path, action: str, body: dict[str, Any]) -> tuple[int, Any]:
     copy would clobber whatever another writer landed in between. Reads
     take the same lock, so the dashboard cannot race itself.
     """
-    with _STORE_WRITE_LOCK:
+    with _STORE_WRITE_LOCK, store_lock(memory):
         ledger = Ledger.load(memory, event_log=memory.with_suffix(".events.jsonl"))
 
         def entry_id() -> str:
@@ -164,7 +164,7 @@ def _apply(memory: Path, action: str, body: dict[str, Any]) -> tuple[int, Any]:
         elif action == "pin":
             result = {"id": entry_id(), "pinned": ledger.pin(entry_id())}
         elif action == "unpin":
-            result = {"id": entry_id(), "pinned": not ledger.unpin(entry_id())}
+            result = {"id": entry_id(), "unpinned": ledger.unpin(entry_id())}
         elif action == "forget":
             result = {"id": entry_id(), "outcome": ledger.forget(entry_id())}
         elif action == "abandon":
@@ -271,6 +271,7 @@ def state(memory: Path) -> dict[str, Any]:
             {
                 "id": ticket.id,
                 "query": ticket.query,
+                "binding": ticket.binding,
                 "born_tick": ticket.born_tick,
                 "age_ticks": tick - ticket.born_tick,
             }

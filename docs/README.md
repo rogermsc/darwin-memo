@@ -5,6 +5,8 @@ demo, and the quickstart. This index is everything else.
 
 ## Operating it
 
+- [GitHub pytest adoption workflow](integrations/github-pytest.md): repository-local setup, fixed evaluation, and CI settlement.
+
 - **[Glossary](glossary.md)**: every term this project invents or
   overloads, in plain words -- energy and balance are one number, tick is
   not a wall clock, and "the ledger" means three different things. Start
@@ -31,7 +33,7 @@ demo, and the quickstart. This index is everything else.
 - **`darwin-memo ui FILE [--port N] [--no-open]`**: a local operator
   dashboard over one memory file — population and energy over time,
   the graveyard, pending tickets, and the `doctor` findings, served
-  loopback-only with no mutation endpoints, so nothing needs auth.
+  loopback-only with token-protected operator mutation endpoints.
 
 ## Understanding it
 

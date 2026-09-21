@@ -8,16 +8,11 @@ Claude Code:
 
     claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.json
 
-The server wraps a :class:`~darwin_memo.ledger.Ledger`, so the agent
-carries the full contract: query memory (which opens a ticket), report
-the measured outcome later (which settles it), and advance time. The
-selection rule survives the transport: ``memory_settle`` takes a
-measured delta, never a quality grade, and the docstrings the agent
-sees say so.
+Each tool reloads its ledger within a local POSIX file transaction. Pending
+outcome tickets survive restarts. Use --ci-authority to expose only query,
+add, and inspection; the host then owns settlement and retention changes.
+Agent-supplied outcomes carry source="agent", not independent verification.
 
-State persists to one JSON file after every mutating call, so the
-memory survives across sessions and the population carries its scars
-forward.
 """
 
 from __future__ import annotations
@@ -26,12 +21,17 @@ import argparse
 import json
 import os
 import time
+from collections.abc import Callable
+from functools import wraps
 from pathlib import Path
-from typing import Protocol
+from typing import ParamSpec, Protocol, TypeVar
 
 from .ledger import Ledger
 from .observe import audit_digest, doctor, filter_events, read_events, top_row
-from .store import MemoryStore, StoreLockedError
+from .store import MemoryStore, StoreLockedError, store_lock
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 DEFAULT_MEMORY = "~/.darwin-memo/memory.json"
 _PERSIST_RETRIES = 5
@@ -50,15 +50,10 @@ def save_with_retry(
 ) -> None:
     """Persist the ledger, retrying a transient StoreLockedError.
 
-    A concurrent reader -- most often the read-only dashboard, the server's own
-    documented companion -- holds the store's exclusive lock for the length of
-    one load, so a save can collide with a benign read. Without a retry the
-    collision raised out of the tool AFTER settle had already popped the ticket
-    and moved credit in memory, so the agent was told its settle failed and a
-    retry then reported the ticket unknown. Brief bounded retries clear the
-    millisecond-long read; the UI handles the mirror case with a 503-and-retry.
-    A save that stays locked past the last attempt re-raises: genuine
-    contention is not something to swallow.
+    MCP operations hold the lock across load, mutation, and save, so nested
+    saves reuse it. This helper remains available for existing Python callers.
+    It never reloads stale state; stale snapshots remain rejected. Callers
+    must retry their entire transaction after contention or a changed file.
     """
     for attempt in range(retries):
         try:
@@ -70,7 +65,9 @@ def save_with_retry(
             time.sleep(backoff * (attempt + 1))
 
 
-def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-untyped-def]
+def build_server(  # type: ignore[no-untyped-def]
+    memory_path: Path, resource_scale: float, *, allow_settlement: bool = True
+):
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
@@ -103,23 +100,44 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
     server = FastMCP(
         name="darwin-memo",
         instructions=(
-            "Self-curating memory. Query it with memory_query, which "
-            "returns an answer plus a ticket id. When the real outcome of "
-            "acting on that answer is known, call memory_settle with the "
-            "MEASURED resource delta (tests passed, bytes freed, dollars "
-            "saved): a measurement, never your opinion of answer quality. "
-            "If you decide NOT to act on an answer, call memory_abandon "
-            "with the ticket id so its escrow releases. Entries that keep "
-            "producing bad outcomes die on their own. Call memory_tick at "
-            "natural boundaries (end of a session or work unit) so upkeep "
-            "and consolidation run."
+            "Query memory before a task and keep its ticket. "
+            "Associate it with your task using the repository CI workflow. "
+            "CI reports observable outcomes; settlement does not prove causation. "
+            + (
+                "Agent-supplied settlement is enabled."
+                if allow_settlement
+                else "Settlement and retention mutations are reserved for the host; "
+                "this client can query and add lessons."
+            )
         ),
     )
+
+    def operation(fn: Callable[P, R]) -> Callable[P, R]:
+        @wraps(fn)
+        def call(*args: P.args, **kwargs: P.kwargs) -> R:
+            nonlocal ledger, store
+            with store_lock(memory_path):
+                ledger = (
+                    Ledger.load(
+                        memory_path, resource_scale=resource_scale, event_log=event_log
+                    )
+                    if memory_path.exists()
+                    else Ledger(
+                        MemoryStore(),
+                        resource_scale=resource_scale,
+                        event_log=event_log,
+                    )
+                )
+                store = ledger.store
+                return fn(*args, **kwargs)
+
+        return call
 
     def _persist() -> None:
         save_with_retry(ledger, memory_path)
 
     @server.tool()
+    @operation
     def memory_query(query: str, half_life: float = 0) -> str:
         """Ask the memory a question. Returns the answer and a ticket id.
 
@@ -133,9 +151,9 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         since an entry last settled; it reorders results only and never
         moves energy.
 
-        If you act on the answer, keep the ticket id and call
-        memory_settle once the outcome is measurable; if you do not act,
-        call memory_abandon with it. A silent result means memory has
+        If you act on the answer, keep the ticket id for the host's outcome
+        workflow. Without --ci-authority, memory_settle and memory_abandon
+        also accept agent input. A silent result means memory has
         nothing relevant: prefer that silence over guessing.
 
         ``deciding_entry`` and ``supporting_entries`` are the ids credit
@@ -158,15 +176,15 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_settle(ticket_id: str, delta: float, detail: str = "") -> str:
-        """Report the measured outcome for a ticket.
+        """Report an agent-supplied outcome for a ticket.
 
-        delta MUST be a measurement of a conserved resource (tests now
-        passing minus before, bytes freed, dollars saved). Positive
+        delta is an agent-supplied outcome, not independently verified. Positive
         reinforces the entries that produced the answer, negative
         drains them. Do not pass a quality score or a vibe.
         """
-        landed = ledger.settle(ticket_id, delta, detail)
+        landed = ledger.settle(ticket_id, delta, detail, source="agent")
         _persist()
         if landed:
             return f"settled {ticket_id} at delta {delta:+g}"
@@ -176,6 +194,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_abandon(ticket_id: str) -> str:
         """Release a ticket whose answer you did not act on.
 
@@ -191,6 +210,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_add(question: str, answer: str, source: str = "agent") -> str:
         """Write a new entry. It starts at spawn energy and must earn
         its keep from here: adding is cheap, surviving is not."""
@@ -204,6 +224,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return f"added {entry.id}"
 
     @server.tool()
+    @operation
     def memory_tick() -> str:
         """Advance one unit of time: upkeep, deaths, consolidation.
         Call at natural boundaries, like the end of a work session."""
@@ -212,6 +233,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return json.dumps(stats)
 
     @server.tool()
+    @operation
     def memory_stats() -> str:
         """Population overview: alive, graveyard, energy by kind."""
         return json.dumps(
@@ -227,12 +249,14 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_obituary(entry_id: str) -> str:
         """Why did this entry die (or how is it doing)? Full credit
         history from the ledger."""
         return ledger.obituary(entry_id)
 
     @server.tool()
+    @operation
     def memory_pending() -> str:
         """Open tickets, with their ids: decisions still awaiting an outcome.
 
@@ -259,6 +283,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_top(limit: int = 10) -> str:
         """Living entries ranked by balance: what this memory is made of.
 
@@ -280,6 +305,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_doctor() -> str:
         """Name the failure mode behind a store that is not earning.
 
@@ -302,6 +328,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
 
     @server.tool()
+    @operation
     def memory_forget(entry_id: str) -> str:
         """Bury an entry outright, without waiting for selection.
 
@@ -316,6 +343,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return json.dumps({"entry_id": entry_id, "outcome": outcome})
 
     @server.tool()
+    @operation
     def memory_pin(entry_id: str) -> str:
         """Protect an entry from starvation and merges.
 
@@ -328,6 +356,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return json.dumps({"entry_id": entry_id, "pinned": pinned})
 
     @server.tool()
+    @operation
     def memory_unpin(entry_id: str) -> str:
         """Return a pinned entry to normal selection pressure."""
         unpinned = ledger.unpin(entry_id)
@@ -335,6 +364,7 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         return json.dumps({"entry_id": entry_id, "pinned": not unpinned})
 
     @server.tool()
+    @operation
     def memory_audit(since: str = "", last: int = 0) -> str:
         """Digest of the event log: decisions, settlements, culls, and
         energy flow with top gainers and losers. The audit trail for
@@ -346,6 +376,16 @@ def build_server(memory_path: Path, resource_scale: float):  # type: ignore[no-u
         )
         return json.dumps(audit_digest(events, store=store))
 
+    if not allow_settlement:
+        for name in (
+            "memory_settle",
+            "memory_tick",
+            "memory_abandon",
+            "memory_forget",
+            "memory_pin",
+            "memory_unpin",
+        ):
+            server.remove_tool(name)
     return server
 
 
@@ -357,6 +397,12 @@ def _add_server_arguments(parser: argparse.ArgumentParser) -> None:
         help=f"path to the persistent memory file (default {DEFAULT_MEMORY})",
     )
     parser.add_argument(
+        "--ci-authority",
+        action="store_true",
+        help="expose query, add, and inspection; "
+        "reserve settlement and retention for CI",
+    )
+    parser.add_argument(
         "--resource-scale",
         type=float,
         default=1.0,
@@ -366,7 +412,9 @@ def _add_server_arguments(parser: argparse.ArgumentParser) -> None:
 
 def cmd_serve(args: argparse.Namespace) -> int:
     server = build_server(
-        Path(args.memory).expanduser(), resource_scale=args.resource_scale
+        Path(args.memory).expanduser(),
+        resource_scale=args.resource_scale,
+        allow_settlement=not args.ci_authority,
     )
     server.run()
     return 0

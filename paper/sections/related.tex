@@ -23,50 +23,31 @@ position on it: we do not ask whether the defence can recognize the
 payload, but what it does when the evidence it decides on has itself been
 tampered with.
 
-\paragraph{Attacking the curator: named, and left unmeasured.}
+\paragraph{Feedback corruption as a prior threat model.}
 We are not the first to describe this threat, and we are explicit about
-that because the distinction between naming it and measuring it is the
-whole of our contribution here. \citet{lin2026selfevolving} catalogue
-the attack surface of self-evolving agent systems and state the model
-directly: an adversary who can ``shift embedding proximity or corrupt
-the performance signal gains indirect control over the long-term
-composition of the agent's cognitive state without ever writing to the
-memory store directly,'' with the consequence that ``biased selection
-can systematically retain harmful memories while discarding
-safety-critical ones.'' Their case study CS-I6 names the same mechanism
-as \emph{selective amplification}. \citet{lin2026memsurvey} organize
-memory security around a lifecycle whose final phase is
-\emph{Forget \& Rollback}, and place denial-style consequences---silent
-eviction under retention pressure, denial of retrieval---in its
-availability column.
-
-Both also record that the threat is unmeasured. \citet{lin2026selfevolving}
-write that ``direct attacks on memory consolidation policies remain
-relatively underexplored''; \citet{lin2026memsurveyv1} report that
-availability threats on agent memory are ``architecturally plausible but
-empirically unstudied''. \pointer{We cite that survey's first version
-advisedly, and \S\ref{sec:citationnote} says why.}
+that because naming a threat is different from comparing curators under it.
+\citet{lin2026selfevolving}, Section 4.3, explicitly discusses corrupted
+performance feedback changing which memories survive and describes direct
+consolidation attacks as underexplored. \citet{lin2026memsurvey} provides a
+memory-lifecycle security framework. Its first version's availability gap
+concerns write flooding, retrieval latency, and reflection loops; it is not
+evidence that this paper is the first feedback-corruption experiment.
+Our contribution is a specified feedback budget, a controlled comparison,
+and a reusable artifact with negative results and failure boundaries.
+We do not claim an exhaustive novelty result from these surveys.
+\pointer{\S\ref{sec:citationnote} records the survey versions.}
 \inplace{related-survey-versions}
-That is the gap this paper closes. Our contribution is not the
-observation that a curator can be attacked through its evidence; it is
-the operationalization---a resource-bounded adversary, six curation
-mechanisms, five attack budgets, thirty seeds, per-seed intervals, exact
-paired permutation tests, and a published failure boundary for the
-mechanism we defend with---together with a real-task leg that reports
-which half of that result transfers and which does not
-(\S\ref{sec:swebench-attack}).
 
-\paragraph{The nearest neighbour, and the cell it leaves open.}
+\paragraph{Retention under a physical resource budget.}
 \citet{wu2026forget} curate on-device agent memory under a hard byte and
-energy budget, which is a genuine conserved constraint --- but the eviction
+energy budget, which is a physical capacity constraint --- but the eviction
 decision is a score, ``value minus harm, per byte'', a learned-utility ruler
 applied to each entry. That is the axis this paper turns on: a budget is not
 enough if a valuation still decides what the budget spends on. Our entries
 are not scored for value; they hold a balance that only a measured
 environment outcome moves, so the thing evicted is the thing that failed to
-earn, not the thing a ruler judged low. Conserved-and-scored and
-judged-but-unbudgeted are the two cells adjacent to ours; the unclaimed one
-is conserved \emph{and} settled by measurement \emph{and} judge-free at once.
+earn, not the thing a ruler judged low. This comparison distinguishes a reported-outcome balance from a learned
+value-per-byte score; it does not establish a universal advantage.
 
 
 \pointer{Every other neighbour sits in a different cell, and

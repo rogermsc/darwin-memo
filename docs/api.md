@@ -1,3 +1,7 @@
+> For the supported Python adoption workflow, see [GitHub pytest](integrations/github-pytest.md).
+> Storage deltas include a modeled restoration penalty; passing tests are observable outcomes,
+> not conserved resources. Settlement associates outcomes and lessons, not causes.
+
 # API reference
 
 The public surface of darwin-memo 0.6.0: everything importable from
@@ -74,7 +78,7 @@ trajectories or agent adds), `CONSOLIDATED` (merge products).
 ```python
 @dataclass
 class Outcome:
-    delta: float    # change in a conserved, measured resource; never a grade
+    delta: float    # reported outcome, not causal evidence
     detail: str = ""
 ```
 
@@ -121,15 +125,10 @@ never read energy; energy is a sort tie-break only.
 
 ### `StoreLockedError`
 
-`class StoreLockedError(RuntimeError)`: raised by `save` and `load`
-(on `MemoryStore` and `Ledger`, and therefore by every CLI and MCP
-operation that persists) when another process holds the advisory lock
-on the same store file. The lock is `fcntl.flock` on a sidecar file,
-held only for the duration of one save or load. POSIX only: on
-Windows the lock degrades to a no-op and the behavior is the lockless
-last-writer-wins of every release before 0.5.0. Either way the
-contract is single-writer; the lock adds noise on violation, not
-multi-writer support.
+`class StoreLockedError(RuntimeError)` rejects contention, stale writes, and
+unsupported locking platforms. CLI, MCP, and dashboard operations hold a
+POSIX local-file lock across load–modify–save. Retry the whole operation.
+See [persistence semantics](store-format.md#the-lock-sidecar-namelock).
 
 ## Retrieval (`darwin_memo.retrieval`)
 
@@ -390,7 +389,7 @@ Ledger(store: MemoryStore,
 | method | signature | notes |
 |---|---|---|
 | `decide` | `(query: str, k: int = 3, *, half_life: float \| None = None, kind: str \| None = None, source: str \| None = None) -> Ticket` | answers via the protocol, opens a ticket when there is provenance; the [temporal options](#temporal-retrieval-options) are pure retrieval concerns (`half_life` anchors at this ledger's tick count) |
-| `settle` | `(ticket_id: str, delta: float, detail: str = "") -> bool` | credit flows now; False means unknown, already settled, or expired (a no-op, never an exception: duplicate deliveries are normal) |
+| `settle` | `(ticket_id: str, delta: float, detail: str = "", source: str = "unknown", evidence: dict | None = None) -> bool` | credit flows now; False means unknown, already settled, or expired (a no-op, never an exception: duplicate deliveries are normal) |
 | `abandon` | `(ticket_id: str) -> bool` | settle at delta zero for answers never acted on |
 | `add` | `(question: str, answer: str, source: str = "agent") -> MemoryEntry` | writes an EXPERIENCE entry at spawn energy, logged |
 | `forget` | `(entry_id: str) -> str` | `"buried"`, `"missing"`, or `"escrowed"` (refused: a pending ticket names it) |
@@ -545,7 +544,7 @@ per session id under `transcript_dir`: async `get_items(limit=None)`
 - `consult(question: str, k: int = 3) -> Consultation` opens a ticket
   against the lesson store; `Consultation(ticket_id: str | None,
   lessons: str)`, with `ticket_id` None when memory was silent.
-- `settle(ticket_id: str, delta: float, detail: str = "") -> bool`
+- `settle(ticket_id: str, delta: float, detail: str = "", source: str = "unknown", evidence: dict | None = None) -> bool`
   reports the outcome the HOST measured; the adapter never invents
   deltas.
 - `abandon(ticket_id: str) -> bool` releases a ticket not acted on.
@@ -620,17 +619,17 @@ Omitting a flag leaves the stored value alone; it does not reset it.
 [temporal retrieval options](#temporal-retrieval-options); a
 non-positive `--half-life` is an argparse error. The
 CLI cannot construct your embedder, so it always loads with the
-default lexical retriever and ranks lexically. Warning, verified
-behavior: because the lexical retriever persists no state, any
-mutating `ledger` operation on a store built with an embedding
-retriever re-saves the file WITHOUT its persisted vectors (see
-[store-format.md](store-format.md)). Read-only commands are safe.
+default lexical retriever and ranks lexically. Mutating operations preserve
+cached embedding vectors across unrelated writes. Supplying an embedding
+retriever restores them (see [store-format.md](store-format.md)).
 
 ### `settle-ci`
 
 Settles every `darwin-memo-ticket: <id>` line found in `--pr-body`
-(default: the `PR_BODY` environment variable) with a measured
-test-pass delta, then runs one tick and saves.
+(default: the `PR_BODY` environment variable) with a reported
+test-pass delta, then runs one tick if a settlement lands and saves.
+This compatibility command does not establish repository/run identity.
+Use `task bind` and `task evaluate` for the supported fixed-evaluation workflow.
 
 ```
 darwin-memo settle-ci MEMORY
@@ -646,8 +645,10 @@ XML, zero collected tests, or a collection error: the run measured
 nothing and the store is left untouched). **Skipped tests are unmeasured,
 not failed**: a test skipped on either side contributes to no transition
 and accrues no flake history, so a skip that later turns into a pass pays
-nothing. A test that is *absent* is different and still counts, because
-deleting a passing test is a real loss. Flaky tests that flip
+nothing. Added and removed tests are reported separately and do not contribute
+to the delta. Only shared fail-to-pass and pass-to-fail transitions count.
+The raw-count fallback cannot distinguish suite changes and is unsuitable for
+stable comparisons. Flaky tests that flip
 direction `--flip-threshold` times inside the `--window` are
 quarantined out of the delta via the sidecar state file. See
 [the integration guide](integrations/ci-lesson-store.md).
@@ -684,7 +685,7 @@ that store-wide evidence first.
 | `settles_dropped` | warn | `settle_dropped` events exceed the count of silent decides. A silent `decide()` never opens a ticket (`Ledger.decide` only tracks a ticket when the answer has provenance), so settling a silent decide always drops — that count is benign and subtracted out; only the excess is worth a warning |
 | `credit_untracked` | warn | one or more settlements carry no per-entry `applied` credit list (written by a version before per-entry credit was logged) |
 | `ticking_without_evidence` | warn | more ticks have passed since the last credited settlement than the living population has upkeep left to pay. The threshold is the store's own arithmetic, not a constant, because a fixed share of `max_energy / upkeep` fires only after the store is already dead. Unlike the three rules above it, this one applies to a store that *did* earn — every tick charges upkeep whether or not anything was measured, so a clock running faster than the evidence is a slow, silent, total loss |
-| `operator_settled` | warn | hand-entered deltas (settle events with `source != "measured"`, which the dashboard writes) are more than half the window's settlements, or at least `MIN_SETTLES` of them. Nothing rejects an operator settle; this says that the store's survivors were chosen by a person rather than by a conserved resource, so they are not evidence of anything |
+| `operator_settled` | warn | settle events without CI provenance (`source != "ci"`) are more than half the window's settlements, or at least `MIN_SETTLES` of them. Nothing rejects an operator settle; this identifies missing or non-CI provenance; neither CI nor a source label establishes causation |
 
 An **empty finding list means one of two things**, and the surfaces say
 which: a store that has been measured and is healthy, or a store nothing
@@ -703,9 +704,8 @@ Exit code: **1 if any finding has severity `error`**, otherwise **0**
 `darwin-memo ui MEMORY [--port 8787] [--no-open]` serves a dashboard
 over `MEMORY` on `127.0.0.1` (0 for `--port` picks a free one;
 `--no-open` skips the automatic browser launch). Loopback-only and
-read-only by construction: `serve()` refuses to bind any host outside
-`{127.0.0.1, localhost, ::1}`, and there are no mutation endpoints, so
-the server needs no authentication. That bind alone does not stop a
+`serve()` refuses to bind outside `{127.0.0.1, localhost, ::1}`.
+Mutation endpoints require the per-process token embedded in the page. That bind alone does not stop a
 page the operator has open elsewhere from pointing its own hostname at
 `127.0.0.1` (DNS rebinding) and reading the store same-origin, so every
 request also checks its `Host` header and answers `421` on anything
@@ -729,11 +729,10 @@ darwin-memo-mcp [--memory PATH] [--resource-scale 1.0]
 
 `--memory` defaults to the `DARWIN_MEMO_PATH` environment variable,
 then `~/.darwin-memo/memory.json`. Requires the `[mcp]` extra. The
-server wraps one `Ledger` held in memory and saves after every
-mutating call; full state including open tickets survives restarts.
-Do not point a second writer (the CLI, another server) at the same
-file while it runs: the server's next save clobbers whatever the
-other writer wrote.
+server reloads the ledger inside a file transaction on every call; pending
+tickets survive restarts. `--ci-authority` exposes query, add, and inspection
+only, reserving settlement and retention changes for the host. Without that
+flag, MCP settlement records `source="agent"`.
 
 | tool | signature | returns |
 |---|---|---|

@@ -42,7 +42,7 @@ export function Detail({
     return () => {
       live = false;
     };
-  }, [id, state.tick, state.counts.alive]);
+  }, [id, state]);
 
   useEffect(() => {
     if (!id) return;
@@ -70,6 +70,95 @@ export function Detail({
       <h2>{life.question ?? life.id}</h2>
       {life.answer && <p className="answer">{life.answer}</p>}
 
+      <div className="actions">
+        {life.status === "living" && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  life.pinned ? "unpin" : "pin",
+                  { id: life.id },
+                  life.pinned
+                    ? `unpinned ${life.id}; selection resumes`
+                    : `pinned ${life.id}; starvation and merges cannot remove it`,
+                )
+              }
+              title={
+                life.pinned
+                  ? "Return this entry to normal selection pressure"
+                  : "Exempt from starvation and merges. A pin suspends the only mechanism that removes bad memory."
+              }
+            >
+              {life.pinned ? "Unpin" : "Pin"}
+            </button>
+            <button
+              type="button"
+              className="danger"
+              disabled={busy}
+              onClick={() =>
+                act("forget", { id: life.id }, `forget ${life.id}: requested`)
+              }
+              title="Bury it now, without waiting for selection. For advice that is wrong but inert."
+            >
+              Forget
+            </button>
+          </>
+        )}
+        {/* Available for the dead too: an entry's log is most worth reading
+            once it is gone and you want to know what killed it. */}
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => go({ view: "events", query: life.id })}
+        >
+          Its events
+        </button>
+      </div>
+
+      <h3>
+        Settlements
+        <span className="count">{life.settlements.length}</span>
+      </h3>
+      {life.settlements.length === 0 ? (
+        <p className="none">
+          No settlement evidence is retained for this lesson. Missing historical
+          outcomes remain unknown.
+        </p>
+      ) : (
+        <ol className="settlements">
+          {life.settlements.map((note, index) => (
+            <li
+              key={index}
+              className={note.credit == null ? "" : note.credit < 0 ? "neg" : "pos"}
+            >
+              <span className="credit">
+                {note.credit == null ? "unknown" : `${note.credit >= 0 ? "+" : ""}${note.credit.toFixed(3)}`}
+              </span>
+              <span className="body">
+                <span>
+                  reported outcome{" "}
+                  <strong>
+                    {note.delta == null ? "unknown" : `${note.delta >= 0 ? "+" : ""}${note.delta}`}
+                  </strong>
+                  <span className="flag">{note.source ?? "unknown source"}</span>
+                  {note.source === "measured" && <span className="flag">legacy caller claim</span>}
+                  {note.deciding && <span className="flag">decided</span>}
+                </span>
+                {note.detail && <span className="detailtext">{note.detail}</span>}
+                {note.evidence ? <span className="detailtext">
+                  {note.evidence.repository ?? "Unknown repository"} · task {note.evidence.task ?? "unknown"} · run {note.evidence.run ?? "unknown"}<br />
+                  Comparison: {note.evidence.base?.slice(0, 12) ?? "unknown base"} → {note.evidence.commit?.slice(0, 12) ?? "unknown commit"}
+                </span> : <span className="detailtext">Comparison and provenance unknown.</span>}
+                <span className="meta">t{note.tick ?? "?"}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <details><summary>Advanced lesson details</summary>
       <dl className="facts">
         <div>
           <dt>id</dt>
@@ -162,92 +251,7 @@ export function Detail({
         )}
       </dl>
 
-      <div className="actions">
-        {life.status === "living" && (
-          <>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                act(
-                  life.pinned ? "unpin" : "pin",
-                  { id: life.id },
-                  life.pinned
-                    ? `unpinned ${life.id}; selection resumes`
-                    : `pinned ${life.id}; starvation and merges cannot remove it`,
-                )
-              }
-              title={
-                life.pinned
-                  ? "Return this entry to normal selection pressure"
-                  : "Exempt from starvation and merges. A pin suspends the only mechanism that removes bad memory."
-              }
-            >
-              {life.pinned ? "Unpin" : "Pin"}
-            </button>
-            <button
-              type="button"
-              className="danger"
-              disabled={busy}
-              onClick={() =>
-                act("forget", { id: life.id }, `forget ${life.id}: requested`)
-              }
-              title="Bury it now, without waiting for selection. For advice that is wrong but inert."
-            >
-              Forget
-            </button>
-          </>
-        )}
-        {/* Available for the dead too: an entry's log is most worth reading
-            once it is gone and you want to know what killed it. */}
-        <button
-          type="button"
-          className="ghost"
-          onClick={() => go({ view: "events", query: life.id })}
-        >
-          Its events
-        </button>
-      </div>
-
-      <h3>
-        Settlements
-        <span className="count">{life.settlements.length}</span>
-      </h3>
-      {life.settlements.length === 0 ? (
-        <p className="none">
-          Never settled. This entry has not yet answered a decision whose
-          outcome was measured, so it has only ever paid upkeep.
-        </p>
-      ) : (
-        <ol className="settlements">
-          {life.settlements.map((note, index) => (
-            <li
-              key={index}
-              className={(note.credit ?? 0) < 0 ? "neg" : "pos"}
-            >
-              <span className="credit">
-                {(note.credit ?? 0) >= 0 ? "+" : ""}
-                {(note.credit ?? 0).toFixed(3)}
-              </span>
-              <span className="body">
-                <span>
-                  measured delta{" "}
-                  <strong>
-                    {(note.delta ?? 0) >= 0 ? "+" : ""}
-                    {note.delta ?? 0}
-                  </strong>
-                  {note.source === "operator" && (
-                    <span className="flag operator">operator-entered</span>
-                  )}
-                  {note.deciding && <span className="flag">decided</span>}
-                </span>
-                {note.detail && <span className="detailtext">{note.detail}</span>}
-                <span className="meta">t{note.tick ?? "?"}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
+      </details>
 
       <h3>History</h3>
       <ol className="history">

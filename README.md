@@ -1,701 +1,126 @@
 # darwin-memo
 
-<!-- mcp-name: io.github.rogermsc/darwin-memo -->
+**Measured memory for coding agents.** Keep repository lessons, connect them to
+reported task outcomes, and inspect why each lesson stays or is removed.
 
-[![CI](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml/badge.svg)](https://github.com/rogermsc/darwin-memo/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/darwin-memo)](https://pypi.org/project/darwin-memo/)
-[![Python](https://img.shields.io/pypi/pyversions/darwin-memo)](https://pypi.org/project/darwin-memo/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+Start with Python projects using pytest, GitHub Actions, and an MCP client.
+The core uses only the Python standard library. MCP support is an optional extra.
 
-**Memory for LLM agents that dies unless it earns its keep.** Every
-entry pays energy upkeep and earns only from measured outcomes: bytes
-actually freed on a real disk, tests actually passing. Poisoned advice
-gets executed by the environment it damaged. Useless trivia starves.
-There is no reward model, no LLM judge, and no human curation anywhere.
+The product goal is lower total operating cost while preserving task success.
+That benefit is **not established** by the committed experiments. A smaller
+memory store or a larger energy balance is not a savings measurement.
 
-![Survival loop demo: a poisoned memory entry going extinct](https://raw.githubusercontent.com/rogermsc/darwin-memo/main/docs/assets/demo.gif)
+## See the mechanism in 60 seconds
 
-Watch a poisoned entry go extinct in your own terminal, one command,
-no keys, no checkout:
+From this reviewed checkout:
 
 ```bash
-pip install darwin-memo && darwin-memo demo
+python -m pip install -e .
+darwin-memo demo --out /tmp/darwin-demo.json
+darwin-memo ui /tmp/darwin-demo.json
 ```
 
-## When to use this (and when not)
+The demo uses a filesystem-backed simulation: file deletion uses file size, and
+protected-file recreation incurs a **modeled** penalty of three times that size.
+It does not measure restoration scratch space, I/O cost, or money. Open a lesson
+in the dashboard to inspect its settlements and removal reason.
 
-Use darwin-memo where a **conserved, measurable outcome** exists to
-settle decisions against: coding-agent lesson stores settled by CI
-pass counts (the primary target, see
-[the integration guide](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/ci-lesson-store.md)), storage
-and artifact retention, cache and dedup advisors, spend-cap automation.
+To try the coding workflow with a real failing evaluation, use the
+[fixed pytest example](examples/github-pytest/README.md). Its authentication-retry
+defect changes one fixed case from failure to success. The example demonstrates
+settlement; it does not establish that memory caused the fix.
 
-Do not use it for chat-preference memory, RAG over documentation, or
-personal assistants. Those have no conserved resource pushing back, and
-upkeep would starve the long tail of correct-but-rarely-used knowledge.
-mem0, Zep, and Letta serve that market; darwin-memo deliberately does
-not. The honest rule: if your `verify` would be a model scoring an
-answer, this package is wrong for you, by design.
+## Install the development workflow
 
-## The headline demo
-
-The demo corpus contains an ops runbook, platform notes, and one
-poisoned document: a forum post claiming database files are "redundant
-and safe to remove". Before selection pressure exists, retrieval
-confidently repeats the poison, because it has no reason to doubt it.
-
-Then 30 survival cycles run against `StorageEnv`, a disk cleanup
-sandbox where the selection signal is actual bytes on an actual disk.
-Deleting a disposable file frees its size. Deleting a protected file
-triggers a restore that costs three times the size. Nothing grades the
-answers, the filesystem just responds:
-
-```
-cycle  pop births deaths merges   energy   resource Δ   silent
-    0   16      1      1      0    15.91      -495616     0/12   <- poison being executed
-    ...
-    4   13      0      0      4    21.37       369664     0/12   <- near-duplicates merge
-    ...
-   19    5      0      7      0    15.71       507904     0/12   <- unused knowledge starves
-    ...
-   29    4      0      0      0    15.10       515072     4/12   <- stable, positive forever
-
-Poisoned entries still alive: 0
-```
-
-Three death modes show up in the graveyard, and the distinction matters:
-
-- **executed**: the poisoned entries that decided real actions. The
-  environment measured real damage and the negative delta flowed back
-  along provenance until they died. The opening cycles are the price of
-  the lesson, and the benchmarks show it is bounded.
-- **starved**: cafeteria trivia and facts the agent never needed.
-  Nothing punished them, they just never earned their upkeep.
-- **merged**: near-duplicate survivors absorbed into consolidated
-  entries. Their energy pools, their lineage is recorded, and the
-  population shrinks while capability per entry rises.
-
-## The paper
-
-**Attacking the Curator: Curation-Targeted Attacks on Agent Memory, and
-What Survives Them.** An adversary that corrupts the *settlement signal*
-rather than injecting poison — denial of memory — measured against six
-curation mechanisms across attack budgets and seeds, with exact paired
-permutation tests and Holm-Bonferroni correction.
-
-It reports its negative results as prominently as its positive ones.
-Absent an attacker the ledger buys leanness and cost, not accuracy; and
-across 2,115 evaluated SWE-Bench-CL tasks, no memory arm beat carrying no
-memory at all.
-
-- [The paper](https://github.com/rogermsc/darwin-memo/blob/main/paper/main.tex) and its
-  [threat model](https://github.com/rogermsc/darwin-memo/blob/main/docs/threat-model.md)
-- [Reproduction package](https://github.com/rogermsc/darwin-memo/blob/main/paper/reproduce.md) — every printed number is
-  re-derived from committed per-seed runs in CI, so a table that drifts
-  from its evidence fails the build
-- Cite it with the BibTeX in [Citations](#citations) below
-
-## Where it comes from
-
-A practical mix of two papers. MeMo says what memory is, the survival
-paper says what gets to stay in it.
-
-| Paper | What this repo takes from it |
-|---|---|
-| [MeMo: Memory as a Model](https://arxiv.org/abs/2605.15156) (Quek et al.) | Keep the main LLM frozen and put knowledge in a dedicated memory. The reflection-QA encoding pipeline and the three-stage query protocol (grounding, entity identification, answer seeking). |
-| [Survival is the Only Reward](https://arxiv.org/abs/2601.12310) (Dodgson et al.) | Environment-mediated selection. The only signal is a conserved, physically measurable resource delta. Behaviors that persist get reinforced, everything else is pruned. There is no proxy to hack. |
-
-```mermaid
-flowchart LR
-    subgraph encode [MeMo encoding]
-        C[Corpus] --> R[Reflection QA pipeline] --> S[(Memory store)]
-    end
-    subgraph loop [Survival loop]
-        S -->|3-stage query protocol| A[Answer + provenance]
-        A --> E[Environment acts and MEASURES]
-        E -->|resource delta along provenance| S
-        S -->|upkeep every cycle| S
-        S -->|consolidate + prune| S
-    end
-```
-
-## Using it
-
-Requires Python 3.10+. The core has zero dependencies; everything below
-runs offline.
-
-### From the demo to your own text
-
-The demo carries its own corpus. To point the same machinery at yours,
-three commands and no Python:
+The `init` and `task` commands in this checkout are unreleased. Install them from
+the reviewed checkout on Python 3.10 or later:
 
 ```bash
-darwin-memo encode notes/*.txt -o memory.json     # text -> QA entries
-darwin-memo query memory.json "Is it safe to delete old log files?"
-darwin-memo doctor memory.json                    # is this store earning?
+python -m pip install -e '.[mcp]'
 ```
 
-`encode` splits each document into self-contained QA pairs and reports
-what it made:
-
-```
-Encoded 9 entries from 2 documents -> memory.json
-      explicit: 7
-        entity: 1
-     cross_doc: 1
-```
-
-`query` answers with provenance, and stays quiet when nothing clears
-the relevance floor. Both outcomes are the point:
-
-```
-$ darwin-memo query memory.json "Is it safe to delete old log files?"
-Old log files under logs/ may be deleted after seven days.
-[recorded 2026-09-08T12:19:56+00:00; born tick 0; never settled]
-  deciding entry: [explicit] What is known about old log files under logs/ may?
-  sources: runbook
-
-$ darwin-memo query memory.json "What is the wifi password?"
-(memory is silent: no entry clears the relevance floor)
-```
-
-Nothing has died yet, because nothing has been measured yet: entries
-only start paying upkeep once you settle decisions against a real
-outcome. That is the next section. For a walkthrough on your own
-directory, including how to read a wrong-but-confident answer, see
-[`examples/09_your_own_corpus.py`](https://github.com/rogermsc/darwin-memo/blob/main/examples/09_your_own_corpus.py).
-
-### The anatomy in 30 seconds
-
-A `MemoryEntry` is a self-contained QA pair (`.question`, `.answer`,
-`.sources`, `.energy`). The store retrieves, the protocol answers with
-provenance, the environment measures, credit flows back.
-
-```python
-from darwin_memo import Document, LocalEncoder, MemoryStore, QueryProtocol
-
-store = MemoryStore(upkeep=0.05)
-notes = "Old log files under logs/ may be deleted after seven days."
-for entry in LocalEncoder().encode([Document("runbook", notes)]):
-    store.add(entry)
-
-answer = QueryProtocol(store).answer("Is it safe to delete old log files?")
-print(answer.text)             # the top entry's answer, or "" when memory is silent
-print(answer.deciding_entry)   # provenance: the id credit will flow to
-
-store.save("memory.json")
-```
-
-### Event-driven (production shape): the Ledger
-
-Real outcomes arrive late. The Ledger decouples the three moments:
-decide now, settle whenever the measurement lands, tick on your own
-cadence. Entries with unsettled tickets are escrowed: they keep paying
-upkeep but cannot be buried or merged until their verdict arrives.
-
-```python
-from darwin_memo import Ledger
-
-ledger = Ledger(store, resource_scale=2.0, event_log="events.jsonl")
-
-ticket = ledger.decide("Is the dedupe helper safe to remove?")
-# ... act on ticket.answer, CI runs, hours pass ...
-ledger.settle(ticket.id, delta=passes_after - passes_before, detail=run_url)
-ledger.tick()                        # upkeep, deaths, consolidation
-print(ledger.obituary(entry_id))     # why did this entry die?
-```
-
-### Seeing it: the local dashboard
+Build the dashboard from this checkout before packaging it:
 
 ```bash
-darwin-memo doctor memory.json     # why is nothing earning?
-darwin-memo ui memory.json         # the operator dashboard on localhost
+npm ci --prefix ui
+npm run build --prefix ui
 ```
 
-`doctor` reads the event log and names which failure mode a store hit
-instead of leaving several of them looking identical. On a store nothing
-has measured yet it says so, rather than reporting a clean bill of
-health.
+Persistence requires POSIX advisory locks on a local filesystem. Windows and
+shared network stores are unsupported; the package refuses lockless persistence.
 
-`ui` is the same data as a working surface: the living population with
-each entry's balance, runway and flags; open tickets with their ids; the
-graveyard split by cause of death, where every id opens that entry's
-whole life; the event log, filterable to one entry; and the energy
-accounting kept visibly separate from your resource unit, because the
-two are not comparable. It also writes — pin, unpin, forget, abandon,
-add, tick and settle — so the store you are reading is the store you can
-act on.
+## Connect one repository
 
-Loopback-only, and a write additionally needs a loopback `Origin`, a JSON
-content type and a per-process token embedded in the page.
+1. Run `darwin-memo init --profile github-pytest` at your repository root.
+2. Configure your MCP client using `.darwin-memo/mcp.example.json`.
+3. Add a repository lesson and query memory before a task.
+4. Bind the returned ticket to the repository, task, base commit, and fixed evaluation.
+5. Complete the task and commit the bound store with your changes.
+6. Run the generated GitHub Actions workflow against that task commit.
+7. Download its outcome artifact and carry the accepted store forward.
+8. Open the dashboard to inspect the reported outcome and retained lesson.
 
-One thing there is deliberately different in kind. Settling from a
-browser means typing a delta, and a typed number is the human judgment
-this package exists to exclude. It is not refused; it is marked. The
-event log and every per-entry note record `source: "operator"`, `why`
-and `audit` show it, and `doctor` raises `operator_settled` once
-hand-entered deltas outweigh measured ones. A store curated by hand
-keeps working and stops being evidence, visibly.
+The [GitHub pytest guide](docs/integrations/github-pytest.md) includes setup
+requirements and the [generated operating instructions](darwin_memo/data/github-pytest/.darwin-memo/README.md).
+`init` refuses overwrites and changes no global agent settings. The recommended
+MCP configuration exposes query, add, and inspection while reserving settlement
+and retention mutations for the host. It reduces accidental self-awarded credit;
+it does not protect against a malicious actor with write access to the store,
+evaluation, or workflow.
 
-From a source checkout the dashboard needs building once
-(`cd ui && npm install && npm run build`); released wheels ship it.
+The workflow compares the **same base evaluation** at both commits. Added passing
+tests earn no credit. Green-to-green results earn zero. Missing observations or
+infrastructure failures abstain and leave the ticket pending. Bound settlements
+record repository, task, commit, run, evaluation fingerprint, and report hashes.
+Process one task at a time: independent Git snapshots do not merge.
 
-### Batch (research shape): the SurvivalLoop
+## Understand retention
 
-```python
-from darwin_memo import StorageEnv, SurvivalConfig, SurvivalLoop
+A query retrieves lessons and opens a ticket. A later outcome moves the consulted
+lessons' bounded energy balances. Ticks charge upkeep; entries that reach the
+floor are removed, and similar entries can merge. Pinning exempts a lesson from
+removal and consolidation. [The glossary](docs/glossary.md) explains the terms.
 
-loop = SurvivalLoop(store, StorageEnv(), config=SurvivalConfig(cycles=30))
-report = loop.run()
-print(report.summary())   # includes per-cycle silence counts and a
-                          # plain-language warning if the run is degenerate
+Settlement **associates** outcomes with consulted lessons. It does not establish
+causation. Passing tests are observable outcomes, not physically conserved
+resources. `ci`, `operator`, and `agent` identify reporting paths. Historical
+`measured` labels are caller claims; absent provenance is unknown. None of these
+labels authenticates a report by itself.
 
-store.save("memory.json")  # survivors only carry forward
-```
+CLI, dashboard, and MCP mutations lock the full load–modify–save operation. MCP
+reloads on each call, cached embeddings survive unrelated writes, and stale
+Python writers are rejected. Retry the whole operation after contention. See
+[the store format](docs/store-format.md) and [API reference](docs/api.md).
 
-### MCP server: mount it into an agent
+## Inspect the evidence
+
+| Question | Evidence | What it supports |
+|---|---|---|
+| What happens under corrupted feedback? | [Central attack-table reconstruction](paper/reproduce.md), [committed observations](bench/results/adversary.json) | A controlled simulated comparison with a modeled restoration penalty, including failure boundaries |
+| Does a tuned counter compete? | [Counter sweep](bench/results/counter_sweep.json), [paper](paper/sections/experiments.tex) | Negative findings for universal superiority; tuned forgiveness can retain useful memory under small attack budgets |
+| Does memory reduce total coding cost while preserving success? | [Prospective protocol](docs/research/measured-memory-protocol.md) | An unanswered question; historical results lack the required complete cost comparison and noninferiority evidence |
+| Can users complete and retain the workflow? | [Pilot and release record](docs/release-readiness.md) | Pending external observation; no fabricated adoption counts |
+
+Reconstruct the paper's central table without an installation or network:
 
 ```bash
-pip install "darwin-memo[mcp]"
-claude mcp add darwin-memo -- darwin-memo-mcp --memory ~/.darwin-memo/memory.json
+python tools/reconstruct_paper.py
 ```
 
-The agent gets fourteen tools, in three groups.
-
-**Use it.** `memory_query` returns an answer, a ticket id, and the
-entry ids credit will flow to. `memory_settle` reports the measured
-delta later, and says plainly when a settlement did NOT land.
-`memory_abandon` releases a ticket you chose not to act on.
-`memory_add` writes a lesson. `memory_tick` advances time.
-
-**Inspect it.** `memory_stats` for the population, `memory_top` for
-what the memory is made of, `memory_pending` for open tickets *with
-their ids*, `memory_obituary` for one entry's credit history,
-`memory_audit` for the event log, and `memory_doctor` to name the
-failure mode behind a store that is not earning.
-
-**Curate it.** `memory_forget` buries a lesson that is wrong but inert
-— selection only removes what it measures, so an entry nothing acts on
-never gets settled and starves only slowly. `memory_pin` and
-`memory_unpin` exempt an entry from starvation and merges; pin
-sparingly, since a pin suspends the only mechanism that removes bad
-memory.
-
-The full state, including open tickets, persists across sessions and
-restarts, so a ticket opened today settles correctly from tomorrow's
-process.
-
-### Fully local with Ollama (zero dependencies, zero cloud)
-
-The Ollama client and embedder speak the native localhost API over
-stdlib `urllib`, so the complete stack (encoding, the 3-stage protocol,
-real embeddings, the measuring environment) runs on one machine with no
-third-party packages and no keys:
-
-```python
-from darwin_memo import (
-    EmbeddingRetriever, MemoryStore, OllamaClient, OllamaEmbedder,
-    QueryProtocol, ReflectionEncoder,
-)
-
-chat = OllamaClient(model="llama3.2")          # any local model
-store = MemoryStore(retriever=EmbeddingRetriever(OllamaEmbedder()))
-encoder = ReflectionEncoder(chat)
-protocol = QueryProtocol(store, chat)
-```
-
-`examples/07_local_stack.py` runs it end to end, and
-`darwin-memo query memory.json "..." --model ollama:llama3.2` does it
-from the shell. The selection loop is call-hungry (cycles x tasks), so
-free local inference is what makes LLM-mode experiments economically
-sane; `python -m bench.run --suite llm` is the at-home recipe for the
-LLM-mode benchmark question the docs flag as open. The survival
-mechanics stay deterministic; the sampled model does not, which is why
-that suite never runs in CI.
-
-### With a cloud LLM
-
-`pip install "darwin-memo[anthropic]"` and set `ANTHROPIC_API_KEY`; the
-examples pick it up automatically.
-
-```python
-from darwin_memo import ReflectionEncoder, QueryProtocol
-from darwin_memo.llm import AnthropicClient
-
-client = AnthropicClient()                  # or OpenAICompatClient(model=..., base_url=...)
-encoder = ReflectionEncoder(client)         # 5-step reflection QA synthesis
-protocol = QueryProtocol(store, client)     # grounding -> entities -> answer seeking
-```
-
-In any LLM mode the memory snippets are numbered and the model cites
-which it used, so credit flows to the entries that actually shaped the
-answer (even spread over everything consulted is the fallback, and
-`<think>` blocks from reasoning models are stripped before citations
-are parsed).
-
-## Bring your own selection pressure
-
-The environment is the whole trick, and yours is probably better than
-the demos. Implement two methods, and keep the one rule: `verify` must
-measure, never grade.
-
-```python
-from darwin_memo import Outcome, Task, decision_polarity
-
-class BudgetEnv:
-    resource_scale = 100.0
-
-    def tasks(self, cycle):
-        # Each Task needs a prompt and a context dict (yours to fill).
-        return [Task(prompt="Is the paymentsly plan safe to cancel?", context={})]
-
-    def verify(self, task, answer_text):
-        act = decision_polarity(
-            answer_text,
-            extra_positive=("safe to cancel",),
-            extra_negative=("do not cancel", "keep paying"),
-        )
-        if not act:
-            return Outcome(delta=0.0, detail="kept")
-        return Outcome(delta=dollars_saved, detail="cancelled")
-```
-
-Good conserved resources: tests passing, bytes freed, requests served
-under budget, rows deduplicated, dollars of spend avoided. Bad ones:
-anything a model scored.
-
-### Make it work on the first try
-
-Three silent failure modes catch every new environment, and they all
-end the same way (the whole population starving around cycle 20 with
-every delta at zero). The loop's summary now warns about each, but know
-them up front:
-
-1. **The action vocabulary.** `decision_polarity`'s built-in markers
-   speak delete/remove and apply/keep, the bundled environments'
-   dialects. "Safe to cancel" reads as silence unless you pass
-   `extra_positive`/`extra_negative` markers for your verbs.
-2. **The relevance floor.** Retrieval mutes entries whose lexical
-   overlap with the task is below `LexicalRetriever(min_coverage=0.25)`.
-   Your task phrasing must share vocabulary with your corpus, or use an
-   embedding retriever. Silence beats guessing, but silence earns zero.
-3. **The starvation cliff.** Entries spawn at 1.0 energy and pay 0.05
-   upkeep, so a population that never earns dies at cycle ~20. If
-   everything dies at once around there, your environment never paid
-   out: check 1 and 2.
-
-Two more failure modes, how to pick a conserved resource, how to price a
-mistake from a real cost, and how to table-test `verify` before running
-any loop are in
-**[docs/custom-environments.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/custom-environments.md)** — the full
-guide this section condenses, with two worked environments to read.
-
-## Retrieval modes
-
-Retrieval is pluggable through the `Retriever` protocol; the store stays
-the single owner of the energy ledger, and no retriever may read energy
-when scoring (selection pressure comes from outcomes, never from
-retrieval preferring incumbents).
-
-```python
-from darwin_memo import EmbeddingRetriever, HashingEmbedder, MemoryStore
-
-store = MemoryStore()                                  # lexical IDF, the default
-store = MemoryStore(retriever=EmbeddingRetriever(HashingEmbedder()))
-store = MemoryStore(retriever=EmbeddingRetriever(my_model.encode))
-```
-
-- **Lexical (default)**: smoothed IDF overlap with a relevance floor.
-  Zero dependencies, deterministic, fine for runbook-scale corpora.
-- **HashingEmbedder**: zero-dependency character n-gram hashing. Buys
-  typo and morphology robustness ("databse" still finds database
-  entries), not synonym recall.
-- **Any real embedding**: pass any `text -> list[float]` function
-  (sentence-transformers, an API endpoint). Vectors persist inside
-  `memory.json` so paid embeddings are never recomputed on load.
-
-Honest scaling note: ranking is pure-Python O(population x dims), fine
-to a few thousand entries. Past that you want numpy or an ANN index,
-which is out of scope for the zero-dependency core. With cosine
-retrievers, raise `merge_threshold` to roughly 0.85 or unrelated
-entries will consolidate.
-
-### Temporal awareness
-
-Survival selection culls a stale entry only after it causes damage, so
-every consult surface carries the time dimension instead of waiting for
-the world to hurt:
-
-- Surfaced answers carry an age line per entry: UTC timestamp when
-  recorded, born tick, last settled tick. Entries persisted before
-  timestamps existed render as "age unknown" rather than faking a date.
-- When retrieval returns near-duplicate entries (the same similarity
-  machinery and threshold consolidation uses), nothing is silently
-  preferred: the group surfaces together, each entry with its dates,
-  newest first, marked as conflicting/overlapping advice. Mechanical
-  throughout, no LLM judges anything.
-- Recency-weighted ranking is opt-in: pass a half-life in ticks
-  (`store.retrieve(..., half_life=20)`, `--half-life 20` on `query` and
-  `ledger decide`, `half_life` on the MCP `memory_query` tool) and
-  scores halve for every half-life since an entry last settled. A pure
-  ranking concern: balances and credit assignment never see it.
-- `kind` and `source` filters (`--kind`, `--source`) narrow the
-  candidate population before ranking and compose with everything
-  above.
-
-## Benchmarks
-
-Survival is benchmarked against five baselines across 10 seeds, with
-ablations and a scaling probe, all reproducible offline from `bench/`.
-The sharpest comparison is `random_matched`: identical per-cycle
-eviction counts, random victims.
-
-| arm | kill rate | kill cycle (med) | damage before kill | tail delta | cum delta |
-|---|---|---|---|---|---|
-| survival | 1.00 | 0 | -394k | +437k | +12.6M |
-| random_matched | 0.80 | 19 | -10.7M | +38k | -7.67M |
-| keep_everything | 0.00 | never | -12.1M | -236k | -9.08M |
-
-(Rounded from the full tables; regenerate both with the commands in the
-benchmarks doc, and if the numbers ever disagree, the generated doc
-wins.)
-
-Same pruning rate, 27x the damage, runs that end 7.7M underwater:
-outcome direction is the active ingredient, not eviction itself. The
-harness also runs the baseline that keeps us honest:
-`evict_on_negative`, a one-line "evict whatever erred" heuristic, ties
-survival on outcomes in this deterministic environment (officially: a
-paired permutation test cannot tell them apart); the ledger's measured
-edge here is leanness (4 surviving entries vs 15).
-
-Forgiveness is no longer asserted, it is measured: a noisy suite makes
-measurements lie deterministically and scores everyone on the truth. At
-5% flaky-CI noise (good changes reporting red), survival's true
-outcomes are byte-identical to its noise-free run in every seed (29 of
-30 seeds at 10-20%) while every strike counter collapses (k=1 loses
-essentially all benign capability by 5%; the strongest variant,
-strikes-reset-on-success, halves by 10%; every gap holds at adjusted
-p < 0.005). The suite also publishes the costs: lying rewards delay the
-poison's execution (median kill cycle 0 to 3 as symmetric noise rises
-to the half-lies extreme, where 2 of 30 seeds never kill it), and past
-roughly one lie in three the ledger itself degrades hard, benign
-capability down to 0.26 at 50%.
-A paraphrase probe set, scored by provenance rather than keywords,
-quantifies how the demo degrades outside its own vocabulary, and an
-embedding-retriever arm shows the mechanism does not depend on the
-lexical-match path. Full tables, every baseline's best metric stated
-plainly, and honest caveats: [docs/benchmarks.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/benchmarks.md).
-
-## Integrations
-
-- **[CI lesson store](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/ci-lesson-store.md)**: the
-  primary production shape, lessons settled by CI pass deltas. This
-  repo runs it on itself: `.darwin-memo/lessons.json` is curated by
-  `memory.yml` on every merged PR.
-- **[AGENTS.md / CLAUDE.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/agents-md.md)**:
-  the cross-tool memory convention has no schema, no expiry and no pruning —
-  files only grow. `darwin-memo render` projects a store that *has* been
-  pruned by measured outcomes into the file your agent already reads.
-- **[Claude Code](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/claude-code.md)**: `darwin-memo
-  render` projects the store into the auto-memory `MEMORY.md` Claude
-  Code reads at session start, inside its 200-line / 25KB ceiling, or
-  into an index plus topic files with `--split-dir`.
-- **[OpenClaw](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/openclaw.md)**: mount over MCP, or
-  claim the memory slot with
-  [openclaw-memory-darwin](https://github.com/rogermsc/openclaw-memory-darwin):
-  measured (not self-reported) settlement from `agent_end` outcomes.
-- **[OpenAI Agents SDK](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/openai-agents.md)**: a
-  dependency-free `DarwinMemoSession` implements the SDK's Session
-  protocol (transcript replay as honest JSONL) and adds the long-term
-  layer the SDK leaves vacant: opt-in `consult`/`settle` against a
-  lesson store, deltas always measured by the host.
-- **[Hermes](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/hermes.md)**: Hermes models run through
-  the Ollama client (think-blocks handled), and Hermes Agent mounts the
-  MCP server natively.
-- **[Animoca Minds / EVM](https://github.com/rogermsc/darwin-memo/blob/main/docs/integrations/animoca-minds.md)**: the
-  generic settler is built in (`EvmSettler`, zero dependencies):
-  on-chain balance deltas and gas are judge-free settlement signals,
-  readable with no API key (the snapshot flow needs no archive node;
-  the module docstring names public endpoints that lie about
-  history).
-
-## Organic memory (experimental, opt-in)
-
-An adaptive, brain-like layer, complete through Phase 4: memories connected by
-relevance-weighted links, shrinking to a gist when unused and expanding to full
-detail on recall, with a recall spreading one hop and strengthening the links it
-travels — all on earned/measured signals, **no judge**. `OrganicMemory(store)`
-is the facade; `store_related(store, entry_id, k)` is the one-shot primitive.
-
-Phases 1–3 are additive and read-only with respect to survival: relatedness is
-mechanical cosine, value is still earned by the ledger. Phase 4 (earned
-importance) is the exception and is **opt-in** — it biases ranking by default,
-and slows upkeep only if you pass `om.upkeep_scale()` to `charge_upkeep`. That
-makes usage a retention signal, which this repo's own `salience_matched` arm
-measured at a 0.20 poison kill rate against random eviction's 0.80; read
-[docs/organic.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/organic.md) before wiring it. Zero-dependency by
-default; `pip install darwin-memo[organic]` adds a turbovec ANN backend for
-scale.
-
-## Documentation
-
-The [docs index](https://github.com/rogermsc/darwin-memo/blob/main/docs/README.md) links everything. The operator set:
-the [tuning guide](https://github.com/rogermsc/darwin-memo/blob/main/docs/tuning.md) (the load-bearing knobs, failure
-symptoms, evidence-backed starting points per profile), the
-[API reference](https://github.com/rogermsc/darwin-memo/blob/main/docs/api.md) (Python surface, CLI, MCP tools,
-exceptions), and the [store format](https://github.com/rogermsc/darwin-memo/blob/main/docs/store-format.md) (the
-on-disk JSON, the event log and its rotation, the sidecars, the
-compatibility policy).
-
-## More examples
-
-```bash
-git clone https://github.com/rogermsc/darwin-memo && cd darwin-memo && pip install -e .
-
-python examples/01_encode_memory.py    # corpus -> reflection-QA memory
-python examples/02_query_protocol.py   # interrogate it, with provenance
-python examples/03_survival_loop.py    # the headline demo
-python examples/04_agent_loop.py       # memory as a tool in an agent loop
-python examples/05_testsuite_env.py    # selection pressure from a test suite
-python examples/06_ci_lesson_store.py  # the Ledger settling lessons by CI delta
-python examples/07_local_stack.py      # the whole stack on Ollama, no cloud
-python examples/08_evm_settler.py      # on-chain balance deltas as the signal
-python examples/09_your_own_corpus.py  # your documents instead of the demo's
-```
-
-`09` is the one to read when the demo works and your own files do not:
-it takes a directory, and it shows the retrieval floor rejecting a
-question phrased in structural words rather than hiding it.
-
-Five environments ship. Three measure a resource: `StorageEnv` (bytes
-on a real disk), `TestSuiteEnv` (passing tests in a generated
-micro-project, with destructive patches dressed as cleanup), and
-`VerifiableQAEnv` (exact containment, the weakest grounding but still a
-measurement). Two price *inaction*, which the other three score at
-zero: `RentedStorageEnv` and `RentedTestSuiteEnv` charge for holding on
-rather than only for acting, because several conclusions here rest on
-inaction being free and that is a property of the world, not of
-curation.
-
-Writing your own is the load-bearing task, and it has a guide:
-[docs/custom-environments.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/custom-environments.md).
-
-To distill survivors into an actual parametric memory model (MeMo's
-native form), `training/train_memory_model.py` fine-tunes a small model
-on the surviving QA pairs with LoRA, conditioning on questions only.
-
-The `distill` benchmark arm (`python -m bench.run --suite distill`,
-opt-in, needs `torch`/`transformers`/`peft`/`datasets`) turns this into
-measured evidence: it distills the energy-ledger **survivor** set, the
-unfiltered **raw** set, and the LLM-**judge**-kept set into separate LoRA
-models and scores each by containment — `good_recall` (does the model
-recall the surviving facts?) and `poison_reproduction` (does it emit the
-buried poison?). The result is survival selection working as a data
-filter for parametric memory: the survivor-distilled model recalls the
-good facts and reproduces **none** of the poison, while the raw-distilled
-model reproduces it — because the poison was in its training set. See
-[docs/benchmarks.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/benchmarks.md#parametric-memory-distillation-as-a-data-filter).
-
-## Design notes
-
-- **Energy ledger**: entries spawn at 1.0 energy, pay 0.05 upkeep per
-  cycle, earn `0.6 * tanh(delta / resource_scale)` when they decide a task
-  (supporting entries get 25% of that), and are capped at 5.0. Death is at
-  zero. All tunable via `MemoryStore` and `SurvivalConfig`.
-- **Credit flows along provenance.** Only the entries that produced an
-  answer are touched by its outcome. In LLM mode, citations name them.
-  Per-event credit is bounded (tanh-capped at ±credit_gain), so what
-  keeps one disaster from executing an entry that was right ninety-nine
-  times is the accumulated energy buffer plus earn-back, and one
-  jackpot cannot make an entry immortal. The noisy benchmark suite
-  measures exactly this property; honest detail: on that benchmark the
-  buffer does the forgiving, not the grading curve (capped deciders
-  clip incoming credit, so even large lies change nothing).
-- **Memory silence is a feature.** Retrieval has a relevance floor, and an
-  earlier version of this repo demonstrated why: entries matching only
-  structural tokens ("safe", "file") were deciding questions they knew
-  nothing about, getting executed for it, and being reborn. Better for
-  memory to say nothing than to guess.
-- **Silence is conservative.** When memory is silent, `StorageEnv` keeps
-  the file: the safe reading of an irreversible action. A side effect
-  worth knowing: protective knowledge ("never delete X") eventually
-  starves because it is redundant with that default. The population
-  converges to exactly the knowledge that changes behavior.
-- **Escrow keeps delayed verdicts honest.** Ledger entries named by an
-  unsettled ticket cannot be buried or merged, so an outcome can never
-  arrive after the execution. Unsettled tickets expire at delta zero.
-
-The full concept-to-code mapping, including honest deviations from both
-papers, is in [docs/paper-to-code.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/paper-to-code.md). The story
-of why this exists: [docs/launch-post.md](https://github.com/rogermsc/darwin-memo/blob/main/docs/launch-post.md).
-
-## Tests
-
-```bash
-pip install -e ".[dev]"
-pytest
-```
-
-The load-bearing tests: poisoned advice must die and useful advice must
-survive across seeds and across two environment families, ledger
-escrow must hold verdicts open, and hypothesis property tests pin the
-conservation laws (energy pools exactly on merge, caps hold, retrieval
-never reads energy), all with no labels anywhere.
-
-## Citations
-
-To cite darwin-memo itself, or the paper it ships:
-
-```bibtex
-@software{simoes2026darwinmemo,
-  title  = {darwin-memo: self-curating memory for LLM agents},
-  author = {Sim\~oes, Roger},
-  year   = {2026},
-  url    = {https://github.com/rogermsc/darwin-memo}
-}
-
-@misc{simoes2026attacking,
-  title  = {Attacking the Curator: Curation-Targeted Attacks on Agent
-            Memory, and What Survives Them},
-  author = {Sim\~oes, Roger},
-  year   = {2026},
-  url    = {https://github.com/rogermsc/darwin-memo/blob/main/paper/main.tex}
-}
-```
-
-Both entries are provisional: there is no archival deposit yet, so
-neither carries a DOI. `CITATION.cff` is the machine-readable version and
-says the same thing.
-
-This repo is an independent practical interpretation, not the official
-code of either source paper. If you build on the ideas, cite the
-originals too:
-
-```bibtex
-@misc{quek2026memo,
-  title  = {MeMo: Memory as a Model},
-  author = {Quek, Ryan Wei Heng and Lee, Sanghyuk and Leong, Alfred Wei Lun and
-            Verma, Arun and Prakash, Alok and Chen, Nancy F. and
-            Low, Bryan Kian Hsiang and Rus, Daniela and Solar-Lezama, Armando},
-  year   = {2026},
-  eprint = {2605.15156},
-  archivePrefix = {arXiv},
-  url    = {https://arxiv.org/abs/2605.15156}
-}
-
-@misc{dodgson2026survival,
-  title  = {Survival is the Only Reward: Sustainable Self-Training Through
-            Environment-Mediated Selection},
-  author = {Dodgson, Jennifer and Alhajir, Alfath Daryl and Joedhitya, Michael and
-            Pattirane, Akira Rafhael Janson and Kumar, Surender Suresh and
-            Lim, Joseph and Peh, C.H. and Ramdas, Adith and Zhexu, Steven Zhang},
-  year   = {2026},
-  eprint = {2601.12310},
-  archivePrefix = {arXiv},
-  url    = {https://arxiv.org/abs/2601.12310}
-}
-```
-
-## License
-
-MIT
+The paper, *Attacking the Curator*, focuses on the feedback-corruption threat
+model, curator comparisons, and a reusable reproduction artifact. Historical
+replays remain replays. Read the [claim audit](paper/claim-audit.md),
+[reproduction paths](paper/reproduce.md), and [submission status](paper/submission-notes.md).
+
+## Limitations and participation
+
+Memory can be harmful, useful lessons can starve, and an attacker who controls
+enough outcome reports can control retention. A fixed evaluation can still be
+incomplete or gameable. [The threat model](docs/threat-model.md) defines the boundary.
+If no memory performs best in the cost study, the release will report that result.
+
+Other [integrations](docs/README.md) remain available; the GitHub pytest profile
+is the supported first-release path. Report setup failures with the
+[diagnostic issue template](.github/ISSUE_TEMPLATE/setup-failure.yml), or choose a
+[bounded contributor task](CONTRIBUTING.md). Release promotion, participant
+contact, paid experiments, and submission remain separate authorized actions.

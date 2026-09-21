@@ -90,17 +90,9 @@ which is what keeps paid embeddings from being recomputed on every
 load. Loading hands the state to whatever retriever you construct,
 and saving writes whatever the CURRENT retriever dumps.
 
-A sharp edge, documented plainly: the CLI and the MCP server cannot
-construct your embedder, so they always load with the lexical
-retriever, which discards the persisted state. Their read-only
-commands (`query`, `stats`, `top`, `why`, `audit`, `render`) are safe;
-any MUTATING operation (`ledger` ops, `settle-ci`, every MCP tool
-call) re-saves the file without the `retriever` key, and the paid
-vectors are gone. The entries themselves are untouched, and the
-vectors are recomputed (at embedding cost) the next time an
-`EmbeddingRetriever` sees the store. Until this is fixed, do not point
-CLI or MCP writers at a store whose vectors cost real money; settle
-those from Python with the retriever passed to `Ledger.load`.
+CLI and MCP operations rank lexically when no embedder is supplied, but retain
+cached embedding state across unrelated writes. Supplying an embedding retriever
+restores those vectors. Burial removes the buried entry's cached vector.
 
 ### `ledger`
 
@@ -135,6 +127,9 @@ those from Python with the retriever passed to `Ledger.load`.
   as unknown (`null` in JSON output), never crash.
 - `damaged`: ids of entries that ever received negative credit, used
   to distinguish `executed` from `starved` at burial.
+- `settled_runs`: durable repository/run identities and evidence for bound
+  outcomes. Missing historical records remain unknown. These records are not
+  capped with lesson history, so history rotation cannot permit duplicate runs.
 
 A file with no `ledger` key loads as a `Ledger` with fresh state
 (tick zero, no tickets), so upgrading from plain `MemoryStore`
@@ -150,28 +145,16 @@ harmless and it will be overwritten by the next save.
 
 ## The lock sidecar (`NAME.lock`)
 
-Since 0.5.0, every save and load holds an advisory `fcntl.flock`
-(exclusive, non-blocking) on a sidecar file named after the store
-(`memory.json.lock`). If the lock is already held, the operation
-raises `StoreLockedError` immediately: no blocking, no waiting, no
-merge.
-
-Plain facts, because this is a trust surface:
-
-- **darwin-memo is single-writer by contract**, and the lock does not
-  change that. It turns one overlap failure mode (two operations
-  clobbering each other silently, last writer wins) into a loud
-  error. It cannot catch the other one: process A loads, process B
-  loads and saves, process A saves stale state over it. Serialize
-  your writers; the lock is a tripwire, not a coordinator.
-- **POSIX only.** On Windows the `fcntl` import fails and the lock
-  degrades to a no-op, which is exactly the lockless behavior of
-  every release before 0.5.0.
-- The sidecar is a zero-length file and is **never unlinked**
-  (removing it would race a concurrent acquisition onto a dead
-  inode). It is safe to gitignore; this repo ignores `*.json.lock`.
-- The lock is held only for the duration of one save or load, never
-  across a decide/settle span.
+Persistence requires POSIX advisory locking on a local filesystem. CLI,
+MCP, and dashboard mutations lock the complete load–modify–save operation.
+MCP reloads on every call. Contending operations raise `StoreLockedError`;
+retry the whole operation. Nested calls in one thread reuse the lock.
+Direct Python writers also reject a save if the loaded file changed.
+For Python operations, hold `store_lock(path)` across load, mutation, and save.
+Do not share writable snapshots across machines or network filesystems.
+Platforms without `fcntl` refuse persistence instead of writing without a lock.
+The zero-length lock sidecar is never removed. A lock does not span a task's
+query-to-settlement interval; the persisted ticket spans that interval.
 
 ## The event log (`NAME.events.jsonl`)
 
@@ -208,13 +191,15 @@ and fall outside any `--since` window. Per-kind payload fields:
 | `admission_denied` | `entry` (a juvenile decider took a negative measured outcome; its balance is zeroed) |
 | `tick` | `population`, `deaths`, `merges`, `pending`, `expired`, `total_energy`, `dead_entries`, `upkeep_charged` |
 
-`settle.source` says where the delta came from: `"measured"` for a real
-measurement, `"operator"` for one a person typed into the dashboard.
-Records written before the field existed have no `source` and are read
-as `"measured"`, since nothing else could write one at the time. The
-distinction is load-bearing: `doctor` raises `operator_settled` when
-hand-entered deltas outweigh measured ones, because a store curated by
-hand is no longer being selected by a conserved resource.
+`settle.source` identifies the reporting path: `ci`, `operator`, `agent`, or
+`unknown`. Historical `measured` values are caller claims, not independently
+verified observations. Missing source or evidence is unknown. Optional
+`evidence` stores repository, task, base/head commits, run identity, evaluation
+fingerprint, and report hashes. These fields are not cryptographic attestation.
+`doctor` flags settlements without CI provenance. CI alone does not prove causation.
+Pending tickets can carry an optional `binding`; old tickets remain readable.
+Abandonment and expiry record `abandon` and `expired` events, respectively;
+neither is an observed zero-improvement outcome or increments lesson usage.
 
 `tick.upkeep_charged` is what makes the economics report exact rather
 than estimated: `economics()` switches between the two on whether every
