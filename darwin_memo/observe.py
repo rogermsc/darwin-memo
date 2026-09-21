@@ -734,9 +734,8 @@ def _operator_findings(events: list[dict[str, Any]]) -> list[Finding]:
     settles = [e for e in events if e.get("event") == "settle"]
     if not settles:
         return []
-    # Absent means "measured": every settle written before the source field
-    # existed came from a measurement, since nothing else could write one.
-    operator = [e for e in settles if e.get("source", "measured") != "measured"]
+    # Historical labels do not authenticate their producer.
+    operator = [e for e in settles if e.get("source", "unknown") != "ci"]
     if not operator:
         return []
     share = len(operator) / len(settles)
@@ -748,17 +747,16 @@ def _operator_findings(events: list[dict[str, Any]]) -> list[Finding]:
             severity="warn",
             summary=(
                 f"{len(operator)} of {len(settles)} settlements in this window "
-                f"carried a hand-entered delta ({share:.0%})"
+                f"lack CI provenance ({share:.0%})"
             ),
             evidence=(
-                "settle events with source != 'measured'; total hand-entered "
+                "settle events without CI provenance; total reported "
                 f"delta {sum(float(e.get('delta', 0) or 0) for e in operator):+g}"
             ),
             fix=(
-                "these entries were selected by a person, not by a conserved "
-                "resource. Point settle at a real measurement (CI pass counts, "
-                "bytes freed) before treating this store's survivors as "
-                "evidence of anything"
+                "Inspect each settlement source and comparison. Agent, operator, "
+                "legacy measured, and unknown values are not independently "
+                "verified. CI provenance alone does not establish causation."
             ),
         )
     ]

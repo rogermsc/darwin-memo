@@ -75,7 +75,7 @@ the model sees stays under the host's control.
 ## Honest scope
 
 - The adapter never invents deltas. `settle` carries a measurement the
-  host made of a conserved resource; passing a quality score, a vibe,
+  host reports from an observable outcome; passing a quality score, a vibe,
   or an LLM's opinion destroys the no-judge property and everything
   downstream of it.
 - Settlement is host-discretionary in this shape: the app must

@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from darwin_memo.llm import THINK_RE
@@ -44,6 +45,7 @@ class EndpointConfig:
     temperature: float = 0.0
     max_tokens: int = 1024
     timeout: float = 600.0
+    audit_path: str | None = None
     retries: int = 3  # transient connection failures only; HTTP errors are real
 
 
@@ -52,6 +54,7 @@ class ChatEndpoint:
 
     def __init__(self, config: EndpointConfig) -> None:
         self.config = config
+        self.calls: list[dict[str, Any]] = []
 
     def complete(self, prompt: str, system: str = "") -> str:
         config = self.config
@@ -81,13 +84,26 @@ class ChatEndpoint:
         attempts = max(1, config.retries)
         last_transient: Exception | None = None
         for attempt in range(attempts):
+            started = time.perf_counter()
+            record: dict[str, Any] = {
+                "attempt": attempt + 1,
+                "usage": None,
+                "model": config.model,
+                "status": "failed",
+            }
+            self.calls.append(record)
             try:
                 with urllib.request.urlopen(
                     request, timeout=config.timeout
                 ) as response:
-                    return _content_of(
-                        json.loads(response.read().decode("utf-8")), config
+                    result = json.loads(response.read().decode("utf-8"))
+                    record.update(
+                        usage=result.get("usage"),
+                        model=result.get("model", config.model),
+                        response_id=result.get("id"),
+                        status="received",
                     )
+                    return _content_of(result, config)
             except urllib.error.HTTPError as error:
                 if error.code < 500:
                     body = error.read().decode("utf-8", errors="replace")
@@ -99,6 +115,13 @@ class ChatEndpoint:
                 last_transient = error  # 5xx: server-side, retry
             except (urllib.error.URLError, TimeoutError) as error:
                 last_transient = error
+            finally:
+                record["latency_s"] = time.perf_counter() - started
+                if config.audit_path:
+                    audit = Path(config.audit_path)
+                    audit.parent.mkdir(parents=True, exist_ok=True)
+                    with audit.open("a") as stream:
+                        stream.write(json.dumps(record) + "\n")
             if attempt < attempts - 1:
                 time.sleep(2.0 * (attempt + 1))
         raise EndpointError(

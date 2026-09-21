@@ -119,7 +119,7 @@ class MemoryEntry:
 class Outcome:
     """What the environment reports after a task is acted on.
 
-    ``delta`` is a change in a conserved, externally measurable resource
+    ``delta`` is a reported change in an externally observable outcome
     (bytes freed, tests passing, budget remaining). It is the outcome
     itself, never a model's opinion of the outcome. This is the survival
     paper's central design constraint and the reason proxy optimization

@@ -276,7 +276,7 @@ What is evidence-backed in that table and what is not:
   factor-of-four insensitivity around the right scale (25k vs 100k
   identical) suggests you need the right order of magnitude, not the
   right number. And check the fit first: darwin-memo needs a
-  conserved, measurable outcome to settle against. Chat preferences
+  stable, observable outcome to settle against. Chat preferences
   and RAG-over-docs have none, upkeep will starve the long tail, and
   the README says not to use it there.
 

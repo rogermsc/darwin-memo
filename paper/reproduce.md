@@ -4,9 +4,8 @@ This package reproduces the evidence behind the paper
 (`paper/main.tex`, *Attacking the Curator*). The superseded v0.5.1
 technical report is kept at
 `docs/research/2026-06-13-conserved-resource-selection-report.md` and is
-not checked. The verification path is offline by default: it
-checks the committed per-seed result JSON against the manifest, with no
-model and no network.
+not checked. The primary offline path reconstructs the central attack table and the counter-sweep table from the committed
+per-seed results, with no model or network.
 
 The evidence was **not all produced by one release**. `0.5.1` is the
 release the earliest committed suites were cut against, and the package
@@ -14,8 +13,7 @@ was originally written around it, but result files have been regenerated
 and added since — one (`neighbours.json`) after `0.6.0`. There is
 therefore no single version to install that reproduces everything, which
 is why the per-file `source_commit` in the manifest is the binding that
-matters and the version pin below is a convenience for the offline check
-rather than a route to byte-exact numbers.
+matters. The offline reconstruction runs directly from the checkout.
 
 ## What is frozen
 
@@ -252,96 +250,39 @@ or the tree it was run from if it is — and say which in
 `source_commit_note`. `_git_commit()` records the generating machine's
 `HEAD`, which is a starting point and not the answer.
 
-## The exact commands
+## Offline central-table reconstruction
 
-The one-shot package script does steps 1 to 4 below:
-
-```bash
-bash paper/reproduce.sh
-```
-
-Run it from the repository root (the directory that contains `bench/`).
-
-### 1. Environment and install
-
-darwin-memo requires Python 3.10 or newer. `python3` is 3.9 on a stock
-macOS and on several LTS distributions; point the script at a newer
-interpreter rather than the default:
+Run from the repository root with Python 3.10 or later. No installation, model,
+or network is required:
 
 ```bash
-PYTHON=python3.12 bash paper/reproduce.sh
+python tools/reconstruct_paper.py
 ```
 
-The script checks this first and says so plainly. Skipping the check
-produces a pip resolution error that reads like a broken package instead
-of an old interpreter.
+Alternatively, run `PYTHON=python3.12 bash paper/reproduce.sh`. The script
+reconstructs all 35 cells of the central attack table from 1,050 committed rows,
+checks seed membership, compares the rounded values with the printed TeX, and
+prints the input SHA256. Expect seconds of local runtime and no API cost.
+This reconstructs published observations; it does not rerun their producer.
 
-```bash
-python3 -m venv .venv-reproduce
-source .venv-reproduce/bin/activate
-python -m pip install --upgrade pip
-# Enough to run the offline --check over every committed file. It is NOT
-# the tree that produced them all (see the version note at the top), so
-# use the per-file source_commit below for byte-exact numbers.
-python -m pip install "darwin-memo==0.5.1"
-```
-
-Byte-exact alternative (and the only way to reproduce the numbers exactly,
-per the seed-scheme note above): check out the relevant `source_commit`
-from the table and install the working tree.
-
-```bash
-git checkout v0.5.1          # or the source_commit for the file in question
-python -m pip install -e .
-```
-
-### 2. Offline verification (the reproduction claim)
-
-```bash
-for f in bench/results/*.json; do
-  [ "$(basename "$f")" = MANIFEST.json ] && continue
-  python -m bench.report "$f" --check --require-manifest
-done
-```
-
-Every file prints `PASS: N runs valid`. This is offline: no model, no
-network. It confirms the committed evidence still matches the manifest.
-
-The loop globs rather than naming files on purpose. An earlier version
-listed ten of them, and the omitted set turned out to be exactly the two
-that could not pass, so the check reported success over evidence it was
-not reading. Globbing means a newly committed result file is verified by
-default and a broken one fails loudly instead of being left out.
-
-The SWE-Bench-CL cells carry their own manifest in their own directory:
-
-```bash
-for f in bench/results/swebench_cl/*.json; do
-  [ "$(basename "$f")" = MANIFEST.json ] && continue
-  python -m bench.report "$f" --check --require-manifest
-done
-```
-
-### 3. Re-derive any table
-
-The report's numbers come from these commands (a representative subset; the
-full list is in `docs/benchmarks.md` under Reproduce):
+For other tables, use the existing report tools, for example:
 
 ```bash
 python -m bench.report bench/results/headline.json --tests --fmt md
-python -m bench.report bench/results/headline.json --paired survival evict_on_negative --metric cum_delta
-python -m bench.report bench/results/noisy.json --paired survival evict_consecutive
-python -m bench.report bench/results/testsuite_noisy.json --tests
-python -m bench.report bench/results/bandit.json --paired policy_bandit survival
-python -m bench.report bench/results/judge-llama.json --paired survival judge_settled
-python -m bench.report bench/results/judge-qwen.json  --paired survival judge_settled
-python -m bench.report bench/results/llm-llama.json --paired \
-  survival_llm:model=llama3.2:3b,refuse=off \
-  survival_llm:model=llama3.2:3b,refuse=on --metric cum_delta
+python -m bench.report bench/results/adversary.json --fmt md
+python -m bench.report bench/results/counter_sweep.json --fmt md
 ```
 
-The seeded bootstrap and permutation tests reproduce byte-identically, so a
-rerun of any of these gives the same intervals and p-values.
+The historical manifest records configuration hashes and reproduction commands.
+It is not a full content checksum. The review archive adds content SHA256 values.
+Every storage delta includes a modeled restoration penalty; no physical restore
+cost is established. See [claim scope and audit status](claim-audit.md).
+
+## Rerun the experiments
+
+Use each result's manifest revision and command in an isolated checkout. Preserve
+original files, write reruns elsewhere, and compare metrics with wall times
+excluded. Do not install one release and assume it produced all historical data.
 
 ### 4. Regeneration map
 
@@ -441,3 +382,15 @@ python -m bench.swebench_cl.curve bench/results/swebench_cl
 This is sampled, not byte-reproducible: a frontier endpoint at
 temperature 0 is not a determinism guarantee, and the resolve rate moves
 between identical runs.
+
+## Archive a review snapshot
+
+```bash
+python tools/archive_review.py /tmp/darwin-memo-review.zip
+```
+
+The command refuses an existing archive, includes source and committed evidence,
+and writes a per-file SHA256 manifest plus an archive checksum. It records the
+base revision and whether the working tree contains uncommitted changes. This is
+a local review snapshot, not a published immutable submission. Archive a clean,
+reviewed revision with the selected venue's required materials before submission.

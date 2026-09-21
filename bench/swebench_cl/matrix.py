@@ -110,6 +110,8 @@ def run_cmd(args: argparse.Namespace, arm: str, sequence: str, seed: int) -> lis
         str(args.timeout),
         "--out",
         str(cell_path(args.out_dir, arm, sequence, seed, args.lie_budget)),
+        "--forgiveness",
+        str(args.forgiveness),
         "--lie-budget",
         str(args.lie_budget),
     ]
@@ -122,6 +124,8 @@ def run_cmd(args: argparse.Namespace, arm: str, sequence: str, seed: int) -> lis
         cmd.append("--update-manifest")
     if args.api_key_env:
         cmd += ["--api-key-env", args.api_key_env]
+    if args.memory_budget is not None:
+        cmd += ["--memory-budget", str(args.memory_budget)]
     if args.max_tasks is not None:
         cmd += ["--max-tasks", str(args.max_tasks)]
     if args.seed_poison:
@@ -137,7 +141,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--dataset", type=Path, required=True)
     p.add_argument("--out-dir", type=Path, default=Path("bench/results/swebench_cl"))
-    p.add_argument("--arms", nargs="+", default=sorted(ARMS))
+    p.add_argument("--forgiveness", type=int, default=5)
+    p.add_argument("--memory-budget", type=int, default=None)
+    p.add_argument(
+        "--arms",
+        nargs="+",
+        default=sorted(name for name in ARMS if name != "forgiveness_counter"),
+    )
     p.add_argument("--sequences", nargs="+", default=list(PILOT_SEQUENCES))
     p.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     p.add_argument("--executor", choices=["stub", "docker"], default="docker")

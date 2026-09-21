@@ -70,7 +70,7 @@ export function Trend({ state }: { state: State }) {
             dataKey="tick"
             type="number"
             domain={domain}
-            tick={false}
+            tick={AXIS_TICK}
             axisLine={false}
             tickLine={false}
           />
@@ -91,6 +91,7 @@ export function Trend({ state }: { state: State }) {
         </LineChart>
       </ResponsiveContainer>
 
+      <details><summary>Advanced energy history</summary>
       <div className="label" style={{ marginTop: "var(--space-4)" }}>
         total energy held
       </div>
@@ -116,6 +117,7 @@ export function Trend({ state }: { state: State }) {
         </LineChart>
       </ResponsiveContainer>
 
+      </details>
       {open && (
         <p className="open-note">
           tick {open.tick} is still open &mdash; {open.delta > 0 ? "+" : ""}

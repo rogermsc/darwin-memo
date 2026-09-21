@@ -2,17 +2,17 @@
 \label{sec:regime}
 
 The experiments refuse a one-line verdict, and that refusal is the second
-contribution. Conserved-resource selection is not universally best; it is
+contribution. Outcome-based selection is not universally best; it is
 best in a specific, characterizable regime, and worse outside it. Stating
 that regime precisely is more useful---and more defensible---than a claim
 that the ledger dominates, which our own tables would falsify. The axes
 are ordered by how much they decide: the first two settle the question on
 their own, and the rest are refinements.
 
-\paragraph{Axis 1: Is there a conserved resource at all?}
+\paragraph{Axis 1: Is there a stable, observable outcome?}
 This is the gating precondition, not a tuning choice. The mechanism
-applies only where settlement can be a conserved, physically measured
-quantity: bytes freed, tests passed, issues resolved, spend capped. Where
+requires a stable outcome definition and a known reporting path.
+Passing tests and resolved issues are outcomes, not conserved quantities. Where
 the only signal is a model scoring an answer---chat preference,
 open-ended QA quality, ``helpfulness''---nothing pushes back, upkeep
 would starve the long tail of correct-but-rarely-used knowledge, and the
@@ -58,15 +58,14 @@ failed. \S\ref{sec:axes} states each in full.}
 \inplace{regime-axes}
 
 \paragraph{Summary.}
-Conserved-resource selection is the right curator when (1) a conserved
-resource exists, (2) measurements are noisy in a one-sided way or
+Outcome-based selection is the right curator when (1) a stable
+outcome definition exists, (2) measurements are noisy in a one-sided way or
 corrupted by an adversary, (3) inaction is priced or paired with
 recovery, (4) the deployment runs for several multiples of the upkeep
 time constant, and (5) leanness, complete removal of harmful entries,
 label-free operation, or near-zero settlement cost are required. Outside
 that region a one-line heuristic, a confidence bandit or a quarantine
 policy can match or beat it, and we have shown exactly where---including
-on the one real-task benchmark we ran, where condition (4) failed. The
-property that holds across the entire map is that because settlement is a
-conserved quantity the environment already produces, there is no proxy to
-optimize against, and nothing to hack.
+on the one real-task benchmark we ran, where condition (4) failed. The reporting path remains a trust boundary in every regime; no
+retention rule makes a corrupted report truthful. Deployment cost and
+success preservation require separate controlled evidence.

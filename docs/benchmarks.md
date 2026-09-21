@@ -1,3 +1,12 @@
+> Measurement correction (2026-09-21): `StorageEnv` is a filesystem-backed
+> simulation with the historical modeled restoration penalty `-3 * file size`.
+> It does not measure scratch allocation or physical restoration cost. Passing
+> tests are observable outcomes, not conserved resources. Historical tables and
+> configurations below are preserved; descriptions of physical restoration,
+> universal causal credit, or cost-free settlement are superseded by this notice.
+> Historical replays remain replays. End-to-end cost savings and success
+> noninferiority are not established. See [the claim audit](../paper/claim-audit.md).
+
 # Benchmarks
 
 Every number below was produced by the commands in [Reproduce](#reproduce),

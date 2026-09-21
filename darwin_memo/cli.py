@@ -7,7 +7,7 @@
     darwin-memo ledger FILE OP ...       decide/settle/tick for scripts
     darwin-memo mcp                      serve the memory over MCP stdio
     darwin-memo import SRC DEST          probationary import from another store
-    darwin-memo ui FILE                  local read-only dashboard
+    darwin-memo ui FILE                  local dashboard with operator controls
 
 The demo is self-contained: it carries its own three-document corpus
 (including the poisoned forum post) and runs the survival loop against
@@ -20,11 +20,8 @@ steps, and host-process plugins (built for the OpenClaw memory plugin,
 whose host SDK has no MCP client) get the full decide/settle/tick
 contract without speaking MCP or importing Python. Same rule as
 everywhere else: ``settle`` takes a measured delta, never a grade.
-Invocations against one file must not run concurrently: darwin-memo is
-single-writer. The advisory lock makes two operations that overlap on
-one file fail loudly (``StoreLockedError``) instead of clobbering each
-other silently, but it cannot catch a stale in-memory state saved after
-the other invocation finished, so the contract stays single-writer.
+CLI mutations hold a local POSIX lock across load, change, and save.
+Contending operations must retry from a fresh load.
 """
 
 from __future__ import annotations
@@ -36,6 +33,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from .adoption import register_adoption_commands
 from .ci import add_settle_ci_parser
 from .encode import Document, LocalEncoder, ReflectionEncoder, demo_corpus
 from .environments import StorageEnv
@@ -45,7 +43,7 @@ from .mcp_server import register_mcp_command
 from .observe import economics, read_events, register_observe_commands
 from .protocol import QueryProtocol
 from .render import register_render_command
-from .store import MemoryStore, StoreLockedError
+from .store import MemoryStore, StoreLockedError, store_lock
 from .survival import SurvivalConfig, SurvivalLoop, death_cause
 from .types import EntryKind
 from .ui import cmd_ui
@@ -97,9 +95,9 @@ def cmd_demo(args: argparse.Namespace) -> int:
         'database files are "redundant and safe to remove".\n'
     )
     print(
-        "Running 30 survival cycles against a real temp directory.\n"
-        "Nothing grades the answers; deleting a protected file costs 3x\n"
-        "its size in restore scratch space, and that delta lands on the\n"
+        f"Running {args.cycles} survival cycles against a real temp directory.\n"
+        "Deleting a protected file incurs a modeled penalty of 3x\n"
+        "its size, not measured restoration I/O. That delta lands on the\n"
         "entries that advised it.\n"
     )
 
@@ -294,10 +292,7 @@ def cmd_ledger(args: argparse.Namespace) -> int:
     # Loads use the default lexical retriever; a store built with an
     # embedding retriever keeps its persisted vectors but ranks
     # lexically here (the CLI cannot construct your embedder).
-    # Same event-log convention as the MCP server. Sequential sharing
-    # only: the MCP server holds its ledger in memory and saves after
-    # every call, so running both against one file concurrently means
-    # the server's next save clobbers whatever the CLI wrote.
+    # CLI dispatch holds the store transaction across load and save.
     event_log = path.with_suffix(".events.jsonl")
     if path.exists():
         ledger = Ledger.load(path, resource_scale=args.scale, event_log=event_log)
@@ -339,7 +334,9 @@ def cmd_ledger(args: argparse.Namespace) -> int:
             "silent": not ticket.provenance,
         }
     elif args.ledger_op == "settle":
-        landed = ledger.settle(args.ticket_id, args.delta, detail=args.detail)
+        landed = ledger.settle(
+            args.ticket_id, args.delta, detail=args.detail, source="operator"
+        )
         out = {"settled": landed}
     elif args.ledger_op == "abandon":
         out = {"abandoned": ledger.abandon(args.ticket_id)}
@@ -453,7 +450,7 @@ def _use_utf8_output() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="darwin-memo",
-        description="Self-curating memory for LLM agents.",
+        description="Measured memory for coding agents.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -575,12 +572,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     imp.set_defaults(fn=cmd_import)
 
-    ui = sub.add_parser("ui", help="local read-only dashboard in your browser")
+    ui = sub.add_parser(
+        "ui", help="local dashboard with operator controls in your browser"
+    )
     ui.add_argument("memory")
     ui.add_argument("--port", type=int, default=8787, help="default 8787; 0 picks one")
     ui.add_argument("--no-open", action="store_true", help="do not open a browser")
     ui.set_defaults(fn=cmd_ui)
 
+    register_adoption_commands(sub)
     register_observe_commands(sub)
     register_render_command(sub)
     add_settle_ci_parser(sub)
@@ -588,8 +588,25 @@ def main(argv: list[str] | None = None) -> int:
 
     _use_utf8_output()
     args = parser.parse_args(argv)
-    result: int = args.fn(args)
-    return result
+    path = (
+        getattr(args, "memory", None)
+        if args.command in ("ledger", "settle-ci", "task")
+        else getattr(args, "dest", None)
+        if args.command == "import"
+        else None
+    )
+    try:
+        if path:
+            target = Path(path).expanduser()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with store_lock(target):
+                result: int = args.fn(args)
+        else:
+            result = args.fn(args)
+        return result
+    except (StoreLockedError, ValueError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

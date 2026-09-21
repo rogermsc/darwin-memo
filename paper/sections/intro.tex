@@ -52,20 +52,14 @@ threat quantitative.
 
 This paper operationalizes it, measures six curation mechanisms under it,
 and reports which survive. That requires a curator whose deciding signal
-is not a model's opinion. Our starting observation is that a large and
-practically important class of agent tasks comes with a \emph{conserved,
-physically measurable resource} that already settles value without anyone
-grading anything: a storage-management agent frees or wastes real bytes,
-a coding agent makes a test suite pass or fail, an issue-resolution agent
-resolves a GitHub issue or does not. In each case the environment returns
-a scalar that is \emph{conserved}---you cannot manufacture freed bytes or
-passing tests by being persuasive---and so cannot be hacked by a more
-eloquent memory. The resource is conserved; the channel that
-\emph{reports} it is ordinary software, and \S\ref{sec:whocanlie} says
-who can write to that channel without controlling the resource. Building
-on the environment-mediated selection principle of
-\citet{dodgson2026survival}, we make that scalar the only currency of
-memory survival.
+is not a model's opinion. Our starting observation is that coding tasks can produce observable
+outcomes, such as a fixed evaluation changing from failure to success.
+These outcomes are not physically conserved resources. In our storage
+simulation, file sizes are real but the restoration penalty is modeled.
+The observation and its delivered report are separate: an adversary can
+corrupt the latter without changing the ground-truth record.
+Building on the environment-mediated selection principle of
+\citet{dodgson2026survival}, we study retention driven by this reported scalar.
 
 \paragraph{\textsc{darwin-memo}.}
 Each memory entry carries an \emph{energy} balance. Every cycle, every
@@ -78,10 +72,9 @@ entry's energy crosses zero it is buried. The consequences fall out of the
 dynamics rather than from any rule about quality: trivia nobody consults
 starves on upkeep; a poisoned entry that advises a harmful action is
 \emph{executed by the damage it causes} as the negative delta flows back
-to it; near-duplicate survivors consolidate, pooling energy. There is no
-reward model, no LLM judge, and no human curation anywhere, and because
-settlement is a scalar the environment already returns, it is essentially
-free.
+to it; near-duplicate survivors consolidate, pooling energy. The core retention rule uses no LLM judge. Evaluation and reporting still
+have costs, and associating outcomes with consulted entries does not
+establish that those entries caused the outcome.
 
 \paragraph{The result, and its boundary.}
 Under attack the mechanisms separate cleanly (\S\ref{sec:adversary}), and
@@ -95,7 +88,7 @@ The ledger is not exempt either, and we publish its boundary rather than
 stopping at the win.
 
 \paragraph{What we claim, and what we do not.}
-It would be easy, and wrong, to claim that conserved-resource selection
+It would be easy, and wrong, to claim that outcome-based selection
 dominates all alternatives. It does not, and the failures are not
 marginal: a one-line heuristic matches the ledger on outcomes and, with a
 real model deciding adoption, revokes poison five to nine cycles
@@ -127,7 +120,7 @@ bounded credit buffer with earn-back is what separates the survivors,
 that retention without removal is not a defence, and that every
 mechanism including ours has a boundary, which we locate and publish.
 \item \textbf{A label-free, judge-free curation mechanism} that grounds
-survival in a conserved environmental resource, with credit assignment
+survival driven by reported environmental outcomes, with credit assignment
 along provenance and a formal description (\S\ref{sec:method}).
 \item \textbf{A measured retention attack on usage-based curation},
 closing a second gap the literature names without measuring

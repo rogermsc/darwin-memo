@@ -34,8 +34,9 @@ export function Roster({
   go: (patch: Partial<Nav>) => void;
   select: (id: string | null) => void;
 }) {
-  const [sort, setSort] = useState<Column>("balance");
+  const [sort, setSort] = useState<Column>("uses");
   const [asc, setAsc] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
 
   const rows = useMemo(() => {
     const needle = nav.query.trim().toLowerCase();
@@ -82,7 +83,7 @@ export function Roster({
     <>
       <div className="listhead">
         <h2>
-          Living entries
+          Lessons
           {nav.query && (
             <span className="filtered">
               {rows.length} of {state.entries.length} match “{nav.query}”
@@ -98,10 +99,12 @@ export function Roster({
         />
       </div>
 
+      <label><input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} /> Show advanced energy columns</label>
       <table className="roster">
         <thead>
           <tr>
-            {COLUMNS.map((column) => (
+            <th scope="col">lesson</th>
+            {COLUMNS.filter((column) => advanced || (column.id !== "balance" && column.id !== "ticks_to_starvation")).map((column) => (
               <th key={column.id} scope="col">
                 <button
                   type="button"
@@ -126,7 +129,6 @@ export function Roster({
                 </button>
               </th>
             ))}
-            <th scope="col">entry</th>
           </tr>
         </thead>
         <tbody>
@@ -136,6 +138,7 @@ export function Roster({
               entry={entry}
               selected={entry.id === nav.selected}
               maxEnergy={state.store.max_energy}
+              advanced={advanced}
               onSelect={select}
             />
           ))}
@@ -149,37 +152,18 @@ function Row({
   entry,
   selected,
   maxEnergy,
+  advanced,
   onSelect,
 }: {
   entry: Entry;
   selected: boolean;
   maxEnergy: number;
+  advanced: boolean;
   onSelect: (id: string) => void;
 }) {
   const runway = entry.ticks_to_starvation;
   return (
     <tr className={selected ? "on" : undefined} aria-selected={selected}>
-      {/* data-label carries the column name into the narrow layout, where
-          the header row is hidden and bare numbers would be unreadable. */}
-      <td className="num" data-label="balance">
-        {/* A bar, because 0.85 means nothing without the ceiling. */}
-        <span className="bar" aria-hidden>
-          <i style={{ width: `${Math.max(2, (entry.balance / maxEnergy) * 100)}%` }} />
-        </span>
-        {entry.balance.toFixed(2)}
-      </td>
-      <td
-        className={runway !== null && runway <= 5 ? "num soon" : "num"}
-        data-label="runway"
-      >
-        {entry.pinned ? "—" : runway === null ? "?" : Math.floor(runway)}
-      </td>
-      <td className="num" data-label="uses">
-        {entry.uses}
-      </td>
-      <td className="num" data-label="age">
-        {entry.age_ticks}
-      </td>
       <td>
         <a
           className="entrylink"
@@ -211,6 +195,30 @@ function Row({
           </span>
         </span>
       </td>
+      {/* data-label carries the column name into the narrow layout, where
+          the header row is hidden and bare numbers would be unreadable. */}
+      {advanced && <>
+      <td className="num" data-label="balance">
+        {/* A bar, because 0.85 means nothing without the ceiling. */}
+        <span className="bar" aria-hidden>
+          <i style={{ width: `${Math.max(2, (entry.balance / maxEnergy) * 100)}%` }} />
+        </span>
+        {entry.balance.toFixed(2)}
+      </td>
+      <td
+        className={runway !== null && runway <= 5 ? "num soon" : "num"}
+        data-label="runway"
+      >
+        {entry.pinned ? "—" : runway === null ? "?" : Math.floor(runway)}
+      </td>
+      </>}
+      <td className="num" data-label="uses">
+        {entry.uses}
+      </td>
+      <td className="num" data-label="age">
+        {entry.age_ticks}
+      </td>
+
     </tr>
   );
 }

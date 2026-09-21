@@ -1,6 +1,13 @@
 \section{Experiments}
 \label{sec:experiments}
 
+\paragraph{Measurement scope.}
+Storage experiments use a filesystem-backed simulation. Deletion uses file
+size; protected-file recreation reports the historical modeled penalty of
+$-3\times$ size. This is not measured restoration I/O, disk usage, or money.
+The committed configurations and raw values remain unchanged. Offline
+replays do not establish that memory changes subsequent agent behavior.
+
 \paragraph{Protocol and reproducibility.}
 All synthetic results use a stdlib-only harness with fixed seeds. Each
 $(\text{seed}, \text{cycle})$ world is an independent draw, so the seed is
@@ -15,7 +22,7 @@ commit history where one such prediction is later refuted
 \label{sec:headline}
 On the storage environment (16-entry corpus, 3 entries from a poisoned
 ``files are safe to delete'' source, 30 cycles, 10 seeds) we compare
-conserved-resource selection against five ablation baselines and two
+outcome-based selection against five ablation baselines and two
 outcome-blind controls (Table~\ref{tab:headline}).
 
 \begin{table*}[t]
@@ -25,7 +32,7 @@ outcome-blind controls (Table~\ref{tab:headline}).
 \S\ref{sec:reporting}: \emph{kill} and \emph{alive} are reported
 together throughout, because \emph{kill} alone reads $1.00$ for a
 mechanism that merely never acted on what it kept. \emph{Cum $\Delta$} is
-the cumulative true delta in M bytes, \emph{pop} the final population.
+the cumulative true modeled delta in million byte units, \emph{pop} the final population.
 Survival's wins over keep/random/recency/ttl/salience are all 10/0/0,
 Holm-adjusted $p \le 0.014$.}
 \label{tab:headline}
@@ -148,15 +155,15 @@ Between two and four lies per cycle it breaks---at $b{=}4$ capability
 falls to $0.06$ and the population starves to $1.5$ entries---and past
 that point the never-deleting arms beat it on retention (Holm
 $p = 0.0015$ in the other direction) while still killing no poison. The
-honest statement is a regime, not a victory: the ledger is the only
-mechanism we test that survives a curation-targeted adversary at all, and
-it survives up to roughly one corrupted measurement in six per cycle.
+honest statement is a regime, not a victory: the ledger survives up to roughly one corrupted measurement in six per
+cycle in this grid. The counter sweep below also finds settings that
+retain useful memory under small attack budgets.
 
 \begin{table*}[t]
 \centering
 \tabsize
 \caption{Curation-targeted adversary at $b$ lies per cycle, 30 seeds.
-Cells are mean true cum $\Delta$ (M) / benign capability; $b{=}0$
+Cells are mean true modeled cum $\Delta$ (M) / benign capability; $b{=}0$
 reproduces the deterministic tie in-suite. Survival never loses a seed to
 a counter at $b{\in}\{1,2\}$ (Holm $p = 0.0015$; the lone non-sweep is
 consecutive $k{=}2$ at $b{=}1$, 20 wins with 10 ties); at $b{\ge}4$ it
@@ -229,11 +236,11 @@ consecutive   & .00/1.0 & .00/1.0 & .12/1.0 & \textbf{.98/1.0} & \textbf{1.0/.90
 counter reaches the corner by \emph{not evicting}, which neither
 pre-registered axis prices. Paired over 30 seeds against
 \texttt{consecutive} $k{=}5$, Holm-adjusted across six comparisons, the
-ledger returns more measured resource from a much smaller store at every
+ledger returns more modeled storage outcome from a much smaller store at every
 budget: $+11.66$M from $4.0$ entries against $+9.83$M from $14.9$ at
 $b{=}2$ ($22/1$ seeds, $p = 0.0003$; population $0/30$, $p = 0.0003$),
 and the same ordering at $b \in \{0, 1\}$. The tuned counter buys the
-safety axes at $16\%$ less measured outcome from a store nearly four
+safety axes at $16\%$ less modeled outcome from a store nearly four
 times larger---the trade the SWE-Bench-CL leg found from the other side,
 now measurable in a world where capability also moves.
 
@@ -363,10 +370,10 @@ choice.
 \subsection{Real software-engineering tasks (SWE-Bench-CL): protocol and status}
 \label{sec:swebench}
 The synthetic suites above are well-instrumented but synthetic. To test
-whether conserved-resource selection produces a \emph{learning curve} on
+whether outcome-based selection produces a \emph{learning curve} on
 real tasks, we adopt SWE-Bench-CL \citep{joshi2025swebenchcl,
 jimenez2024swebench}: per-repository continual-learning sequences of
-human-verified GitHub issues, with the conserved resource being the change
+human-verified GitHub issues, with the observable outcome being the change
 in passing-test count from the official evaluation harness. Five arms
 answer the same tasks through the same endpoint and executor, along two
 axes. The memory axis asks whether selection matters at all:
@@ -413,8 +420,9 @@ has beaten no memory at all. We therefore retract the benchmark
 explanation as a defence of the mechanism and keep it only as a
 description of the pilot. What the two matrices jointly establish is
 narrower than what we set out to show and more useful than a second
-ambiguous null: on real software-engineering tasks conserved-resource
-selection buys \emph{leanness} at no measured cost in capability, and
+ambiguous null: on real software-engineering tasks outcome-based
+selection produces a smaller store with no detected capability difference;
+this is not a noninferiority result or evidence of preserved success, and
 buys no measured capability either.
 \pointer{\S\ref{sec:swebench-result} gives both matrices cell by cell.}
 \inplace{experiments-swebench-result}

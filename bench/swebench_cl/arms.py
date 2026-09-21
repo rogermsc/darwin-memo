@@ -52,6 +52,13 @@ class ArmSpec:
 
 
 ARMS: dict[str, ArmSpec] = {
+    "forgiveness_counter": ArmSpec(
+        name="forgiveness_counter",
+        inject="retrieved",
+        mint=True,
+        settle=True,
+        curation="forgiveness",
+    ),
     "memory_on": ArmSpec(name="memory_on", inject="retrieved", mint=True, settle=True),
     "memory_off": ArmSpec(name="memory_off", inject="none", mint=False, settle=False),
     "random_matched": ArmSpec(

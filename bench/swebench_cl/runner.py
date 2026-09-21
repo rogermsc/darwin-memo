@@ -107,7 +107,19 @@ def _lesson_text(entry: MemoryEntry) -> str:
 class LessonMemory:
     """The lesson store plus the arm-dependent selection rule."""
 
-    def __init__(self, arm: ArmSpec, seed: int, config: SurvivalConfig) -> None:
+    def __init__(
+        self,
+        arm: ArmSpec,
+        seed: int,
+        config: SurvivalConfig,
+        forgiveness: int = 5,
+        memory_budget: int | None = None,
+    ) -> None:
+        if forgiveness < 1 or (memory_budget is not None and memory_budget < 0):
+            raise ValueError("Invalid counter threshold or memory budget")
+        self.forgiveness = forgiveness
+        self.memory_budget = memory_budget
+        self.strikes: dict[str, int] = {}
         self.arm = arm
         self.config = config
         self.store = MemoryStore(retriever=LexicalRetriever(LESSON_MIN_COVERAGE))
@@ -126,6 +138,15 @@ class LessonMemory:
         if self.arm.inject == "none":
             return Injection()
         hits = [entry for entry, _ in self.store.retrieve(query, k=k)]
+        if self.memory_budget is not None:
+            remaining = self.memory_budget
+            bounded = []
+            for entry in hits:
+                cost = token_count(_lesson_text(entry))
+                if cost <= remaining:
+                    bounded.append(entry)
+                    remaining -= cost
+            hits = bounded
         budget = sum(token_count(_lesson_text(e)) for e in hits)
         if self.arm.inject == "retrieved":
             return Injection(entries=hits, budget_tokens=budget)
@@ -146,6 +167,16 @@ class LessonMemory:
     def settle(self, injection: Injection, delta: float, tick: int) -> list[str]:
         """Credit the injected lessons with the measured outcome."""
         if not injection.entries:
+            return []
+        if self.arm.curation == "forgiveness":
+            for entry in injection.entries:
+                # Consecutive negative outcomes; a positive resets, zero abstains.
+                if delta > 0:
+                    self.strikes[entry.id] = 0
+                elif delta < 0:
+                    self.strikes[entry.id] = self.strikes.get(entry.id, 0) + 1
+                    if self.strikes[entry.id] >= self.forgiveness:
+                        self.store.bury(entry.id)
             return []
         if self.arm.curation == "evict_negative":
             if delta < 0:
@@ -274,6 +305,8 @@ def run_sequence(
     code_max_files: int = 5,
     seed_poison: bool = False,
     lie_budget: int = 0,
+    forgiveness: int = 5,
+    memory_budget: int | None = None,
 ) -> list[dict[str, Any]]:
     """The pilot loop. Returns one run record per task, in order.
 
@@ -291,7 +324,13 @@ def run_sequence(
     """
     arm = ARMS[arm_name]
     adversary = SettlementAdversary(lie_budget)
-    memory = LessonMemory(arm, seed, SurvivalConfig(resource_scale=RESOURCE_SCALE))
+    memory = LessonMemory(
+        arm,
+        seed,
+        SurvivalConfig(resource_scale=RESOURCE_SCALE),
+        forgiveness,
+        memory_budget,
+    )
     if seed_poison and arm.inject != "none":
         from .poison import poison_lessons
 
@@ -345,7 +384,9 @@ def run_sequence(
                     file=sys.stderr,
                 )
         prompt = build_prompt(task, injection, max_prompt_chars, code_context=code_ctx)
+        call_start = len(getattr(model, "calls", []))
         response = model.complete(prompt, system=SYSTEM_PROMPT)
+        provider_calls = getattr(model, "calls", [])[call_start:]
         if code_context_chars > 0:
             # Edit-based path: the model emits SEARCH/REPLACE blocks and we
             # compute the diff, so hunk line numbers are always correct.
@@ -394,6 +435,10 @@ def run_sequence(
                     # say which world it came from.
                     "seed_poison": seed_poison,
                     "lie_budget": lie_budget,
+                    "forgiveness": forgiveness,
+                    "memory_budget_words": memory_budget,
+                    "max_output_tokens": endpoint.max_tokens,
+                    "endpoint_attempt_limit": endpoint.retries,
                 },
                 "lessons": {
                     "injected": [e.id for e in injection.entries],
@@ -403,6 +448,10 @@ def run_sequence(
                     "minted": minted,
                 },
                 "model": {
+                    "provider_calls": provider_calls,
+                    "usage_status": "provider-reported"
+                    if provider_calls and all(c["usage"] for c in provider_calls)
+                    else "unknown",
                     "prompt_chars": len(prompt),
                     "response_chars": len(response),
                     "patch_chars": len(patch),

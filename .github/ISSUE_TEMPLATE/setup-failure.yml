@@ -1,0 +1,23 @@
+name: Setup or settlement failure
+description: Report a reproducible onboarding or outcome-recording problem.
+title: 'Setup: '
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and versions
+      description: Include Python, darwin-memo, MCP client, OS, and filesystem type. Remove credentials and private repository data.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Command and observed result
+      description: Include the exact command, expected result, exit code, and error output.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Diagnostic evidence
+      description: Include redacted output from darwin-memo doctor MEMORY_PATH --json, task report.json, and base/head logs where relevant. State whether the ticket was pending and which store artifact you used.

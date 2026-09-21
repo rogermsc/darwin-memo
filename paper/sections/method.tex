@@ -30,7 +30,7 @@ regenerated environment, so no entry can overfit a fixed instance. For a
 task, the query protocol returns an answer with a \emph{deciding} entry
 $d$ (possibly $\varnothing$) and a set of \emph{supporting} entries
 $\mathcal{P}$; the environment executes the implied action and returns a
-conserved-resource delta $\Delta \in \mathbb{R}$ (bytes freed, tests
+reported outcome delta $\Delta \in \mathbb{R}$ (bytes freed, tests
 gained). Three forces then act on energy.
 
 \paragraph{(1) Credit along provenance.}
@@ -63,10 +63,9 @@ updated with an upper clip,
   \label{eq:apply}
 \end{equation}
 the lower side left unbounded so that death is decided at upkeep, not
-here. Because $\Delta$ is conserved and measured, not graded, there is no
-proxy between the entry and the world to optimize against: an entry earns
-only by producing outcomes that persist, at which point it is simply
-useful.
+here. The attribution rule associates a task outcome with consulted entries;
+it is not a causal estimator. Test outcomes depend on the evaluation
+and its coverage, and their reports remain vulnerable to corruption.
 
 \paragraph{(2) Upkeep.}
 Existence costs energy. Every cycle, each alive entry pays a fixed
@@ -112,7 +111,7 @@ tasks, and consolidation runs last and only periodically.
   \State $(\text{ans}, d, \mathcal{P}) \gets \textsc{Answer}(\text{store}, \tau)$
     \Comment{retrieval is energy-blind}
   \State $\Delta \gets \mathrm{Env}.\textsc{verify}(\tau, \text{ans})$
-    \Comment{conserved resource delta}
+    \Comment{reported outcome delta}
   \State $c \gets \credit \cdot \tanh(\Delta / \resscale)$
     \Comment{Eq.~\ref{eq:credit}}
   \State apply $\Delta E_d, \Delta E_{j\in\mathcal{P}}$ via Eq.~\ref{eq:provenance}--\ref{eq:apply};
@@ -133,16 +132,18 @@ No rule in Algorithm~\ref{alg:cycle} refers to correctness, safety or
 quality; the three death modes are emergent. \emph{Starvation}: an entry
 never retrieved earns nothing and decays at rate $\upkeep$ per cycle.
 \emph{Execution}: a poisoned entry that wins a query drives a harmful
-action, the environment measures the damage---in the storage environment
-deleting a protected file triggers a restore costing $3\times$ its size,
-so the negative delta is itself physical---and that negative $c(\Delta)$
+action. In the filesystem-backed storage simulation, deleting a protected
+file recreates that file and reports a modeled penalty of $3\times$ its
+size; no restoration scratch space or physical I/O cost is measured.
+That negative $c(\Delta)$
 flows back along provenance until the entry crosses the floor.
-\emph{Merging}: near-duplicate survivors pool into one. The mechanism is
-robust to lying measurements because credit is bounded
-(Eq.~\ref{eq:credit}) and replenished by earning: an entry sitting near
-$\Emax$ absorbs roughly $\Emax/\credit \approx 8$ maximal false negatives
-before dying and refills the buffer whenever it wins, which a fixed
-strike counter cannot do.
+\emph{Merging}: near-duplicate survivors pool into one. Bounded credit provides
+a finite buffer against false reports (Eq.~\ref{eq:credit}). Ignoring upkeep,
+an entry near $\Emax$ needs roughly $\Emax/\credit \approx 8$ maximal false
+negatives to reach the floor; upkeep reduces that tolerance. Positive reported
+outcomes can replenish the buffer. This is not a robustness guarantee: a
+sufficiently large corruption budget defeats it, and a forgiveness counter can
+also reset after positive outcomes. The experiments compare those boundaries.
 
 \subsection{Trust lifecycle (optional)}
 For adversarial imports, entries may enter on \emph{probation}
@@ -153,23 +154,18 @@ a single negative \emph{deciding} outcome denies admission outright). Both
 default off and recover the base dynamics exactly; they are detailed in
 the threat model and used only where stated.
 
-\subsection{Who can lie to a conserved resource}
+\subsection{Who can corrupt outcome reports}
 \label{sec:whocanlie}
 
-The premise of this paper is that a conserved resource cannot be talked
-into paying out: no memory entry frees bytes by being persuasive. That
-invites the obvious objection to the attack we then measure---if the
-resource is real, who corrupts it, and would an adversary capable of
-doing so not already own the machine? The objection dissolves once the
-resource and the \emph{report} of it are separated, and keeping them
-separate is the whole of the threat model. Selection never touches the
-resource; it reads a number some process wrote down, in a JUnit XML file,
-a process exit code, a pull-request body, a metrics endpoint, a billing
-export. Conservation is a property of the world, but the settlement
-channel is ordinary software, and its write permissions are almost never
-the same set as ``can change the true resource''.
+We separate the ground-truth outcome from the report delivered to the
+curator. The attacker changes only the delivered feedback within a stated
+budget. The unchanged truth record scores useful-memory loss and harmful
+decisions. A JUnit report, process exit code, or metrics export is software
+output with its own access controls; calling it measured does not authenticate
+it. Direct control of the store or evaluator is outside this constrained
+feedback-corruption model and permits stronger attacks.
 
-\paragraph{The CI lesson store, concretely.} Our primary target
+\paragraph{The historical CI lesson store.} The earlier integration for our target
 (\S\ref{sec:regime}) settles a coding agent's lessons against test
 outcomes: a merged pull request's pass-count delta pays the lessons that
 advised it. Three parties write to that channel without any of them
@@ -183,17 +179,21 @@ delta whose sign they choose. Our implementation refuses any id already
 pending in the base commit for exactly this reason, and reports
 \texttt{ticket\_provenance: unverified} when given no base to check
 against---a defence that exists because the attack is reachable by
-opening a pull request, which is the intended way to use the system.
+opening a pull request. The development GitHub/pytest profile instead binds a
+ticket to repository, task, base commit, fixed evaluation, and run identity;
+added tests earn no credit, and the recommended MCP configuration reserves
+settlement for the host. These controls reduce accidental misattribution but
+do not protect a store or evaluator that an attacker can rewrite directly.
 \pointer{\S\ref{sec:cichannel} works all three through.}
 \inplace{method-ci-channel}
 
-\paragraph{Why this is a weaker precondition than compromise.} None of
-the three requires code execution on the runner, a stolen credential, or
-any write to the memory store itself. They require the ability to open a
-pull request. That is the gap between our threat model and the
-write-time and retrieval-time models of the memory-security literature
-(\S\ref{sec:related}): those defences read \emph{content} and assume the
-adversary must get text into the store, while this one needs only to
+\paragraph{Access assumptions.} The historical routes have different access
+requirements: ticket substitution requires control of accepted pull-request
+metadata, while evaluation changes require accepted code changes. Opening a
+pull request alone does not guarantee either route reaches settlement.
+Our controlled threat model grants alteration of delivered feedback under a
+specified budget, without rewriting stored lessons. Unlike attacks that require
+inserting lesson content (\S\ref{sec:related}), this attacker needs to
 influence a number about work that genuinely happened. The adversary in
 our experiments is weaker still---it observes the sign of the true delta
 and nothing else. The same separation holds wherever settlement is

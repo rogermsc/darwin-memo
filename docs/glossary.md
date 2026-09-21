@@ -51,7 +51,7 @@ more rounds, however long those take.
 provenance of that answer.
 
 **Settle** — the outcome is known, so credit flows along the ticket's
-provenance. `delta` is a measurement of a conserved resource, never a
+provenance. `delta` is a reported observable outcome, never a
 grade.
 
 **Abandon** — you did not act on the answer, so there is no outcome to
@@ -136,7 +136,8 @@ signal there is.
 one a measurement produced. Possible from the dashboard, recorded as
 `source: "operator"` everywhere it appears, and flagged by `doctor` once
 such settlements outweigh measured ones. The distinction exists because a
-store curated by hand is no longer being selected by a conserved resource.
+source label describes the reporting path; neither operator input nor a
+legacy measured label establishes independent verification.
 
 **Event log** — the JSONL sidecar next to the store, rotated at 10 MB. The
 audit trail behind `audit` and the dashboard.

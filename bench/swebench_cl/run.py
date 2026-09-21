@@ -81,6 +81,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         api_key=os.environ.get(args.api_key_env, "") if args.api_key_env else "",
         max_tokens=args.max_tokens,
         timeout=args.timeout,
+        audit_path=str(args.out.with_suffix(".calls.jsonl")),
     )
     executor: StubExecutor | DockerExecutor
     if args.executor == "docker":
@@ -103,6 +104,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         code_max_files=args.code_max_files,
         seed_poison=args.seed_poison,
         lie_budget=args.lie_budget,
+        forgiveness=args.forgiveness,
+        memory_budget=args.memory_budget,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": runs}, indent=2))
@@ -139,7 +142,12 @@ def _reproduction_command(args: argparse.Namespace) -> str:
         f"--executor {args.executor}",
         f"--seed {args.seed}",
         f"--lie-budget {args.lie_budget}",
+        f"--forgiveness {args.forgiveness}",
     ]
+    if args.memory_budget is not None:
+        parts.append(f"--memory-budget {args.memory_budget}")
+    parts.append(f"--max-tokens {args.max_tokens}")
+    parts.append(f"--timeout {args.timeout}")
     if args.seed_poison:
         parts.append("--seed-poison")
     # Retrieval and endpoint: silent defaults that change the experiment.
@@ -215,6 +223,13 @@ def main(argv: list[str] | None = None) -> int:
         "--api-key-env",
         default="",
         help="environment variable holding the endpoint API key (frontier runs)",
+    )
+    run.add_argument("--forgiveness", type=int, default=5)
+    run.add_argument(
+        "--memory-budget",
+        type=int,
+        default=None,
+        help="maximum memory whitespace words; not provider tokens",
     )
     run.add_argument("--max-tokens", type=int, default=1024)
     run.add_argument("--timeout", type=float, default=600.0)

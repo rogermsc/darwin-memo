@@ -22,8 +22,16 @@ export default function App() {
     async (action: WriteAction, body: Record<string, unknown>, said: string) => {
       setBusy(true);
       try {
-        await write(action, body);
-        setFlash({ text: said });
+        const result = await write(action, body);
+        const outcome = result.outcome;
+        const rejected = result.pinned === false || result.unpinned === false ||
+          result.settled === false || result.released === false ||
+          (typeof outcome === "string" && outcome !== "buried");
+        setFlash({
+          text: rejected ? `${action}: ${outcome ?? "nothing changed; the target is no longer eligible"}` :
+            typeof outcome === "string" ? `${action}: ${outcome}` : said,
+          bad: rejected,
+        });
         await refresh();
       } catch (caught) {
         setFlash({
